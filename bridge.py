@@ -43,7 +43,10 @@ from erg import Erg, load_workouts
 from ftptest import RampTest
 from ghost import Ghost
 import bests
+import cp as cp_mod
+import focus
 import live
+import session
 import routes
 import rider
 from bless import BlessServer, GATTAttributePermissions as Perm, GATTCharacteristicProperties as Prop
@@ -329,6 +332,16 @@ class Bridge:
         self.route_started = None    # wall-clock time the route began, for its ghost
         self.grace_grade = None      # grade at the last auto-shift grace period
         self.auto.enabled = not args.no_auto
+        self.focus = None            # today's focus: a cadence range and a watt range (focus.py), from the coach plan
+        self.focus_track = focus.Tracker()
+        self.focus_checked = 0.0
+        self.wbal = None             # W' balance, live (cp.py)
+        self.wbal_ftp = None
+        self.session = None          # today's session on this route: climb goals, efforts, part-route focus (session.py)
+        self.climb_rec = None        # every climb on the route, recorded
+        self.session_out = None      # what the session asked for this second (cue, pace)
+        self.session_gear = None     # the gear from before an effort shifted, to hand back
+        self._applied = None         # the (rpm, watts) ranges last given to auto-shift by the session
         self.erg = Erg()
         self.workouts = load_workouts(Path(__file__).resolve().parent / "workouts")
         self.bike_sims = True        # assume hill simulation works until the bike says otherwise
@@ -389,6 +402,10 @@ class Bridge:
                 "level": r.resistance, "gear": self.gear, "hill_shift": round(self.hill_shift),
                 "auto": self.auto.enabled and not self.erg.on, "auto_last": self.auto.last_action,
                 "climbing": self.auto.climbing, "band": [self.auto.low, self.auto.high],
+                "focus": self.focus_track.status(self.focus, r.cadence, r.power, self.auto.limited) if self.focus else None,
+                "wbal": self.wbal.status() if self.wbal else None,
+                "session": ({"cue": (self.session_out or {}).get("cue", ""), "pace": (self.session_out or {}).get("pace"),
+                             **self.session.status()} if self.session else None),
                 "erg": self.erg.target, "erg_source": self.erg.source,
                 "ftp": self.profile["ftp"], "ftp_source": self.profile["ftp_source"],
                 "test": self.test.status(time.monotonic()) if self.test else None,
@@ -443,6 +460,7 @@ class Bridge:
                 self.route_ride = routes.RouteRide(routes.load(st["route"]["id"]), st["route"]["offset"])
                 self.route_started = st["route"]["started"] + paused
                 self.ghost.use_route(st["route"]["id"])
+                self.start_session(self.route_ride.route, resumed=True)
             except (OSError, ValueError, KeyError):
                 pass
         gap = int(time.time() - st.get("saved_at", time.time()))
@@ -807,7 +825,46 @@ class Bridge:
     def climbing(self, on):
         """Panel / menu button: stays on until turned off."""
         self.auto.set_climbing(on)
-        self.event(f"Climbing mode {'on: 30-45 rpm' if on else 'off: back to 65-80 rpm'}")
+        lo, hi = self.auto.normal_band
+        self.event(f"Climbing mode {'on: 30-45 rpm' if on else f'off: back to {lo:.0f}-{hi:.0f} rpm'}")
+
+    def refresh_focus(self, force=False):
+        """Today's focus from the coach plan (checked every minute: a plan can be set mid-day, and the day
+        and FTP can change). Applies it to auto-shift and notes it in the ride's events."""
+        now = time.monotonic()
+        if not force and now - self.focus_checked < 60:
+            return
+        self.focus_checked = now
+        if self.wbal is None or self.wbal_ftp != self.profile["ftp"]:
+            try:                                     # CP and W' for the live balance (again when FTP changes)
+                e = cp_mod.estimate(cp_mod.best_curve(Path(self.csv_path).parent), self.profile["ftp"])
+                bal = self.wbal.bal / self.wbal.w if self.wbal else 1.0
+                self.wbal = cp_mod.WBal(e["cp"], e["w_prime"])
+                self.wbal.bal = self.wbal.w * bal
+                self.wbal_ftp = self.profile["ftp"]
+            except Exception as ex:
+                log.warning(f"W' balance: {ex}")
+        levels = None
+        try:
+            import coach, morning, skills
+            d = coach.load(coach.file_for(Path(self.csv_path).parent))
+            plan = d["plans"].get(coach.today()) or {}
+            mo = morning.assess(morning.load(Path(self.csv_path).parent.parent)) or {}
+            levels = skills.levels_for(d, skills.step_today(d, coach.today(), mo.get("level")))   # the skill ladders
+        except Exception as e:                   # a broken coach file mustn't stop the ride
+            log.warning(f"focus: couldn't read the coach plan ({e})")
+            plan = {}
+        self.focus_levels = levels
+        f = focus.resolve(plan.get("focus"), self.profile["ftp"], (self.args.cadence_low, self.args.cadence_high),
+                          plan.get("verdict"), levels)
+        if f != self.focus:
+            first = self.focus is None
+            self.focus = f
+            self.auto.set_focus(f["rpm"], f["watts"])
+            self._applied = None                     # a session segment in progress re-applies its own ranges
+            if not first:
+                self.focus_track.reset()
+            self.event(f"Focus - {focus.label(f)}")
 
     def erg_set(self, watts):
         """From the panel: hold a wattage, or None to go back to hills."""
@@ -862,10 +919,12 @@ class Bridge:
                    f"{s['km']} km, {s['climb_m']} m of climbing")
         self.ghost.use_route(route.id)
         self.ghost_name = None
+        self.start_session(route)
         self.feed_route()
 
     def route_stop(self, why="stopped"):
         if self.route_ride:
+            self.end_session()
             self.event(f"Route {why}: {self.route_ride.route.name}")
             self.route_ride = self.route_fed = self.route_started = None
             self.ghost.route_id, self.ghost.match, self.ghost.points = None, None, []
@@ -886,6 +945,114 @@ class Bridge:
         if grade != self.route_fed:
             self.route_fed = grade
             self.hill_to_level(grade)
+
+    # ── sessions on a route: climb goals, efforts, part-route focus; every climb recorded ──
+    def start_session(self, route, resumed=False):
+        at = self.route_ride.along(self.ride.vdistance) if (resumed and self.route_ride) else 0.0
+        self.climb_rec = session.ClimbRecorder(route, start_at=at)
+        self.session, self.session_out, self.session_gear, self._applied = None, None, None, None
+        try:
+            import coach
+            plan = coach.load(coach.file_for(Path(self.csv_path).parent))["plans"].get(coach.today()) or {}
+            ses = plan.get("session") or {}
+            if ses.get("route_id") != route.id:
+                return
+            segs = session.check(route, ses["segments"])
+        except Exception as e:                     # a bad session mustn't stop the ride
+            self.event(f"Session not loaded: {e}")
+            return
+        rpm = tuple(self.focus["rpm"]) if self.focus else (self.args.cadence_low, self.args.cadence_high)
+        self.session = session.Runner(route, segs, self.profile["ftp"], self.ride.mass,
+                                      lambda f: focus.resolve(f, self.profile["ftp"], rpm, None, getattr(self, "focus_levels", None)),
+                                      start_at=at)
+        if resumed:                                # what was done before the interruption still counts
+            try:
+                f = Path(self.csv_path).with_name(Path(self.csv_path).stem + "_session.json")
+                self.session.results = json.loads(f.read_text()).get("results", [])
+            except (OSError, ValueError):
+                pass
+        self.event(f"Session on this route: " + "; ".join(s["name"] for s in segs))
+
+    def session_tick(self):
+        rr, r = self.route_ride, self.ride
+        if not rr:
+            return
+        t, d = time.monotonic(), rr.along(r.vdistance)
+        if self.climb_rec:
+            rec = self.climb_rec.update(t, d, r.power, r.cadence, r.road_kmh() / 3.6, self.gear)
+            if rec:
+                self.save_climb(rec)
+        if not self.session:
+            return
+        out = self.session.update(t, d, r.power, r.cadence, r.grade)
+        for m in self.session.log:
+            self.event("Session: " + m)
+        self.session.log.clear()
+        base = self.focus or {"rpm": [self.args.cadence_low, self.args.cadence_high], "watts": None}
+        rpm, watts = out["rpm"] or base["rpm"], out["watts"] if out["watts"] is not None else base["watts"]
+        want = (tuple(rpm), tuple(watts) if watts else None)
+        if want != self._applied:
+            self.auto.set_focus(rpm, watts)
+            self.auto.watt_hold = 5 if out["watts"] else 15      # a goal in progress steers sooner
+            self._applied = want
+        if out["shift_to_watts"]:
+            if self.session_gear is None:
+                self.session_gear = self.gear
+            self.gear_for_watts(*out["shift_to_watts"])
+        if out["restore_gear"] and self.session_gear is not None:
+            if self.session_gear != self.gear:
+                self.shift(self.session_gear - self.gear, "Session: back to your gear")
+            self.session_gear = None
+        self.session_out = out
+        if self.session.results:
+            self.save_session()
+
+    def gear_for_watts(self, watts, cadence):
+        """Shift straight into the gear that makes `watts` at `cadence` on this road - the way a rider clicks
+        up three gears at the foot of an effort instead of one at a time."""
+        base = (self.hill_level if self.hill_level is not None else self.flat_level()) + self.hill_shift
+        target = round(session.level_for(watts, cadence) - base)
+        if target != self.gear:
+            self.shift(target - self.gear, f"Session: gear for {watts:.0f} W at {cadence:.0f} rpm")
+            self.auto.manual_shift()                 # let the legs meet the new gear before judging it
+
+    def save_climb(self, rec):
+        rr = self.route_ride
+        rec = {"date": dt.date.today().isoformat(), "ride": Path(self.csv_path).stem, "route_id": rr.route.id,
+               "route": rr.route.name, **rec}
+        f = Path(self.csv_path).parent / "climbs.json"
+        try:
+            have = json.loads(f.read_text()) if f.exists() else []
+        except ValueError:
+            have = []
+        have.append(rec)
+        tmp = f.with_suffix(".tmp"); tmp.write_text(json.dumps(have, indent=1)); tmp.replace(f)
+        m, sec = divmod(rec["seconds"], 60)
+        self.event(f"Climb {rec['n']} ({rec['length_m'] / 1000:.2f} km at {rec['avg_grade']}%): {m}:{sec:02d}, "
+                   f"{rec['avg_w']} W, {rec['avg_rpm']} rpm, {rec['vam']} m/h up")
+
+    def save_session(self):
+        if not (self.session and self.route_ride):
+            return
+        f = Path(self.csv_path).with_name(Path(self.csv_path).stem + "_session.json")
+        data = {"route_id": self.route_ride.route.id, "route": self.route_ride.route.name,
+                "segments": [{k: v for k, v in s.items() if k in ("type", "name", "start_m", "end_m", "at_m", "seconds",
+                              "count", "on_s", "off_s", "watts", "rpm")} for s in self.session.segs],
+                "results": self.session.results}
+        tmp = f.with_suffix(".tmp"); tmp.write_text(json.dumps(data, indent=1)); tmp.replace(f)
+
+    def end_session(self):
+        if self.session:
+            self.save_session()
+            self.event("Session over: " + (", ".join(
+                f"{x['name']} {'made' if x.get('made') is True else ('%d/%d' % (x['made'], len(x['efforts'])) if x['type'] == 'efforts' else 'missed')}"
+                for x in self.session.results) or "nothing reached"))
+        if self.session_gear is not None and self.session_gear != self.gear:
+            self.shift(self.session_gear - self.gear, "Session: back to your gear")
+        self.session = self.climb_rec = self.session_out = self.session_gear = None
+        if self.focus:
+            self.auto.set_focus(self.focus["rpm"], self.focus["watts"])
+        self.auto.watt_hold, self._applied = 15, None
 
     def feed_ghost(self):
         r = self.ride
@@ -1153,14 +1320,18 @@ class Bridge:
     async def run_sensors(self):
         """The watch-facing sensors update once a second, like real ones."""
         last_print = 0.0
+        self.refresh_focus(force=True)
         while True:
             await asyncio.sleep(1)
             r = self.ride
             r.tick()
+            self.refresh_focus()
             self.feed_route()
             self.feed_ghost()
             if self.bike and self.bike.is_connected:
                 now = time.monotonic()
+                if self.wbal and r.cadence >= 20:
+                    self.wbal.add(r.power)
                 if self.test:
                     self.ftp_test_tick(now, r.power, r.cadence)
                 if self.erg.on:
@@ -1174,7 +1345,10 @@ class Bridge:
                         self.event("ERG workout finished: back to hills")
                         self.set_level(self.hill_level + self.hill_shift + self.gear, "Hills")
                 else:
+                    self.session_tick()
                     self.auto.update(r.cadence, power=r.power)
+                    if self.focus:
+                        self.focus_track.add(self.focus, r.cadence, r.power)
             self.push(CPS, CP_MEAS, r.cycling_power())
             self.push(CSC, CSC_MEAS, r.speed_cadence())
             for key, char, who in (("power", CP_MEAS, "Watch power"), ("cadence", CSC_MEAS, "Watch speed/cadence"),

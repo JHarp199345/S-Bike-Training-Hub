@@ -307,6 +307,18 @@ async def handle(bridge, method, path, body, host):
             return 400, "application/json", json.dumps({"error": str(e)}).encode(), {}
         _load_cache["key"] = None
         return 200, "application/json", json.dumps({"phase": phase}).encode(), {}
+    if p == "/api/morning":
+        import morning
+        base = Path(bridge.csv_path).parent.parent if getattr(bridge, "csv_path", None) else HERE
+        if method == b"POST":
+            try:
+                have = morning.record(base, json.loads(body or b"{}").get("days"))
+            except (ValueError, TypeError, AttributeError) as e:
+                return 400, "application/json", json.dumps({"error": str(e)}).encode(), {}
+            _load_cache["key"] = None
+            return 200, "application/json", json.dumps({"today": morning.assess(have), "days": len(have)}).encode(), {}
+        have = morning.load(base)
+        return 200, "application/json", json.dumps({"today": morning.assess(have), "days": have}).encode(), {}
     if p == "/api/steps":
         import loads
         base = Path(bridge.csv_path).parent.parent if getattr(bridge, "csv_path", None) else HERE
@@ -374,6 +386,48 @@ async def handle(bridge, method, path, body, host):
         return 200, "application/json", json.dumps(ideas.IDEAS).encode(), {}
     if p == "/api/routes":
         return 200, "application/json", json.dumps(routes.list_routes()).encode(), {}
+    if p.startswith("/api/route/") and p.endswith("/climbs") and method == b"GET":
+        import session
+        try:
+            r = routes.load(p.split("/")[3])
+        except (OSError, ValueError, IndexError):
+            return 404, "application/json", b'{"error":"no such route"}', {}
+        from bridge import virtual_speed
+        ftp, mass = bridge.profile["ftp"], getattr(getattr(bridge, "ride", None), "mass", 126.6)
+        rides_dir = Path(bridge.csv_path).parent if getattr(bridge, "csv_path", None) else HERE / "rides"
+        try:
+            hist = [c for c in json.loads((rides_dir / "climbs.json").read_text()) if c["route_id"] == r.id]
+        except (OSError, ValueError):
+            hist = []
+        cl = session.climbs(r)
+        import coach, skills
+        d_ = coach.load(coach.file_for(rides_dir))
+        factor = skills.LADDERS["climbing"]["levels"][skills.state(d_)["climbing"]["level"]]["goal_factor"]
+        import cp as cp_mod
+        cpw = cp_mod.estimate(cp_mod.best_curve(rides_dir), ftp)
+        for c in cl:
+            v = lambda w: virtual_speed(w, c["avg_grade"], mass)
+            c["estimate_s"] = {k: round(c["length_m"] / v(f * ftp)) for k, f in (("easy", 0.6), ("steady", 0.75), ("hard", 0.9))}
+            mine = [h["seconds"] for h in hist if h["n"] == c["n"]]
+            c["best_s"], c["rides"] = (min(mine) if mine else None), len(mine)
+            c["goal_s"] = round(c["best_s"] * factor) if c["best_s"] else c["estimate_s"]["steady"]   # the climb-pace step
+            c["fastest_s"] = cp_mod.fastest_climb(c["length_m"], c["avg_grade"], mass, cpw["cp"], cpw["w_prime"])
+            if c["fastest_s"] and c["goal_s"] < c["fastest_s"]:
+                c["goal_s"] = c["fastest_s"]                   # never a goal your W' can't cover
+        return 200, "application/json", json.dumps({"id": r.id, "name": r.name, "stats": r.stats(), "ftp": ftp,
+                                                    "goal_factor": factor, "cp": cpw["cp"], "w_prime": cpw["w_prime"],
+                                                    "climbs": cl}).encode(), {}
+    if p == "/api/climbs" and method == b"GET":
+        from urllib.parse import parse_qs, urlsplit
+        q = parse_qs(urlsplit(path).query)
+        rides_dir = Path(bridge.csv_path).parent if getattr(bridge, "csv_path", None) else HERE / "rides"
+        try:
+            have = json.loads((rides_dir / "climbs.json").read_text())
+        except (OSError, ValueError):
+            have = []
+        if q.get("route_id"):
+            have = [c for c in have if c["route_id"] == q["route_id"][0]]
+        return 200, "application/json", json.dumps({"climbs": have[-int((q.get("limit") or ["200"])[0]):]}).encode(), {}
     if p.startswith("/api/route/") and method == b"GET":
         try:
             r = routes.load(p.rsplit("/", 1)[1])
@@ -382,6 +436,8 @@ async def handle(bridge, method, path, body, host):
         return 200, "application/json", json.dumps(route_json(r)).encode(), {}
     if p == "/api/plan" and method == b"POST":
         return await plan(body)
+    if p == "/api/plan/area" and method == b"POST":
+        return await plan_area(bridge, body)
     if p == "/api/route/save" and method == b"POST":
         req = json.loads(body or b"{}")
         r = _candidates.get(int(req.get("cid", 0)))
@@ -439,6 +495,63 @@ async def plan(body):
     while len(_candidates) > 40:                              # keep memory bounded
         _candidates.pop(next(iter(_candidates)))
     return 200, "application/json", json.dumps(out).encode(), {}
+
+
+def today_focus(bridge):
+    """Today's focus (focus.py) at the current FTP: the bridge's own if it's running, else from the coach plan."""
+    import coach, focus
+    if getattr(bridge, "focus", None):
+        return bridge.focus
+    rides = Path(bridge.csv_path).parent if getattr(bridge, "csv_path", None) else HERE / "rides"
+    plan_ = coach.load(coach.file_for(rides))["plans"].get(coach.today()) or {}
+    d = coach.load(coach.file_for(rides))
+    return focus.resolve(plan_.get("focus"), bridge.profile["ftp"], (65, 80), plan_.get("verdict"), skill_levels(d)[0])
+
+
+async def plan_area(bridge, body):
+    """Area mode: loops inside a circle, judged for today's focus and a ride length in minutes.
+    {center: [lat, lon], radius_km, minutes, focus?} - no center: the last area drawn on the planner."""
+    import areaplan, focus, planner
+    try:
+        req = json.loads(body or b"{}")
+        if req.get("center"):
+            centre, radius = tuple(float(x) for x in req["center"]), float(req.get("radius_km", 5))
+        else:
+            last = areaplan.last_area()
+            if not last:
+                return 400, "application/json", b'{"error":"no area yet - circle one on the planner first"}', {}
+            centre, radius = last[0], float(req.get("radius_km") or last[1])
+        radius = max(1.0, min(40.0, radius))
+        minutes = max(15.0, min(240.0, float(req.get("minutes", 45))))
+        f = today_focus(bridge)
+        if req.get("focus"):
+            f = focus.resolve(focus.check(req["focus"]), bridge.profile["ftp"], tuple(f["rpm"]) if f else (65, 80))
+        terrain = areaplan.Terrain.of(bridge) if hasattr(bridge, "args") else areaplan.Terrain()
+        areaplan.save_area(None, centre, radius)
+        found = await asyncio.get_running_loop().run_in_executor(
+            None, lambda: areaplan.plan_area(centre, radius, minutes, f, terrain))
+    except planner.PlannerError as e:
+        return 422, "application/json", json.dumps({"error": str(e)}).encode(), {}
+    except (KeyError, ValueError, TypeError, focus.BadFocus) as e:
+        return 400, "application/json", json.dumps({"error": f"bad request: {e}"}).encode(), {}
+    out = []
+    for r, j in found:
+        cid = next(_cid)
+        _candidates[cid] = r
+        out.append({**route_json(r, cid), "fit": j})
+    while len(_candidates) > 40:
+        _candidates.pop(next(iter(_candidates)))
+    best = found[0][1]["score"] if found else 0
+    longest = max((j["minutes"] for _, j in found), default=0)
+    if found and longest < 0.75 * minutes:
+        note = (f"The circle's too small for {minutes:.0f} min - the longest loop inside it is {longest} min. "
+                f"Make the circle bigger, or ride one again when it finishes (about {max(2, round(minutes / max(longest, 1)))} times).")
+    else:
+        note = ("" if best >= 0.8 else
+            f"This area is a stretch for {f['name'].lower()}: " + ("it's hilly for an easy day - a flatter area would suit it better."
+                                                                   if f["key"] != "grit" else "a hillier area would give more steady climbing."))
+    return 200, "application/json", json.dumps({"focus": f, "center": list(centre), "radius_km": radius,
+                                                "minutes": minutes, "note": note, "routes": out}).encode(), {}
 
 
 RIDE_RE = __import__("re").compile(r"ride_[0-9_\-]{10,30}")
@@ -572,10 +685,85 @@ def with_systems(day_json, base):
         order = {"go": 0, "easy": 1, "rest": 2, None: -1}
         c = day_json.get("checkin") or {}
         final = max([r["verdict"], c.get("verdict")], key=lambda v: order[v])
-        return {**day_json, "systems": r, "headline": st.get("headline"), "verdict": final,
+        return {**day_json, "systems": r, "headline": st.get("headline"), "morning": st.get("morning"), "verdict": final,
                 "zones": {x: st["systems"][x]["zone"] for x in loads.SYSTEMS}}
     except Exception as e:
         return {**day_json, "systems_error": str(e)}
+
+
+def skill_levels(d, day_json=None):
+    """Today's step on each skill ladder (one down on a day the watch or the check-in says easy), and the step."""
+    import coach, skills
+    mo = (day_json or {}).get("morning") or {}
+    step = skills.step_today(d, (day_json or {}).get("date") or coach.today(), mo.get("level"))
+    return skills.levels_for(d, step), step
+
+
+def with_focus(day_json, bridge, d=None):
+    """The day's focus resolved to ranges at the current FTP (on the rider's skill ladders), the presets, the ladders."""
+    import coach, focus, skills
+    plan = day_json.get("plan") or {}
+    ftp = bridge.profile["ftp"]
+    band = (getattr(bridge.args, "cadence_low", 65), getattr(bridge.args, "cadence_high", 80)) if hasattr(bridge, "args") else (65, 80)
+    if d is None:
+        rides = Path(bridge.csv_path).parent if getattr(bridge, "csv_path", None) else HERE / "rides"
+        d = coach.load(coach.file_for(rides))
+    levels, step = skill_levels(d, day_json)
+    return {**day_json, "focus": focus.resolve(plan.get("focus"), ftp, band, plan.get("verdict"), levels),
+            "focus_presets": {k: focus.resolve(k, ftp, band, None, levels) for k in focus.PRESETS},
+            "skills": skills.summary(d, step)}
+
+
+def done_by_day(base):
+    """What was actually done each day (watch activities and bike rides): {date: [{sport, minutes}]}."""
+    try:
+        st = load_state(base)
+    except Exception:
+        return {}
+    out = {}
+    for a in st.get("activities", []):
+        out.setdefault(a["date"], []).append({"sport": a["sport"], "minutes": round(a["minutes"])})
+    return out
+
+
+def calibration_view(d, rides, running_cleared_in=None):
+    """The capacities (calibration.py) and which tests are coming due. Also checks benchmark runs for the block."""
+    import calibration, coach
+    try:
+        st = load_state(rides.parent)
+        est = st.get("calibration_estimates") or {}
+        # benchmark runs on the plan: taken well (the two mornings after) -> the block may grow
+        acts = {a["date"]: a for a in st.get("activities", []) if a["sport"] == "run"}
+        rem = ((st.get("systems") or {}).get("impact", {}).get("tissue") or {}).get("remodeling") or {}
+        for day, plan_ in d.get("plans", {}).items():
+            if plan_.get("test") == "benchmark_run" and day in acts and rem.get("reference_points"):
+                if calibration.block_test(d, day, acts[day]["impact"], d.get("checkins", {}), rem["reference_points"]):
+                    coach.save(d); _load_cache["key"] = None
+        return {"capacities": est, "due": calibration.due(est, running_cleared=(running_cleared_in == 0)),
+                "next_test_week": calibration.next_test_week(d)}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def evaluate_skills(bridge, d, rides):
+    """Move the skill ladders on what's happened (the rides, climb goals, and whether running is cleared)."""
+    import coach, loads, skills
+    try:
+        st = load_state(rides.parent)
+        run = loads.readiness(st, (d["checkins"].get(coach.today()) or {}))["running"]["verdict"] if st.get("systems") else None
+        last_run = max((a["date"] for a in st.get("activities", []) if a["sport"] == "run"), default=None)
+        changes = skills.evaluate(d, rides, run, last_run)
+    except Exception as e:
+        return [{"error": str(e)}]
+    if changes:
+        coach.save(d)
+        for c in changes:
+            if hasattr(bridge, "event"):
+                bridge.event(f"Skill {'up' if c['to'] > c['from'] else 'down'}: {skills.LADDERS[c['skill']]['name']} "
+                             f"step {c['to'] + 1} - {c['step']} ({c['why']})")
+        if hasattr(bridge, "refresh_focus"):
+            bridge.refresh_focus(force=True)
+    return changes
 
 
 async def import_activities(base, urls):
@@ -623,7 +811,20 @@ async def coach_api(bridge, method, path, p, body):
         if not __import__("re").fullmatch(r"\d{4}-\d{2}-\d{2}", date):
             return js({"error": "date is YYYY-MM-DD"}, 400)
         if p == "/api/coach/today":
-            return js({**with_systems(coach.day(d, date), rides.parent), "test_steps": coach.TEST_STEPS, "ftp": bridge.profile["ftp"],
+            evaluate_skills(bridge, d, rides)
+            lr = coach.last_ride(rides)
+            if lr:
+                lr["rpe"] = (d["ratings"].get(lr["id"]) or {}).get("rpe")
+            try:
+                rem = (load_state(rides.parent)["systems"]["impact"]["tissue"] or {}).get("remodeling") or {}
+                cleared = rem.get("cleared_to_run_in_days")
+            except Exception:
+                cleared = None
+            cal = calibration_view(d, rides, cleared)
+            return js({**with_focus(with_systems(coach.day(d, date), rides.parent), bridge, d), "last_ride": lr,
+                       "events": coach.upcoming(d, date, cleared), "week": coach.week(d, date, done_by_day(rides.parent)),
+                       "calibration": cal,
+                       "rpe_words": coach.RPE_WORDS, "test_steps": coach.TEST_STEPS, "ftp": bridge.profile["ftp"],
                        "verdicts": coach.VERDICTS, "workouts": [{"id": w.get("id"), "name": w["name"]} for w in bridge.workouts]})
         if p == "/api/coach/history":
             days = int((q.get("days") or ["30"])[0])
@@ -643,9 +844,119 @@ async def coach_api(bridge, method, path, p, body):
             coach.save(d)
             return js({"ok": True, "steps": coach.TEST_STEPS})
         if p == "/api/coach/plan" and method == b"POST":
-            coach.set_plan(d, date, req.get("verdict"), req.get("note"), req.get("workout"))
+            import focus
+            try:
+                coach.set_plan(d, date, req.get("verdict"), req.get("note"), req.get("workout"), req.get("focus"),
+                               req.get("sport"), req.get("minutes"))
+            except (focus.BadFocus, ValueError, TypeError) as e:
+                return js({"error": str(e)}, 400)
             coach.save(d)
-            return js(with_systems(coach.day(d, date), rides.parent))
+            if hasattr(bridge, "refresh_focus"):
+                bridge.refresh_focus(force=True)            # a new focus reaches the bike right away
+            return js(with_focus(with_systems(coach.day(d, date), rides.parent), bridge))
+        if p == "/api/coach/rate" and method == b"POST":
+            ride = req.get("ride") or (coach.last_ride(rides) or {}).get("id")
+            if not ride:
+                return js({"error": "no ride to rate yet"}, 400)
+            r = coach.rate(d, ride, req.get("rpe"))
+            coach.save(d)
+            bridge.event(f"Effort rating: {ride} felt {r['rpe']}/10 ({coach.RPE_WORDS[r['rpe']]})") if hasattr(bridge, "event") else None
+            return js({"ride": ride, **r})
+        if p == "/api/coach/test" and method == b"POST":
+            import calibration
+            try:
+                plan_ = calibration.schedule(d, date, req.get("test"))
+            except ValueError as e:
+                return js({"error": str(e)}, 400)
+            coach.save(d)
+            if hasattr(bridge, "refresh_focus"):
+                bridge.refresh_focus(force=True)
+            return js({"date": date, "plan": plan_})
+        if p == "/api/coach/testweek" and method == b"POST":
+            import calibration
+            try:
+                monday = req.get("monday") or calibration.next_test_week(d)
+                cal = calibration_view(d, rides)
+                due = [t["test"] for t in cal.get("due", [])] or None
+                days = calibration.plan_test_week(d, monday, due)
+            except ValueError as e:
+                return js({"error": str(e)}, 400)
+            coach.save(d)
+            return js({"monday": monday, "days": days})
+        if p == "/api/calibration" and method == b"POST":
+            import calibration
+            try:
+                if req.get("t400") is not None:
+                    import cp as cp_mod
+                    note = f"400 m in {req['t400']} s, 200 m in {req['t200']} s"
+                    e = calibration.record(d, "swim_css", calibration.css_from_times(req["t400"], req["t200"]), "test",
+                                           req.get("date"), note)
+                    e["d_prime"] = calibration.record(d, "swim_dprime", cp_mod.swim_d_prime(req["t400"], req["t200"]),
+                                                      "test", req.get("date"), note)["value"]
+                else:
+                    e = calibration.record(d, req.get("capacity"), req.get("value"), req.get("kind", "manual"),
+                                           req.get("date"), req.get("note", ""))
+            except (ValueError, TypeError, KeyError) as e2:
+                return js({"error": str(e2)}, 400)
+            coach.save(d)
+            _load_cache["key"] = None
+            return js({"recorded": e})
+        if p == "/api/coach/event" and method == b"POST":
+            if req.get("remove"):
+                gone = coach.remove_event(d, req["remove"]); coach.save(d)
+                return js({"removed": gone, "events": coach.upcoming(d)})
+            try:
+                ev = coach.add_event(d, req.get("date"), req.get("name") or "Event", req.get("kind", "race"),
+                                     req.get("sport", "bike"), req.get("note"))
+            except ValueError as e:
+                return js({"error": str(e)}, 400)
+            coach.save(d)
+            return js({"added": ev, "events": coach.upcoming(d)})
+        if p == "/api/coach/skill" and method == b"POST":
+            import skills
+            try:
+                ev = skills.set_level(d, req.get("skill"), int(req.get("level", 1)) - 1,
+                                      req.get("why") or "set by the coach")
+            except (ValueError, TypeError) as e:
+                return js({"error": str(e)}, 400)
+            coach.save(d)
+            if hasattr(bridge, "refresh_focus"):
+                bridge.refresh_focus(force=True)
+            return js({"changed": ev, "skills": skills.summary(d)})
+        if p == "/api/coach/session" and method == b"POST":
+            import session
+            rid = req.get("route_id")
+            segs = req.get("segments")
+            p_ = d["plans"].setdefault(date, {})
+            if not segs:
+                p_.pop("session", None)
+            else:
+                try:
+                    r = routes.load(rid)
+                    clean = session.check(r, segs)
+                except (OSError, ValueError) as e:
+                    return js({"error": str(e) if isinstance(e, session.BadSession) else f"no route {rid!r}"}, 400)
+                p_["session"] = {"route_id": r.id, "route": r.name, "segments": clean}
+                import cp as cp_mod
+                cpw = cp_mod.estimate(cp_mod.best_curve(rides), bridge.profile["ftp"])
+                mass = getattr(getattr(bridge, "ride", None), "mass", 126.6)
+                warnings = []
+                for sg in clean:
+                    if sg["type"] == "climb_time":
+                        g_ = (r.elevation_at(sg["end_m"]) - r.elevation_at(sg["start_m"])) / max(sg["end_m"] - sg["start_m"], 1) * 100
+                        w_ = session.watts_for((sg["end_m"] - sg["start_m"]) / sg["seconds"], g_, mass)
+                        f_ = cp_mod.feasible(w_, sg["seconds"], cpw["cp"], cpw["w_prime"])
+                        if not f_["ok"]:
+                            fast = cp_mod.fastest_climb(sg["end_m"] - sg["start_m"], g_, mass, cpw["cp"], cpw["w_prime"])
+                            warnings.append(f"{sg['name']}: {f_['note']} - about {fast // 60}:{fast % 60:02d} is doable" if fast else f"{sg['name']}: {f_['note']}")
+                    elif sg["type"] == "efforts":
+                        f_ = cp_mod.feasible(sg["watts"], sg["on_s"], cpw["cp"], cpw["w_prime"])
+                        if not f_["ok"]:
+                            warnings.append(f"{sg['name']}: {f_['note']}")
+                p_["session"]["warnings"] = warnings
+            p_["updated"] = __import__("datetime").datetime.now().isoformat(timespec="minutes")
+            coach.save(d)
+            return js({"date": date, "session": p_.get("session")})
         if p == "/api/coach/split/rebalance" and method == b"POST":
             return js({"minutes": coach.rebalance([float(m) for m in req["minutes"]], int(req["index"]),
                                                   float(req["value"]), float(req["total"]))})

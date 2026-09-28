@@ -291,6 +291,11 @@ def score(a, prof, k_hr):
     tr = trimp(a["records"], prof["hr_rest"], prof["hr_max"])
     ptss = power_tss(a["records"], prof["ftp"]) if a["sport"] == "bike" else None
     engine = ptss if ptss is not None else tr * k_hr
+    css = prof.get("swim_css")
+    if a["sport"] == "swim" and css and a["distance_m"] >= 100 and a["minutes"] > 0:
+        pace = a["minutes"] * 60 / (a["distance_m"] / 100)                # s per 100 m
+        engine = a["minutes"] / 60 * (css / pace) ** 3 * 100                # swim TSS: hours x (CSS / pace)^3 x 100
+        ptss = engine
     impact = muscle = 0.0
     km = a["distance_m"] / 1000
     if a["sport"] in ("run", "walk"):
@@ -370,7 +375,8 @@ def analyse(acts, prof, today=None, meta=None, feet_reports=None, daily_steps=No
                        "start": dt.datetime.fromtimestamp(a["start"]).strftime("%H:%M"),
                        "minutes": round(a["minutes"], 1), "km": round(a["distance_m"] / 1000, 2),
                        **{x: round(s[x], 1) for x in SYSTEMS},
-                       "engine_from": "watts" if s["power_tss"] is not None else "heart rate"})
+                       "engine_from": ("swim pace vs CSS" if a["sport"] == "swim" else "watts") if s["power_tss"] is not None
+                                      else "heart rate"})
     if not scored:
         return {"activities": [], "days": [], "today": None}
     first = min(dt.date.fromisoformat(s["date"]) for s in scored)
@@ -433,7 +439,7 @@ def analyse(acts, prof, today=None, meta=None, feet_reports=None, daily_steps=No
     systems["impact"]["tissue"] = damage.model([r["date"] for r in days], [r["impact"]["load"] for r in days],
                                                   u_imp, prof["weight_kg"], feet_reports,
                                                   run_doses=[r["sports"].get("run", {}).get("impact", 0.0) for r in days],
-                                                  walking=walking)
+                                                  walking=walking, block=prof.get("block_points"))
     if systems["impact"]["tissue"]:
         systems["impact"]["tissue"]["walking"] = {k: v for k, v in walking.items() if k != "steps"}
     if systems["impact"]["tissue"]:
@@ -520,6 +526,10 @@ def readiness(state, checkin=None):
                 level, why = "easy", [f"{x} was at {max(recent)}x its usual in the last week - still settling"]
         elif s["last7"] and s["prev7"] and s["last7"] > 1.5 * s["prev7"]:
             level, why = "easy", [f"{x} load up {round(s['last7'] / s['prev7'], 1)}x on last week"]
+        mo = state.get("morning")
+        if x == "engine" and mo and mo["level"] != "go":           # the watch overnight: HRV, resting HR, sleep
+            level = max(level, mo["level"], key=lambda v: order[v])
+            why += ["this morning: " + w for w in mo["why"]]
         report = {"engine": checkin.get("breathing"), "impact": checkin.get("feet"), "muscle": checkin.get("legs")}[x]
         if report is not None:
             if report >= 8:
@@ -534,6 +544,10 @@ def readiness(state, checkin=None):
     limiting = [names[x] for x in bike if out[x]["level"] == worst and worst != "go"]
     run_level = max((out[x]["level"] for x in ("impact", "muscle")), key=lambda v: order[v])
     run_why = out["impact"]["why"] + (out["muscle"]["why"] if out["muscle"]["level"] != "go" else [])
+    mo = state.get("morning")
+    if mo and mo["level"] == "rest":
+        run_level = "rest"
+        run_why = run_why + ["this morning: " + w for w in mo["why"]]
     run_how = {
         "rest": "Skip running today. Recheck the recent response and how your feet feel tomorrow; use the bike or pool if comfortable.",
         "easy": "Keep it flat and short: try 1 minute of easy jogging, 2 minutes walking, for about 10 minutes. Stop if discomfort builds and check again tomorrow.",
@@ -624,4 +638,37 @@ def summary(base, today=None):
                         for day, c in checkins.items() if c.get("feet") is not None or c.get("legs") is not None}
     except (OSError, ValueError, TypeError):
         feet_reports = {}
-    return analyse(acts, prof, today, meta, feet_reports, load_steps(base))
+    try:                                        # calibrated capacities (calibration.py) feed the scoring
+        import calibration, coach, rider
+        d = coach.load(base / "coach.json")
+        est = calibration.all_estimates(d, rider.load(base / "profile.json"), base / "rides",
+                                        (today or dt.date.today()).isoformat())
+        if est["swim_css"]["value"] and est["swim_css"]["source"] != "model":
+            prof["swim_css"] = est["swim_css"]["value"]
+        if est["block"]["value"] and "test" in (est["block"]["source"] or ""):
+            prof["block_points"] = est["block"]["value"]
+    except Exception:
+        est = None
+    try:                                        # power and heart rate together, ride by ride (aerobic.py)
+        import aerobic
+        aero = aerobic.summary(acts, today=today)
+    except Exception:
+        aero = None
+    out = analyse(acts, prof, today, meta, feet_reports, load_steps(base))
+    out["aerobic"] = aero
+    try:                                        # how the sports carry over to each other (transfer.py)
+        import transfer
+        out["transfer"] = transfer.analyse(out.get("days", []), acts, (aero or {}).get("rides"),
+                                           coach.load(base / "coach.json")["checkins"])
+    except Exception as e:
+        out["transfer"] = {"error": str(e)}
+    rem = ((out.get("systems") or {}).get("impact", {}).get("tissue") or {}).get("remodeling") or {}
+    if est and not est["block"]["value"] and rem.get("reference_points"):
+        est["block"].update(value=round(rem["reference_points"] * damage.STEPS_1000LB_PER_POINT), source="first runs",
+                            confidence=0.3)
+    elif est and est["block"]["value"]:
+        est["block"]["value"] = round(est["block"]["value"] * damage.STEPS_1000LB_PER_POINT)   # shown in 1,000-lb steps
+    out["calibration_estimates"] = est
+    import morning
+    out["morning"] = morning.assess(morning.load(base), today)
+    return out

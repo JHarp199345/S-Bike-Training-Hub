@@ -74,7 +74,7 @@ def walking_day(steps, pts_per_step, severity, before, habitual_steps=HABITUAL_S
             "points": counted * pts_per_step}
 
 
-def remodeling_response(dates, doses, usual_week=None, weight_kg=70.0, feet_reports=None, walking=None):
+def remodeling_response(dates, doses, usual_week=None, weight_kg=70.0, feet_reports=None, walking=None, block=None):
     """Provisional blocks: 5 days/block plateau, 3 days/block decline (to 20%), then a ~4-month remodeling tail.
     walking: {"steps": {date: steps walked outside runs}, "pts_per_step", "severity", "habitual_steps"} - daily
     walking adds blocks above the allowance; it extends the plateau (5 days/block) instead of restarting it."""
@@ -103,6 +103,8 @@ def remodeling_response(dates, doses, usual_week=None, weight_kg=70.0, feet_repo
     first = [doses[i] for i in impacts[:3]]
     reference = max(base_capacity(usual_week,weight_kg)*7/3,
                     statistics.median(first) if first else 0,1)*(1+credit)
+    if block:                          # a calibrated block (benchmark runs taken well: calibration.py) replaces it
+        reference = max(float(block), 1.0)
 
     def adjust(j,stop):
         observations = [(k-j,reports[dates[k]]) for k in range(j+1,min(stop,len(dates)))
@@ -239,14 +241,14 @@ def run(doses, base, p, adapt_gain=ADAPT_GAIN):
     return out
 
 
-def model(dates, doses, usual_week=None, weight_kg=70.0, feet_reports=None, run_doses=None, walking=None):
+def model(dates, doses, usual_week=None, weight_kg=70.0, feet_reports=None, run_doses=None, walking=None, block=None):
     """dates: consecutive ISO days; doses: impact points per day. Returns each tissue's backlog today,
     its history, and a no-more-running projection."""
     if not dates:
         return None
     doses = list(doses)
     remodeling = remodeling_response(dates, run_doses if run_doses is not None else doses, usual_week, weight_kg,
-                                     feet_reports, walking)
+                                     feet_reports, walking, block)
     event = event_response(dates, doses, usual_week, weight_kg, remodeling)
     base = base_capacity(usual_week, weight_kg)
     n = len(dates)

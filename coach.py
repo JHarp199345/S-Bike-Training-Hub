@@ -43,6 +43,7 @@ def load(path):
         d = {}
     d.setdefault("checkins", {})
     d.setdefault("plans", {})
+    d.setdefault("ratings", {})           # ride id -> {"rpe": 1-10, "at": ...}: how hard the rider said it was
     d["_path"] = str(path)
     return d
 
@@ -131,8 +132,32 @@ def verdict(d, date):
     return ["go", "easy", "rest"][level], why
 
 
-def set_plan(d, date, verdict_=None, note=None, workout=None):
+SPORTS = ("ride", "swim", "run", "walk", "gym", "test", "rest", "other")
+
+
+def set_plan(d, date, verdict_=None, note=None, workout=None, focus_=None, sport=None, minutes=None):
+    """focus_: a focus.PRESETS key or a custom {name, rpm, watts|pct}; "" clears it back to the default.
+    sport + minutes: the day's marker on the calendar (e.g. swim, 60) - what to do and for how long."""
+    import focus
     p = d["plans"].setdefault(date, {})
+    if sport is not None:
+        if sport not in SPORTS and sport != "":
+            raise ValueError(f"sport is one of {', '.join(SPORTS)}")
+        if sport:
+            p["sport"] = sport
+        else:
+            p.pop("sport", None)
+    if minutes is not None:
+        m = int(minutes)
+        if not 0 <= m <= 600:
+            raise ValueError("minutes is 0-600")
+        p["minutes"] = m
+    if focus_ is not None:
+        f = focus.check(focus_)
+        if f is None:
+            p.pop("focus", None)
+        else:
+            p["focus"] = f
     if verdict_ is not None:
         if verdict_ not in VERDICTS:
             raise ValueError("verdict is go, easy or rest")
@@ -143,6 +168,109 @@ def set_plan(d, date, verdict_=None, note=None, workout=None):
         p["workout"] = workout or None
     p["updated"] = dt.datetime.now().isoformat(timespec="minutes")
     return p
+
+
+# ── dates to plan backward from ──────────────────────────────────────────────
+EVENT_KINDS = ("test", "race", "goal")
+
+
+def add_event(d, date, name, kind="race", sport="bike", note=""):
+    """A date to plan toward: an FTP test, a race, a goal. Returns it (with an id)."""
+    import re
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(date)):
+        raise ValueError("date is YYYY-MM-DD")
+    if kind not in EVENT_KINDS:
+        raise ValueError(f"kind is one of {', '.join(EVENT_KINDS)}")
+    if sport not in ("bike", "run", "swim", "tri", "other"):
+        raise ValueError("sport is bike, run, swim, tri or other")
+    ev = {"id": f"{date}-{re.sub(r'[^a-z0-9]+', '-', str(name).lower()).strip('-')[:30]}", "date": str(date),
+          "name": str(name)[:80], "kind": kind, "sport": sport, "note": str(note or "")[:300]}
+    d.setdefault("events", [])
+    d["events"] = [e for e in d["events"] if e["id"] != ev["id"]] + [ev]
+    return ev
+
+
+def remove_event(d, eid):
+    before = len(d.get("events", []))
+    d["events"] = [e for e in d.get("events", []) if e["id"] != eid]
+    return len(d["events"]) < before
+
+
+def upcoming(d, today=None, running_cleared_in=None):
+    """Events from today on, soonest first, each with days to go and what that means for the days before it."""
+    today = dt.date.fromisoformat(today) if isinstance(today, str) else (today or dt.date.today())
+    out = []
+    for e in sorted(d.get("events", []), key=lambda e: e["date"]):
+        n = (dt.date.fromisoformat(e["date"]) - today).days
+        if n < 0:
+            continue
+        notes = []
+        if e["kind"] == "test":
+            notes.append("test day - fresh legs, full warm-up" if n == 0 else
+                         "easy rides only from here: the test needs fresh legs" if n <= 2 else
+                         f"train normally for {n - 2} more day{'s' if n - 2 != 1 else ''}, then 2 easy days: nothing hard in the last 48 h")
+        elif e["kind"] == "race":
+            taper = {"run": 3, "bike": 3, "swim": 2, "tri": 7}.get(e["sport"], 3)
+            if n == 0:
+                notes.append("race day")
+            elif n <= taper:
+                notes.append(f"taper: easy and short until race day (last {taper} days)")
+            else:
+                notes.append(f"last hard session by {(dt.date.fromisoformat(e['date']) - dt.timedelta(days=taper + 2)).isoformat()}, "
+                             f"then {taper} days of taper")
+            if e["sport"] in ("run", "tri") and running_cleared_in is not None:
+                if running_cleared_in > n:
+                    notes.append(f"heads-up: the load model has running cleared in about {running_cleared_in} days - "
+                                 f"{running_cleared_in - n} days after this. Walk it, or walk-jog it at the running-return step.")
+                else:
+                    notes.append(f"running clears about {n - running_cleared_in} days before it - time to climb the running-return ladder")
+        out.append({**e, "days": n, "notes": notes})
+    return out
+
+
+RPE_WORDS = {1: "very easy", 2: "easy", 3: "comfortable", 4: "steady", 5: "working", 6: "hard-ish", 7: "hard",
+             8: "very hard", 9: "near max", 10: "all out"}
+
+
+def rate(d, ride, rpe):
+    """The rider's one-tap effort rating for a ride (1-10, how hard the whole ride felt)."""
+    import re
+    if not re.fullmatch(r"ride_[0-9_\-]{10,30}", ride or ""):
+        raise ValueError("ride is an id like ride_2026-09-28_0949")
+    rpe = int(rpe)
+    if not 1 <= rpe <= 10:
+        raise ValueError("rpe is 1-10")
+    d["ratings"][ride] = {"rpe": rpe, "at": dt.datetime.now().isoformat(timespec="minutes")}
+    return d["ratings"][ride]
+
+
+def last_ride(rides_dir, min_seconds=300):
+    """The latest ride with at least five minutes of pedalling: {id, date, minutes}."""
+    import csv
+    for p in sorted(Path(rides_dir).glob("ride_*.csv"), reverse=True):
+        if p.stem.count("_") != 2:
+            continue                                  # _events / _session / _report files
+        try:
+            with open(p, newline="") as f:
+                secs = {row["time"] for row in csv.DictReader(f) if float(row.get("cadence_rpm") or 0) > 20}
+        except (OSError, ValueError, KeyError):
+            continue
+        if len(secs) >= min_seconds:
+            return {"id": p.stem, "date": p.stem[5:15], "minutes": round(len(secs) / 60)}
+    return None
+
+
+def week(d, date, done=None):
+    """Monday-Sunday around `date`: each day's plan (sport, minutes, note, verdict) and what was done (done: {date: [...]})."""
+    day0 = dt.date.fromisoformat(date)
+    mon = day0 - dt.timedelta(days=day0.weekday())
+    out = []
+    for i in range(7):
+        k = (mon + dt.timedelta(days=i)).isoformat()
+        p = d["plans"].get(k) or {}
+        out.append({"date": k, "sport": p.get("sport"), "minutes": p.get("minutes"), "note": p.get("note"),
+                    "verdict": p.get("verdict"), "done": (done or {}).get(k, [])})
+    return out
 
 
 def day(d, date):

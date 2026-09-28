@@ -57,6 +57,50 @@ def main():
     a, c, g = rider_rule(); s = run(a, c, [75] * 20 + [62] * 12)
     check(f"under 65: easier {s}", s and s[0][1] == -1)
     a, c, g = fresh(limit=(0, 0)); check("at the gear limit: no phantom shifts", run(a, c, [75] * 20 + [60] * 40) == [] and g[0] == 0)
+
+    # ── the day's focus: steer the watts inside the cadence range ─────────────
+    def ride(a, clk, gear, secs, cadence, base=90.0, per_gear=12.0, grade_w=0.0):
+        """A simple bike: watts = (base + per_gear x gear + the hill) x cadence / 75."""
+        shifts = []
+        for _ in range(secs):
+            clk.t += 1
+            cad = cadence(clk.t) if callable(cadence) else cadence
+            w = (base + per_gear * gear[0] + grade_w) * cad / 75
+            r = a.update(cad, power=w)
+            if r: shifts.append((int(clk.t), r))
+        return shifts, (base + per_gear * gear[0] + grade_w) * (cadence(clk.t) if callable(cadence) else cadence) / 75
+    a, clk, gear = fresh(); a.set_focus((65, 80), (101, 135))
+    sh, w = ride(a, clk, gear, 120, 76)
+    check(f"easy spinning at 76 rpm, 91 W: harder gears until the watts are in range ({w:.0f} W after {sh})",
+          101 <= w <= 135 and all(d == 1 for _, d in sh) and sh[0][0] >= 15)
+    sh2, w2 = ride(a, clk, gear, 120, 76)
+    check(f"...then it leaves the gear alone ({sh2})", sh2 == [])
+    a, clk, gear = fresh(); a.set_focus((65, 80), (101, 135)); gear[0] = 3
+    sh, w = ride(a, clk, gear, 120, 76, grade_w=60)
+    check(f"a climb pushes the watts over the range: easier gears ({sh}, {w:.0f} W)", sh and all(d == -1 for _, d in sh) and w <= 135)
+    a, clk, gear = fresh(limit=(0, 99)); a.set_focus((65, 80), (101, 135))
+    sh, w = ride(a, clk, gear, 60, 72, grade_w=120)
+    check(f"a climb steeper than the range at the easiest gear: it says so ({a.limited}, {w:.0f} W)", a.limited == "easiest" and w > 135)
+    a, clk, gear = fresh(); a.set_focus((65, 80), (101, 135))
+    sh, _ = ride(a, clk, gear, 60, 68)
+    check(f"watts short but the legs only at 68 rpm (no room to slow): no harder gear ({sh})", sh == [])
+    a, clk, gear = fresh(); a.set_focus((65, 80), (101, 135)); gear[0] = 2
+    sh, _ = ride(a, clk, gear, 30, lambda t: 60)
+    check(f"cadence first: under the cadence range it shifts easier even with the watts short ({sh})", sh and sh[0][1] == -1)
+    a, clk, gear = fresh(); a.set_focus((65, 80), (101, 135))
+    sh, _ = ride(a, clk, gear, 40, lambda t: 76 if t % 60 < 50 else 76, base=90, grade_w=0)
+    surge = fresh(); surge[0].set_focus((65, 80), (101, 135)); sg = surge[2]
+    s3, _ = ride(surge[0], surge[1], sg, 30, 76, base=90, grade_w=0)
+    check("a short dip under the range (under 15 s) doesn't shift", not [x for x in s3 if x[0] < 15])
+    g, gclk, ggear = fresh(); g.set_focus((50, 65), (137, 162))
+    check("a grit day moves the cadence range to 50-65", (g.low, g.high) == (50, 65))
+    sh, w = ride(g, gclk, ggear, 150, 58, base=110, per_gear=14)
+    check(f"grit at 58 rpm: harder gears up into 137-162 W ({w:.0f} W)", 137 <= w <= 162)
+    g.set_climbing(True); check("climbing mode still swaps in 30-45 rpm", (g.low, g.high) == (30, 45))
+    g.set_climbing(False); check("...and back to the day's range after", (g.low, g.high) == (50, 65))
+    n, nclk, ngear = fresh(); n.set_focus((65, 80), None)
+    sh, _ = ride(n, nclk, ngear, 90, 76)
+    check(f"'cadence only': no watt range, a steady rider isn't given harder gears ({sh})", sh == [])
     print("ALL PASS" if ok else "SOME FAILED"); return ok
 
 

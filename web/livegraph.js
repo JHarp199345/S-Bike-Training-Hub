@@ -2,8 +2,8 @@
 // Used by the Mac panel and the Pixel ride view:
 //   const g = new LiveGraph(canvas, {window: 600});  g.start();  (polls /history once a second)
 //
-// Watts are bars coloured by power zone (% of FTP), cadence is a line with the
-// auto-shift band marked, grade is a strip along the bottom, and every shift
+// Watts are bars coloured by power zone (% of FTP) over today's watt range (shaded),
+// cadence is a line with the auto-shift band marked, grade is a strip along the bottom, and every shift
 // is a tick with its new gear. Hover or touch shows the numbers at that moment.
 const ZONES = [ // Coggan power zones, as a fraction of FTP
   [0.55, '#6b7280', 'Z1 recovery'], [0.75, '#3b82f6', 'Z2 endurance'], [0.90, '#22c55e', 'Z3 tempo'],
@@ -17,7 +17,7 @@ export function zoneOf(watts, ftp) {
 export class LiveGraph {
   constructor(canvas, opts = {}) {
     this.c = canvas; this.window = opts.window || 600; this.compact = !!opts.compact;
-    this.pts = []; this.last = 0; this.ftp = 180; this.band = [65, 80]; this.hover = null; this.skew = 0;
+    this.pts = []; this.last = 0; this.ftp = 180; this.band = [65, 80]; this.watts = null; this.hover = null; this.skew = 0;
     this.show = {cadence: true, grade: true, gear: true, speed: false, ...(opts.show || {})};
     const at = e => { const r = this.c.getBoundingClientRect(); this.hover = (e.touches ? e.touches[0].clientX : e.clientX) - r.left; this.draw(); };
     canvas.addEventListener('mousemove', at); canvas.addEventListener('touchmove', at, {passive: true});
@@ -31,7 +31,7 @@ export class LiveGraph {
   async poll() {
     try {
       const j = await (await fetch('/history?since=' + this.last)).json();
-      this.ftp = j.ftp || this.ftp; this.band = j.band || this.band;
+      this.ftp = j.ftp || this.ftp; this.band = j.band || this.band; this.watts = j.watts || null;
       this.skew = j.now - Date.now() / 1000;                       // Mac clock vs this device's
       for (const p of j.points) if (!this.pts.length || p[0] > this.pts[this.pts.length - 1][0]) this.pts.push(p);
       if (this.pts.length) this.last = this.pts[this.pts.length - 1][0];
@@ -58,11 +58,19 @@ export class LiveGraph {
     const Yw = w => y1 - w / maxW * (y1 - y0), Yr = r => y1 - Math.min(r, 130) / 130 * (y1 - y0);
     g.font = `${this.compact ? 10 : 11}px -apple-system,Roboto,sans-serif`; g.textBaseline = 'middle';
     // grid: watts on the left, rpm on the right
+    const taken = this.watts ? this.watts.map(Yw) : [];      // the focus range's own labels win where they'd collide
     for (const f of [0.5, 0.75, 1.0]) {
-      const y = Yw(this.ftp * f); g.strokeStyle = f === 1 ? 'rgba(234,179,8,.55)' : 'rgba(255,255,255,.08)';
+      const y = Yw(this.ftp * f);
+      if (f !== 1 && taken.some(t => Math.abs(t - y) < 11)) continue;
+      g.strokeStyle = f === 1 ? 'rgba(234,179,8,.55)' : 'rgba(255,255,255,.08)';
       g.setLineDash(f === 1 ? [4, 4] : []); g.beginPath(); g.moveTo(x0, y); g.lineTo(x1, y); g.stroke(); g.setLineDash([]);
       g.fillStyle = f === 1 ? '#eab308' : '#8b98a8'; g.textAlign = 'right';
       g.fillText(f === 1 ? 'FTP' : Math.round(this.ftp * f), x0 - 4, y);
+    }
+    if (this.watts) {                    // today's focus: the watt range, shaded (the cadence range is the dotted lines)
+      const [lo, hi] = this.watts; g.fillStyle = 'rgba(74,222,128,.12)'; g.fillRect(x0, Yw(hi), x1 - x0, Yw(lo) - Yw(hi));
+      g.fillStyle = '#4ade80'; g.textAlign = 'right'; g.fillText(hi, x0 - 4, Yw(hi));
+      if (Yw(lo) - Yw(hi) >= 11) g.fillText(lo, x0 - 4, Yw(lo));     // a thin range on a small graph: just the top
     }
     if (this.show.cadence) {
       for (const r of this.band) { const y = Yr(r); g.strokeStyle = 'rgba(147,197,253,.25)'; g.setLineDash([2, 4]);

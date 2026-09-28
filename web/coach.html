@@ -16,6 +16,14 @@
  .systems{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
  .sys{background:#0f141b;border-radius:12px;padding:10px}.sys b{display:block;font-size:13px;color:#b7c1cd}.sys span{display:block;font-size:20px;font-weight:900}
  .sys small{display:block;color:#8b98a8;font-size:12px;margin-top:2px}
+ .weekstrip{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:6px}
+ .wd{background:#151b23;border-radius:12px;padding:8px 6px;text-align:center;font-size:12px;color:#b7c1cd;cursor:pointer;min-width:0}
+ .wd b{display:block;font-size:22px;margin:2px 0}.wd.today{outline:2px solid #60a5fa}.wd .dn{font-weight:700;color:#eef1f5}
+ .wd .did{color:#4ade80;font-size:11px;margin-top:3px}.wd.sel{background:#1f2937}
+ #weeknote{margin:0 0 6px}
+ @media(max-width:480px){.wd{padding:6px 2px;font-size:11px}.wd b{font-size:18px}}
+ .rpe{margin-top:12px}.rpebtns{display:grid;grid-template-columns:repeat(10,1fr);gap:4px;margin-top:6px}
+ .rpebtns button{padding:9px 0;font-weight:800;border-radius:8px}.rpebtns button.on{background:#2563eb}
  .impactnums{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:12px}
  .headline{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:12px}
  .headline button{text-align:left;background:#0f141b;border:1px solid #2a3441}
@@ -63,6 +71,8 @@
 </style></head><body><main>
 <h1>Coach</h1><div class="sub">Day by day: test, check in, then ride what today allows · <a href="/ride">Ride view</a> · <a href="/">Panel</a> · <a href="/fitness">Fitness</a></div>
 
+<h2>THIS WEEK</h2>
+<div class="weekstrip" id="weekstrip"></div>
 <h2>TODAY</h2>
 <div class="card" id="todaycard">
  <div class="verdict" id="verdict">No check-in yet</div><div class="why" id="why">Start with the 6-minute diagnostic below, or just check in.</div>
@@ -77,6 +87,11 @@
   <button class="impactnum" id="backlogbtn"><small>ACCUMULATED RUNNING LOAD · tap for graph</small><b id="backlognum">–</b><small>provisional impact blocks · limit 1.5</small></button>
  </div>
  <div class="why" id="runhow" hidden></div>
+ <div class="row" style="margin-top:10px;gap:8px;flex-wrap:wrap"><span class="sub">Ride focus:</span>
+  <select id="focuspick" style="max-width:100%;min-width:0;flex:1 1 180px;padding:8px;border-radius:10px;background:#0b0f14;color:#eef1f5;border:1px solid #2a3441"></select>
+  <span class="sub" id="focusbuilds"></span></div>
+ <div class="sub" id="morningline" hidden style="margin-top:10px"></div>
+ <div id="rpebox" class="rpe" hidden><div class="sub" id="rpeq"></div><div class="rpebtns" id="rpebtns"></div></div>
  <div class="note" id="plannote" hidden></div>
  <div class="row" style="margin-top:10px" id="planrow" hidden><span class="sub">Today's ride:</span> <b id="planw"></b> <button class="purple" id="planride">▶ Ride it</button></div>
 </div>
@@ -97,6 +112,23 @@
  <div id="syschecks"></div>
  <details style="margin-top:10px"><summary>How this score is computed</summary><div class="sub" id="syshow" style="white-space:pre-wrap;margin-top:6px"></div></details>
 </dialog>
+
+<h2>COMING UP</h2>
+<div class="card" id="eventcard"><div id="eventlist" class="sub">Nothing on the calendar.</div>
+ <div class="row" style="margin-top:10px;gap:6px;flex-wrap:wrap">
+  <input id="evdate" type="date" style="padding:8px;border-radius:10px;background:#0b0f14;color:#eef1f5;border:1px solid #2a3441">
+  <input id="evname" type="text" placeholder="What - e.g. a spring 10K" style="flex:1;min-width:140px;padding:8px;border-radius:10px;background:#0b0f14;color:#eef1f5;border:1px solid #2a3441">
+  <select id="evkind" style="padding:8px;border-radius:10px;background:#0b0f14;color:#eef1f5;border:1px solid #2a3441"><option value="race">race</option><option value="test">test</option><option value="goal">goal</option></select>
+  <select id="evsport" style="padding:8px;border-radius:10px;background:#0b0f14;color:#eef1f5;border:1px solid #2a3441"><option>bike</option><option>run</option><option>swim</option><option>tri</option><option>other</option></select>
+  <button id="evadd">Add</button></div></div>
+
+<h2>CALIBRATION</h2>
+<div class="card" id="calcard"><div class="sub" style="margin-bottom:6px">What you can do, from tests and training. A test anchors each number; training nudges it between tests; confidence fades until the next test. Tests go on the calendar - no buttons.</div>
+ <div id="callist"></div></div>
+
+<h2>PROGRESSIONS</h2>
+<div class="card" id="skillcard"><div class="sub" style="margin-bottom:6px">Each skill is a ladder. Two good sessions earn the next step; two poor ones drop one; on a day you're not recovered you ride a step down without losing your place.</div>
+ <div id="skilllist"></div></div>
 
 <h2>MORNING DIAGNOSTIC · 6 MIN</h2>
 <div class="card">
@@ -149,10 +181,19 @@ async function loadToday(){ const r=await (await fetch('/api/coach/today')).json
   $('why').textContent=v?(c.why||[]).join(' · '):(p.verdict?'':'Start with the 6-minute diagnostic below, or just check in.');
   if(c.hr90) $('why').textContent+=` · HR at 90 W ${c.hr90}`+(c.hrr!=null?`, recovered ${c.hrr} bpm`:'')+(r.baseline?` (normal ${Math.round(r.baseline.hr90)})`:'');
   sysline(r);
+  focusLine(r);
+  rpeLine(r);
+  morningLine(r.morning);
+  weekStrip(r.week, r.date);
+  skillList(r.skills);
+  eventList(r.events, r.calibration);
+  calList(r.calibration);
   headline(r.headline);
   loadImpact(r);
   $('plannote').hidden=!p.note; $('plannote').textContent=p.note?'Coach: '+p.note:'';
-  const w=p.workout&&workouts.find(x=>x.id===p.workout); $('planrow').hidden=!w; if(w){ $('planw').textContent=w.name; plan=w; }
+  const w=p.workout&&workouts.find(x=>x.id===p.workout);
+  const T={ftp:'FTP ramp test',big_gear:'Big-gear test',diagnostic:'Morning diagnostic'}[p.test];
+  $('planrow').hidden=!(w||T); if(T){ $('planw').textContent=T; plan={test:p.test}; } else if(w){ $('planw').textContent=w.name; plan=w; }
   if(c.legs){ $('legs').value=c.legs; $('legsv').textContent=c.legs; } if(c.feet){ $('feet').value=c.feet; $('feetv').textContent=c.feet; } if(c.breathing){ $('breath').value=c.breathing; $('breathv').textContent=c.breathing; }
   if(c.sleep){ $('sleep').value=c.sleep; $('sleepv').textContent=c.sleep; } if(c.hr90) $('hr90').value=c.hr90; if(c.hr120) $('hr120').value=c.hr120; if(c.hr_after) $('hrafter').value=c.hr_after; }
 // The three body systems, weakest link first.
@@ -164,6 +205,64 @@ function sysline(r){ const el=$('systems'); if(!r.systems){ el.hidden=true; retu
     +(r.systems.running?`<div class="sub" style="grid-column:1/-1">Running: <b style="color:${C[r.systems.running.verdict]}">${r.systems.running.verdict.toUpperCase()}</b>${r.systems.running.why.length?' · '+r.systems.running.why.join(' · '):''}</div>`:'');
   $('runhow').hidden=!r.systems.running?.how; $('runhow').textContent=r.systems.running?.how||'';
   el.querySelectorAll('.sys').forEach(b=>b.onclick=()=>sysDetail(b.dataset.sys)); }
+// Today's focus: the cadence and watt ranges auto-shift steers toward. Grit loads the leg muscles more.
+// One tap: how hard did the last ride feel (1-10)? It goes in the ride's story and helps the coach read the numbers.
+// The watch overnight: HRV against its normal range, resting heart rate, sleep.
+function morningLine(m){ const el=$('morningline'); el.hidden=!m; if(!m) return; const C={go:'#4ade80',easy:'#fbbf24',rest:'#f87171'}, bits=[];
+  if(m.hrv) bits.push(`HRV ${m.hrv.ms} ms <span style="opacity:.7">(normal ${m.hrv.normal[0]}-${m.hrv.normal[1]})</span>`);
+  if(m.resting_hr) bits.push(`resting HR ${m.resting_hr.bpm}${m.resting_hr.normal?` <span style="opacity:.7">(normal ${m.resting_hr.normal})</span>`:''}`);
+  if(m.sleep_min!=null) bits.push(`sleep ${Math.floor(m.sleep_min/60)}h${String(Math.round(m.sleep_min%60)).padStart(2,'0')}`);
+  el.innerHTML=`⌚ Overnight (${m.date.slice(5)}): ${bits.join(' · ')} → <b style="color:${C[m.level]}">${m.level.toUpperCase()}</b>`+(m.why.length?` · ${m.why.join(' · ')}`:''); }
+function calList(c){ const box=$('callist'); if(!c||!c.capacities){ $('calcard').hidden=true; return; } $('calcard').hidden=false;
+  const age=d=>d?Math.round((Date.now()-new Date(d+'T12:00'))/864e5):null;
+  box.innerHTML=Object.values(c.capacities).map(k=>{ const pct=Math.round((k.confidence||0)*100), col=pct>=70?'#4ade80':pct>=40?'#fbbf24':'#f87171';
+    return `<div class="sys" style="margin:6px 0"><b>${k.name}</b><span style="font-size:17px">${k.value!=null?`${k.value} <small style="display:inline;font-size:12px">${k.unit}</small>`:'not measured yet'}</span>
+      <div style="height:5px;border-radius:3px;background:#1f2937;margin:5px 0"><div style="height:5px;border-radius:3px;width:${pct}%;background:${col}"></div></div>
+      <small>${k.source?`from ${k.source}`:'no data'}${k.last_test?` · tested ${age(k.last_test)} days ago`:' · never tested'} · ${k.due_in_days>0?`test due in ${k.due_in_days} days`:'<b style="color:#fbbf24">test due</b>'} (${k.test_name})</small></div>`; }).join(''); }
+function eventList(evs, cal){ const el=$('eventlist'); const due=(cal&&cal.due)||[];
+  const ntw=cal&&cal.next_test_week?` Next test week: <b>${new Date(cal.next_test_week+'T12:00').toLocaleDateString(undefined,{month:'short',day:'numeric'})}</b> - a recovery week that peaks on test day, then rest.`:'';
+  const dueHtml=(due.length||ntw)?`<div class="sub" style="margin:4px 0 8px">${due.length?`Tests coming due: ${due.map(t=>`<b>${t.name}</b>${t.last_test?` (last ${t.last_test.slice(5)})`:' (never)'}`).join(' · ')}.`:''}${ntw}</div>`:'';
+  if(!evs||!evs.length){ el.innerHTML=dueHtml+'Nothing on the calendar - add a test, a race or a goal to plan toward.'; return; }
+  el.innerHTML=dueHtml+evs.map(e=>`<div class="sys" style="margin:6px 0"><b>${e.name} · ${new Date(e.date+'T12:00').toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'})}
+    <span style="float:right;color:#eef1f5">${e.days===0?'today':e.days===1?'tomorrow':e.days+' days'}</span></b>
+    <small>${e.kind} · ${e.sport}${e.note?' · '+e.note:''}</small>${e.notes.map(n=>`<small>${n}</small>`).join('')}
+    <small><a href="#" data-rm="${e.id}" style="color:#8b98a8">remove</a></small></div>`).join('');
+  el.querySelectorAll('[data-rm]').forEach(a=>a.onclick=async ev=>{ ev.preventDefault(); await post('/api/coach/event',{remove:a.dataset.rm}); loadToday(); }); }
+$('evadd').onclick=async()=>{ if(!$('evdate').value) return; const r=await post('/api/coach/event',{date:$('evdate').value,name:$('evname').value||'Event',kind:$('evkind').value,sport:$('evsport').value});
+  if(r.ok){ $('evname').value=''; loadToday(); } };
+// The week: each day's marker (what, how long) and what the watch or the bike recorded.
+const ICON={ride:'🚴',swim:'🏊',run:'🏃',walk:'🚶',gym:'🏋️',test:'🧪',rest:'😴',other:'•',bike:'🚴'};
+function weekStrip(wk,today){ if(!wk) return; const box=$('weekstrip');
+  box.innerHTML=wk.map((d,i)=>{ const did=d.done.filter(x=>x.minutes>=5);
+    return `<div class="wd${d.date===today?' today':''}" data-i="${i}"><div class="dn">${new Date(d.date+'T12:00').toLocaleDateString(undefined,{weekday:'short'})}</div>
+      <b>${d.sport?ICON[d.sport]||'•':d.verdict==='rest'?'😴':'·'}</b>${d.minutes?`${d.minutes} min`:d.sport==='rest'?'rest':'&nbsp;'}
+      ${did.length?`<div class="did">✓ ${did.map(x=>`${ICON[x.sport]||x.sport} ${x.minutes}`).join(' ')}</div>`:''}</div>`; }).join('')
+    +`<div class="sub" id="weeknote" style="grid-column:1/-1"></div>`;
+  const show=i=>{ const d=wk[i]; box.querySelectorAll('.wd').forEach((e,k)=>e.classList.toggle('sel',k===i));
+    $('weeknote').innerHTML=`<b>${new Date(d.date+'T12:00').toLocaleDateString(undefined,{weekday:'long',month:'short',day:'numeric'})}</b>`
+      +(d.sport?` · ${d.sport}${d.minutes?` ${d.minutes} min`:''}`:'')+(d.note?` - ${d.note}`:(d.sport?'':' - nothing planned'))
+      +(d.done.length?` · done: ${d.done.map(x=>`${x.sport} ${x.minutes} min`).join(', ')}`:''); };
+  box.querySelectorAll('.wd').forEach(e=>e.onclick=()=>show(+e.dataset.i));
+  show(Math.max(0,wk.findIndex(d=>d.date===today))); }
+function skillList(sk){ if(!sk){ $('skillcard').hidden=true; return; } $('skillcard').hidden=false;
+  $('skilllist').innerHTML=Object.values(sk).map(k=>{ const h=k.history.at(-1);
+    return `<div class="sys" style="margin:6px 0"><b>${k.name} · step ${k.level} of ${k.of}</b>
+      <span style="font-size:15px">${k.now}</span>
+      ${k.stepped_down_today?`<small style="color:#fbbf24">today, a step down: ${k.today} (not recovered)</small>`:''}
+      <small>${k.next?'next: '+k.next:'top step'}${h?` · ${h.to>h.from?'up':'down'} on ${h.date.slice(5)}: ${h.why}`:''}</small></div>`; }).join(''); }
+let rpeRide=null;
+function rpeLine(r){ const lr=r.last_ride; $('rpebox').hidden=!lr; if(!lr) return; rpeRide=lr.id;
+  const when=lr.date===r.date?'today':new Date(lr.date+'T12:00').toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'});
+  $('rpeq').innerHTML=`How hard was your last ride (${when}, ${lr.minutes} min)?`+(lr.rpe?` <b>${lr.rpe}/10 - ${r.rpe_words[lr.rpe]}</b>`:' <i>tap one</i>');
+  $('rpebtns').innerHTML=[...Array(10)].map((_,i)=>`<button data-r="${i+1}" class="${lr.rpe===i+1?'on':''}" title="${r.rpe_words[i+1]}">${i+1}</button>`).join('');
+  $('rpebtns').querySelectorAll('button').forEach(b=>b.onclick=async()=>{ await post('/api/coach/rate',{ride:rpeRide,rpe:+b.dataset.r}); loadToday(); }); }
+function focusLine(r){ const ps=r.focus_presets||{}, f=r.focus; if(!f) return;
+  $('focuspick').innerHTML=Object.entries(ps).map(([k,x])=>`<option value="${k}">${x.name} · ${x.rpm[0]}-${x.rpm[1]} rpm${x.watts?` · ${x.watts[0]}-${x.watts[1]} W`:''}</option>`).join('')
+    +(f.key==='custom'?`<option value="custom">${f.name} (custom) · ${f.rpm[0]}-${f.rpm[1]} rpm${f.watts?` · ${f.watts[0]}-${f.watts[1]} W`:''}</option>`:'');
+  $('focuspick').value=f.key;
+  const legs=r.systems?.systems?.muscle?.level;
+  $('focusbuilds').textContent='Builds '+f.builds+(f.key==='grit'&&legs&&legs!=='go'?` · your leg muscles say ${legs.toUpperCase()} today`:''); }
+$('focuspick').onchange=async()=>{ if($('focuspick').value==='custom') return; await post('/api/coach/plan',{focus:$('focuspick').value}); loadToday(); };
 function headline(h){if(!h){$('headline').hidden=true;$('balance').hidden=true;return;}
   $('headline').hidden=false;$('balance').hidden=false;
   $('cardionum').textContent=h.cardio.ratio.toFixed(2)+'×';
@@ -219,7 +318,11 @@ for(const id of ['recentbtn','backlogbtn','mechanicalbtn']) $(id).onclick=()=>{ 
 $('impactclose').onclick=()=>$('impactdialog').close();
 $('impactdialog').onclick=e=>{if(e.target===$('impactdialog')) $('impactdialog').close();};
 addEventListener('resize',()=>{if($('impactdialog').open)drawImpact();});
-$('planride').onclick=async()=>{ await post('/api/workouts/start/'+plan.id); location.href='/ride'; };
+$('planride').onclick=async()=>{
+  if(plan.test==='ftp'){ await fetch('/ftp/start',{method:'POST'}); location.href='/ride'; return; }
+  if(plan.test==='diagnostic'){ $('tstart').click(); return; }
+  if(plan.test){ location.href='/ride'; return; }                 // big-gear: the day's focus runs it
+  await post('/api/workouts/start/'+plan.id); location.href='/ride'; };
 // ── One body system in detail: its readings, daily load, fatigue and fitness, and the sessions and check-ins behind it ──
 const SYS={
   engine:{name:'❤️ Heart & lungs',col:'#ef4444',check:'breathing',checkName:'breathing',unit:'engine points',

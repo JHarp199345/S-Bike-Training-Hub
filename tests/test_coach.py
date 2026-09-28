@@ -98,6 +98,49 @@ def main():
     check("hub diagnostic starts the test on the bridge", "diagnostic" in fb.started)
     check("the coach file is the scratch one, not the real one", (tmp / "coach.json").exists())
     loop.call_soon_threadsafe(srv.close)
+
+    # one-tap effort rating: the last real ride, a 1-10 rating kept with the plan
+    import tempfile as _tf, pathlib as _pl
+    rd = _pl.Path(_tf.mkdtemp()) / "rides"; rd.mkdir()
+    hdr = "time,power_w,cadence_rpm\n"
+    (rd / "ride_2026-09-28_0900.csv").write_text(hdr + "".join(f"2026-09-28T09:{m:02d}:{s:02d},120,80\n" for m in range(10) for s in range(60)))
+    (rd / "ride_2026-09-28_1200.csv").write_text(hdr + "".join(f"2026-09-28T12:00:{s:02d},0,0\n" for s in range(60)))
+    (rd / "ride_2026-09-28_0900_events.csv").write_text("time,event\n")
+    lr = coach.last_ride(rd)
+    check(f"the last ride is the latest with 5+ minutes of pedalling ({lr})", lr and lr["id"] == "ride_2026-09-28_0900" and lr["minutes"] == 10)
+    dd = coach.load(coach.file_for(rd))
+    check("a rating is kept", coach.rate(dd, lr["id"], 6)["rpe"] == 6 and dd["ratings"][lr["id"]]["rpe"] == 6)
+    for bad in ((lr["id"], 11), ("../x", 5)):
+        try:
+            coach.rate(dd, *bad); check(f"refuses {bad}", False)
+        except ValueError:
+            check(f"refuses {bad}", True)
+
+    # dates to plan backward from
+    ev = coach.add_event(dd, "2026-10-03", "FTP ramp test", "test", "bike")
+    coach.add_event(dd, "2026-11-08", "Hometown 5K", "race", "run")
+    up = coach.upcoming(dd, "2026-10-01", running_cleared_in=117)
+    check(f"soonest first, with days to go ({[(e['name'], e['days']) for e in up]})", [e["days"] for e in up] == [2, 38])
+    check(f"a test two days out: easy from here ({up[0]['notes'][0]})", "easy" in up[0]["notes"][0])
+    check(f"a 5K before running is cleared says so ({up[1]['notes'][-1][:60]}...)", "heads-up" in up[1]["notes"][-1])
+    check("a passed event drops off", [e["name"] for e in coach.upcoming(dd, "2026-10-05")] == ["Hometown 5K"])
+    check("remove by id", coach.remove_event(dd, ev["id"]) and len(dd["events"]) == 1)
+    try:
+        coach.add_event(dd, "soon", "x"); check("bad date refused", False)
+    except ValueError:
+        check("bad date refused", True)
+
+    # the week's markers: what to do and for how long, and what was done
+    coach.set_plan(dd, "2026-09-29", "easy", "Easy swim", sport="swim", minutes=60)
+    coach.set_plan(dd, "2026-10-03", sport="test", minutes=25)
+    wk = coach.week(dd, "2026-10-01", {"2026-09-29": [{"sport": "swim", "minutes": 58}]})
+    check(f"Monday to Sunday, with markers and what was done ({[(w['date'][5:], w['sport'], w['minutes']) for w in wk if w['sport']]})",
+          len(wk) == 7 and wk[0]["date"] == "2026-09-28" and wk[1]["sport"] == "swim" and wk[1]["minutes"] == 60
+          and wk[1]["done"][0]["minutes"] == 58 and wk[5]["sport"] == "test")
+    try:
+        coach.set_plan(dd, "2026-09-30", sport="skydive"); check("unknown sports refused", False)
+    except ValueError:
+        check("unknown sports refused", True)
     print("ALL PASS" if ok else "SOME FAILED")
     return ok
 

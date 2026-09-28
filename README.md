@@ -16,7 +16,7 @@ The S29 only accepts **one** Bluetooth connection, and it ignores the "hill" com
 
 - **Shares the bike.** It re-advertises the bike as a new device ("SBike Hub"), so a watch (power + cadence) and a training app can connect at the same time.
 - **Makes hills real.** Grades from a route or a training app become resistance, eased in smoothly, with **virtual gears** on top.
-- **Auto-shifts.** It keeps your cadence in a band (65–80 rpm by default), shifting sooner the harder you spin. A **climbing mode** handles low-cadence standing efforts.
+- **Auto-shifts.** It keeps your cadence in a band (65–80 rpm by default), shifting sooner the harder you spin. With a **daily focus** it also steers your watts into a range: easy but still productive. A **climbing mode** handles low-cadence standing efforts.
 - **Computes virtual speed** from watts, weight and grade, so climbs feel like climbs.
 - **Runs ERG workouts.** It holds a target wattage whatever your cadence.
 
@@ -25,9 +25,12 @@ On top of that:
 | | |
 |---|---|
 | 🗺 **Offline routes in 3D** | Plan A→B rides, loops, or "N km in any direction" rides on real roads, with a local BRouter route planner. Search towns and mountains offline, or tap famous rides (Alpe d'Huez, Ventoux, Tourmalet, PCH…). Then ride them in a tilted 3D follow view with real terrain and buildings. You can import GPX from Strava, Komoot and others. |
-| 📱 **Phone / tablet handlebar remote** | The ride view works on any phone or tablet on your Wi-Fi: giant shift buttons with vibration, a drawer for auto-shift, climbing mode, ERG and workouts. Pair by scanning a QR code on the Mac (a one-time code) or typing a PIN. |
+| 📱 **Phone / tablet handlebar remote** | The ride view works on any phone or tablet on your Wi-Fi (on a phone, the numbers and the route take turns at the top, Kinomap-style, so the map gets the screen): giant shift buttons with vibration, a drawer for auto-shift, climbing mode, ERG and workouts. Pair by scanning a QR code on the Mac (a one-time code) or typing a PIN. |
 | 👻 **Ghost racing** | Race your last ride on the same route: "14 s ahead". |
-| 🧭 **Coach** | A 6-minute **morning diagnostic** (fixed watts, heart rate read off your watch) gives a go / easy / rest verdict against your own normal. The **timed-workout builder** lets you pick a length, drag bars, and see the parts rebalance in proportion. |
+| 🎚 **Daily focus** | Each day has a cadence range and a watt range: cadence habit (65–80 rpm, zone 2), grit (big gear, low cadence), leg speed, recovery, or your own. Auto-shift steers toward both, and a quiet monitor on the ride view shows time in range, with a hint only after you've drifted for a while. |
+| 📍 **Area routes** | Circle where you'd like to ride and say how long. The planner finds loops inside the circle and ranks them for today's focus: time at the focus's watts (climbs slow you), how much of it auto-shift can hold in range, and whether the terrain suits the day. |
+| ⛰ **Climb goals & efforts** | Put training on a route's climbs: "climb 2 in 10:00" becomes a watt target re-worked every second from what's left, and "3 × 15 s at 200 W" shifts you straight into a big gear. Every climb you ride is recorded (time, watts, cadence, VAM), and the planner knows the fastest time your **W′** could cover. |
+| 🧭 **Coach** | This week at a glance (a marker per day, including swims your watch calendar can't hold), a one-tap effort rating, morning readiness from your watch (HRV, resting heart rate, sleep), **skill ladders** that step up and down with the evidence, **test weeks**, and a calibration card for every capacity. A 6-minute **morning diagnostic** (fixed watts, heart rate read off your watch) gives a go / easy / rest verdict against your own normal. The **timed-workout builder** lets you pick a length, drag bars, and see the parts rebalance in proportion. |
 | 🫀🦶🦵 **Training load for every sport** | Runs, walks, swims, gym and rides from your watch, scored on three body systems: **heart & lungs**, **feet & bones**, **leg muscles**. You get separate **bike** and **running** verdicts, and the running load is tracked as accumulated "blocks" that recover on a realistic, slow timeline. Tap any system for its graph, readings, and the sessions behind it. See [Training load: how it works](#training-load-how-it-works). |
 | 🎯 **Workout adherence** | Each part of a workout is graded A–F on how well you held it, shown as a pie and a radar chart in the ride report. |
 | 📈 **Live graph, calories, fitness** | A live power graph in zone colors, calories from real work (kJ), personal bests (5 s / 1 / 5 / 20 min) with callouts, and a power-based fitness / fatigue / form chart. |
@@ -90,10 +93,10 @@ Edit [`regions.json`](regions.json) (name, bounding box, center, zoom) and run `
 |---|---|
 | `/` panel | Connections, live numbers, gears, auto-shift, climbing, ERG, workouts, FTP test, personal bests, live graph, phone pairing |
 | `/ride` | 3D ride view and handlebar remote (phone / tablet / computer) |
-| `/plan` | Route planner: search, A→B, loops, "by distance", famous-ride ideas, GPX import |
-| `/coach` | Morning diagnostic, check-ins, today's bike and running verdicts, the body systems (tap for detail), timed-workout builder |
+| `/plan` | Route planner: search, A→B, loops, "by distance", **area** (routes for today's focus), a route's climbs with time goals and efforts, famous-ride ideas, GPX import |
+| `/coach` | This week, today's bike and running verdicts, the day's focus, morning readiness, effort rating, the body systems (tap for detail), coming up, calibration, progressions, the morning diagnostic, the timed-workout builder |
 | `/workouts` | Block-based workout builder |
-| `/fitness` | Fitness, fatigue and form from power; body systems across every sport |
+| `/fitness` | Fitness, fatigue and form from power; body systems across every sport; the aerobic engine (watts per beat, decoupling); how your sports carry over |
 | `/milestones` | Streaks, totals, badges |
 | `/posts` | Ride infographics, captions, the Claude pack, optional Strava |
 
@@ -102,7 +105,7 @@ Edit [`regions.json`](regions.json) (name, bounding box, center, zoom) and run `
 Everything the pages can do is also available headless, so an AI coach can read your data and write your plan:
 
 - **Command line:** `./hub today`, `./hub rides`, `./hub fitness`, `./hub load`, `./hub checkins`, `./hub checkin --feet 4 --legs 5`, `./hub steps 2026-09-27=6200`, `./hub import FILE.fit`, `./hub plan --verdict easy --note "…" --workout ID`, `./hub split --total 30 --intervals 3`. Run `./hub --help` for the rest.
-- **MCP server:** [`mcp_server.py`](mcp_server.py) exposes 18 tools (today, check-ins, rides, a ride's full story, fitness, body-system load, importing watch files, daily steps, tuning a system's capacity, milestones, workouts, set today's plan…) to Claude Code or Claude Desktop:
+- **MCP server:** [`mcp_server.py`](mcp_server.py) exposes 35 tools (today, check-ins, rides, a ride's full story, fitness, body-system load, importing watch files, daily steps, morning readiness, effort ratings, the day's focus and plan, area routes, climb goals, skill ladders, calibration and tests, test weeks, the aerobic engine, sport carry-over, milestones, workouts…) to Claude Code or Claude Desktop:
 
   ```bash
   claude mcp add --scope user s-bike-hub -- "$PWD/.venv/bin/python" "$PWD/mcp_server.py"
@@ -219,6 +222,77 @@ Settings in `profile.json`:
 - **Daily steps:** `./hub steps 2026-09-27=6200`, or the `record_steps` MCP tool.
 - **Check-ins:** the Coach page, or `./hub checkin --feet 4 --legs 5 --breathing 3`.
 
+### Readiness from the watch overnight
+
+If an AI coach has your watch connected (COROS, for example), it records each morning with `record_morning`:
+- **HRV:** below the watch's own normal range makes heart and lungs **easy**. Two mornings running makes it **rest**.
+- **Resting heart rate:** 5+ beats over its two-week median means easy, 8+ means rest.
+- **Sleep:** under 5 hours means easy.
+
+A rest morning benches running too.
+
+### Progressions and regressions
+
+Each skill is a ladder of concrete steps, after Michael Boyle's approach:
+
+| Skill | Ladder |
+|---|---|
+| Cadence habit | 65–80 → 70–85 → … → 85–100 rpm |
+| Leg speed | faster ranges |
+| Grit | longer, harder big-gear sets |
+| Climb pace | goals from 110% down to 94% of your best time |
+| Running return | walking only → 1:2 jog/walk → … → 30 minutes |
+
+- **Up:** two good sessions on a step earn the next one. Evidence only counts from when you reached the step.
+- **Down:** two poor sessions, or a very hard effort rating on grit, drop you one.
+- **For the day:** when you're not recovered, you ride one step down without losing your place.
+- **Running** drops to walking while it's on rest.
+
+The day's focus and the planner's climb goals use your current steps.
+
+### Calibration and test weeks
+
+Every capacity (FTP, heart rate at 90 W, a big-gear 3-minute test, critical swim speed, the running block, CP and W′) is an estimate combining three things: the latest test, training evidence since then, and anything you set by hand. Each one shows a **confidence** that fades until the next test comes due.
+
+**Tests are plan items, not buttons.** They run from the Coach page's "Ride it" row or the Tests group in the ride menu.
+
+**A test week doubles as a recovery week,** every 6 weeks:
+
+| Day | Session |
+|---|---|
+| Mon–Wed | easy, reduced sessions |
+| Thu | swim CSS test |
+| Fri | the 6-minute morning diagnostic, then rest |
+| Sat | **test day:** FTP ramp test, or the big-gear test (never two leg tests on one day) |
+| Sun | off |
+
+You test at your peak, then start the next block fresh.
+
+**What the results feed:**
+- **Swims** are scored against your CSS (hours × (CSS ÷ pace)³ × 100).
+- **The running block** grows by up to 10% after a benchmark run followed by two good mornings.
+
+### Power: CP, W′ and the aerobic engine
+
+**Critical power and W′:**
+- **The fit:** CP and W′ come from your best efforts over 3–20 minutes (the 2-parameter model).
+- **When it's trusted:** easy rides produce a tidy curve that sits well below your limits, so the fit is only used once CP reaches 85% of FTP. Until then the hub shows it as a floor and uses FTP with a typical W′.
+- **Live W′ balance** (the differential model) appears on the ride view once you dip into it, and counts "matches".
+- **Doability checks:** climb goals and efforts are checked against W′ before you ride them.
+
+**The aerobic engine,** from your watch's ride files (the watch records power and heart rate together):
+- **Watts per beat** (normalized power ÷ heart rate) rises as you get fitter.
+- **Heart rate at a fixed 100–120 W** falls.
+- **Aerobic decoupling:** watts per beat in the first half vs. the second. Under 5% means the ride stayed aerobic. It's only judged on steady rides of 40+ minutes.
+
+### How the sports carry over
+
+A carry-over table estimates how much training one sport builds another, compared with training that sport itself, plus how much each sport tires your legs compared with running.
+- **Starting values** come from the research: cycling carries over to running (Millet et al. 2002); little carries into swimming; running carries to cycling better than the reverse (Tanaka 1994); and replacing some running with cycling at about 2:1 kept runners' fitness in a 2026 meta-analysis. **Only running builds feet and bones:** cyclists and swimmers carry little bone-loading benefit.
+- **It learns your numbers** from every efficiency measurement and next-morning check-in. It uses Bayesian linear regression, which reaches the same answer a Kalman filter would one measurement at a time (after Kolossa 2017 and Swartz et al.).
+- **Each value** shows an 80% range and whether it's still the research's number, learning, or learned.
+- **Fitness carry-over is slow to pin down.** Weeks where the mix changes, plus test weeks, are what sharpen it.
+
 ## Your data stays on your Mac
 
 Everything lives in the project folder and is git-ignored: rides (`rides/`), watch activities and daily steps (`activities/`), saved routes, your profile, FTP and load tuning, personal bests, check-ins, the phone-pairing PIN and tokens, and optional Strava keys. Nothing is uploaded unless you press **Post to Strava**.
@@ -241,7 +315,7 @@ Reports and pull requests for other bikes are very welcome.
 ## Development
 
 ```bash
-tests/run_all.sh        # 23 test files: auto-shift, ERG, FTP test, routes, pairing, coach, MCP, adherence, training load…
+tests/run_all.sh        # 32 test files: auto-shift, ERG, FTP test, routes, pairing, coach, MCP, adherence, training load, focus, sessions, calibration, CP/W′, carry-over…
 ```
 
 - `bridge.py` is the Bluetooth bridge, gears, ERG and the ride loop.
@@ -249,7 +323,8 @@ tests/run_all.sh        # 23 test files: auto-shift, ERG, FTP test, routes, pair
 - `web/` holds the pages.
 - Routes and maps: `routes.py`, `planner.py` (BRouter), `pmtiles_reader.py`, `places.py`.
 - Training: `coach.py`, `workouts.py`, `bests.py`, `fitness.py`, `milestones.py`, `adherence.py`.
-- Training load: `fit.py` (a standard-library FIT reader), `loads.py` (every sport scored on three body systems, readiness), `damage.py` (the running blocks, walking, and the exploratory tissue model).
+- Training load: `fit.py` (a standard-library FIT reader), `loads.py` (every sport scored on three body systems, readiness), `damage.py` (the running blocks, walking, and the exploratory tissue model), `morning.py` (readiness from the watch overnight).
+- Coaching: `focus.py` (the day's ranges), `session.py` (climb goals, efforts, climb records), `areaplan.py` (area routes), `skills.py` (progressions and regressions), `calibration.py` (capacities, tests, test weeks), `cp.py` (CP, W′, W′ balance), `aerobic.py` (watts per beat, decoupling), `transfer.py` (cross-sport carry-over, Bayesian).
 - Posts: `story.py`, `card.py`, `posts.py`, and `strava.py` (optional).
 
 ## ⚠️ Safety
@@ -261,6 +336,8 @@ This software changes the resistance on real exercise equipment and relies on re
 - **Map data:** © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors (ODbL), via [Protomaps](https://protomaps.com).
 - **Terrain:** [Mapzen terrain tiles](https://github.com/tilezen/joerd/blob/master/docs/attribution.md) (AWS Open Data).
 - **Software:** routing by [BRouter](https://github.com/abrensch/brouter); maps drawn with [MapLibre GL JS](https://maplibre.org); Bluetooth via [bleak](https://github.com/hbldh/bleak) and [bless](https://github.com/kevincar/bless); menu bar via [rumps](https://github.com/jaredks/rumps) and [PyObjC](https://pyobjc.readthedocs.io).
+
+- **Science:** the models build on published work - Banister's fitness-fatigue model, Coggan's TSS/NP, Carter's daily stress stimulus, Williams' EWMA workload ratio, Skiba's W′ balance, Foster's session RPE, Millet et al. (2002) and Tanaka (1994) on cross-training, Boyle's progressions and regressions, and Kalman/Bayesian impulse-response fitting (Kolossa 2017; Swartz et al.). Formulas were cross-checked against [GoldenCheetah](https://github.com/GoldenCheetah/GoldenCheetah)'s open-source metrics; no code was copied.
 
 Built by JHarp199345 with [Claude](https://claude.com) as co-author. The running-load block model was worked out by JHarp199345 with ChatGPT, then built into the hub with Claude.
 

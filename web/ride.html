@@ -18,7 +18,7 @@
  #menu{position:absolute;top:calc(var(--pad) + env(safe-area-inset-top));right:var(--pad);width:50px;height:50px;border:0;color:#fff;font-size:24px}
  #banner{position:absolute;left:var(--pad);right:var(--pad);top:calc(var(--pad) + 128px + env(safe-area-inset-top));
    padding:9px 12px;text-align:center;font-weight:700}
- #banner.lost{background:rgba(127,29,29,.92)} #banner a{color:#93c5fd}
+ #banner.lost{background:rgba(127,29,29,.92)} #banner a{color:#93c5fd} #banner.behind{box-shadow:0 0 0 2px #fbbf24}
  #ghost{position:absolute;right:var(--pad);padding:8px 14px;font-weight:800;font-size:17px;border-radius:12px}
  #ghost.ahead{background:rgba(20,83,45,.92)}#ghost.behind{background:rgba(127,29,29,.92)}#ghost.even{background:rgba(31,41,55,.92)}
  #prof{position:absolute;left:var(--pad);right:var(--pad);height:var(--profh)}
@@ -26,6 +26,14 @@
  #swap{position:absolute;right:6px;top:6px;width:34px;height:30px;border:0;border-radius:8px;background:rgba(31,41,55,.9);color:#fff;font-size:16px;z-index:2}
  #cal{position:absolute;left:var(--pad);padding:8px 12px;font-weight:800;font-size:16px}
  #cal small{font-weight:600;color:#b7c1cd;font-size:12px}
+ .fm{margin-top:5px;font-weight:600;font-size:11px;color:#b7c1cd;min-width:170px}
+ .fm .fr{display:flex;align-items:center;gap:5px}.fm .fr span{font-size:10px}.fm .fr .bar{min-width:44px}
+ .fm .bar{position:relative;flex:1;height:8px;border-radius:4px;background:#1f2937}
+ .fm .bar i{position:absolute;top:0;bottom:0;background:rgba(74,222,128,.35);border-radius:4px}
+ .fm .bar em{position:absolute;top:-3px;width:14px;height:14px;margin-left:-7px;border-radius:50%;background:#4ade80;border:2px solid #0b0f14}
+ .fm .bar em.out{background:#fbbf24}
+ .fm .fh{color:#fbbf24;font-size:12px}
+ #cal.drift{box-shadow:0 0 0 2px #fbbf24}
  #prof canvas{width:100%;height:100%}
  #cal{bottom:calc(var(--pad) * 3 + var(--btn) + var(--profh) + env(safe-area-inset-bottom))}
  .shift{position:absolute;left:var(--pad);right:var(--pad);bottom:calc(var(--pad) + env(safe-area-inset-bottom));
@@ -86,25 +94,57 @@
   .hud{left:175px;right:235px} .t b{font-size:36px}
   #menu{right:175px} #prof,#banner,#pbflash{left:175px;right:175px} #ghost{right:175px} #cal{left:175px}
  }
+ /* Phones: one panel at a time in a slot at the top - ride numbers, focus, the route - cycling on a timer like
+    Kinomap's pages (swipe or tap to move, the lock holds one). The map gets everything else. */
+ body.paged .hud,body.paged #cal,body.paged #prof{top:calc(var(--pad) + env(safe-area-inset-top));bottom:auto;
+   left:var(--pad);right:calc(var(--pad) + 58px);transform:none}
+ body.paged .pg:not(.on){display:none!important}
+ /* The Route page is one card: the climb profile (or live graph) with a strip under it - calories and the
+    day's focus. */
+ body.paged #prof{height:118px;border-radius:12px 12px 0 0}
+ body.paged #cal{top:calc(var(--pad) + 118px + env(safe-area-inset-top));border-radius:0 0 12px 12px;
+   padding:7px 12px 9px;font-size:16px;border-top:1px solid rgba(255,255,255,.08)}
+ body.paged #cal .fm{margin-top:6px;min-width:0}
+ body.paged #cal .fm .fr{gap:8px}body.paged #cal .fm .fr span{font-size:11px}
+ body.paged #cal .fm .bar{height:9px;min-width:0}body.paged #cal .fm .bar em{width:16px;height:16px;margin-left:-8px;top:-4px}
+ body.paged #cal .ftop{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+ body.paged #cal .fpct{font-size:12px;font-weight:700;color:#b7c1cd;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ body.paged #cal.drift{box-shadow:0 0 0 2px #fbbf24}
+ body.paged #ghost{bottom:calc(var(--pad) * 2 + var(--btn) + env(safe-area-inset-bottom))}
+ body.paged #banner,body.paged #pbflash{top:calc(var(--pad) + 196px + env(safe-area-inset-top))}
+ #pgctl{position:absolute;top:calc(var(--pad) + 56px + env(safe-area-inset-top));right:var(--pad);width:50px;display:none;
+   flex-direction:column;align-items:center;gap:7px;padding:8px 0;border:0;color:#fff}
+ body.paged #pgctl{display:flex}
+ #pgctl i{width:8px;height:8px;border-radius:50%;background:#4b5563}#pgctl i.on{background:#fff}
+ #pgctl b{font-size:16px;line-height:1}
+ @media (orientation:landscape) and (max-height:560px){
+  body.paged .hud,body.paged #cal,body.paged #prof{left:130px;right:188px}
+  body.paged #prof{height:88px}
+  body.paged #cal{top:calc(var(--pad) + 88px)}
+  body.paged #pgctl{right:130px;top:calc(var(--pad) + 56px)}
+  body.paged #banner,body.paged #pbflash{left:130px;right:130px;top:calc(var(--pad) + 166px)}
+  body.paged #ghost{right:130px;bottom:var(--pad)}
+ }
  @media (min-width:900px) and (min-height:561px) and (orientation:landscape) and (pointer:fine){
   .hud{left:50%;right:auto;transform:translateX(-50%);grid-template-columns:repeat(6,96px)}
   .shift{left:auto;width:260px}
   #prof{right:290px}
-  #ghost{right:290px;bottom:calc(var(--pad) * 2 + var(--profh))}
-  #cal{bottom:calc(var(--pad) * 2 + var(--profh))}
+  #ghost{right:290px;bottom:calc(var(--pad) * 3 + var(--btn) + var(--profh))}
+  #cal{bottom:calc(var(--pad) * 3 + var(--btn) + var(--profh))}
  }
 </style></head><body>
 <div id="map"></div>
-<div class="hud">
+<div class="hud pg">
  <div class="t glass"><b id="spd">–</b><span>KM/H</span></div><div class="t glass"><b id="w">–</b><span>WATTS</span></div>
  <div class="t glass"><b id="rpm">–</b><span>RPM</span></div><div class="t glass"><b id="grade">–</b><span>GRADE</span></div>
  <div class="t glass"><b id="gear">–</b><span>GEAR</span></div><div class="t glass"><b id="left">–</b><span id="leftl">KM LEFT</span></div>
 </div>
 <button id="menu" class="glass" aria-label="Menu">☰</button>
+<button id="pgctl" class="glass" aria-label="Pages: tap to lock or unlock this page"></button>
 <div id="banner" class="glass" hidden></div>
 <div id="ghost" hidden></div>
-<div id="cal" class="glass">– <small>kcal</small></div>
-<div id="prof" class="glass"><canvas id="pc"></canvas><canvas id="lg"></canvas><button id="swap" aria-label="Graph or hills">📈</button></div>
+<div id="cal" class="glass pg">– <small>kcal</small></div>
+<div id="prof" class="glass pg"><canvas id="pc"></canvas><canvas id="lg"></canvas><button id="swap" aria-label="Graph or hills">📈</button></div>
 <div class="shift"><button id="dn" aria-label="Easier gear">−<small>EASIER</small></button><button id="up" aria-label="Harder gear">+<small>HARDER</small></button></div>
 <div id="gearflash"></div>
 <div id="pbflash" hidden></div>
@@ -112,6 +152,11 @@
  <h2>Ride <button id="close" aria-label="Close">✕</button></h2>
  <button id="auto">Auto-shift</button>
  <button id="climb">Climbing mode</button>
+ <div class="sub" style="margin:6px 0 4px">Today's focus - what auto-shift steers toward</div>
+ <select id="fpick" style="width:100%;padding:12px;border-radius:12px;background:#0b0f14;color:#eef1f5;border:1px solid #2a3441;font-size:16px;margin-bottom:4px"></select>
+ <div class="sub" id="fbuilds" style="margin-bottom:10px"></div>
+ <div class="sub" style="margin:6px 0 4px">How hard does this ride feel? (1 very easy - 10 all out)</div>
+ <div id="rpebtns" style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:12px"></div>
  <div class="sub">Climbing mode: low cadence (30–45 rpm), heavy gears.</div>
  <div class="sub" style="margin:4px 0 6px;color:#b7c1cd;font-weight:700">ERG · hold watts</div>
  <div class="row"><button id="ergdn">−</button><div id="ergw">–</div><button id="ergup">+</button></div>
@@ -197,7 +242,9 @@ async function poll(){
   try{ const r=await fetch('/status'); if(r.status===401){ location.href='/pair'; return; } st=await r.json(); lastOk=Date.now(); }
   catch(e){ return; }
   const r=st.route;
-  $('cal').innerHTML=`${st.kcal} <small>kcal · ${st.kcal_min.toFixed(1)}/min</small>`;
+  const wb=st.wbal, wtag=wb&&wb.pct<95?` <small style="color:${wb.pct<25?'#f87171':wb.pct<50?'#fbbf24':'#b7c1cd'}">· W′ ${Math.max(0,wb.pct)}%</small>`:'';
+  const fp=focusPct(st.focus), kc=`${st.kcal} <small>kcal${fp?'':` · ${st.kcal_min.toFixed(1)}/min`}</small>${wtag}`;
+  $('cal').innerHTML=(fp?`<div class="ftop"><span>${kc}</span>${fp}</div>`:kc)+focusMonitor(st.focus);
   $('w').textContent=st.power; $('rpm').textContent=st.cadence; $('spd').textContent=st.speed.toFixed(1);
   if(Date.now()>gearHold) showGear(st.gear);
   const gr=r?r.grade:st.grade; $('grade').textContent=(gr>0?'+':'')+gr.toFixed(1)+'%';
@@ -209,7 +256,10 @@ async function poll(){
   if(r.id!==rid) await loadRoute(r.id);
   $('swap').hidden=false; if(!graphChosen) setGraph(false, false);
   $('leftl').textContent='KM LEFT'; $('left').textContent=((r.total_m-r.done_m)/1000).toFixed(1);
-  banner(r.finished?`🏁 ${route?.name||'Route'} done! <a href="/posts">Your post →</a> · <a href="/plan">Ride another →</a>`:null);
+  const cue=st.session&&st.session.cue, behind=st.session?.pace&&st.session.pace.ahead_s<=-1;
+  banner(r.finished?`🏁 ${route?.name||'Route'} done! <a href="/posts">Your post →</a> · <a href="/plan">Ride another →</a>`
+    :cue?`${st.session.pace?'⛰':'🎯'} ${cue}`:null);
+  $('banner').classList.toggle('behind',!!(cue&&behind));
   base={d:r.done_m, v:st.speed/3.6, t:performance.now()};
   const G=st.ghost;
   if(G && G.seconds!==null){ const a=G.seconds<0, e=Math.abs(G.seconds)<2, gh=$('ghost'); gh.hidden=false;
@@ -249,8 +299,60 @@ addEventListener('keydown',e=>{ // a Bluetooth remote or keyboard works too
   if(['ArrowUp','ArrowRight','PageUp'].includes(e.key)) shift(1,$('up'));
   if(['ArrowDown','ArrowLeft','PageDown'].includes(e.key)) shift(-1,$('dn')); });
 
+// ---- Today's focus: two small ranges, the dot is you. Quiet while you're in range; a gentle outline and a
+// hint only after 10 s out of it (every hill crosses the line for a moment). ----
+let outSince=null;
+function focusMonitor(f){ if(!f||st.erg||!st.cadence){ outSince=null; $('cal').classList.remove('drift'); return ''; }
+  const bar=(v,lo,hi,ok)=>{ const a=lo-(hi-lo)*.6, b=hi+(hi-lo)*.6, x=q=>Math.max(0,Math.min(100,(q-a)/(b-a)*100));
+    return `<div class="bar"><i style="left:${x(lo)}%;width:${x(hi)-x(lo)}%"></i><em class="${ok?'':'out'}" style="left:${x(v)}%"></em></div>`; };
+  const out=f.rpm_ok===false||f.watts_ok===false; outSince=out?(outSince||Date.now()):null;
+  const drift=outSince&&Date.now()-outSince>10000; $('cal').classList.toggle('drift',!!drift);
+  const pct=f.in_range[f.watts?'both':'rpm'];
+  const paged=document.body.classList.contains('paged');
+  if(drift&&f.hint) return `<div class="fm"><div class="fh">${f.hint}</div></div>`;
+  return `<div class="fm" title="${f.name}"><div class="fr">${f.watts?`<span>W</span>${bar(st.power,f.watts[0],f.watts[1],f.watts_ok)}`:''}
+    <span>RPM</span>${bar(st.cadence,f.rpm[0],f.rpm[1],f.rpm_ok)}${!paged&&pct!=null?`<span>${pct}%</span>`:''}</div></div>`; }
+// Phones: the focus name and time in range ride on the calories line, so the bars get the whole width.
+function focusPct(f){ if(!f||st.erg||!st.cadence||!document.body.classList.contains('paged')) return '';
+  const pct=f.in_range[f.watts?'both':'rpm']; return `<span class="fpct" title="time in range">${f.name}${pct!=null?` · ${pct}%`:''}</span>`; }
+function rpeButtons(d){ const lr=d.last_ride, box=$('rpebtns'); if(!lr){ box.innerHTML='<div class="sub" style="grid-column:1/-1">Ride five minutes, then rate it.</div>'; return; }
+  box.innerHTML=[...Array(10)].map((_,i)=>`<button data-r="${i+1}" style="margin:0;padding:12px 0" class="${lr.rpe===i+1?'on':''}">${i+1}</button>`).join('');
+  box.querySelectorAll('button').forEach(b=>b.onclick=async()=>{ await fetch('/api/coach/rate',{method:'POST',body:JSON.stringify({rpe:+b.dataset.r})}).catch(()=>{}); loadFocus(); }); }
+async function loadFocus(){ try{ const d=await (await fetch('/api/coach/today')).json(); const ps=d.focus_presets||{}; rpeButtons(d);
+    $('fpick').innerHTML=Object.entries(ps).map(([k,f])=>`<option value="${k}">${f.name} · ${f.rpm[0]}-${f.rpm[1]} rpm${f.watts?` · ${f.watts[0]}-${f.watts[1]} W`:''}</option>`).join('')
+      +(d.focus?.key==='custom'?`<option value="custom">${d.focus.name} (custom)</option>`:'');
+    $('fpick').value=d.focus?.key||'cadence'; $('fbuilds').textContent=d.focus?'Builds '+d.focus.builds:''; }catch(e){} }
+$('fpick').onchange=async()=>{ if($('fpick').value==='custom') return;
+  await fetch('/api/coach/plan',{method:'POST',body:JSON.stringify({focus:$('fpick').value})}).catch(()=>{}); loadFocus(); poll(); };
+
+
+// ---- Phones: two pages take turns at the top every 8 s - Ride (the numbers) and Route (the climb profile or
+// live graph, with calories and the day's focus under it). Swipe or tap to switch; the lock under the menu holds
+// one. Drifting out of the focus range for 10 s brings Route up (unless locked). ----
+const PAGES=[[document.querySelector('.hud')], [$('prof'), $('cal')]], PHONE=matchMedia('(max-width:560px) and (orientation:portrait), (orientation:landscape) and (max-height:560px)');
+let page=0, locked=false, pageAt=Date.now();
+try{ locked=localStorage.getItem('ridePageLock')==='1'; page=+(localStorage.getItem('ridePage')||0)%PAGES.length; }catch(e){}
+function showPage(i, byHand){ page=(i+PAGES.length)%PAGES.length; pageAt=Date.now();
+  PAGES.forEach((els,k)=>els.forEach(el=>el.classList.toggle('on',k===page)));
+  $('pgctl').innerHTML=PAGES.map((_,k)=>`<i class="${k===page?'on':''}"></i>`).join('')+`<b>${locked?'🔒':'🔓'}</b>`;
+  try{ localStorage.setItem('ridePage',page); }catch(e){}
+  if(page===1) dispatchEvent(new Event('resize'));        // the profile/graph canvas sizes itself when shown
+}
+function paged(){ document.body.classList.toggle('paged',PHONE.matches); showPage(page); dispatchEvent(new Event('resize')); }
+PHONE.addEventListener?.('change',paged); paged();
+$('pgctl').onclick=()=>{ locked=!locked; try{ localStorage.setItem('ridePageLock',locked?'1':'0'); }catch(e){} showPage(page); };
+setInterval(()=>{ if(!PHONE.matches) return;
+  if(!locked && $('cal').classList.contains('drift') && page!==1) return showPage(1);   // Route carries the focus
+  if(!locked && Date.now()-pageAt>=8000) showPage(page+1); },1000);
+let touchX=null;
+for(const el of PAGES.flat()){
+  el.addEventListener('touchstart',e=>{ touchX=e.touches[0].clientX; },{passive:true});
+  el.addEventListener('touchend',e=>{ if(touchX===null||!PHONE.matches) return; const dx=e.changedTouches[0].clientX-touchX; touchX=null;
+    if(Math.abs(dx)>40) showPage(page+(dx<0?1:-1),true); });
+  el.addEventListener('click',e=>{ if(!PHONE.matches||e.target.closest('button,a')) return; showPage(page+1,true); });
+}
 // ---- Drawer: auto-shift, climbing, ERG, full screen, end route. ----
-$('menu').onclick=()=>{ $('drawer').hidden=false; syncDrawer(); };
+$('menu').onclick=()=>{ $('drawer').hidden=false; syncDrawer(); loadFocus(); };
 $('close').onclick=()=>$('drawer').hidden=true;
 function syncDrawer(){ if(!st||$('drawer').hidden) return;
   $('auto').textContent='Auto-shift: '+(st.auto?'on':'off'); $('auto').className=st.auto?'on':'';
@@ -261,7 +363,8 @@ function syncDrawer(){ if(!st||$('drawer').hidden) return;
   $('ergstate').textContent=st.workout?`Workout: ${st.workout.name} · ${st.workout.watts} W`:st.erg?`Holding ${st.erg} W · auto-shift paused`:'';
   $('end').hidden=!st.route;
   const names=(st.workouts||[]).join('|'); if($('wpick').dataset.names!==names){ $('wpick').dataset.names=names;
-    $('wpick').innerHTML=st.workouts.map((n,i)=>`<option value="${i}">${n}</option>`).join(''); }
+    $('wpick').innerHTML=`<optgroup label="Workouts">${st.workouts.map((n,i)=>`<option value="${i}">${n}</option>`).join('')}</optgroup>
+      <optgroup label="Tests"><option value="t:ftp">FTP ramp test</option><option value="t:big_gear">Big-gear test (3 min at 50-60 rpm)</option></optgroup>`; }
   $('wgo').textContent=st.workout?'■ Stop workout':'▶ Start workout'; $('wgo').className=st.workout?'warn':'';
   $('pblist').innerHTML=(st.bests||[]).map(b=>`<div class="pbrow"><b>${b.label}</b><span>${b.ride?'today '+b.ride+' W · ':''}best <b style="color:#eef1f5">${b.best||'–'}${b.best?' W':''}</b></span></div>`).join(''); }
 const post=async u=>{ await fetch(u,{method:'POST'}).catch(()=>{}); poll(); };
@@ -270,7 +373,11 @@ $('climb').onclick=()=>post('/climb/'+(st?.climbing?'off':'on'));
 $('ergdn').onclick=()=>{ ergW=Math.max(30,ergW-5); if(st?.erg) post('/erg/'+ergW); syncDrawer(); };
 $('ergup').onclick=()=>{ ergW=Math.min(400,ergW+5); if(st?.erg) post('/erg/'+ergW); syncDrawer(); };
 $('erg').onclick=()=>post(st?.erg?'/erg/off':'/erg/'+ergW);
-$('wgo').onclick=()=>post(st?.workout?'/erg/off':'/workout/'+$('wpick').value);
+$('wgo').onclick=async()=>{ const v=$('wpick').value;
+  if(st?.workout||st?.erg) return post('/erg/off');
+  if(v==='t:ftp') return post('/ftp/start');
+  if(v==='t:big_gear'){ await fetch('/api/coach/test',{method:'POST',body:JSON.stringify({test:'big_gear'})}).catch(()=>{}); return poll(); }
+  post('/workout/'+v); };
 $('end').onclick=async()=>{ if(!confirm('End this route?')) return; await post('/api/route/stop'); clearRoute(); $('drawer').hidden=true; };
 $('fs').onclick=()=>{ if(document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen?.({navigationUI:'hide'}).catch(()=>{}); };
 

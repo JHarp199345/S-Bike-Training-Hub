@@ -244,6 +244,7 @@ async def serve(bridge, port=8729, lan=True):
             import time as _t
             body = json.dumps({"now": _t.time(), "ftp": bridge.profile["ftp"],
                                "band": [bridge.auto.low, bridge.auto.high],
+                               "watts": (bridge.focus or {}).get("watts") if not bridge.erg.on else None,
                                "points": bridge.live.since(since)}).encode()
             ctype = "application/json"
         elif path.startswith(b"/climb/") and method == b"POST":

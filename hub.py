@@ -7,7 +7,7 @@ bridge's own API on this Mac, readable text out (or --json).
   hub today [--date D]                check-in, diagnostic, verdict, plan
   hub checkins [--days 14]            recent check-ins and diagnostics
   hub checkin --feet 5 --legs 5 --gut easy --note "post-run soreness" ...
-  hub plan --verdict easy --note "..." [--workout ID] [--date D]
+  hub plan --verdict easy --note "..." [--workout ID] [--focus cadence|grit|speed|recovery|off] [--date D]
   hub rides [--days 7]                recent rides: time, watts, load
   hub fitness                         fitness, fatigue, form
   hub milestones                      streaks, totals, next up
@@ -92,6 +92,7 @@ def main(argv=None):
     p.add_argument("--gut", choices=["go", "easy", "no"]); p.add_argument("--note")
     p = sub.add_parser("plan"); p.add_argument("--date"); p.add_argument("--verdict", choices=["go", "easy", "rest"])
     p.add_argument("--note"); p.add_argument("--workout")
+    p.add_argument("--focus", help="cadence, grit, speed, recovery, off - or '' to clear")
     p = sub.add_parser("rides"); p.add_argument("--days", type=int, default=7)
     sub.add_parser("fitness"); sub.add_parser("milestones"); sub.add_parser("workouts"); sub.add_parser("diagnostic")
     sub.add_parser("load")
@@ -132,9 +133,12 @@ def main(argv=None):
         show(d, j, fmt_checkin(d["date"], d.get("checkin"), d.get("plan"))
              + (f"\n   running: {run['verdict'].upper()}" if run else ""))
     elif a.cmd == "plan":
-        body = {k: v for k, v in {"date": a.date, "verdict": a.verdict, "note": a.note, "workout": a.workout}.items() if v is not None}
+        body = {k: v for k, v in {"date": a.date, "verdict": a.verdict, "note": a.note, "workout": a.workout,
+                                  "focus": a.focus}.items() if v is not None}
         d = call("/api/coach/plan", body)
-        show(d, j, fmt_checkin(d["date"], d.get("checkin"), d.get("plan")))
+        f = d.get("focus")
+        show(d, j, fmt_checkin(d["date"], d.get("checkin"), d.get("plan"))
+             + (f"\n   focus: {f['name']} - {f['rpm'][0]}-{f['rpm'][1]} rpm" + (f", {f['watts'][0]}-{f['watts'][1]} W" if f.get("watts") else "") if f else ""))
     elif a.cmd == "rides":
         d = call("/api/fitness")
         since = (dt.date.today() - dt.timedelta(days=a.days)).isoformat()

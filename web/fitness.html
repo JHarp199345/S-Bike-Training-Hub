@@ -30,6 +30,7 @@
  .budget i{position:absolute;top:0;bottom:0;background:rgba(34,197,94,.35)}.budget em{position:absolute;top:-2px;bottom:-2px;width:4px;background:#fff;border-radius:2px}
  @media (max-width:560px){.sysgrid{grid-template-columns:1fr}}
  @media (max-width:560px){.n b{font-size:26px} canvas{height:280px} .hide-s{display:none}}
+ .card{overflow-x:auto} /* wide tables scroll inside their card on a phone, not the whole page */
 </style></head><body><main>
 <h1>Fitness &amp; form</h1>
 <div class="sub">From your watts, not heart rate · <a href="/">Panel</a> · <a href="/ride">Ride view</a> · <a href="/plan">Plan a ride</a></div>
@@ -53,6 +54,17 @@
  <canvas id="sc" style="height:230px;margin-top:12px"></canvas>
  <div class="sub" style="font-size:12px;margin:6px 4px 0">Solid: fatigue (last ~week). Dashed: fitness (what each system is used to). Fatigue far above fitness = overreaching.</div>
  <table style="margin-top:12px"><thead><tr><th>Last 7 days</th><th class="r">Time</th><th class="r">❤️ Engine</th><th class="r">🦶 Impact</th><th class="r">🦵 Muscle</th></tr></thead><tbody id="sports"></tbody></table>
+</div>
+<div class="card" id="xfercard" hidden><div class="bar"><b>🔁 How your sports carry over</b><span class="sub" id="xfersum"></span></div>
+ <div class="sub" style="margin:0 4px 10px">How much an hour of one sport builds another, next to an hour of that sport itself - and how much each tires your legs, next to running.
+  It starts from the research (cycling carries to running; little carries into swimming; only running builds feet and bones) and learns yours from every ride, swim and check-in.
+  <b>Grey</b>: still the research's number · <b>amber</b>: learning · <b>green</b>: learned from you.</div>
+ <div id="xfergrid"></div></div>
+<div class="card" id="aerocard" hidden><div class="bar"><b>❤️ Aerobic engine · power and heart rate together</b><span class="sub" id="aerosum"></span></div>
+ <div class="sub" style="margin:0 4px 10px">From the watch's ride files (the bike is its power meter). <b>Watts per beat</b> (normalized power ÷ heart rate) rises as you get fitter.
+  <b>Heart rate at 100-120 W</b> - the same watts every ride - falls. <b>Decoupling</b>: watts per beat in the first half vs the second; under 5% the ride stayed aerobic (judged on steady rides of 40+ minutes).</div>
+ <canvas id="aeroc" style="height:170px"></canvas>
+ <table style="margin-top:10px"><thead><tr><th>Ride</th><th class="r">Min</th><th class="r">NP</th><th class="r">HR</th><th class="r">W/beat</th><th class="r hide-s">Decoupling</th><th class="r">HR @100-120 W</th></tr></thead><tbody id="aerorows"></tbody></table>
 </div>
 <div class="card" id="dmgcard" hidden><div class="bar"><b>🦶 Exploratory tissue detail</b><span class="sub" id="dverdict"></span></div>
  <div class="sub" style="margin:0 4px 10px">These older tissue clocks explore how impact may linger differently in soft tissue, tendon, and bone. Their repair-day estimates are provisional and do not set a return-to-running date. The <a href="/coach">Coach page</a> uses the recent response, accumulated mechanical curve, and your feet report for its running verdict.</div>
@@ -88,7 +100,34 @@ async function body(){ try{ bl=await (await fetch('/api/load')).json(); }catch(e
       <small>this week ${Math.round(v.week_used)} · sweet spot ${b[0]}-${b[1]}</small>`:'<small>budget appears after two weeks of history</small>'}</div>`; }).join('');
   $('sports').innerHTML=Object.entries(bl.sports_last7).map(([sp,v])=>`<tr><td>${{run:'🏃 Run',swim:'🏊 Swim',bike:'🚴 Bike',gym:'🏋️ Gym',walk:'🚶 Walk'}[sp]||sp}</td>
     <td class="r">${Math.floor(v.minutes/60)?Math.floor(v.minutes/60)+'h ':''}${Math.round(v.minutes%60)}m</td><td class="r">${Math.round(v.engine)}</td><td class="r">${Math.round(v.impact)}</td><td class="r">${Math.round(v.muscle)}</td></tr>`).join('');
-  sysdraw(); dmg(); }
+  sysdraw(); dmg(); aero(); xfer(); }
+function xfer(){ const T=bl.transfer; if(!T||!T.fitness){ $('xfercard').hidden=true; return; } $('xfercard').hidden=false;
+  const S=['swim','bike','run'], N={swim:'🏊 Swim',bike:'🚴 Bike',run:'🏃 Run'}, C={prior:'#9ca3af',learning:'#fbbf24',learned:'#4ade80'};
+  const cell=v=>v?`<b style="color:${C[v.status]}">${v.ratio.toFixed(2)}</b>${v.lo!=null?`<br><small class="sub">${v.lo.toFixed(1)}-${v.hi.toFixed(1)}</small>`:''}`:'';
+  $('xfersum').textContent=`from ${T.markers.bike} rides, ${T.markers.swim} swims, ${T.markers.run} runs`;
+  $('xfergrid').innerHTML=`<table><thead><tr><th>Builds →<br>from ↓</th>${S.map(s=>`<th class="r">${N[s]}</th>`).join('')}<th class="r">Tires legs</th></tr></thead><tbody>`
+    +S.map(u=>`<tr><td>${N[u]}</td>${S.map(to=>`<td class="r">${u===to?'<span class="sub">1</span>':cell(T.fitness[to].from[u])}</td>`).join('')}
+      <td class="r">${u==='run'?'<span class="sub">1</span>':cell(T.legs.from[u])}</td></tr>`).join('')+'</tbody></table>'
+    +`<div class="sub" style="margin-top:6px">🦶 Feet and bones: only running builds them - riding and swimming carry 0.</div>`; }
+function aero(){ const A=bl.aerobic; if(!A||!A.rides.length){ $('aerocard').hidden=true; return; } $('aerocard').hidden=false;
+  const t=A.trend.hr_at_band, e=A.trend.ef;
+  $('aerosum').textContent=t?`HR at ${A.band[0]}-${A.band[1]} W: ${t.first} → ${t.latest} bpm`:e?`watts per beat ${e.first} → ${e.latest}`:`${A.rides.length} ride${A.rides.length>1?'s':''} so far`;
+  $('aerorows').innerHTML=A.rides.slice().reverse().map(r=>`<tr><td>${fmt(r.date)}</td><td class="r">${r.minutes}</td><td class="r">${r.np??'–'}</td><td class="r">${r.avg_hr}</td>
+    <td class="r"><b>${r.ef??'–'}</b></td><td class="r hide-s">${r.decoupling_pct==null?'–':r.decoupling_pct+'%'}${r.judged?(r.aerobic?' ✓':' ↑'):' <span class="sub">(too short/hilly to judge)</span>'}</td>
+    <td class="r"><b>${r.hr_at_band??'–'}</b></td></tr>`).join('');
+  const c=$('aeroc'), dpr=devicePixelRatio||1, W=c.clientWidth, H=c.clientHeight; c.width=W*dpr; c.height=H*dpr;
+  const g=c.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,W,H);
+  const R=A.rides, L=34, Rr=34, T=12, B=H-20, x=i=>L+(R.length<2?(W-L-Rr)/2:i*(W-L-Rr)/(R.length-1));
+  const hrs=R.map(r=>r.hr_at_band).filter(v=>v!=null), efs=R.map(r=>r.ef).filter(v=>v!=null);
+  const line=(vals,col,lo,hi,label,side)=>{ if(!vals.some(v=>v!=null)) return; const Y=v=>B-(v-lo)/Math.max(1e-6,hi-lo)*(B-T);
+    g.strokeStyle=col; g.lineWidth=2.2; g.beginPath(); let st=false; vals.forEach((v,i)=>{ if(v==null) return; st?g.lineTo(x(i),Y(v)):g.moveTo(x(i),Y(v)); st=true; }); g.stroke();
+    vals.forEach((v,i)=>{ if(v==null) return; g.fillStyle=col; g.beginPath(); g.arc(x(i),Y(v),3.5,0,7); g.fill(); });
+    g.fillStyle=col; g.font='11px -apple-system,Roboto,sans-serif'; g.textAlign=side==='l'?'right':'left';
+    g.fillText(hi.toFixed(label==='bpm'?0:2),side==='l'?L-4:W-Rr+4,T+4); g.fillText(lo.toFixed(label==='bpm'?0:2),side==='l'?L-4:W-Rr+4,B); };
+  if(hrs.length) line(R.map(r=>r.hr_at_band),'#f87171',Math.min(...hrs)-5,Math.max(...hrs)+5,'bpm','l');
+  if(efs.length) line(R.map(r=>r.ef),'#4ade80',Math.min(...efs)-0.05,Math.max(...efs)+0.05,'ef','r');
+  g.fillStyle='#8b98a8'; g.textAlign='center'; R.forEach((r,i)=>g.fillText(fmt(r.date),x(i),H-4));
+  g.textAlign='left'; g.fillStyle='#f87171'; g.fillText('● HR at 100-120 W',L+4,T+2); g.fillStyle='#4ade80'; g.fillText('● watts per beat',L+130,T+2); }
 const TC={soft:'#f472b6',tendon:'#fbbf24',bone:'#e5e7eb'};
 function dmg(){ const d=bl.systems.impact&&bl.systems.impact.tissue; if(!d){ $('dmgcard').hidden=true; return; } $('dmgcard').hidden=false;
   $('dverdict').textContent='Coach has the current running recommendation';
@@ -178,5 +217,5 @@ const at=e=>{ const r=$('c').getBoundingClientRect(); hover=(e.touches?e.touches
 $('c').addEventListener('mousemove',at); $('c').addEventListener('touchstart',at,{passive:true}); $('c').addEventListener('touchmove',at,{passive:true});
 $('c').addEventListener('mouseleave',()=>{hover=null;draw();});
 document.querySelectorAll('[data-d]').forEach(b=>b.onclick=()=>{ range=+b.dataset.d; document.querySelectorAll('[data-d]').forEach(x=>x.classList.toggle('on',x===b)); draw(); });
-addEventListener('resize',()=>{ draw(); sysdraw(); dmgdraw(); }); load(); setInterval(load,60000);
+addEventListener('resize',()=>{ draw(); sysdraw(); dmgdraw(); if(bl) aero(); }); load(); setInterval(load,60000);
 </script></body></html>

@@ -39,7 +39,11 @@
  .idea:hover{background:#1f2937} .idea small{color:#8b98a8;display:block}
  .chk{display:flex;align-items:center;gap:8px;color:#eef1f5;font-size:14px;margin-top:12px;cursor:pointer}
  .chk input{width:18px;height:18px}
- .idtabs{display:flex;gap:6px;margin-bottom:4px}.idtabs button{flex:1;padding:7px;font-size:13px}
+ .idtabs{display:flex;gap:6px;margin-bottom:4px}
+ .fit{font-size:12px;color:#cfd6df;margin-top:4px}.fit b{color:#4ade80}.fit b.meh{color:#fbbf24}
+ .climb{background:#151b23;border-radius:10px;padding:8px 10px;margin:6px 0;font-size:13px}
+ .climb .row{align-items:center;margin-top:6px;gap:6px}.climb input[type=text],.climb input[type=number]{width:64px;padding:5px;font-size:14px}
+ .climb label{display:inline-flex;align-items:center;gap:5px;margin:0;color:#eef1f5;font-size:13px}.idtabs button{flex:1;padding:7px;font-size:13px}
  @media (max-width:700px){
   #side{top:auto;left:0;right:0;bottom:0;width:auto;max-width:none;max-height:55%;border-radius:16px 16px 0 0;padding:6px 14px 14px}
   #side.min{max-height:118px;overflow:hidden}
@@ -54,7 +58,12 @@
  <h1>Plan a ride</h1><div class="sub">Real roads and hills, planned on this Mac. <a href="/ride">Ride view</a> · <a href="/">Panel</a></div>
  <div class="search"><input id="q" type="text" placeholder="🔍  Find a town or mountain - Paris, Malibu, Ventoux…" autocomplete="off">
   <div id="hits" hidden></div></div>
- <div class="tabs"><button id="tab-ab" class="on">A → B</button><button id="tab-loop">By distance</button></div>
+ <div class="tabs"><button id="tab-ab" class="on">A → B</button><button id="tab-loop">By distance</button><button id="tab-area">Area</button></div>
+ <div id="area-opts" hidden>
+  <label>Circle radius: <span id="radv">5</span> km</label><input id="rad" type="range" min="1" max="25" step="1" value="5">
+  <label>Ride for: <span id="minv">45</span> min</label><input id="mins" type="range" min="20" max="120" step="5" value="45">
+  <div class="sub" id="focusline" style="margin-top:8px"></div>
+ </div>
  <div id="loop-opts" hidden>
   <label>Distance: <span id="kmv">20</span> km</label><input id="km" type="range" min="5" max="100" step="1" value="20">
   <label>Kind of day</label>
@@ -70,6 +79,10 @@
   <label>Name this route</label><input id="rname" type="text" maxlength="60">
   <div class="row" style="margin-top:8px"><button id="save">Save</button><button id="saveride" class="ride">Save &amp; ride</button></div>
  </div>
+ <div id="climbbox" hidden><h2>Climbs on <span id="climbroute"></span> · training</h2>
+  <div class="sub">Tick what you want on today's ride. A time goal turns into watts for auto-shift to steer to; efforts shift you straight into a big gear.</div>
+  <div id="climblist"></div>
+  <button id="sesssave" class="go">Use for today's ride</button><div id="sessmsg" class="sub"></div></div>
  <h2>Ideas · famous rides</h2>
  <div class="idtabs" id="idtabs"></div>
  <div id="ideas"></div>
@@ -98,13 +111,29 @@ const pad=()=>narrow()?{left:30,right:30,top:60,bottom:$('side').offsetHeight+20
 $('grab').onclick=()=>$('side').classList.toggle('min');
 const mStart=mk('#16a34a'), mEnd=mk('#dc2626');
 function setMode(m){ mode=m; $('tab-ab').classList.toggle('on',m==='ab'); $('tab-loop').classList.toggle('on',m==='loop');
-  $('loop-opts').hidden=m!=='loop'; end=null; names.end=null; mEnd.remove(); ready(); showPts(); }
-$('tab-ab').onclick=()=>setMode('ab'); $('tab-loop').onclick=()=>setMode('loop');
+  $('tab-area').classList.toggle('on',m==='area'); $('area-opts').hidden=m!=='area';
+  $('loop-opts').hidden=m!=='loop'; end=null; names.end=null; mEnd.remove(); drawArea(); ready(); showPts();
+  if(m==='area') loadFocus(); }
+$('tab-ab').onclick=()=>setMode('ab'); $('tab-loop').onclick=()=>setMode('loop'); $('tab-area').onclick=()=>setMode('area');
+// ---- Area: circle where you'd like to ride; the coach finds loops inside it that suit today's focus. ----
+$('rad').oninput=()=>{ $('radv').textContent=$('rad').value; drawArea(); };
+$('mins').oninput=()=>$('minv').textContent=$('mins').value;
+async function loadFocus(){ try{ const d=await (await fetch('/api/coach/today')).json(), f=d.focus;
+  $('focusline').innerHTML=f?`Today's focus: <b>${f.name}</b> · ${f.rpm[0]}-${f.rpm[1]} rpm${f.watts?` · ${f.watts[0]}-${f.watts[1]} W`:''} · <a href="/coach">change</a>`:''; }catch(e){} }
+function circle(c,km){ const pts=[]; for(let i=0;i<=64;i++){ const a=i/64*2*Math.PI, dlat=km*Math.cos(a)/111.195,
+    dlon=km*Math.sin(a)/(111.195*Math.cos(c[0]*Math.PI/180)); pts.push([c[1]+dlon,c[0]+dlat]); } return pts; }
+function drawArea(){ const on=mode==='area'&&start, km=+$('rad').value;
+  const fc={type:'FeatureCollection',features:on?[{type:'Feature',properties:{},geometry:{type:'Polygon',coordinates:[circle(start,km)]}}]:[]};
+  if(!map.isStyleLoaded()) return map.once('load',drawArea);
+  if(map.getSource('area')) map.getSource('area').setData(fc);
+  else { map.addSource('area',{type:'geojson',data:fc});
+    map.addLayer({id:'area-fill',type:'fill',source:'area',paint:{'fill-color':'#22c55e','fill-opacity':.08}});
+    map.addLayer({id:'area-line',type:'line',source:'area',paint:{'line-color':'#22c55e','line-width':2,'line-dasharray':[2,2]}}); } }
 $('km').oninput=()=>$('kmv').textContent=$('km').value;
 $('loopback').onchange=()=>{ $('distnote').textContent=$('loopback').checked?'Out and around, back to your start.':"It's a virtual ride, so it can end anywhere: routes head off in different directions and stop when the distance is up."; };
 document.querySelectorAll('[data-want]').forEach(b=>b.onclick=()=>{want=b.dataset.want;
   document.querySelectorAll('[data-want]').forEach(x=>x.classList.toggle('on',x===b));});
-function ready(){ $('find').disabled=!(start&&(mode==='loop'||end)); }
+function ready(){ $('find').disabled=!(start&&(mode!=='ab'||end)); }
 // ---- Where am I? Name the start and finish after the nearest town. ----
 const names={start:null,end:null};
 async function nameOf(which,p){ names[which]='…'; showPts();
@@ -112,8 +141,9 @@ async function nameOf(which,p){ names[which]='…'; showPts();
     names[which]=n?(n.km<1.5?n.name:`${n.km} km from ${n.name}`):'somewhere quiet'; }catch(e){ names[which]=null; }
   showPts(); }
 function showPts(){ const s=start&&`<b>● Start</b> ${names.start||''}`, e=end&&mode==='ab'&&`<b class="e">● Finish</b> ${names.end||''}`;
-  $('pts').innerHTML=[s,e].filter(Boolean).join('<br>')||(mode==='ab'?'Tap the map for your start, then your finish.':'Tap the map where you want to start.'); }
-function setStart(p){ start=p; mStart.setLngLat([p[1],p[0]]).addTo(map); nameOf('start',p); }
+  $('pts').innerHTML=[mode==='area'&&start?`<b>● Area</b> around ${names.start||''}`:s,e].filter(Boolean).join('<br>')||(mode==='ab'?'Tap the map for your start, then your finish.'
+    :mode==='area'?'Tap the middle of where you\'d like to ride, then size the circle.':'Tap the map where you want to start.'); }
+function setStart(p){ start=p; mStart.setLngLat([p[1],p[0]]).addTo(map); nameOf('start',p); drawArea(); }
 function setEnd(p){ end=p; mEnd.setLngLat([p[1],p[0]]).addTo(map); nameOf('end',p); }
 // ---- Search: fly to a town or a mountain. ----
 let hitList=[], hitSel=-1, qT=0;
@@ -166,7 +196,8 @@ function drawProfile(canvas, prof, color){
 }
 function card(r,i,color,onclick){
   const s=r.stats, d=document.createElement('div'); d.className='card'; d.style.setProperty('--c',color);
-  d.innerHTML=`<b>${r.name}</b><span class="kind ${s.kind}">${s.kind}</span><div class="sub">${s.km} km · ${s.climb_m} m up · steepest ${s.max_grade}%</div><canvas></canvas>`;
+  const f=r.fit, fit=f?`<div class="fit"><b class="${f.score>=0.8?'':'meh'}">${f.score>=0.8?'Good fit':f.score>=0.6?'OK fit':'Poor fit'} for today</b> · ${f.why.join(' · ')}</div>`:'';
+  d.innerHTML=`<b>${r.name}</b><span class="kind ${s.kind}">${s.kind}</span><div class="sub">${s.km} km · ${s.climb_m} m up · steepest ${s.max_grade}%</div>${fit}<canvas></canvas>`;
   d.onclick=onclick; setTimeout(()=>drawProfile(d.querySelector('canvas'),r.profile,color)); return d;
 }
 function showCands(){
@@ -183,17 +214,18 @@ function showCands(){
 function pick(i){ sel=i; showCands(); $('savebox').hidden=false; $('rname').value=cands[i].name;
   const b=new maplibregl.LngLatBounds(); cands[i].points.forEach(p=>b.extend(p)); map.fitBounds(b,{padding:pad()}); }
 $('find').onclick=async()=>{
-  $('find').disabled=true; $('msg').textContent=mode==='ab'?'Planning…':'Trying roads in every direction… (10-20 s)'; $('savebox').hidden=true; sel=null;
-  const body=mode==='ab'?{start,end}:{start,km:+$('km').value,want,loop:$('loopback').checked};
-  try{ const r=await fetch('/api/plan',{method:'POST',body:JSON.stringify(body)}); const j=await r.json();
-    if(!r.ok) throw new Error(j.error||'planning failed'); cands=j;
-    $('msg').textContent=j.length?`${j.length} route${j.length>1?'s':''} - pick one`:'No routes found there.'; showCands(); if(j.length) pick(0);
+  $('find').disabled=true; $('msg').textContent=mode==='ab'?'Planning…':mode==='area'?'Trying loops inside the circle and timing them for today… (10-30 s)':'Trying roads in every direction… (10-20 s)'; $('savebox').hidden=true; sel=null;
+  const body=mode==='ab'?{start,end}:mode==='area'?{center:start,radius_km:+$('rad').value,minutes:+$('mins').value}:{start,km:+$('km').value,want,loop:$('loopback').checked};
+  try{ const r=await fetch(mode==='area'?'/api/plan/area':'/api/plan',{method:'POST',body:JSON.stringify(body)}); let j=await r.json();
+    if(!r.ok) throw new Error(j.error||'planning failed');
+    const note=mode==='area'?j.note:''; if(mode==='area') j=j.routes; cands=j;
+    $('msg').textContent=(j.length?`${j.length} route${j.length>1?'s':''}${mode==='area'?', best fit first':''} - pick one`:'No routes found there.')+(note?' · '+note:''); showCands(); if(j.length) pick(0);
   }catch(e){ $('msg').textContent=e.message; } finally{ ready(); }
 };
 async function save(ride){
   const r=await fetch('/api/route/save',{method:'POST',body:JSON.stringify({cid:cands[sel].cid,name:$('rname').value})});
   const j=await r.json(); if(!r.ok){ $('msg').textContent=j.error; return; }
-  $('msg').textContent='Saved.'; loadSaved(); if(ride) rideRoute(j.id);
+  $('msg').textContent='Saved.'; loadSaved(); if(ride) rideRoute(j.id); else showClimbs(j.id);
 }
 $('save').onclick=()=>save(false); $('saveride').onclick=()=>save(true);
 async function rideRoute(id){ await fetch('/api/route/start/'+id,{method:'POST'}); location.href='/ride'; }
@@ -205,11 +237,36 @@ async function loadSaved(){
     const show=document.createElement('button'); show.textContent='Show'; show.onclick=async()=>{
       const g=await (await fetch('/api/route/'+r.id)).json(); cands=[g]; sel=0; showCands(); $('savebox').hidden=true;
       const b=new maplibregl.LngLatBounds(); g.points.forEach(p=>b.extend(p)); map.fitBounds(b,{padding:pad()}); };
+    show.addEventListener('click',()=>showClimbs(r.id));
     const go=document.createElement('button'); go.className='ride'; go.textContent='Ride'; go.onclick=()=>rideRoute(r.id);
     d.append(show,go); box.appendChild(d); });
 }
 $('gpx').onchange=async()=>{ const f=$('gpx').files[0]; if(!f) return;
   const r=await fetch('/api/route/import',{method:'POST',body:await f.text()}); const j=await r.json();
   $('msg').textContent=r.ok?`Imported "${j.name}".`:j.error; loadSaved(); $('gpx').value=''; };
+// ---- Training on a route's climbs: time goals and big-gear efforts, for today's ride. ----
+let climbRoute=null;
+const mmss=x=>`${Math.floor(x/60)}:${String(Math.round(x%60)).padStart(2,'0')}`;
+const secsOf=t=>{ const m=String(t).trim().match(/^(\d+)(?::(\d{1,2}))?$/); return m?(+m[1])*60+(m[2]!==undefined?+m[2]:0):null; };   // "10:30" or "10" (minutes)
+async function showClimbs(id){ const [c,today]=await Promise.all([fetch(`/api/route/${id}/climbs`).then(r=>r.json()), fetch('/api/coach/today').then(r=>r.json())]);
+  climbRoute=c; $('climbbox').hidden=false; $('climbroute').textContent=c.name; $('sessmsg').textContent='';
+  const have=(today.plan?.session?.route_id===id)?today.plan.session.segments:[];
+  if(!c.climbs.length){ $('climblist').innerHTML='<div class="sub" style="margin:8px 0">No steady climbs on this route (3%+ for 300 m+). Efforts can still go anywhere - ask the coach.</div>'; $('sesssave').hidden=true; return; }
+  $('sesssave').hidden=false;
+  $('climblist').innerHTML=c.climbs.map(k=>{ const g=have.find(s=>s.type==='climb_time'&&Math.abs(s.start_m-k.start_m)<30),
+      e=have.find(s=>s.type==='efforts'&&Math.abs(s.at_m-k.start_m)<30), goal=g?g.seconds:k.goal_s;
+    return `<div class="climb" data-n="${k.n}"><b>Climb ${k.n}</b> · km ${(k.start_m/1000).toFixed(1)} · ${(k.length_m/1000).toFixed(2)} km at ${k.avg_grade}% (max ${k.max_grade}%) · +${k.gain_m} m
+      <div class="sub">${k.best_s?`your best ${mmss(k.best_s)} (${k.rides} ride${k.rides>1?'s':''}) · goal at your climb-pace step (${Math.round(c.goal_factor*100)}%)`:'not ridden yet'} · about ${mmss(k.estimate_s.steady)} at ${Math.round(c.ftp*.75)} W, ${mmss(k.estimate_s.hard)} at ${Math.round(c.ftp*.9)} W${k.fastest_s?` · fastest you could hold: ${mmss(k.fastest_s)} (CP ${c.cp} W + W′)`:''}</div>
+      <div class="row"><label><input type="checkbox" class="tg" ${g?'checked':''}> Time goal</label><input type="text" class="tv" value="${mmss(goal)}"></div>
+      <div class="row"><label><input type="checkbox" class="ef" ${e?'checked':''}> Efforts</label><input type="number" class="en" value="${e?.count||3}" min="1" max="10"> ×
+        <input type="number" class="es" value="${e?.on_s||15}" min="5" max="600"> s at <input type="number" class="ew" value="${e?.watts||Math.round(c.ftp*1.1/5)*5}" min="50" max="800"> W</div></div>`; }).join(''); }
+$('sesssave').onclick=async()=>{ if(!climbRoute) return; const segs=[];
+  document.querySelectorAll('#climblist .climb').forEach(el=>{ const n=+el.dataset.n;
+    if(el.querySelector('.tg').checked){ const sec=secsOf(el.querySelector('.tv').value); if(sec) segs.push({type:'climb_time',climb:n,seconds:sec}); }
+    if(el.querySelector('.ef').checked) segs.push({type:'efforts',climb:n,count:+el.querySelector('.en').value,on_s:+el.querySelector('.es').value,
+      off_s:180,watts:+el.querySelector('.ew').value}); });
+  const r=await fetch('/api/coach/session',{method:'POST',body:JSON.stringify({route_id:climbRoute.id,segments:segs})}); const j=await r.json();
+  $('sessmsg').textContent=!r.ok?j.error:segs.length?`Set for today: ${j.session.segments.map(s=>s.type==='climb_time'?`${s.name} in ${mmss(s.seconds)}`:`efforts ${s.name} at km ${(s.at_m/1000).toFixed(1)}`).join(' · ')}. Ride this route and the bike does the rest.`
+    +((j.session.warnings||[]).length?` Heads-up: ${j.session.warnings.join(' · ')}.`:''):'Cleared - no training on this route today.'; };
 loadSaved(); loadIdeas(); showPts();
 </script></body></html>

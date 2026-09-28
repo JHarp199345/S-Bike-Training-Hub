@@ -17,6 +17,7 @@ one dictionary:
 Everything stays on this Mac; posting is a separate, deliberate step.
 """
 import csv
+import json
 import datetime as dt
 import re
 from pathlib import Path
@@ -205,6 +206,43 @@ def build(path):
                    f"{round(adh['score'] * 100)}% on target"))
     elif workout:
         hl.append((55, "🎯", workout, "workout done"))
+    try:
+        import focus
+        foc = focus.for_ride(rows, events)
+    except Exception:
+        foc = None
+    if foc and foc["minutes"] >= 5 and not adh:
+        hl.append((58 if foc["both_pct"] >= 70 else 35, "🎚", f"{foc['focus']}: {foc['both_pct']}% in range",
+                   f"cadence {foc['rpm_pct']}%" + (f" · watts {foc['watts_pct']}%" if foc["watts_pct"] is not None else "")))
+    try:                                  # how hard the rider said it was
+        import coach
+        rpe = (coach.load(coach.file_for(rides_dir))["ratings"].get(path.stem) or {}).get("rpe")
+    except Exception:
+        rpe = None
+    # the route's session (climb goals, efforts) and every climb ridden, against your previous times on it
+    try:
+        ses = json.loads(path.with_name(path.stem + "_session.json").read_text())
+    except (OSError, ValueError):
+        ses = None
+    try:
+        all_climbs = json.loads((rides_dir / "climbs.json").read_text())
+    except (OSError, ValueError):
+        all_climbs = []
+    climbs_here = [c for c in all_climbs if c.get("ride") == path.stem]
+    mmss = lambda x: f"{int(x) // 60}:{int(x) % 60:02d}"
+    for r in (ses or {}).get("results", []):
+        if r["type"] == "climb_time":
+            hl.append((76 if r["made"] else 42, "⛰", f"{r['name']} in {mmss(r['took_s'])}",
+                       f"goal {mmss(r['goal_s'])} {'✅' if r['made'] else '- ' + mmss(r['took_s'] - r['goal_s']) + ' over'} · {r['avg_w']} W"))
+        elif r["type"] == "efforts":
+            hl.append((70 if r["made"] == len(r["efforts"]) else 44, "🔥", f"{r['name']}: {r['made']} of {len(r['efforts'])}",
+                       " · ".join(f"{e['avg_w']} W" for e in r["efforts"])))
+    for c in climbs_here:
+        before = [x for x in all_climbs if x.get("route_id") == c["route_id"] and x["n"] == c["n"]
+                  and x.get("ride") != path.stem and x.get("ride", "") < path.stem]
+        if before and c["seconds"] < min(x["seconds"] for x in before):
+            hl.append((72, "⚡", f"Climb {c['n']}: fastest yet, {mmss(c['seconds'])}",
+                       f"previous best {mmss(min(x['seconds'] for x in before))} · {c['avg_w']} W"))
     if streak >= 2:
         hl.append((50 + streak, "📅", f"{streak}-day streak", "keep it rolling"))
     if compare["month_rides"] >= 3 and compare["load_rank_month"] <= 3 and not compare["hardest_ever"]:
@@ -257,7 +295,8 @@ def build(path):
     return {"ride": path.stem, "stats": stats, "zones": zone_list, "highlights": highlights, "pbs": pbs,
             "best_efforts": best_efforts, "compare": compare, "streak": streak, "week": week, "fitness": fit,
             "route": route, "ghost": ghost, "workout": workout, "ftp_test": ftp_test,
-            "title": title, "caption": caption, "challenge": challenge, "adherence": adh,
+            "title": title, "caption": caption, "challenge": challenge, "adherence": adh, "focus": foc,
+            "session": ses, "climbs": climbs_here, "rpe": rpe,
             "power": [round(p[1]) if p else None for p in secs][:: max(1, len(secs) // 600)],
             "elevation": _elevation(rows)}
 

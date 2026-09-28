@@ -11,10 +11,11 @@ Gears don't change speed directly. Virtual speed comes from watts, so a harder
 gear at the same cadence means more watts and more road per pedal stroke, and
 an easier one means less.
 
-Deliberately NOT here: shifting harder just because cadence is steady. Without
-live heart rate that would keep adding load until the rider blows up, and base
-training keeps rides in zone 2. Once heart rate is available (hr_ceiling), a steady
-rider below the ceiling can be given more; above it, only easier shifts happen.
+Shifting harder just because cadence is steady would keep adding load with no
+ceiling, so it only happens toward a watt range - the day's focus (focus.py,
+2026-09-28): inside the cadence range, watts short of the range with legs to
+spare earn a harder gear; watts over it with room to spin faster get an easier
+one. Cadence always comes first. With no watt range, it's cadence only.
 """
 import collections
 import statistics
@@ -43,6 +44,21 @@ class AutoShift:
         self.up_streak = 0                   # harder shifts in a row, for the rev-up pacing
         self.power_cap = power_cap           # watts above which only real spinning earns another gear
         self.last_hill_change = -1e9
+        self.watt_band = None                # (lo, hi) W to steer toward inside the cadence range, or None
+        self.pw = None                       # smoothed watts
+        self.w_low_since = self.w_high_since = None
+        self.limited = None                  # "easiest" / "hardest" when the last automatic shift hit the end
+        self.watt_hold = 15                  # seconds out of the watt range before shifting for it
+
+    # ── the day's focus ────────────────────────────────────────────────────
+    def set_focus(self, rpm=None, watts=None):
+        """A cadence range to keep and a watt range to steer toward (None: cadence only)."""
+        if rpm:
+            self.normal_band = (float(rpm[0]), float(rpm[1]))
+            if not self.climbing:
+                self.low, self.high = self.normal_band
+        self.watt_band = (float(watts[0]), float(watts[1])) if watts else None
+        self._reset_timers()
 
     # ── climbing mode ──────────────────────────────────────────────────────
     def set_climbing(self, on, auto=False):
@@ -72,7 +88,7 @@ class AutoShift:
         if cadence < 20:
             # Coasting or stopped: nothing to judge, and the first strokes after
             # a stop are always slow.
-            self.ema = None
+            self.ema = self.pw = None
             self.history.clear()
             self._reset_timers()
             return None
@@ -84,6 +100,8 @@ class AutoShift:
         # Smoothing: enough to ignore a single odd stroke, light enough that an
         # up-shift lands ~5 s after cadence crosses the top of the band (0.25 made it ~7-8 s).
         self.ema = cadence if self.ema is None else self.ema + 0.4 * (cadence - self.ema)
+        if power is not None:
+            self.pw = power if self.pw is None else self.pw + 0.2 * (power - self.pw)
         if now >= self.hold_until:
             # Strokes during a grace period (restart, new hill, just shifted) are
             # the rider adapting, not a verdict on the gear; keep them out of the
@@ -123,6 +141,21 @@ class AutoShift:
             if spread > 10 and mean < self.low + 8:
                 return self._do(-1, f"cadence unsteady ({mean:.0f} ± {spread:.0f} rpm)", now)
 
+        # The watt range, inside the cadence range (not while climbing): short of it with legs to spare
+        # (7+ rpm above the bottom) -> harder gear, same legs, more watts; over it with room to spin faster
+        # (2+ rpm under the top) -> easier gear. (A harder gear at the top of the watt range is blocked below, so
+        # the legs speeding up after an easier gear don't bounce it straight back.) Out of range for watt_hold seconds, so hills and surges don't count.
+        if self.watt_band and not self.climbing and self.pw is not None and self.low <= self.ema <= self.high:
+            wlo, whi = self.watt_band
+            self.w_low_since = (self.w_low_since or now) if (self.pw < wlo and self.ema >= self.low + 7) else None
+            self.w_high_since = (self.w_high_since or now) if (self.pw > whi and self.ema <= self.high - 2) else None
+            if self.w_low_since and now - self.w_low_since >= self.watt_hold:
+                return self._do(+1, f"{self.pw:.0f} W, under {wlo:.0f} at {self.ema:.0f} rpm", now)
+            if self.w_high_since and now - self.w_high_since >= (5 if self.pw > 1.2 * whi else self.watt_hold):   # well over: sooner
+                return self._do(-1, f"{self.pw:.0f} W, over {whi:.0f} at {self.ema:.0f} rpm", now)
+        else:
+            self.w_low_since = self.w_high_since = None
+
         # Above the band: shift harder, sooner the harder the rider is spinning (the
         # "rev it" rule): just over the top waits up_hold, +5 rpm ~1.5 s, +10 about a second.
         if self.ema <= self.high:
@@ -134,6 +167,8 @@ class AutoShift:
                 return None
             if power and self.power_cap and power >= self.power_cap and over < 10:
                 return None                  # heavy already: only real spinning earns another gear
+            if power and self.watt_band and power >= self.watt_band[1] and over < 10:
+                return None                  # at the top of the watt range: the legs can settle instead
             return self._do(+1, f"cadence {self.ema:.0f} rpm, over {self.high}", now)
         return None
 
@@ -154,9 +189,12 @@ class AutoShift:
         self._reset_timers()
         self.history.clear()
         if not self.shift(delta, "Auto: " + why):
+            self.limited = "easiest" if delta < 0 else "hardest"
             return None                      # already in the easiest / hardest gear
+        self.limited = None
         self.last_action = f"{'easier' if delta < 0 else 'harder'} - {why}"
         return delta
 
     def _reset_timers(self):
         self.below_since = self.above_since = None
+        self.w_low_since = self.w_high_since = None
