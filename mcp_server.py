@@ -136,6 +136,26 @@ def t_start(a):
     return call(f"/api/workouts/start/{a['workout_id']}", {})
 
 
+def t_load(a):
+    d = call("/api/load")
+    return {k: d.get(k) for k in ("systems", "readiness", "sports_last7", "calibration", "history_days", "profile")} | \
+           {"last_14_days": [{"date": r["date"], **{x: r[x]["load"] for x in ("engine", "impact", "muscle")}}
+                             for r in d.get("days", [])[-14:]], "activities_last_14": [x for x in d.get("activities", [])
+                                                                                      if x["date"] >= (dt.date.today() - dt.timedelta(days=14)).isoformat()]}
+
+
+def t_import(a):
+    return call("/api/activities/import", {"urls": a["urls"]})
+
+
+def t_capacity(a):
+    return call("/api/load/capacity", {"system": a["system"], "usual_week": a.get("usual_week"), "note": a.get("note")})
+
+
+def t_steps(a):
+    return call("/api/steps", {"steps": a["steps"]})
+
+
 def t_diagnostic(a):
     return call("/api/coach/test/start", {})
 
@@ -185,6 +205,25 @@ TOOLS = [
      "off:{minutes,pct}}. Optionally make it today's ride.",
      S(name=STR("Name"), note=STR("What it's for"), blocks={"type": "array", "items": {"type": "object"}},
        make_today_plan={"type": "boolean"}, date=DATE), t_create),
+    ("get_load", "Training load by body system across ALL sports (runs, swims, gym, rides): ENGINE (heart/lungs; "
+     "watts on the bike, heart rate calibrated to watts elsewhere), IMPACT (feet/bones; running and walking x body "
+     "weight), MUSCLE (leg force; pedal torque, gym effort, running). Each has fitness, fatigue, form, the "
+     "acute:chronic ratio and zone (0.8-1.3 sweet spot, >1.5 danger for impact/muscle), this week's used load vs "
+     "budget, and a weakest-link readiness verdict with what's limiting. Use this before set_plan.", S(), t_load),
+    ("import_activities", "Import watch activity files into the hub so every sport counts: pass the https download "
+     "links for .fit files (e.g. from the COROS tool queryActivityFitFileDownloadUrls, one activity at a time).",
+     S(urls={"type": "array", "items": {"type": "string"}, "description": "https links to .fit or .tcx files"}), t_import),
+    ("set_capacity", "Tune a body system's usual week (engine, impact or muscle, in load points) from how the rider's "
+     "body actually responded - e.g. they handled a big engine week like easy work (raise engine), or their feet feel "
+     "overdone at a given impact week (lower impact so that week reads 'caution'). The zones, ratio and weekly budget then use it. "
+     "Say why in the note. usual_week null clears it back to the model.",
+     S(system=STR("engine, impact or muscle", enum=["engine", "impact", "muscle"]),
+       usual_week={"type": ["number", "null"]}, note=STR("Why: what the rider reported")), t_capacity),
+    ("record_steps", "Record the rider's daily step counts from the watch (e.g. from the COROS tool "
+     "queryDailyHealthData): {\"YYYY-MM-DD\": steps}. Walking outside runs counts toward the feet's accumulated "
+     "load above a daily allowance (a normal day, 6,000 steps, shrinking as the load rises). Sync the last week "
+     "whenever coaching; today's count is partial.",
+     S(steps={"type": "object", "additionalProperties": {"type": "integer"}, "description": "date -> steps"}), t_steps),
     ("start_workout", "Start a workout on the bike NOW in ERG (only when the rider asks, e.g. they're on the bike).",
      S(workout_id=STR("Workout id")), t_start),
     ("start_diagnostic", "Start the 6-minute morning diagnostic on the bike NOW (only when the rider asks and is on the bike).",
@@ -199,6 +238,10 @@ for name, _, schema, _ in TOOLS:
         schema["required"] = ["name", "blocks"]
     if name in ("start_workout",):
         schema["required"] = ["workout_id"]
+    if name in ("import_activities",):
+        schema["required"] = ["urls"]
+    if name in ("set_capacity",):
+        schema["required"] = ["system", "usual_week"]
 BY_NAME = {t[0]: t for t in TOOLS}
 INSTRUCTIONS = ("An indoor smart-bike training hub (built on a Merach S29). Coach the rider day by day: start "
                 "with get_today, look at recent check-ins and rides, then set_plan with a verdict, a short plain "

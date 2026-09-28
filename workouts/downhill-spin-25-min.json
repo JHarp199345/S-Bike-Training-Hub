@@ -1,0 +1,88 @@
+{
+ "name": "Downhill spin (25 min)",
+ "note": "Recovery spin for sore legs: mostly 'downhill' at 70 W, three gentle 2-minute rises at 90 W. Spin light and fast (85-95 rpm). Stop any time the legs say no.",
+ "blocks": [
+  {
+   "type": "steady",
+   "minutes": 4,
+   "watts": 65,
+   "label": "Roll out"
+  },
+  {
+   "type": "steady",
+   "minutes": 4,
+   "watts": 70,
+   "label": "Downhill 1"
+  },
+  {
+   "type": "steady",
+   "minutes": 2,
+   "watts": 90,
+   "label": "Gentle rise 1"
+  },
+  {
+   "type": "steady",
+   "minutes": 4,
+   "watts": 70,
+   "label": "Downhill 2"
+  },
+  {
+   "type": "steady",
+   "minutes": 2,
+   "watts": 90,
+   "label": "Gentle rise 2"
+  },
+  {
+   "type": "steady",
+   "minutes": 4,
+   "watts": 70,
+   "label": "Downhill 3"
+  },
+  {
+   "type": "steady",
+   "minutes": 2,
+   "watts": 90,
+   "label": "Gentle rise 3"
+  },
+  {
+   "type": "steady",
+   "minutes": 3,
+   "watts": 60,
+   "label": "Roll home"
+  }
+ ],
+ "steps": [
+  {
+   "minutes": 4.0,
+   "watts": 65
+  },
+  {
+   "minutes": 4.0,
+   "watts": 70
+  },
+  {
+   "minutes": 2.0,
+   "watts": 90
+  },
+  {
+   "minutes": 4.0,
+   "watts": 70
+  },
+  {
+   "minutes": 2.0,
+   "watts": 90
+  },
+  {
+   "minutes": 4.0,
+   "watts": 70
+  },
+  {
+   "minutes": 2.0,
+   "watts": 90
+  },
+  {
+   "minutes": 3.0,
+   "watts": 60
+  }
+ ]
+}

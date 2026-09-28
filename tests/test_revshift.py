@@ -58,7 +58,7 @@ async def main():
     br = make_bridge()
     class CP: uuid = b.CONTROL
     def hill(g): br.on_write(CP(), b"\x11\x00\x00" + int(g * 100).to_bytes(2, "little", signed=True) + b"\x28\x33")
-    hill(0); br.shift(+1)                              # a gear he earned on the flat
+    hill(0); br.shift(+1)                              # a gear they earned on the flat
     hill(-4)
     for _ in range(5): br.shift(+1, "Auto: cadence 92 rpm, over 80")
     check(f"spinning down a -4% descent: 5 gears gained, counted as descent gears ({br.descent_gears})", br.descent_gears == 5 and br.gear == 6)

@@ -24,7 +24,7 @@ def ride_test(true_ftp, estimate=180, stop_at=None):
         tgt = test.target(t)
         if (tgt or 0) <= mmp:
             # Within their limit they hold ~82 rpm, and if the bike is already at its
-            # hardest level he spins faster to make the watts (up to 100 rpm).
+            # hardest level they spin faster to make the watts (up to 100 rpm).
             cad = min(100.0, max(82.0, (tgt or 0) / bike_power(level, 1))) if level == 16 else 82.0
         else:
             cad = max(30.0, 82 - ((tgt or 0) - mmp) * 1.5)            # past their max: legs give out

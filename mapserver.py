@@ -278,6 +278,54 @@ async def handle(bridge, method, path, body, host):
         return await posts_api(bridge, method, path, p, body)
     if p.startswith("/api/coach"):
         return await coach_api(bridge, method, path, p, body)
+    if p == "/api/load":
+        base = Path(bridge.csv_path).parent.parent if getattr(bridge, "csv_path", None) else HERE
+        data = await asyncio.get_running_loop().run_in_executor(None, load_state, base)
+        import loads
+        out = {k: v for k, v in data.items() if k != "days"} | {"days": data.get("days", [])[-42:]}
+        if data.get("systems"):
+            import coach
+            cd = coach.load(coach.file_for(base / "rides")).get("checkins", {}).get(coach.today(), {})
+            out["readiness"] = loads.readiness(data, cd)
+        return 200, "application/json", json.dumps(out, ensure_ascii=False).encode(), {}
+    if p == "/api/load/capacity" and method == b"POST":
+        import loads
+        base = Path(bridge.csv_path).parent.parent if getattr(bridge, "csv_path", None) else HERE
+        try:
+            req = json.loads(body or b"{}")
+            cal = loads.set_capacity(base, req.get("system"), req.get("usual_week"), req.get("note"))
+        except (ValueError, TypeError) as e:
+            return 400, "application/json", json.dumps({"error": str(e)}).encode(), {}
+        _load_cache["key"] = None
+        return 200, "application/json", json.dumps({"calibration": cal}).encode(), {}
+    if p == "/api/load/phase" and method == b"POST":
+        import loads
+        base = Path(bridge.csv_path).parent.parent if getattr(bridge, "csv_path", None) else HERE
+        try:
+            phase = loads.set_phase(base, json.loads(body or b"{}").get("phase"))
+        except (ValueError, TypeError) as e:
+            return 400, "application/json", json.dumps({"error": str(e)}).encode(), {}
+        _load_cache["key"] = None
+        return 200, "application/json", json.dumps({"phase": phase}).encode(), {}
+    if p == "/api/steps":
+        import loads
+        base = Path(bridge.csv_path).parent.parent if getattr(bridge, "csv_path", None) else HERE
+        if method == b"POST":
+            try:
+                have = loads.set_steps(base, json.loads(body or b"{}").get("steps"))
+            except (ValueError, TypeError, AttributeError) as e:
+                return 400, "application/json", json.dumps({"error": str(e)}).encode(), {}
+            _load_cache["key"] = None
+            return 200, "application/json", json.dumps({"steps": have}).encode(), {}
+        return 200, "application/json", json.dumps({"steps": loads.load_steps(base)}).encode(), {}
+    if p == "/api/activities/import" and method == b"POST":
+        base = Path(bridge.csv_path).parent.parent if getattr(bridge, "csv_path", None) else HERE
+        try:
+            urls = json.loads(body or b"{}").get("urls") or []
+        except ValueError:
+            return 400, "application/json", b'{"error":"send {\"urls\": [...]}"}', {}
+        res = await import_activities(base, urls)
+        return 200, "application/json", json.dumps(res).encode(), {}
     if p == "/api/milestones":
         import milestones
         goal = bridge.profile.get("weekly_rides", 3)
@@ -499,6 +547,66 @@ async def posts_api(bridge, method, path, p, body):
     return js({"error": "not found"}, 404)
 
 
+_load_cache = {"key": None, "data": None}
+
+
+def load_state(base):
+    """The body-systems picture, recomputed only when an activity, a ride, the profile or meta.json changes."""
+    import loads
+    base = Path(base)
+    files = list((base / "activities").glob("*")) + list((base / "rides").glob("ride_*.csv")) + [base / "profile.json", base / "coach.json"]
+    key = tuple(sorted((str(f), f.stat().st_mtime_ns, f.stat().st_size) for f in files if f.exists())) + (str(__import__("datetime").date.today()),)
+    if _load_cache["key"] != key:
+        _load_cache["data"], _load_cache["key"] = loads.summary(base), key
+    return _load_cache["data"]
+
+
+def with_systems(day_json, base):
+    """Add the weakest-link body-systems readiness to a coach day, and let it win if it's worse."""
+    import loads
+    try:
+        st = load_state(base)
+        if not st.get("systems"):
+            return day_json
+        r = loads.readiness(st, (day_json.get("checkin") or {}))
+        order = {"go": 0, "easy": 1, "rest": 2, None: -1}
+        c = day_json.get("checkin") or {}
+        final = max([r["verdict"], c.get("verdict")], key=lambda v: order[v])
+        return {**day_json, "systems": r, "headline": st.get("headline"), "verdict": final,
+                "zones": {x: st["systems"][x]["zone"] for x in loads.SYSTEMS}}
+    except Exception as e:
+        return {**day_json, "systems_error": str(e)}
+
+
+async def import_activities(base, urls):
+    """Download watch files (.fit/.tcx) into activities/ - for the coach syncing from COROS."""
+    import urllib.request
+    from urllib.parse import urlsplit
+    folder = Path(base) / "activities"
+    folder.mkdir(exist_ok=True)
+    done, skipped = [], []
+    for u in urls[:30]:
+        parts = urlsplit(str(u))
+        name = Path(parts.path).name
+        if parts.scheme != "https" or not name.lower().endswith((".fit", ".tcx")) or "/" in name or name.startswith("."):
+            skipped.append({"url": u, "why": "only https links to .fit or .tcx files"}); continue
+        dest = folder / name
+        if dest.exists() and dest.stat().st_size > 0:
+            skipped.append({"url": u, "why": "already imported"}); continue
+        def get():
+            with urllib.request.urlopen(u, timeout=60) as r:
+                return r.read(20_000_001)
+        try:
+            data = await asyncio.get_running_loop().run_in_executor(None, get)
+        except OSError as e:
+            skipped.append({"url": u, "why": f"download failed: {e}"}); continue
+        if len(data) > 20_000_000 or (name.lower().endswith(".fit") and data[8:12] != b".FIT"):
+            skipped.append({"url": u, "why": "not a FIT file (or too big)"}); continue
+        dest.write_bytes(data)
+        done.append(name)
+    return {"imported": done, "skipped": skipped}
+
+
 async def coach_api(bridge, method, path, p, body):
     """The Coach page and the hub command: check-ins, the diagnostic, today's plan, time-split workouts."""
     import coach
@@ -515,7 +623,7 @@ async def coach_api(bridge, method, path, p, body):
         if not __import__("re").fullmatch(r"\d{4}-\d{2}-\d{2}", date):
             return js({"error": "date is YYYY-MM-DD"}, 400)
         if p == "/api/coach/today":
-            return js({**coach.day(d, date), "test_steps": coach.TEST_STEPS, "ftp": bridge.profile["ftp"],
+            return js({**with_systems(coach.day(d, date), rides.parent), "test_steps": coach.TEST_STEPS, "ftp": bridge.profile["ftp"],
                        "verdicts": coach.VERDICTS, "workouts": [{"id": w.get("id"), "name": w["name"]} for w in bridge.workouts]})
         if p == "/api/coach/history":
             days = int((q.get("days") or ["30"])[0])
@@ -527,7 +635,7 @@ async def coach_api(bridge, method, path, p, body):
             coach.save(d)
             if c.get("verdict"):
                 bridge.event(f"Check-in: {coach.VERDICTS[c['verdict']]} ({'; '.join(c['why'])})")
-            return js(coach.day(d, date))
+            return js(with_systems(coach.day(d, date), rides.parent))
         if p == "/api/coach/test/start" and method == b"POST":
             bridge.coach_test_start()
             coach.record(d, date, {"test_at": __import__("datetime").datetime.now().isoformat(timespec="seconds"),
@@ -537,7 +645,7 @@ async def coach_api(bridge, method, path, p, body):
         if p == "/api/coach/plan" and method == b"POST":
             coach.set_plan(d, date, req.get("verdict"), req.get("note"), req.get("workout"))
             coach.save(d)
-            return js(coach.day(d, date))
+            return js(with_systems(coach.day(d, date), rides.parent))
         if p == "/api/coach/split/rebalance" and method == b"POST":
             return js({"minutes": coach.rebalance([float(m) for m in req["minutes"]], int(req["index"]),
                                                   float(req["value"]), float(req["total"]))})

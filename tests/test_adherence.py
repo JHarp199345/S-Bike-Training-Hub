@@ -19,8 +19,8 @@ def main():
     wl = [{"name": "Test 3x4", "blocks": blocks}]
     start = dt.datetime(2026, 10, 1, 7, 0, 0)
     stem = "ride_2026-10-01_0700"
-    # what he rode: warm-up and ramp on target; efforts 1-2 on target (144 W); effort 3 fades to 110 W;
-    # recoveries on target; he stops 3 minutes before the end of the cool-down
+    # what the rider rode: warm-up and ramp on target; efforts 1-2 on target (144 W); effort 3 fades to 110 W;
+    # recoveries on target; they stop 3 minutes before the end of the cool-down
     plan_w = []
     for s in range(300): plan_w.append(90)
     for s in range(300): plan_w.append(90 + 45 * (s + 0.5) / 300)

@@ -13,6 +13,27 @@
  button:disabled{opacity:.45}
  .verdict{font-size:30px;font-weight:900}.v-go{color:#4ade80}.v-easy{color:#fbbf24}.v-rest{color:#f87171}
  .why{color:#b7c1cd;margin-top:4px}
+ .systems{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+ .sys{background:#0f141b;border-radius:12px;padding:10px}.sys b{display:block;font-size:13px;color:#b7c1cd}.sys span{display:block;font-size:20px;font-weight:900}
+ .sys small{display:block;color:#8b98a8;font-size:12px;margin-top:2px}
+ .impactnums{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:12px}
+ .headline{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:12px}
+ .headline button{text-align:left;background:#0f141b;border:1px solid #2a3441}
+ .headline b{display:block;font-size:30px}.headline small{display:block;color:#b7c1cd;font-size:12px;font-weight:400}
+ .balance{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:12px;color:#b7c1cd}
+ .impactnum{text-align:left;background:#0f141b;border:1px solid #2a3441}
+ .impactnum b{display:block;font-size:25px}.impactnum small{display:block;color:#b7c1cd;font-size:12px;font-weight:400}
+ dialog{background:#151b23;color:#eef1f5;border:1px solid #394555;border-radius:16px;width:min(700px,calc(100vw - 36px));box-sizing:border-box}
+ dialog::backdrop{background:rgba(0,0,0,.76)}
+ #impactgraph{display:block;width:100%;height:340px;margin:12px 0}
+ @media(max-width:480px){.impactnums,.headline{grid-template-columns:1fr}}
+ @media (max-width:560px){.systems{grid-template-columns:1fr}}
+ .sys{cursor:pointer;text-align:left;border:1px solid transparent;font:inherit;color:inherit}.sys:hover{border-color:#394555}.sys em{font-style:normal;color:#60a5fa;font-size:11px}
+ .readings{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin:12px 0}
+ .readings div{background:#0f141b;border-radius:10px;padding:8px 10px}.readings small{display:block;color:#8b98a8;font-size:11px}.readings b{font-size:18px}
+ #sysdialog{overflow-x:hidden} @media(max-width:480px){.srctab{font-size:12px}.srctab td,.srctab th{padding:4px 3px}}
+ #sysgraph{display:block;width:100%;height:260px;margin:8px 0}
+ .srctab{width:100%;border-collapse:collapse;font-size:13px;margin-top:6px}.srctab td,.srctab th{padding:4px 6px;border-bottom:1px solid #222b36;text-align:left}.srctab .r{text-align:right}
  .note{background:#0f141b;border-left:4px solid #60a5fa;border-radius:0;padding:10px 12px;margin-top:10px;white-space:pre-wrap}
  .steps{display:grid;grid-template-columns:2fr 2fr 1fr 1fr;gap:4px;margin:10px 0}
  .steps div{background:#0f141b;border-radius:8px;padding:8px 4px;text-align:center;font-size:13px;color:#8b98a8}
@@ -45,9 +66,37 @@
 <h2>TODAY</h2>
 <div class="card" id="todaycard">
  <div class="verdict" id="verdict">No check-in yet</div><div class="why" id="why">Start with the 6-minute diagnostic below, or just check in.</div>
+ <div class="headline" id="headline" hidden>
+  <button id="cardiobtn"><small>❤️ CARDIO LOAD · tap for history</small><b id="cardionum">–</b><small id="cardiosub"></small></button>
+  <button id="mechanicalbtn"><small>🦶 MECHANICAL LOAD vs LIMIT · tap for graph</small><b id="mechanicalnum">–</b><small id="mechanicalsub"></small></button>
+ </div>
+ <div class="balance" id="balance" hidden><span id="balancegrade"></span><label>Training phase <select id="phase"><option value="run_durability">Run durability</option><option value="aerobic_base">Aerobic base</option><option value="bike_performance">Bike performance</option></select></label></div>
+ <div class="systems" id="systems" hidden></div>
+ <div class="impactnums" id="impactnums" hidden>
+  <button class="impactnum" id="recentbtn"><small>RECENT RUN RESPONSE · tap for graph</small><b id="recentnum">–</b><small>separate five-day exertion response</small></button>
+  <button class="impactnum" id="backlogbtn"><small>ACCUMULATED RUNNING LOAD · tap for graph</small><b id="backlognum">–</b><small>provisional impact blocks · limit 1.5</small></button>
+ </div>
+ <div class="why" id="runhow" hidden></div>
  <div class="note" id="plannote" hidden></div>
  <div class="row" style="margin-top:10px" id="planrow" hidden><span class="sub">Today's ride:</span> <b id="planw"></b> <button class="purple" id="planride">▶ Ride it</button></div>
 </div>
+<dialog id="impactdialog" aria-labelledby="impacttitle"><div class="row" style="justify-content:space-between"><b id="impacttitle">Running load over time</b><button id="impactclose" aria-label="Close graph">✕</button></div>
+ <canvas id="impactgraph" aria-label="Recent run response and accumulated load over time"></canvas>
+ <div class="sub">Orange: a separate five-day exertion response. Blue: accumulated mechanical blocks. One provisional block uses the median impact of the first three recorded runs, with an estimated unconditioned baseline as a lower bound; it is a comparison unit, not a known safe dose. Each run adds load based on estimated steps and ground force, with an extra cost when load is already present. The blue curve stays high for about five days per block, then declines over about three days per block, to a fifth of its level, followed by a remodeling tail of about four months. There's no cap: 13 blocks holds about 65 days and declines over about 39. Gray marks show recorded run days; dotted lines assume no new runs. The 1.5-block line is a provisional running limit. Feet and leg reports move the estimated plateau by at most half a day per report; shortening requires both to be reassuring. Knee, ankle, and Achilles forces are related internal loads, not additional forces summed into the score. These are planning assumptions, not measured tissue damage or a diagnosis.</div>
+ <div class="sub" id="impactmultipliers"></div>
+</dialog>
+
+<dialog id="sysdialog" aria-labelledby="systitle"><div class="row" style="justify-content:space-between"><b id="systitle"></b><button id="sysclose" aria-label="Close">✕</button></div>
+ <div class="why" id="syswhy"></div>
+ <div class="readings" id="sysreadings"></div>
+ <canvas id="sysgraph" aria-label="Daily load, fatigue and fitness"></canvas>
+ <div class="sub" id="syslegend"></div>
+ <div id="sysextra"></div>
+ <h3 style="margin:14px 0 4px;font-size:14px">What it's based on · last 14 days</h3>
+ <div style="overflow-x:auto"><table class="srctab" id="syssrc"></table></div>
+ <div id="syschecks"></div>
+ <details style="margin-top:10px"><summary>How this score is computed</summary><div class="sub" id="syshow" style="white-space:pre-wrap;margin-top:6px"></div></details>
+</dialog>
 
 <h2>MORNING DIAGNOSTIC · 6 MIN</h2>
 <div class="card">
@@ -59,7 +108,8 @@
  <div class="ask" id="askrec" hidden><b>Stop pedalling. At 1:00 after the push, heart rate now?</b><div class="row"><input type="number" id="hrafter" inputmode="numeric" min="30" max="220"> <span class="sub">bpm (after 60 s easy)</span></div></div>
  <div class="row"><button class="go" id="tstart">▶ Start the diagnostic</button><button id="skip">Just check in (no test)</button></div>
  <div id="feel" hidden>
-  <div class="sl"><label>Legs <span><b id="legsv">4</b>/10 · 1 fresh, 10 wrecked</span></label><input type="range" id="legs" min="1" max="10" value="4"></div>
+  <div class="sl"><label>Leg muscles <span><b id="legsv">4</b>/10 · 1 fresh, 10 wrecked</span></label><input type="range" id="legs" min="1" max="10" value="4"></div>
+  <div class="sl"><label>Feet &amp; joints <span><b id="feetv">3</b>/10 · 1 fine, 10 very sore</span></label><input type="range" id="feet" min="1" max="10" value="3"></div>
   <div class="sl"><label>Breathing <span><b id="breathv">3</b>/10</span></label><input type="range" id="breath" min="1" max="10" value="3"></div>
   <div class="sl"><label>Sleep <span><b id="sleepv">6</b>/10</span></label><input type="range" id="sleep" min="1" max="10" value="6"></div>
   <div class="sub" style="margin:10px 0 6px">Is it happening today?</div>
@@ -94,15 +144,157 @@ const post=(u,b)=>fetch(u,{method:'POST',body:JSON.stringify(b||{})}).then(async
 // ── Today ──
 async function loadToday(){ const r=await (await fetch('/api/coach/today')).json(); ftp=r.ftp; workouts=r.workouts; day=r;
   const c=r.checkin||{}, v=c.verdict, p=r.plan||{};
-  const shown=p.verdict||v;
+  const shown=p.verdict||r.verdict||v;
   $('verdict').className='verdict'+(shown?' v-'+shown:''); $('verdict').textContent=shown?r.verdicts[shown]:'No check-in yet';
   $('why').textContent=v?(c.why||[]).join(' · '):(p.verdict?'':'Start with the 6-minute diagnostic below, or just check in.');
   if(c.hr90) $('why').textContent+=` · HR at 90 W ${c.hr90}`+(c.hrr!=null?`, recovered ${c.hrr} bpm`:'')+(r.baseline?` (normal ${Math.round(r.baseline.hr90)})`:'');
+  sysline(r);
+  headline(r.headline);
+  loadImpact(r);
   $('plannote').hidden=!p.note; $('plannote').textContent=p.note?'Coach: '+p.note:'';
   const w=p.workout&&workouts.find(x=>x.id===p.workout); $('planrow').hidden=!w; if(w){ $('planw').textContent=w.name; plan=w; }
-  if(c.legs){ $('legs').value=c.legs; $('legsv').textContent=c.legs; } if(c.breathing){ $('breath').value=c.breathing; $('breathv').textContent=c.breathing; }
+  if(c.legs){ $('legs').value=c.legs; $('legsv').textContent=c.legs; } if(c.feet){ $('feet').value=c.feet; $('feetv').textContent=c.feet; } if(c.breathing){ $('breath').value=c.breathing; $('breathv').textContent=c.breathing; }
   if(c.sleep){ $('sleep').value=c.sleep; $('sleepv').textContent=c.sleep; } if(c.hr90) $('hr90').value=c.hr90; if(c.hr120) $('hr120').value=c.hr120; if(c.hr_after) $('hrafter').value=c.hr_after; }
+// The three body systems, weakest link first.
+function sysline(r){ const el=$('systems'); if(!r.systems){ el.hidden=true; return; } el.hidden=false;
+  const N={engine:'❤️ Heart & lungs',impact:'🦶 Feet & bones',muscle:'🦵 Leg muscles'}, C={go:'#4ade80',easy:'#fbbf24',rest:'#f87171'};
+  el.innerHTML=Object.entries(r.systems.systems).map(([k,v])=>`<button class="sys" data-sys="${k}"><b>${N[k]}</b><span style="color:${C[v.level]}">${v.level.toUpperCase()}</span>
+    <small>${r.zones?r.zones[k]:''}${v.why.length?' · '+v.why.join(', '):''}</small><em>tap for graph and details</em></button>`).join('')
+    +(r.systems.limited_by.length?`<div class="sub" style="grid-column:1/-1">Bike limited by ${r.systems.limited_by.join(' and ')} - the weakest link sets the ride.</div>`:'')
+    +(r.systems.running?`<div class="sub" style="grid-column:1/-1">Running: <b style="color:${C[r.systems.running.verdict]}">${r.systems.running.verdict.toUpperCase()}</b>${r.systems.running.why.length?' · '+r.systems.running.why.join(' · '):''}</div>`:'');
+  $('runhow').hidden=!r.systems.running?.how; $('runhow').textContent=r.systems.running?.how||'';
+  el.querySelectorAll('.sys').forEach(b=>b.onclick=()=>sysDetail(b.dataset.sys)); }
+function headline(h){if(!h){$('headline').hidden=true;$('balance').hidden=true;return;}
+  $('headline').hidden=false;$('balance').hidden=false;
+  $('cardionum').textContent=h.cardio.ratio.toFixed(2)+'×';
+  $('cardiosub').textContent=`${Math.round(h.cardio.last7)} points this week / ${Math.round(h.cardio.usual_week)} reference`;
+  $('mechanicalnum').textContent=h.mechanical.ratio.toFixed(2)+'×';
+  $('mechanicalsub').textContent=`impact ${h.mechanical.impact_ratio.toFixed(2)}× · muscles ${h.mechanical.muscle_ratio.toFixed(2)}× · accumulated ${h.mechanical.remodeling_blocks.toFixed(2)} blocks`;
+  $('balancegrade').textContent=`Phase balance: ${h.balance.grade} (${h.balance.score}/100, provisional) · ${Math.round(h.balance.cardio_weight*100)}% cardio / ${Math.round(h.balance.mechanical_weight*100)}% mechanical`;
+  $('phase').value=h.phase;
+}
+$('cardiobtn').onclick=()=>location.href='/fitness';
+$('phase').onchange=async()=>{const r=await post('/api/load/phase',{phase:$('phase').value});if(r.ok)loadToday();};
+let impactData=null, loadData=null;
+async function loadImpact(){ try{ const r=await fetch('/api/load'); if(!r.ok) return; const data=await r.json();
+    loadData=data; impactData=data.systems?.impact?.tissue; if(!impactData?.event) return;
+    $('impactnums').hidden=false;
+    $('recentnum').textContent=impactData.event.score.toFixed(1)+'×';
+    $('backlognum').textContent=impactData.remodeling.score.toFixed(2);
+    const remodel=impactData.remodeling, e=remodel.components.at(-1);
+    $('impactmultipliers').textContent=e ? `Latest run: ${e.raw_blocks.toFixed(2)} raw blocks × ${e.incoming_multiplier.toFixed(2)} overlap = ${e.added_blocks.toFixed(2)} added. Accumulated: ${remodel.score.toFixed(2)} blocks. Estimated plateau: ${remodel.plateau_remaining_days.toFixed(1)} days remaining; then about ${remodel.descent_days.toFixed(1)} days of faster decline. Below the provisional 1.5-block limit in ${remodel.below_threshold_in_days ?? 'more than '+remodel.projection.length} days if no new run and the model holds. In the remodeling tail (${remodel.tail_starts_in_days!=null?'in '+remodel.tail_starts_in_days+' days':'now'}) running is blocked only above ${remodel.tail_run_limit} blocks, or cleared early on a day your feet and legs both feel particularly good - cleared to run in ${remodel.cleared_to_run_in_days ?? 'more than '+remodel.projection.length} days.`+(remodel.walking?.length?` Walking added ${remodel.walking_week_blocks.toFixed(2)} blocks in the last 7 days (steps over the daily allowance) - the projection assumes no more walking above it.`:'') : 'No impact sessions recorded yet.';
+    if($('impactdialog').open) drawImpact();
+  }catch(e){ $('impactnums').hidden=true; } }
+function drawImpact(){ if(!impactData) return;
+  const c=$('impactgraph'), scale=devicePixelRatio||1, W=c.clientWidth, H=c.clientHeight;
+  c.width=W*scale; c.height=H*scale; const g=c.getContext('2d'); g.setTransform(scale,0,0,scale,0,0); g.clearRect(0,0,W,H);
+  const past=impactData.event.history.slice(-14), ahead=impactData.event.projection.slice(0,5);
+  const longPast=impactData.remodeling.history.slice(-14), longAhead=impactData.remodeling.projection;
+  const short=past.concat(ahead), long=longPast.concat(longAhead), L=38,R=10,T=28,B=H-32;
+  const sx=i=>L+i*(W-L-R)/Math.max(1,short.length-1), lx=i=>L+i*(W-L-R)/Math.max(1,long.length-1), split=(T+B)/2;
+  const shortTop=Math.max(1,...short.map(v=>v.score))*1.12, longTop=Math.max(1,...long.map(v=>v.score))*1.12;
+  const sy=v=>split-16-v/shortTop*(split-T-30), ly=v=>B-v/longTop*(B-split-22);
+  g.font='12px -apple-system,Roboto,sans-serif'; g.fillStyle='#b7c1cd'; g.fillText('Recent run response (reference sessions)',L,T-9);
+  g.fillText('Accumulated mechanical load (blocks)',L,split+13);
+  g.strokeStyle='#3a4656'; g.beginPath();g.moveTo(L,split);g.lineTo(W-R,split);g.stroke();
+  g.setLineDash([4,4]);g.beginPath();g.moveTo(sx(past.length-1),T);g.lineTo(sx(past.length-1),split-10);
+  g.moveTo(lx(longPast.length-1),split+20);g.lineTo(lx(longPast.length-1),B);g.stroke();g.setLineDash([]);
+  function line(rows,val,y,col,pastCount,x){for(const future of [false,true]){g.beginPath();let started=false;
+      rows.forEach((r,i)=>{if(future?i<pastCount-1:i>pastCount-1)return; if(!started){g.moveTo(x(i),y(val(r)));started=true;}else g.lineTo(x(i),y(val(r)));});
+      g.strokeStyle=col;g.lineWidth=2.5;g.setLineDash(future?[5,4]:[]);g.stroke();g.setLineDash([]);}}
+  line(short,r=>r.score,sy,'#f59e0b',past.length,sx);
+  const pos=new Map(long.map((r,i)=>[r.date,i]));
+  for(const part of impactData.remodeling.components||[]){const i=pos.get(part.date);if(i===undefined)continue;
+    g.beginPath();g.moveTo(lx(i),B);g.lineTo(lx(i),ly(part.after_blocks));
+    g.strokeStyle='rgba(185,193,205,.36)';g.lineWidth=1;g.stroke();}
+  const limit=impactData.remodeling.threshold_blocks;
+  if(limit<longTop){g.beginPath();g.moveTo(L,ly(limit));g.lineTo(W-R,ly(limit));g.strokeStyle='#fbbf24';g.lineWidth=1;g.setLineDash([3,4]);g.stroke();g.setLineDash([]);}
+  line(long,r=>r.score,ly,'#60a5fa',longPast.length,lx);
+  g.fillStyle='#8b98a8';g.textAlign='center';
+  [0,past.length-1,short.length-1].forEach(i=>g.fillText(short[i].date.slice(5),sx(i),split-4));
+  [0,longPast.length-1,Math.min(long.length-1,longPast.length+29),Math.min(long.length-1,longPast.length+89),long.length-1].forEach(i=>g.fillText(long[i].date.slice(5),lx(i),H-8));
+  g.textAlign='right';g.fillText(shortTop.toFixed(1)+'×',L-4,T+6);g.fillText(longTop.toFixed(1),L-4,split+30);
+}
+for(const id of ['recentbtn','backlogbtn','mechanicalbtn']) $(id).onclick=()=>{ $('impactdialog').showModal();drawImpact(); };
+$('impactclose').onclick=()=>$('impactdialog').close();
+$('impactdialog').onclick=e=>{if(e.target===$('impactdialog')) $('impactdialog').close();};
+addEventListener('resize',()=>{if($('impactdialog').open)drawImpact();});
 $('planride').onclick=async()=>{ await post('/api/workouts/start/'+plan.id); location.href='/ride'; };
+// ── One body system in detail: its readings, daily load, fatigue and fitness, and the sessions and check-ins behind it ──
+const SYS={
+  engine:{name:'❤️ Heart & lungs',col:'#ef4444',check:'breathing',checkName:'breathing',unit:'engine points',
+    how:d=>`Every session's cost to the heart and lungs, in points (100 = an hour flat-out at threshold).
+Bike rides with power: training stress from watts - time × (normalized power ÷ FTP ${d.profile.ftp} W)² × 100.
+Everything else (runs, swims, gym, rides without power): heart-rate load (Banister TRIMP, HR rest ${d.profile.hr_rest} / max ${d.profile.hr_max}), converted to points with ${d.calibration.engine_points_per_trimp} points per TRIMP - measured on ${d.calibration.from_rides} of your own rides that had both watts and heart rate.
+Fitness is the 42-day average day, fatigue the 7-day average. The ratio is fatigue × 7 ÷ your usual week${d.systems.engine.tuned?' (tuned to you)':''}.
+Ratio under 0.8 room to build, 0.8-1.3 sweet spot, 1.3-1.5 caution (easy), over 1.5 rest. Your breathing check-in: 6+ caps it at easy, 8+ is rest.`},
+  impact:{name:'🦶 Feet & bones',col:'#f59e0b',check:'feet',checkName:'feet & joints',unit:'impact points',
+    how:d=>`Runs and walks, step by step from the watch: steps come from cadence (×2 - the watch counts one foot); each step's force is body weight (${d.profile.weight_kg} kg) × about 1.2 walking or 2.0 + 0.2 × speed jogging, more downhill. Damage rises with the 4th power of that force, so points = Σ (force ÷ reference)⁴. Runs without cadence use your own measured runs' per-step average.
+Running verdict: the accumulated mechanical load in blocks (limit 1.5 - over it is rest, over 1.0 easy), and the five-day recent run response (over 1.0 rest, over 0.5 easy). Tap "Accumulated load graph" for the block model.
+Your feet check-in: 6+ caps it at easy, 8+ is rest. Feet only set the running verdict - the bike doesn't load them.`},
+  muscle:{name:'🦵 Leg muscles',col:'#a78bfa',check:'legs',checkName:'legs',unit:'muscle points',
+    how:d=>`Force the thighs and glutes produce. Bike: pedal torque each second, squared, against a reference (150 W at 90 rpm) - grinding at low cadence counts extra. Running and walking: body weight × distance × a speed factor. Gym: your effort (RPE, default 3) × minutes. Swimming: a trickle.
+Fitness is a 28-day average, fatigue a 7-day one (the standard injury-risk EWMA); the ratio is fatigue ÷ fitness${d.systems.muscle.tuned?', or fatigue × 7 ÷ your tuned usual week':''}.
+Ratio under 0.8 room to build, 0.8-1.3 sweet spot, 1.3-1.5 caution (easy), over 1.5 rest - and if it hit 1.5 in the last week it stays easy while the tissue catches up. Your legs check-in: 6+ caps it at easy, 8+ is rest.`}};
+async function sysDetail(k){
+  if(!loadData){ try{ loadData=await (await fetch('/api/load')).json(); }catch(e){ return; } }
+  const d=loadData, s=d.systems[k], cfg=SYS[k], rd=d.readiness?.systems?.[k]||{level:'-',why:[]}, C={go:'#4ade80',easy:'#fbbf24',rest:'#f87171'};
+  $('systitle').textContent=cfg.name; 
+  $('syswhy').innerHTML=`Today: <b style="color:${C[rd.level]||'#fff'}">${String(rd.level).toUpperCase()}</b>${rd.why.length?' · '+rd.why.join(' · '):''}`;
+  const tile=(label,val,sub)=>`<div><small>${label}</small><b>${val}</b>${sub?`<small>${sub}</small>`:''}</div>`, r1=v=>Math.round(v);
+  let tiles=[tile('Last 7 days',r1(s.last7),`${cfg.unit} · the week before ${r1(s.prev7)}`),
+    tile(s.tuned?'Usual week (tuned to you)':'Usual week (model)',r1(s.usual_week),s.tuned?`model guessed ${s.model_usual_week}`:''),
+    k==='impact'?tile('Load ratio',s.acwr!=null?s.acwr+'×':'–','last 7 vs 28 days · for reference; the blocks set running')
+                :tile('Ratio',s.acwr!=null?s.acwr+'×':'–',s.zone),
+    tile('Fatigue · fitness',`${s.fatigue} · ${s.fitness}`,'points a day, recent vs long'),
+    s.week_budget?tile('This week',r1(s.week_used),`sweet spot ${s.week_budget[0]}-${s.week_budget[1]}`):''];
+  if(k==='engine') tiles.push(tile('Form',(s.form>0?'+':'')+s.form,'fitness − fatigue'));
+  if(k==='impact'&&s.tissue){ const m=s.tissue.remodeling, e=s.tissue.event;
+    tiles.push(tile('Accumulated load',m.score.toFixed(2)+' blocks',`${s.zone} · limit ${m.threshold_blocks} · plateau ${m.plateau_remaining_days} days left`),
+               tile('Recent run response',e.score.toFixed(2)+'×','five-day, separate')); }
+  $('sysreadings').innerHTML=tiles.join('');
+  let walkHtml='';
+  if(k==='impact'&&s.tissue?.remodeling?.walking?.length){ const w=s.tissue.walking||{}, rows=s.tissue.remodeling.walking.slice(-7).reverse();
+    walkHtml=`<h3 style="margin:14px 0 4px;font-size:14px">Walking · daily steps minus runs</h3>
+    <div class="sub">A walking step lands at about ${w.step_force_lb} lb - about ${(w.severity*100).toFixed(0)}% of a jogging step's damage (force to the 4th power). Only steps over the day's allowance count: a normal day (${(w.habitual_steps||6000).toLocaleString()}), shrinking as the load rises. The overlap multiplier is scaled the same way, and walking pushes the plateau out rather than restarting it.</div>
+    <div style="overflow-x:auto"><table class="srctab"><tr><th>Date</th><th class="r">Steps</th><th class="r">Allowance</th><th class="r">×</th><th class="r">Blocks added</th></tr>`
+    +rows.map(r=>`<tr><td>${r.date.slice(5)}</td><td class="r">${r.steps.toLocaleString()}</td><td class="r">${r.allowance_steps.toLocaleString()}</td><td class="r">${r.multiplier}</td><td class="r"><b>${r.added_blocks.toFixed(2)}</b></td></tr>`).join('')
+    +`</table></div><div class="sub">This week: ${s.tissue.remodeling.walking_week_blocks.toFixed(2)} blocks from walking.</div>`; }
+  $('sysextra').innerHTML=(k==='impact'?'<button id="sysblocks">Accumulated load graph</button>':'')+walkHtml;
+  if(k==='impact') $('sysblocks').onclick=()=>{ $('sysdialog').close(); $('impactdialog').showModal(); drawImpact(); };
+  const since=new Date(Date.now()-14*864e5).toISOString().slice(0,10);
+  const acts=d.activities.filter(a=>a.date>=since&&a[k]>0).sort((a,b)=>(b.date+b.start).localeCompare(a.date+a.start));
+  const SP={run:'🏃 Run',swim:'🏊 Swim',bike:'🚴 Bike',gym:'🏋️ Gym',walk:'🚶 Walk'};
+  const extraHead=k==='engine'?'<th>From</th>':k==='impact'?'<th class="r">Steps</th><th class="r">lb/step</th><th class="r">Steps at 1,000 lb</th>':'<th class="r">km</th>';
+  const extraCell=a=>k==='engine'?`<td>${a.engine_from}</td>`:k==='impact'?`<td class="r">${(a.steps||0).toLocaleString()}</td><td class="r">${a.force_lb||'–'}</td><td class="r">${(a.steps_at_1000lb||0).toLocaleString()}</td>`:`<td class="r">${a.km||'–'}</td>`;
+  $('syssrc').innerHTML=`<tr><th>Date</th><th>Session</th><th class="r">Min</th>${extraHead}<th class="r">Points</th></tr>`
+    +(acts.map(a=>`<tr><td>${a.date.slice(5)} ${a.start}</td><td>${SP[a.sport]||a.sport} <span class="sub">${a.source}</span></td><td class="r">${Math.round(a.minutes)}</td>${extraCell(a)}<td class="r"><b>${Math.round(a[k])}</b></td></tr>`).join('')
+      ||'<tr><td colspan="6" class="sub">Nothing loaded this system in the last two weeks.</td></tr>');
+  $('syshow').textContent=cfg.how(d)+(s.tuned_note?`\nTuning note: ${s.tuned_note}`:'');
+  $('sysdialog').showModal(); sysDraw(k);
+  try{ const h=await (await fetch('/api/coach/history?days=14')).json();
+    const rows=Object.entries(h.checkins||{}).filter(([,c])=>c[cfg.check]!=null).sort().reverse();
+    $('syschecks').innerHTML=rows.length?`<h3 style="margin:14px 0 4px;font-size:14px">Your ${cfg.checkName} check-ins</h3><div class="sub">`
+      +rows.map(([dt,c])=>`${dt.slice(5)}: <b>${c[cfg.check]}/10</b>`).join(' · ')+'</div>':''; }catch(e){ $('syschecks').innerHTML=''; }
+}
+function sysDraw(k){ const d=loadData; if(!d||!$('sysdialog').open) return; const cfg=SYS[k], s=d.systems[k];
+  const c=$('sysgraph'), sc=devicePixelRatio||1, W=c.clientWidth, H=c.clientHeight; c.width=W*sc; c.height=H*sc;
+  const g=c.getContext('2d'); g.setTransform(sc,0,0,sc,0,0); g.clearRect(0,0,W,H);
+  const days=d.days.slice(-28), L=34, R=8, T=10, B=H-22, n=days.length, bw=(W-L-R)/n, x=i=>L+(i+.5)*bw;
+  const usual=s.usual_week/7, top=Math.max(usual*1.3,...days.map(r=>Math.max(r[k].load,r[k].fatigue,r[k].fitness)))*1.1, Y=v=>B-v/top*(B-T);
+  g.font='11px -apple-system,Roboto,sans-serif';
+  for(let q=0;q<=4;q++){ const v=top/4*q; g.strokeStyle='rgba(255,255,255,.06)'; g.beginPath(); g.moveTo(L,Y(v)); g.lineTo(W-R,Y(v)); g.stroke(); g.fillStyle='#8b98a8'; g.textAlign='right'; g.fillText(Math.round(v),L-4,Y(v)+4); }
+  days.forEach((r,i)=>{ if(r[k].load>0){ g.fillStyle=cfg.col+'66'; g.fillRect(x(i)-bw*.35,Y(r[k].load),bw*.7,B-Y(r[k].load)); } });
+  g.strokeStyle='#9ca3af'; g.setLineDash([2,4]); g.beginPath(); g.moveTo(L,Y(usual)); g.lineTo(W-R,Y(usual)); g.stroke();
+  for(const [key,dash,wd] of [['fitness',[6,4],1.8],['fatigue',[],2.5]]){ g.beginPath(); days.forEach((r,i)=>i?g.lineTo(x(i),Y(r[k][key])):g.moveTo(x(i),Y(r[k][key])));
+    g.strokeStyle=cfg.col; g.lineWidth=wd; g.setLineDash(dash); g.stroke(); } g.setLineDash([]); g.lineWidth=1;
+  g.fillStyle='#8b98a8'; g.textAlign='center'; const every=Math.ceil(n/7); days.forEach((r,i)=>{ if(i%every===0||i===n-1) g.fillText(r.date.slice(5),x(i),H-6); });
+  $('syslegend').textContent=`Bars: each day's ${cfg.unit}. Solid line: fatigue (recent average). Dashed: fitness (what this system is used to). Dotted gray: your usual day (${Math.round(usual)}).`;
+}
+$('sysclose').onclick=()=>$('sysdialog').close();
+$('sysdialog').onclick=e=>{ if(e.target===$('sysdialog')) $('sysdialog').close(); };
+addEventListener('resize',()=>{ const t=$('systitle').textContent; const k=Object.keys(SYS).find(x=>SYS[x].name===t); if(k) sysDraw(k); });
+
 
 // ── Diagnostic ──
 let tStart=null, tTimer=null;
@@ -117,9 +309,9 @@ function tick(){ const s=(Date.now()-tStart)/1000; $('tclock').textContent=mmss(
   if(s>=355&&$('askrec').hidden){ $('askrec').hidden=false; navigator.vibrate?.([200,100,200]); }
   if(s>=365){ clearInterval(tTimer); $('tstep').textContent='Done. Fill in how it felt and save.'; $('tstart').disabled=false; } }
 $('skip').onclick=()=>{ $('feel').hidden=false; $('feel').scrollIntoView({behavior:'smooth'}); };
-for(const [id,v] of [['legs','legsv'],['breath','breathv'],['sleep','sleepv']]) $(id).oninput=()=>$(v).textContent=$(id).value;
+for(const [id,v] of [['legs','legsv'],['feet','feetv'],['breath','breathv'],['sleep','sleepv']]) $(id).oninput=()=>$(v).textContent=$(id).value;
 document.querySelectorAll('[data-gut]').forEach(b=>b.onclick=()=>{ gut=b.dataset.gut; document.querySelectorAll('[data-gut]').forEach(x=>x.classList.toggle('on',x===b)); });
-$('send').onclick=async()=>{ const body={legs:+$('legs').value,breathing:+$('breath').value,sleep:+$('sleep').value,gut};
+$('send').onclick=async()=>{ const body={legs:+$('legs').value,feet:+$('feet').value,breathing:+$('breath').value,sleep:+$('sleep').value,gut};
   if($('hr90').value) body.hr90=+$('hr90').value; if($('hr120').value) body.hr120=+$('hr120').value; if($('hrafter').value) body.hr_after=+$('hrafter').value;
   const r=await post('/api/coach/checkin',body); if(!r.ok){ $('tmsg').textContent=r.j.error; return; }
   $('tmsg').textContent='Saved.'; loadToday(); $('todaycard').scrollIntoView({behavior:'smooth'}); };

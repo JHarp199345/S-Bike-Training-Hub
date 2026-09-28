@@ -23,6 +23,12 @@
  th{color:#8b98a8;font-weight:600} td.r,th.r{text-align:right}
  details{margin-top:6px} summary{cursor:pointer;color:#b7c1cd;font-weight:700}
  details p{color:#b7c1cd;margin:8px 0}
+ .sysgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+ .sysc{background:#0f141b;border-radius:12px;padding:12px}.sysc b{display:block;color:#b7c1cd;font-size:13px}
+ .sysc .z{font-size:20px;font-weight:900;margin:2px 0}.sysc small{display:block;color:#8b98a8;font-size:12px}
+ .budget{position:relative;height:12px;background:#1f2937;border-radius:6px;margin-top:8px;overflow:hidden}
+ .budget i{position:absolute;top:0;bottom:0;background:rgba(34,197,94,.35)}.budget em{position:absolute;top:-2px;bottom:-2px;width:4px;background:#fff;border-radius:2px}
+ @media (max-width:560px){.sysgrid{grid-template-columns:1fr}}
  @media (max-width:560px){.n b{font-size:26px} canvas{height:280px} .hide-s{display:none}}
 </style></head><body><main>
 <h1>Fitness &amp; form</h1>
@@ -40,19 +46,86 @@
  <canvas id="c"></canvas>
  <div class="sub" style="font-size:12px;margin:6px 4px 0">Dashed: the next two weeks if you rest. Tap or hover a day for its numbers.</div>
 </div>
+<div class="card" id="bodycard"><div class="bar"><b>Body systems · every sport</b><span class="sub" id="bverdict"></span></div>
+ <div class="sub" style="margin:0 4px 10px">Runs, swims, gym and rides from your watch and the bike. <b>Heart &amp; lungs</b> adapt in days;
+  <b>feet &amp; bones</b> and <b>leg muscles</b> adapt slower - their load ratio over about 1.5 is where injuries cluster. Heart &amp; lungs and leg muscles set the bike day; feet &amp; bones set running (their repair backlog is below).</div>
+ <div class="sysgrid" id="sysgrid"></div>
+ <canvas id="sc" style="height:230px;margin-top:12px"></canvas>
+ <div class="sub" style="font-size:12px;margin:6px 4px 0">Solid: fatigue (last ~week). Dashed: fitness (what each system is used to). Fatigue far above fitness = overreaching.</div>
+ <table style="margin-top:12px"><thead><tr><th>Last 7 days</th><th class="r">Time</th><th class="r">❤️ Engine</th><th class="r">🦶 Impact</th><th class="r">🦵 Muscle</th></tr></thead><tbody id="sports"></tbody></table>
+</div>
+<div class="card" id="dmgcard" hidden><div class="bar"><b>🦶 Exploratory tissue detail</b><span class="sub" id="dverdict"></span></div>
+ <div class="sub" style="margin:0 4px 10px">These older tissue clocks explore how impact may linger differently in soft tissue, tendon, and bone. Their repair-day estimates are provisional and do not set a return-to-running date. The <a href="/coach">Coach page</a> uses the recent response, accumulated mechanical curve, and your feet report for its running verdict.</div>
+ <div class="sysgrid" id="dmggrid"></div>
+ <canvas id="dc" style="height:240px;margin-top:12px"></canvas>
+ <div class="sub" style="font-size:12px;margin:6px 4px 0">Left of the line: modeled history. Right: a no-new-impact scenario. These are model units, not measured tissue damage.</div>
+</div>
 <div class="card"><div class="bar"><b>Rides</b><span class="sub" id="week"></span></div>
  <table><thead><tr><th>Date</th><th class="r">Time</th><th class="r hide-s">Avg</th><th class="r">NP</th><th class="r hide-s">IF</th><th class="r">Load</th></tr></thead><tbody id="rides"></tbody></table></div>
 <div class="card"><details><summary>What these numbers mean</summary>
  <p><b>Load (TSS)</b> - how much a ride took out of you: time × intensity², measured against your FTP (<span id="ftp"></span>). An hour flat out at FTP is 100; an hour easy in zone 2 is about 40-50.</p>
  <p><b>NP (normalized power)</b> - your watts weighted for the surges, since hard bits cost more than their average. <b>IF</b> is NP ÷ FTP: 0.65-0.75 is endurance, around 1.0 is a race.</p>
  <p><b>Fitness</b> is your load averaged over about 6 weeks: it rises slowly with steady riding. <b>Fatigue</b> is the last week's: it jumps after hard days and drops fast with rest. <b>Form</b> is the difference. Around −10 to −30 means you're training; fresh (above +5) is when to race or test.</p>
- <p>Only rides on the bike bridge count here: runs, swims and gym sessions aren't included, and fitness builds from your first bridge ride (Sept 25), so it starts small.</p>
+ <p>Only rides on the bike bridge count here: runs, swims and gym sessions aren't included, and fitness builds from your first bridge ride, so it starts small.</p>
 </details></div>
 </main>
 <script>
 const $=id=>document.getElementById(id); let data=null, range=90, hover=null;
 const fmt=d=>new Date(d+'T12:00').toLocaleDateString(undefined,{month:'short',day:'numeric'});
-async function load(){ data=await (await fetch('/api/fitness')).json(); show(); }
+async function load(){ data=await (await fetch('/api/fitness')).json(); show(); body(); }
+let bl=null;
+const SN={engine:['❤️ Heart & lungs','#ef4444'],impact:['🦶 Feet & bones','#f59e0b'],muscle:['🦵 Leg muscles','#a78bfa']};
+const ZC={'sweet spot':'#4ade80','room to build':'#60a5fa','caution':'#fbbf24','danger':'#f87171','balanced':'#9ca3af','fresh':'#4ade80',
+  'very fresh':'#60a5fa','training hard':'#fbbf24','very tired':'#f87171','building baseline':'#9ca3af'};
+async function body(){ try{ bl=await (await fetch('/api/load')).json(); }catch(e){ return; }
+  if(!bl.systems){ $('bodycard').hidden=true; return; } $('bodycard').hidden=false;
+  const r=bl.readiness, VC={go:'#4ade80',easy:'#fbbf24',rest:'#f87171'}; $('bverdict').innerHTML=r?`Bike: <b style="color:${VC[r.verdict]}">${r.verdict.toUpperCase()}</b>`+(r.limited_by.length?` (${r.limited_by.join(' and ')})`:'')
+    +(r.running?` · Running: <b style="color:${VC[r.running.verdict]}">${r.running.verdict.toUpperCase()}</b>`:''):'';
+  $('sysgrid').innerHTML=Object.entries(bl.systems).map(([k,v])=>{ const b=v.week_budget, top=b?Math.max(b[1]*1.4,v.week_used*1.05,1):1;
+    return `<div class="sysc"><b>${SN[k][0]}${v.tuned?` <span title="${(v.tuned_note||'').replace(/["<>]/g,'')}" style="color:#93c5fd;font-weight:700">· tuned to you</span>`:''}</b><div class="z" style="color:${ZC[v.zone]||'#fff'}">${v.zone}</div>
+      <small>usual week ${v.usual_week}${v.tuned?' (model guessed '+v.model_usual_week+')':''}${v.acwr!=null?' · ratio '+v.acwr:''}</small>
+      ${b?`<div class="budget"><i style="left:${b[0]/top*100}%;width:${(b[1]-b[0])/top*100}%"></i><em style="left:${Math.min(99,v.week_used/top*100)}%"></em></div>
+      <small>this week ${Math.round(v.week_used)} · sweet spot ${b[0]}-${b[1]}</small>`:'<small>budget appears after two weeks of history</small>'}</div>`; }).join('');
+  $('sports').innerHTML=Object.entries(bl.sports_last7).map(([sp,v])=>`<tr><td>${{run:'🏃 Run',swim:'🏊 Swim',bike:'🚴 Bike',gym:'🏋️ Gym',walk:'🚶 Walk'}[sp]||sp}</td>
+    <td class="r">${Math.floor(v.minutes/60)?Math.floor(v.minutes/60)+'h ':''}${Math.round(v.minutes%60)}m</td><td class="r">${Math.round(v.engine)}</td><td class="r">${Math.round(v.impact)}</td><td class="r">${Math.round(v.muscle)}</td></tr>`).join('');
+  sysdraw(); dmg(); }
+const TC={soft:'#f472b6',tendon:'#fbbf24',bone:'#e5e7eb'};
+function dmg(){ const d=bl.systems.impact&&bl.systems.impact.tissue; if(!d){ $('dmgcard').hidden=true; return; } $('dmgcard').hidden=false;
+  $('dverdict').textContent='Coach has the current running recommendation';
+  const k1=n=>n.toLocaleString();
+  $('dmggrid').innerHTML=Object.entries(d.tissues).map(([k,t])=>`<div class="sysc"><b style="color:${TC[k]}">${t.name}</b><div class="z" style="color:${ZC[t.zone]}">${t.days} days · ${t.zone}</div>
+    <small>${k1(t.backlog_1000lb_steps)} steps at 1,000 lb unrepaired · repairs ${k1(t.repairs_1000lb_steps_day)} a day</small>
+    <small>exploratory repair model · ${t.conditioning}× credited conditioning</small>
+    <small>peak ${t.peak.days} days on ${fmt(t.peak.date)}${t.next_step_costs>1.005?` · a step now does ${Math.round((t.next_step_costs-1)*100)}% extra damage`:''}</small></div>`).join('')
+    +`<div class="sub" style="grid-column:1/-1;font-size:12px">Repair capacity ${d.tuned?'tuned to you':'estimated for an unconditioned body at your weight'}: about ${d.base_km_week} equivalent km a week to start.</div>`;
+  dmgdraw(); }
+function dmgdraw(){ const d=bl.systems.impact&&bl.systems.impact.tissue; if(!d) return;
+  const c=$('dc'), dpr=devicePixelRatio||1, W=c.clientWidth, H=c.clientHeight; c.width=W*dpr; c.height=H*dpr;
+  const g=c.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,W,H);
+  const past=Math.min(42,d.history.length), fut=d.projection;
+  let end=fut.findIndex((r,i)=>i>14&&['soft','tendon','bone'].every(k=>r[k]<0.5)); end=end<0?fut.length:Math.min(fut.length,end+10);
+  const rows=d.history.slice(-past).concat(fut.slice(0,end)), n=rows.length;
+  const L=30, R=8, T=22, B=H-20, x=i=>L+i*(W-L-R)/Math.max(1,n-1);
+  const top=Math.max(10,...rows.flatMap(r=>['soft','tendon','bone'].map(k=>r[k])))*1.08, Y=v=>B-Math.min(v,top)/top*(B-T);
+  [[0,2,'rgba(96,165,250,.08)'],[2,4,'rgba(74,222,128,.09)'],[4,7,'rgba(251,191,36,.10)'],[7,top,'rgba(248,113,113,.08)']].forEach(([a,b,col])=>{ g.fillStyle=col; g.fillRect(L,Y(b),W-L-R,Y(a)-Y(b)); });
+  g.font='11px -apple-system,Roboto,sans-serif'; g.fillStyle='#8b98a8'; g.textAlign='right';
+  const step=top>60?20:top>30?10:top>15?5:2; for(let v=0;v<=top;v+=step) g.fillText(v+'d',L-4,Y(v)+4);
+  g.strokeStyle='rgba(255,255,255,.35)'; g.setLineDash([3,3]); g.beginPath(); g.moveTo(x(past-1),T); g.lineTo(x(past-1),B); g.stroke(); g.setLineDash([]);
+  g.textAlign='left'; g.fillText('today · if you don\'t run →',x(past-1)+5,T+10);
+  for(const k of ['bone','tendon','soft']){ for(const f of [false,true]){ g.beginPath(); let st=false;
+    rows.forEach((r,i)=>{ if(f?i<past-1:i>past-1) return; st?g.lineTo(x(i),Y(r[k])):g.moveTo(x(i),Y(r[k])); st=true; });
+    g.strokeStyle=TC[k]; g.lineWidth=2; g.setLineDash(f?[5,4]:[]); g.stroke(); g.setLineDash([]); } }
+  g.textAlign='center'; g.fillStyle='#8b98a8'; const every=Math.ceil(n/8); rows.forEach((r,i)=>{ if(i%every===0) g.fillText(fmt(r.date),x(i),H-4); });
+  g.textAlign='left'; let lx=L+4; for(const k of ['soft','tendon','bone']){ g.fillStyle=TC[k]; g.fillRect(lx,T-16,10,10); g.fillStyle='#b7c1cd'; const nm=d.tissues[k].name; g.fillText(nm,lx+14,T-7); lx+=g.measureText(nm).width+30; } }
+function sysdraw(){ if(!bl||!bl.days) return; const c=$('sc'), dpr=devicePixelRatio||1, W=c.clientWidth, H=c.clientHeight; c.width=W*dpr; c.height=H*dpr;
+  const g=c.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,W,H);
+  const days=bl.days.slice(-28), L=10, R=10, T=10, B=H-20, x=i=>L+i*(W-L-R)/Math.max(1,days.length-1);
+  const top=Math.max(10,...days.flatMap(d=>['engine','impact','muscle'].flatMap(k=>[d[k].fatigue,d[k].fitness])))*1.1, Y=v=>B-v/top*(B-T);
+  for(const k of ['impact','muscle','engine']){ for(const key of ['fitness','fatigue']){ g.beginPath(); days.forEach((d,i)=>i?g.lineTo(x(i),Y(d[k][key])):g.moveTo(x(i),Y(d[k][key])));
+    g.strokeStyle=SN[k][1]; g.lineWidth=key==='fatigue'?2.2:1.6; g.setLineDash(key==='fitness'?[5,4]:[]); g.stroke(); g.setLineDash([]); } }
+  g.fillStyle='#8b98a8'; g.font='11px -apple-system,Roboto,sans-serif'; g.textAlign='center';
+  const every=Math.ceil(days.length/7); days.forEach((d,i)=>{ if(i%every===0) g.fillText(new Date(d.date+'T12:00').toLocaleDateString(undefined,{month:'short',day:'numeric'}),x(i),H-4); });
+  g.textAlign='left'; let lx=L; for(const k of ['engine','impact','muscle']){ g.fillStyle=SN[k][1]; g.fillRect(lx,T,10,10); g.fillStyle='#b7c1cd'; const nm={engine:'Heart & lungs',impact:'Feet & bones',muscle:'Leg muscles'}[k]; g.fillText(nm,lx+14,T+9); lx+=g.measureText(nm).width+34; } }
 function show(){
   const t=data.today; $('ftp').textContent=data.ftp+' W, '+data.ftp_source;
   if(t){ $('ctl').textContent=Math.round(t.ctl); $('atl').textContent=Math.round(t.atl); $('tsb').textContent=(t.tsb>0?'+':'')+Math.round(t.tsb);
@@ -105,5 +178,5 @@ const at=e=>{ const r=$('c').getBoundingClientRect(); hover=(e.touches?e.touches
 $('c').addEventListener('mousemove',at); $('c').addEventListener('touchstart',at,{passive:true}); $('c').addEventListener('touchmove',at,{passive:true});
 $('c').addEventListener('mouseleave',()=>{hover=null;draw();});
 document.querySelectorAll('[data-d]').forEach(b=>b.onclick=()=>{ range=+b.dataset.d; document.querySelectorAll('[data-d]').forEach(x=>x.classList.toggle('on',x===b)); draw(); });
-addEventListener('resize',draw); load(); setInterval(load,60000);
+addEventListener('resize',()=>{ draw(); sysdraw(); dmgdraw(); }); load(); setInterval(load,60000);
 </script></body></html>

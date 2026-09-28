@@ -64,7 +64,7 @@ async def main():
     tb = int.from_bytes(feat[4:8], "little")
     check("Kinomap is told: resistance, power target and hill simulation", tb >> 2 & 1 and tb >> 3 & 1 and tb >> 13 & 1)
     names = [w["name"] for w in br.workouts]
-    check(f"{len(names)} preset workouts load: {names}", len(names) == 5)
+    check(f"{len(names)} workouts load, the presets among them: {names}", len(names) >= 5 and "ERG check (10 min)" in names)
     br.profile["ftp"] = 180                                   # the preset's % steps at a known FTP
     br.workout_start(0); st = br.erg.workout_status(br.erg.workout["started"] + 200)
     check(f"workout steps advance on time (200 s in: step {st['step']} at {st['watts']:.0f} W)", st["step"] == 2 and st["watts"] == 110)

@@ -5,6 +5,7 @@ Ideas, roughly in order. Contributions welcome, especially support for other bik
 ## Next
 - **Effort steps:** short surges (e.g. "230 W for 3 s") are too quick for ERG on a slow-reacting bike. The idea is a step type that lets go of ERG, shows the target, and measures whether you hit it.
 - **Heart rate at the same watts over time** on the fitness page (a simple trend of aerobic progress).
+- **Learn the load model's constants from use:** fit the tail length, the walking allowance and the overlap cost to each rider's check-ins automatically, instead of by hand.
 - **Demo mode:** the web pages with a simulated rider, to try the hub without a bike.
 
 ## Later

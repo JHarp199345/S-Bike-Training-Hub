@@ -30,7 +30,7 @@ def main():
     c = coach.record(d, "2026-10-07", {"legs": 2, "gut": "no"})
     check("the rider's own 'not today' is always respected -> rest", c["verdict"] == "rest")
     c = coach.record(d, "2026-10-08", {"legs": 8, "gut": "go"})
-    check("legs 8/10 -> rest even if he wants to go", c["verdict"] == "rest")
+    check("legs 8/10 -> rest even if they want to go", c["verdict"] == "rest")
     c = coach.record(d, "2026-10-09", {"legs": 3, "gut": "go", "hr90": 111, "hr120": 126, "hr_after": 101})
     check(f"normal numbers, fresh legs -> go ({c['why']})", c["verdict"] == "go" and "everything looks normal" in c["why"])
     try:

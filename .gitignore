@@ -25,3 +25,5 @@ remote.tmp
 # Strava app keys and tokens (only if you set up Strava posting)
 strava.json
 strava.tmp
+# Activity files and daily steps imported from the watch (personal)
+activities/

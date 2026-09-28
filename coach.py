@@ -70,7 +70,7 @@ def _num(v, lo, hi):
 def record(d, date, fields):
     """Add or update the day's check-in (partial updates are fine)."""
     c = d["checkins"].setdefault(date, {})
-    for k, lo, hi in (("hr90", 40, 220), ("hr120", 40, 220), ("hr_after", 30, 220), ("legs", 1, 10), ("breathing", 1, 10),
+    for k, lo, hi in (("hr90", 40, 220), ("hr120", 40, 220), ("hr_after", 30, 220), ("legs", 1, 10), ("feet", 1, 10), ("breathing", 1, 10),
                       ("sleep", 1, 10), ("motivation", 1, 10)):
         if k in fields:
             c[k] = _num(fields[k], lo, hi)
