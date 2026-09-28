@@ -1,0 +1,109 @@
+<!doctype html><html><head><meta charset="utf-8"><title>S-Bike Hub · Fitness</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+ :root{color-scheme:dark}
+ [hidden]{display:none!important}
+ body{margin:0;background:#0b0f14;color:#eef1f5;font:15px/1.45 -apple-system,Roboto,"Helvetica Neue",sans-serif}
+ main{max-width:980px;margin:0 auto;padding:22px 16px 40px}
+ h1{font-size:28px;margin:0}.sub{color:#8b98a8} a{color:#60a5fa}
+ .nums{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:18px 0 10px}
+ .n{background:#151b23;border-radius:14px;padding:14px;text-align:center}
+ .n b{display:block;font-size:34px;font-weight:800;line-height:1.1}.n span{font-size:12px;letter-spacing:1.4px;color:#8b98a8}
+ .n small{display:block;color:#b7c1cd;font-size:12px;margin-top:4px}
+ .ctl b{color:#60a5fa}.atl b{color:#f472b6}
+ #advice{background:#151b23;border-radius:14px;padding:14px 16px;margin-bottom:14px;font-size:16px}
+ .card{background:#151b23;border-radius:14px;padding:12px;margin-bottom:14px}
+ .bar{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin:0 4px 8px}
+ .rng button{background:#1f2937;color:#eef1f5;border:0;border-radius:8px;padding:7px 11px;font-weight:600;cursor:pointer}
+ .rng button.on{background:#2563eb}
+ canvas{width:100%;height:340px;display:block;touch-action:pan-y}
+ .legend{font-size:13px;color:#b7c1cd;display:flex;gap:14px;flex-wrap:wrap}
+ .legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+ table{width:100%;border-collapse:collapse;font-size:14px} th,td{text-align:left;padding:7px 6px;border-bottom:1px solid #1f2733}
+ th{color:#8b98a8;font-weight:600} td.r,th.r{text-align:right}
+ details{margin-top:6px} summary{cursor:pointer;color:#b7c1cd;font-weight:700}
+ details p{color:#b7c1cd;margin:8px 0}
+ @media (max-width:560px){.n b{font-size:26px} canvas{height:280px} .hide-s{display:none}}
+</style></head><body><main>
+<h1>Fitness &amp; form</h1>
+<div class="sub">From your watts, not heart rate · <a href="/">Panel</a> · <a href="/ride">Ride view</a> · <a href="/plan">Plan a ride</a></div>
+<div class="nums">
+ <div class="n ctl"><b id="ctl">–</b><span>FITNESS</span><small>6-week load</small></div>
+ <div class="n atl"><b id="atl">–</b><span>FATIGUE</span><small>7-day load</small></div>
+ <div class="n"><b id="tsb">–</b><span>FORM</span><small>fitness − fatigue</small></div>
+</div>
+<div id="advice">…</div>
+<div class="card">
+ <div class="bar"><div class="legend"><span><i style="background:#60a5fa"></i>Fitness</span><span><i style="background:#f472b6"></i>Fatigue</span>
+  <span><i style="background:#22c55e"></i>Form</span><span><i style="background:#f59e0b;border-radius:6px"></i>Ride load</span></div>
+  <div class="rng"><button data-d="42">6 wk</button><button data-d="90" class="on">3 mo</button><button data-d="365">1 yr</button><button data-d="0">All</button></div></div>
+ <canvas id="c"></canvas>
+ <div class="sub" style="font-size:12px;margin:6px 4px 0">Dashed: the next two weeks if you rest. Tap or hover a day for its numbers.</div>
+</div>
+<div class="card"><div class="bar"><b>Rides</b><span class="sub" id="week"></span></div>
+ <table><thead><tr><th>Date</th><th class="r">Time</th><th class="r hide-s">Avg</th><th class="r">NP</th><th class="r hide-s">IF</th><th class="r">Load</th></tr></thead><tbody id="rides"></tbody></table></div>
+<div class="card"><details><summary>What these numbers mean</summary>
+ <p><b>Load (TSS)</b> - how much a ride took out of you: time × intensity², measured against your FTP (<span id="ftp"></span>). An hour flat out at FTP is 100; an hour easy in zone 2 is about 40-50.</p>
+ <p><b>NP (normalized power)</b> - your watts weighted for the surges, since hard bits cost more than their average. <b>IF</b> is NP ÷ FTP: 0.65-0.75 is endurance, around 1.0 is a race.</p>
+ <p><b>Fitness</b> is your load averaged over about 6 weeks: it rises slowly with steady riding. <b>Fatigue</b> is the last week's: it jumps after hard days and drops fast with rest. <b>Form</b> is the difference. Around −10 to −30 means you're training; fresh (above +5) is when to race or test.</p>
+ <p>Only rides on the bike bridge count here: runs, swims and gym sessions aren't included, and fitness builds from your first bridge ride (Sept 25), so it starts small.</p>
+</details></div>
+</main>
+<script>
+const $=id=>document.getElementById(id); let data=null, range=90, hover=null;
+const fmt=d=>new Date(d+'T12:00').toLocaleDateString(undefined,{month:'short',day:'numeric'});
+async function load(){ data=await (await fetch('/api/fitness')).json(); show(); }
+function show(){
+  const t=data.today; $('ftp').textContent=data.ftp+' W, '+data.ftp_source;
+  if(t){ $('ctl').textContent=Math.round(t.ctl); $('atl').textContent=Math.round(t.atl); $('tsb').textContent=(t.tsb>0?'+':'')+Math.round(t.tsb);
+    $('tsb').style.color=t.tsb< -30?'#ef4444':t.tsb< -10?'#f59e0b':t.tsb<=5?'#9ca3af':'#22c55e'; }
+  $('advice').textContent=data.advice;
+  $('week').textContent=`Last 7 days: ${data.week.rides} rides · ${data.week.hours} h · load ${data.week.tss}`;
+  $('rides').innerHTML=data.rides.map(r=>`<tr><td>${fmt(r.date)} <span class="sub">${r.start}</span></td><td class="r">${Math.floor(r.minutes/60)?Math.floor(r.minutes/60)+'h ':''}${Math.round(r.minutes%60)}m</td>
+    <td class="r hide-s">${r.avg} W</td><td class="r">${r.np} W</td><td class="r hide-s">${r.if.toFixed(2)}</td><td class="r"><b>${Math.round(r.tss)}</b></td></tr>`).join('')||'<tr><td colspan="6" class="sub">No rides yet.</td></tr>';
+  draw();
+}
+function draw(){
+  const c=$('c'), dpr=devicePixelRatio||1, W=c.clientWidth, H=c.clientHeight; c.width=W*dpr; c.height=H*dpr;
+  const g=c.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,W,H);
+  let days=data.days; if(!days.length){ g.fillStyle='#8b98a8'; g.textAlign='center'; g.fillText('Your first ride starts the chart.',W/2,H/2); return; }
+  if(range){ const past=days.filter(d=>!d.future); const cut=past.length>range?past[past.length-range].date:days[0].date; days=days.filter(d=>d.date>=cut); }
+  const L=36, R=36, T=10, split=Math.round(H*0.66), B=H-22;
+  const x=i=>L+(i+0.5)*(W-L-R)/days.length, bw=Math.max(2,(W-L-R)/days.length*0.7);
+  const top=Math.max(20,...days.map(d=>Math.max(d.ctl,d.atl)))*1.15, tssTop=Math.max(50,...days.map(d=>d.tss))*1.1;
+  const Y=v=>split-v/top*(split-T), Yt=v=>split-v/tssTop*(split-T);
+  const fmax=Math.max(15,...days.map(d=>Math.abs(d.tsb))), Yf=v=>(split+B)/2+14-v/fmax*((B-split)/2-8);
+  g.font='11px -apple-system,Roboto,sans-serif'; g.textBaseline='middle';
+  // grid + axes
+  for(let k=0;k<=4;k++){ const v=top/4*k, y=Y(v); g.strokeStyle='rgba(255,255,255,.06)'; g.beginPath(); g.moveTo(L,y); g.lineTo(W-R,y); g.stroke();
+    g.fillStyle='#8b98a8'; g.textAlign='right'; g.fillText(Math.round(v),L-6,y); g.textAlign='left'; g.fillText(Math.round(tssTop/4*k),W-R+6,Yt(tssTop/4*k)); }
+  const now=days.findIndex(d=>d.future); if(now>0){ g.fillStyle='rgba(255,255,255,.04)'; g.fillRect(x(now)-bw,T,W-R-x(now)+bw,B-T);
+    g.fillStyle='#8b98a8'; g.textAlign='center'; g.fillText('if you rest →',(x(now)+W-R)/2,T+8); }
+  // form bars: red very tired, amber training, grey balanced, green fresh
+  g.strokeStyle='rgba(255,255,255,.15)'; g.beginPath(); g.moveTo(L,Yf(0)); g.lineTo(W-R,Yf(0)); g.stroke();
+  days.forEach((d,i)=>{ const v=d.tsb; g.fillStyle=v< -30?'#ef4444':v< -10?'#f59e0b':v<=5?'#6b7280':'#22c55e'; if(d.future) g.globalAlpha=.45;
+    g.fillRect(x(i)-bw/2,Math.min(Yf(0),Yf(v)),bw,Math.max(1,Math.abs(Yf(v)-Yf(0)))); g.globalAlpha=1; });
+  g.fillStyle='#8b98a8'; g.textAlign='right'; g.fillText('form',L-6,Yf(0));
+  // fitness area, fatigue line, both dashed ahead
+  const path=(key,col,fill)=>{ for(const fut of [false,true]){ g.beginPath(); let started=false, first=0;
+      days.forEach((d,i)=>{ if(d.future!==fut && !(fut && i===now-1)) return; if(!started){ g.moveTo(x(i),Y(d[key])); started=true; first=i; } else g.lineTo(x(i),Y(d[key])); });
+      if(!started) continue; g.setLineDash(fut?[5,5]:[]); g.strokeStyle=col; g.lineWidth=2.2; g.stroke(); g.setLineDash([]);
+      if(fill&&!fut){ const last=now>0?now-1:days.length-1; g.lineTo(x(last),split); g.lineTo(x(first),split); g.closePath(); g.fillStyle=fill; g.fill(); } } g.lineWidth=1; };
+  path('ctl','#60a5fa','rgba(96,165,250,.18)'); path('atl','#f472b6',null);
+  days.forEach((d,i)=>{ if(!d.tss) return; g.beginPath(); g.arc(x(i),Yt(d.tss),3.5,0,7); g.fillStyle='#f59e0b'; g.fill(); });
+  // dates
+  g.fillStyle='#8b98a8'; g.textAlign='center'; const every=Math.ceil(days.length/7);
+  days.forEach((d,i)=>{ if(i%every===0) g.fillText(fmt(d.date),x(i),H-8); });
+  if(hover!==null){ const i=Math.max(0,Math.min(days.length-1,Math.floor((hover-L)/((W-L-R)/days.length)))), d=days[i];
+    g.strokeStyle='rgba(255,255,255,.5)'; g.beginPath(); g.moveTo(x(i),T); g.lineTo(x(i),B); g.stroke();
+    const lines=[fmt(d.date)+(d.future?' (if you rest)':''),`fitness ${d.ctl} · fatigue ${d.atl}`,`form ${d.tsb>0?'+':''}${d.tsb}`,d.tss?`ride load ${d.tss}`:'no ride'];
+    g.font='12px -apple-system,Roboto,sans-serif'; const bw2=Math.max(...lines.map(s=>g.measureText(s).width))+16, bx=x(i)+10+bw2>W-R?x(i)-10-bw2:x(i)+10;
+    g.fillStyle='rgba(11,15,20,.94)'; g.fillRect(bx,T+4,bw2,lines.length*17+10); g.fillStyle='#eef1f5'; g.textAlign='left';
+    lines.forEach((s,k)=>g.fillText(s,bx+8,T+17+k*17)); }
+}
+const at=e=>{ const r=$('c').getBoundingClientRect(); hover=(e.touches?e.touches[0].clientX:e.clientX)-r.left; draw(); };
+$('c').addEventListener('mousemove',at); $('c').addEventListener('touchstart',at,{passive:true}); $('c').addEventListener('touchmove',at,{passive:true});
+$('c').addEventListener('mouseleave',()=>{hover=null;draw();});
+document.querySelectorAll('[data-d]').forEach(b=>b.onclick=()=>{ range=+b.dataset.d; document.querySelectorAll('[data-d]').forEach(x=>x.classList.toggle('on',x===b)); draw(); });
+addEventListener('resize',draw); load(); setInterval(load,60000);
+</script></body></html>

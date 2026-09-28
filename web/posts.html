@@ -1,0 +1,106 @@
+<!doctype html><html><head><meta charset="utf-8"><title>S-Bike Hub · Ride posts</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+ :root{color-scheme:dark}
+ [hidden]{display:none!important}
+ body{margin:0;background:#0b0f14;color:#eef1f5;font:15px/1.45 -apple-system,Roboto,"Helvetica Neue",sans-serif}
+ main{max-width:1100px;margin:0 auto;padding:20px 16px 60px;display:grid;grid-template-columns:280px 1fr;gap:18px}
+ header{grid-column:1/-1} h1{font-size:28px;margin:0} .sub{color:#8b98a8} a{color:#60a5fa}
+ h2{font-size:14px;letter-spacing:1.2px;color:#8b98a8;margin:0 0 8px}
+ .r{background:#151b23;border-radius:12px;padding:10px 12px;margin-bottom:8px;cursor:pointer;border:2px solid transparent}
+ .r.sel{border-color:#2563eb} .r b{display:block} .r small{color:#8b98a8;display:block}
+ .card{background:#151b23;border-radius:14px;padding:14px;margin-bottom:14px}
+ .post{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start}
+ img.info{width:100%;border-radius:12px;display:block;background:#0b0f14;aspect-ratio:1080/1350}
+ input,textarea{width:100%;box-sizing:border-box;background:#0b0f14;color:#eef1f5;border:1px solid #2a3441;border-radius:10px;padding:9px;font:15px/1.45 inherit}
+ textarea{min-height:230px;resize:vertical}
+ label{display:block;color:#b7c1cd;font-size:13px;margin:10px 0 4px}
+ button,.btn{display:inline-block;background:#1f2937;color:#eef1f5;border:0;border-radius:10px;padding:10px 13px;font-size:14px;font-weight:700;cursor:pointer;text-decoration:none;margin:4px 4px 0 0}
+ .strava{background:#fc4c02}.go{background:#16a34a}.blue{background:#2563eb}
+ button:disabled{opacity:.5}
+ #msg{min-height:20px;margin-top:8px;color:#fbbf24}
+ ol{padding-left:20px;color:#b7c1cd} ol li{margin:6px 0} code{background:#0b0f14;padding:1px 5px;border-radius:5px}
+ .ok{color:#4ade80}
+ @media (max-width:820px){ main{grid-template-columns:1fr} .post{grid-template-columns:1fr} }
+</style></head><body><main>
+<header><h1>Ride posts</h1><div class="sub">An infographic and a caption for every ride - friendly, a little competitive ·
+ <a href="/">Panel</a> · <a href="/fitness">Fitness</a> · <a href="/ride">Ride view</a></div></header>
+<section><h2>RIDES</h2><div id="list" class="sub">Loading…</div></section>
+<section>
+ <div class="card" id="postbox" hidden>
+  <div class="post">
+   <div><img class="info" id="img" alt="Ride infographic">
+    <div style="margin-top:8px"><a class="btn blue" id="dl" download>⬇ Save image</a><button id="remake">↻ Remake</button></div></div>
+   <div>
+    <label>Title</label><input id="title" maxlength="250">
+    <label>Caption</label><textarea id="caption"></textarea>
+    <div><button id="copycap">Copy caption</button><button class="strava" id="post" hidden>Post to Strava</button></div>
+    <label style="margin-top:14px">Want something fancier?</label>
+    <div class="sub" style="font-size:13px">"Copy for Claude" puts this ride's whole story and data on the clipboard with a ready-made prompt:
+     paste it into Claude and ask for an infographic in any style. Or download the pack (image, data, prompt).</div>
+    <div><button id="copyclaude">Copy for Claude</button><a class="btn" id="pack">⬇ Pack (.zip)</a></div>
+    <div id="msg"></div>
+   </div>
+  </div>
+ </div>
+ <details class="card" id="stravabox"><summary style="cursor:pointer;color:#8b98a8;font-weight:700">Optional: Strava posting · <span id="sstate">…</span></summary>
+  <p class="sub" style="font-size:13px">Not needed - COROS already syncs your rides to Strava. This only saves copy-pasting: one button puts the title and caption on that synced ride.</p>
+  <div id="setup" hidden>
+   <ol>
+    <li>On the Mac, open <a href="https://www.strava.com/settings/api" target="_blank" rel="noopener">strava.com/settings/api</a> and create an app (any name, e.g. "S-Bike Hub"; website <code>http://127.0.0.1</code>).</li>
+    <li>Set <b>Authorization Callback Domain</b> to <code>127.0.0.1</code>.</li>
+    <li>Copy its <b>Client ID</b> and <b>Client Secret</b> here:</li>
+   </ol>
+   <label>Client ID</label><input id="cid" inputmode="numeric" autocomplete="off">
+   <label>Client Secret</label><input id="csec" type="password" autocomplete="off">
+   <div><button class="go" id="saveapp">Save</button></div>
+  </div>
+  <div id="connect" hidden><button class="strava" id="connectbtn">Connect Strava</button>
+   <div class="sub" style="font-size:13px">Opens Strava to approve. Tick "upload and edit activities".</div></div>
+  <div id="connected" hidden><button id="forget">Disconnect</button></div>
+  <p class="sub" style="font-size:13px;margin-bottom:0">It never creates a second copy of a ride COROS synced; only if there's no synced copy does it upload
+   the ride (route rides with their map). Strava doesn't let apps add photos, so save the image and add it in the Strava app.</p>
+ </details>
+</section>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const fmt=d=>new Date(d+'T12:00').toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'});
+let cur=null, sv=null, local=['127.0.0.1','localhost'].includes(location.hostname);
+async function list(){ const rs=await (await fetch('/api/posts')).json();
+  $('list').innerHTML=rs.map(r=>`<div class="r" data-r="${r.ride}"><b>${r.title||'Ride'}</b><small>${fmt(r.date)} ${r.start} · ${Math.round(r.minutes)} min · load ${Math.round(r.load)}</small>
+    ${r.top?`<small>${r.top.icon} ${r.top.text}</small>`:''}</div>`).join('')||'No rides of 5 minutes or more yet.';
+  $('list').querySelectorAll('.r').forEach(el=>el.onclick=()=>open(el.dataset.r));
+  const want=new URLSearchParams(location.search).get('ride'); if(rs.length) open(want||rs[0].ride); }
+async function open(ride, remake){ cur=ride; document.querySelectorAll('.r').forEach(el=>el.classList.toggle('sel',el.dataset.r===ride));
+  $('postbox').hidden=false; $('msg').textContent=remake?'Remaking…':'';
+  const r=await fetch(remake?`/api/posts/make/${ride}`:`/api/posts/${ride}`,{method:remake?'POST':'GET'}); const s=await r.json();
+  if(!r.ok){ $('msg').textContent=s.error; return; }
+  const v='?v='+Date.now(); $('img').src=`/posts/${ride}/card.png${v}`; $('dl').href=`/posts/${ride}/card.png?download=1`;
+  $('pack').href=`/posts/${ride}/pack.zip`; $('title').value=s.title; $('caption').value=s.caption; if(remake) $('msg').textContent='Remade.';
+  if(remake) list(); }
+$('remake').onclick=()=>open(cur,true);
+function copy(text){ // works on plain http too (the phone over Wi-Fi)
+  const t=document.createElement('textarea'); t.value=text; t.style.position='fixed'; t.style.opacity='0'; document.body.appendChild(t);
+  t.select(); let ok=false; try{ ok=document.execCommand('copy'); }catch(e){} t.remove();
+  if(!ok && navigator.clipboard) navigator.clipboard.writeText(text).then(()=>{}); return true; }
+$('copycap').onclick=()=>{ copy($('title').value+'\n\n'+$('caption').value); $('msg').textContent='Caption copied.'; };
+$('copyclaude').onclick=async()=>{ const t=await (await fetch(`/posts/${cur}/for_claude.md`)).text(); copy(t); $('msg').textContent='Copied - paste it into Claude.'; };
+$('post').onclick=async()=>{ if(!sv?.connected) return;
+  if(!confirm('Post this title and caption to your Strava ride?')) return;
+  $('post').disabled=true; $('msg').textContent='Posting…';
+  const r=await fetch(`/api/strava/post/${cur}`,{method:'POST',body:JSON.stringify({title:$('title').value,caption:$('caption').value})}); const j=await r.json();
+  $('post').disabled=false; $('msg').innerHTML=r.ok?`<span class="ok">Done.</span> ${j.note} <a href="${j.url}" target="_blank" rel="noopener">Open on Strava →</a>`:j.error; };
+async function strava(){ sv=await (await fetch('/api/strava')).json(); $('post').hidden=!sv.connected;
+  if(new URLSearchParams(location.search).has('strava_error')) $('stravabox').open=true;
+  const q=new URLSearchParams(location.search);
+  $('sstate').innerHTML=sv.connected?`<span class="ok">Connected</span>${sv.athlete?' as '+sv.athlete:''}.`
+    :sv.app?'App saved - now connect.':'Not set up yet.'+(q.get('strava_error')?' <span style="color:#fca5a5">'+q.get('strava_error')+'</span>':'');
+  $('setup').hidden=sv.app||!local; $('connect').hidden=!sv.app||sv.connected||!local; $('connected').hidden=!sv.connected||!local;
+  if(!local&&!sv.connected) $('sstate').textContent+=' Set it up on the Mac (open the panel there → Posts).'; }
+$('saveapp').onclick=async()=>{ const r=await fetch('/api/strava/app',{method:'POST',body:JSON.stringify({client_id:$('cid').value,client_secret:$('csec').value})});
+  const j=await r.json(); if(!r.ok){ $('sstate').textContent=j.error; return; } $('csec').value=''; strava(); };
+$('connectbtn').onclick=()=>location.href='/strava/connect';
+$('forget').onclick=async()=>{ if(!confirm('Disconnect Strava from this Mac?')) return; await fetch('/api/strava/forget',{method:'POST'}); strava(); };
+list(); strava();
+</script></body></html>

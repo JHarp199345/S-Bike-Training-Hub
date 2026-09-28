@@ -1,0 +1,75 @@
+<!doctype html><html><head><meta charset="utf-8"><title>S-Bike Hub · Streaks</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+ :root{color-scheme:dark}
+ [hidden]{display:none!important}
+ body{margin:0;background:#0b0f14;color:#eef1f5;font:15px/1.45 -apple-system,Roboto,"Helvetica Neue",sans-serif}
+ main{max-width:980px;margin:0 auto;padding:22px 16px 60px}
+ h1{font-size:28px;margin:0}.sub{color:#8b98a8} a{color:#60a5fa}
+ h2{font-size:14px;letter-spacing:1.2px;color:#8b98a8;margin:22px 0 8px}
+ .streaks{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
+ .s{background:#151b23;border-radius:16px;padding:16px}
+ .s .big{font-size:52px;font-weight:900;line-height:1}.s .big small{font-size:18px;font-weight:700;color:#b7c1cd}
+ .s .lab{font-size:13px;letter-spacing:1.4px;color:#8b98a8;margin-top:4px}
+ .s .note{margin-top:8px;color:#b7c1cd}
+ .dots{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+ .dot{width:30px;height:30px;border-radius:50%;background:#1f2937;display:flex;align-items:center;justify-content:center;font-size:15px}
+ .dot.on{background:#16a34a}
+ select{background:#0b0f14;color:#eef1f5;border:1px solid #2a3441;border-radius:8px;padding:4px 6px;font-size:14px}
+ .tot{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+ .t{background:#151b23;border-radius:14px;padding:12px;text-align:center}
+ .t b{display:block;font-size:26px;font-weight:800}.t span{font-size:11px;letter-spacing:1.2px;color:#8b98a8}
+ .eq{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.eq span{background:#151b23;border-radius:999px;padding:6px 12px;color:#b7c1cd;font-size:14px}
+ .next{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+ .n{background:#151b23;border-radius:14px;padding:12px 14px}
+ .n b{display:block}.n small{color:#8b98a8}
+ .bar{height:8px;background:#0b0f14;border-radius:4px;overflow:hidden;margin-top:8px}.bar i{display:block;height:100%;background:#2563eb}
+ .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+ .b{background:#151b23;border-radius:14px;padding:12px;text-align:center;border:2px solid transparent}
+ .b .i{font-size:34px;line-height:1.2}.b b{display:block;font-size:14px;margin-top:4px}.b small{display:block;color:#8b98a8;font-size:12px}
+ .b.got{border-color:#eab308;background:#1c1606}.b.got small{color:#fde68a}
+ .b.lock .i{filter:grayscale(1);opacity:.35}.b.lock b{color:#8b98a8}
+ @media (max-width:640px){ .streaks,.next{grid-template-columns:1fr} .tot{grid-template-columns:repeat(3,1fr)} .s .big{font-size:44px} }
+</style></head><body><main>
+<h1>Streaks &amp; milestones</h1>
+<div class="sub">Everything counted from your rides on the bridge · <a href="/">Panel</a> · <a href="/posts">Posts</a> · <a href="/fitness">Fitness</a></div>
+<div class="streaks">
+ <div class="s"><div class="big" id="days">–</div><div class="lab">DAY STREAK</div><div class="note" id="daynote"></div></div>
+ <div class="s"><div class="big" id="weeks">–</div><div class="lab">WEEKS ON GOAL</div>
+  <div class="note">Goal: <select id="goal"></select> rides of 20+ min a week</div><div class="dots" id="wdots"></div><div class="note" id="weeknote"></div></div>
+</div>
+<h2>ALL TIME</h2>
+<div class="tot">
+ <div class="t"><b id="rides">–</b><span>RIDES</span></div><div class="t"><b id="km">–</b><span>KM</span></div>
+ <div class="t"><b id="climb">–</b><span>M CLIMBED</span></div><div class="t"><b id="hours">–</b><span>HOURS</span></div>
+ <div class="t"><b id="kcal">–</b><span>KCAL</span></div>
+</div>
+<div class="eq" id="eq"></div>
+<h2>NEXT UP</h2><div class="next" id="next"></div>
+<div id="groups"></div>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const GROUPS=[['firsts','Firsts'],['rides','Rides'],['km','Distance'],['climb','Climbing'],['hours','Time'],['kcal','Calories'],
+  ['long','Longest ride'],['bigclimb','Biggest single climb'],['daystreak','Day streaks'],['weekstreak','Week streaks']];
+const fmt=d=>new Date(d+'T12:00').toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
+const n=v=>Math.round(v).toLocaleString();
+async function load(){ const d=await (await fetch('/api/milestones')).json(), s=d.streaks, t=d.totals;
+  $('days').innerHTML=`${s.days}<small> day${s.days===1?'':'s'}</small>`;
+  $('daynote').textContent=s.rode_today?`Rode today ✓ · best ${s.best_days}`:s.days?`Ride today to make it ${s.days+1} · best ${s.best_days}`:`Ride 10+ min today to start one · best ${s.best_days}`;
+  $('weeks').innerHTML=`${s.weeks}<small> week${s.weeks===1?'':'s'}</small>`;
+  $('goal').innerHTML=[1,2,3,4,5,6,7].map(k=>`<option ${k===s.goal?'selected':''}>${k}</option>`).join('');
+  $('wdots').innerHTML=Array.from({length:s.goal},(_,i)=>`<div class="dot${i<s.this_week?' on':''}">${i<s.this_week?'✓':''}</div>`).join('');
+  const left=s.goal-s.this_week;
+  $('weeknote').textContent=left<=0?`This week's goal done ✓ · best ${s.best_weeks}`:`${left} more ride${left>1?'s':''} this week (${s.days_left_in_week+1} day${s.days_left_in_week?'s':''} left) · best ${s.best_weeks}`;
+  $('rides').textContent=t.rides; $('km').textContent=n(t.km); $('climb').textContent=n(t.climb_m); $('hours').textContent=t.hours.toFixed(1); $('kcal').textContent=n(t.kcal);
+  $('eq').innerHTML=d.equivalents.map(e=>`<span>${e}</span>`).join('');
+  $('next').innerHTML=d.next.map(b=>`<div class="n"><b>${b.icon} ${b.name}</b><small>${n(b.have)} of ${n(b.need)} · ${Math.round(b.progress*100)}%</small><div class="bar"><i style="width:${b.progress*100}%"></i></div></div>`).join('')||'<div class="sub">All caught up!</div>';
+  $('groups').innerHTML=GROUPS.map(([g,title])=>{ const bs=d.badges.filter(b=>b.group===g); if(!bs.length) return '';
+    return `<h2>${title.toUpperCase()}</h2><div class="grid">`+bs.map(b=>b.earned
+      ?`<div class="b got"><div class="i">${b.icon}</div><b>${b.name}</b><small>${fmt(b.earned.date)}</small></div>`
+      :`<div class="b lock"><div class="i">${b.icon}</div><b>${b.name}</b>${b.need?`<div class="bar"><i style="width:${b.progress*100}%"></i></div>`:'<small>not yet</small>'}</div>`).join('')+'</div>'; }).join('');
+}
+$('goal').onchange=async()=>{ await fetch('/api/milestones/goal',{method:'POST',body:JSON.stringify({rides:+$('goal').value})}); load(); };
+load();
+</script></body></html>

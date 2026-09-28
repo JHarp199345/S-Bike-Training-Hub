@@ -1,0 +1,27 @@
+# Python environment (setup.sh rebuilds it from requirements.txt)
+.venv
+.venv/
+__pycache__/
+*.log
+
+# Downloaded maps, road data, terrain and tools (setup.sh fetches them)
+maps/
+
+# Your own data - it stays on your Mac
+rides/
+routes/
+profile.json
+state.json
+state.tmp
+bests.json
+bests.tmp
+coach.json
+coach.tmp
+fitness_cache.json
+milestones_cache.json
+# The phone remote's PIN and paired-phone tokens
+remote.json
+remote.tmp
+# Strava app keys and tokens (only if you set up Strava posting)
+strava.json
+strava.tmp

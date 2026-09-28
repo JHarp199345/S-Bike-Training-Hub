@@ -1,0 +1,26 @@
+{
+ "name": "Steady blocks 2x15",
+ "note": "Upper aerobic blocks - for after a few weeks of base riding.",
+ "steps": [
+  {
+   "minutes": 10,
+   "pct": 50
+  },
+  {
+   "minutes": 15,
+   "pct": 75
+  },
+  {
+   "minutes": 5,
+   "pct": 50
+  },
+  {
+   "minutes": 15,
+   "pct": 75
+  },
+  {
+   "minutes": 10,
+   "pct": 47
+  }
+ ]
+}

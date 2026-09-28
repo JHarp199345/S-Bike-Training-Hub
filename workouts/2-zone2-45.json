@@ -1,0 +1,18 @@
+{
+ "name": "Zone 2 (45 min)",
+ "note": "Easy aerobic, ~61% of FTP. A base-building staple.",
+ "steps": [
+  {
+   "minutes": 10,
+   "pct": 47
+  },
+  {
+   "minutes": 25,
+   "pct": 61
+  },
+  {
+   "minutes": 10,
+   "pct": 47
+  }
+ ]
+}

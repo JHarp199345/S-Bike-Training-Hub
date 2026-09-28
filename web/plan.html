@@ -1,0 +1,215 @@
+<!doctype html><html><head><meta charset="utf-8"><title>S-Bike Hub · Plan a ride</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/lib/maplibre-gl.css">
+<style>
+ :root{color-scheme:dark}
+ [hidden]{display:none!important}
+ html,body{margin:0;height:100%;background:#0b0f14;color:#eef1f5;font:15px/1.4 -apple-system,"Helvetica Neue",sans-serif}
+ #map{position:absolute;inset:0}
+ #side{position:absolute;top:12px;left:12px;bottom:12px;width:340px;max-width:calc(100% - 24px);background:rgba(11,15,20,.92);
+       border-radius:16px;padding:16px;overflow:auto;box-shadow:0 8px 30px rgba(0,0,0,.4)}
+ h1{font-size:22px;margin:0 0 2px} .sub{color:#8b98a8;font-size:13px}
+ .tabs{display:flex;gap:6px;margin:14px 0 10px}.tabs button{flex:1}
+ button{background:#1f2937;color:#eef1f5;border:0;border-radius:10px;padding:10px 12px;font-size:15px;font-weight:600;cursor:pointer}
+ button.on{background:#2563eb} button.go{background:#16a34a;width:100%;margin-top:8px} button.ride{background:#9333ea}
+ button:disabled{opacity:.5;cursor:default}
+ label{display:block;margin:10px 0 4px;color:#b7c1cd;font-size:13px}
+ input[type=range]{width:100%} input[type=text]{width:100%;box-sizing:border-box;background:#0b0f14;color:#eef1f5;border:1px solid #2a3441;border-radius:10px;padding:9px}
+ .row{display:flex;gap:6px}.row button{flex:1}
+ .card{background:#151b23;border-radius:12px;padding:10px;margin:8px 0;border-left:6px solid var(--c);cursor:pointer}
+ .card.sel{outline:2px solid var(--c)} .card b{font-size:16px}
+ .kind{display:inline-block;border-radius:6px;padding:1px 7px;font-size:12px;font-weight:700;margin-left:6px}
+ .easy{background:#14532d}.mixed{background:#78350f}.hilly{background:#7f1d1d}
+ canvas{width:100%;height:46px;display:block;margin-top:6px}
+ #msg{margin-top:8px;color:#fbbf24;font-size:13px;min-height:18px}
+ .region{position:absolute;top:12px;right:12px;display:flex;gap:6px}
+ h2{font-size:15px;margin:18px 0 6px;color:#b7c1cd}
+ .saved{display:flex;align-items:center;gap:8px;background:#151b23;border-radius:10px;padding:8px 10px;margin:6px 0}
+ .saved div{flex:1;min-width:0}.saved small{color:#8b98a8}
+ a{color:#60a5fa}
+ #grab{display:none}
+ .search{position:relative;margin-top:12px}
+ .search input{font-size:16px;padding:11px 12px}
+ #hits{position:absolute;left:0;right:0;top:100%;background:#151b23;border-radius:0 0 12px 12px;z-index:5;
+       box-shadow:0 10px 24px rgba(0,0,0,.5);max-height:320px;overflow:auto}
+ #hits div{padding:10px 12px;cursor:pointer;border-top:1px solid #1f2733}#hits div:hover,#hits div.on{background:#1f2937}
+ #hits small{color:#8b98a8;display:block;font-size:12px}
+ .pts{font-size:13px;color:#cfd6df;margin:8px 0 0}.pts b{color:#4ade80}.pts b.e{color:#f87171}
+ .idea{background:#151b23;border-radius:10px;padding:9px 11px;margin:6px 0;cursor:pointer}
+ .idea:hover{background:#1f2937} .idea small{color:#8b98a8;display:block}
+ .chk{display:flex;align-items:center;gap:8px;color:#eef1f5;font-size:14px;margin-top:12px;cursor:pointer}
+ .chk input{width:18px;height:18px}
+ .idtabs{display:flex;gap:6px;margin-bottom:4px}.idtabs button{flex:1;padding:7px;font-size:13px}
+ @media (max-width:700px){
+  #side{top:auto;left:0;right:0;bottom:0;width:auto;max-width:none;max-height:55%;border-radius:16px 16px 0 0;padding:6px 14px 14px}
+  #side.min{max-height:118px;overflow:hidden}
+  #grab{display:block;width:44px;height:5px;border-radius:3px;background:#4b5563;margin:4px auto 8px;cursor:pointer}
+  .region{top:8px;right:8px} .maplibregl-ctrl-bottom-right{bottom:auto;top:52px}
+ }
+</style></head><body>
+<div id="map"></div>
+<div class="region" id="regions"><button id="sethome" title="Open the planner here from now on">📍 Home view</button></div>
+<div id="side">
+ <div id="grab" title="Show / hide"></div>
+ <h1>Plan a ride</h1><div class="sub">Real roads and hills, planned on this Mac. <a href="/ride">Ride view</a> · <a href="/">Panel</a></div>
+ <div class="search"><input id="q" type="text" placeholder="🔍  Find a town or mountain - Paris, Malibu, Ventoux…" autocomplete="off">
+  <div id="hits" hidden></div></div>
+ <div class="tabs"><button id="tab-ab" class="on">A → B</button><button id="tab-loop">By distance</button></div>
+ <div id="loop-opts" hidden>
+  <label>Distance: <span id="kmv">20</span> km</label><input id="km" type="range" min="5" max="100" step="1" value="20">
+  <label>Kind of day</label>
+  <div class="row"><button data-want="easy">Easy</button><button data-want="" class="on">Any</button><button data-want="hilly">Hilly</button></div>
+  <label class="chk"><input id="loopback" type="checkbox"> Finish where I started (a loop)</label>
+  <div class="sub" id="distnote">It's a virtual ride, so it can end anywhere: routes head off in different directions and stop when the distance is up.</div>
+ </div>
+ <div class="pts" id="pts"></div>
+ <button id="find" class="go" disabled>Find routes</button>
+ <div id="msg"></div>
+ <div id="cands"></div>
+ <div id="savebox" hidden>
+  <label>Name this route</label><input id="rname" type="text" maxlength="60">
+  <div class="row" style="margin-top:8px"><button id="save">Save</button><button id="saveride" class="ride">Save &amp; ride</button></div>
+ </div>
+ <h2>Ideas · famous rides</h2>
+ <div class="idtabs" id="idtabs"></div>
+ <div id="ideas"></div>
+ <h2>Your routes</h2><div id="saved" class="sub">None yet.</div>
+ <label>Import a GPX file (Strava, Komoot, RideWithGPS…)</label><input id="gpx" type="file" accept=".gpx,application/gpx+xml">
+</div>
+<script type="module">
+import * as maplibregl from '/lib/maplibre-gl.mjs';
+const $=id=>document.getElementById(id);
+const COLORS=['#f97316','#22d3ee','#a855f7','#facc15'];
+const map=new maplibregl.Map({container:'map', style:'/style.json', center:[0,20], zoom:2, maxPitch:75,attributionControl:{compact:true}});
+fetch('/api/home').then(r=>r.json()).then(h=>map.jumpTo({center:h.center,zoom:h.zoom}));
+map.on('load',()=>document.querySelector('.maplibregl-ctrl-attrib')?.classList.remove('maplibregl-compact-show'));
+map.addControl(new maplibregl.NavigationControl({visualizePitch:true}),'bottom-right');
+// Region buttons come from regions.json (what setup.sh downloaded); 📍 saves the current view as home.
+fetch('/api/regions').then(r=>r.json()).then(regs=>{ regs.forEach(g=>{ const b=document.createElement('button'); b.textContent=g.name;
+  b.onclick=()=>{ map.flyTo({center:g.center,zoom:g.zoom}); document.querySelector(`[data-reg="${g.name}"]`)?.click(); };
+  $('regions').insertBefore(b,$('sethome')); }); });
+$('sethome').onclick=async()=>{ const c=map.getCenter(); await fetch('/api/home',{method:'POST',body:JSON.stringify({lon:c.lng,lat:c.lat,zoom:map.getZoom()})});
+  $('sethome').textContent='📍 Saved'; setTimeout(()=>$('sethome').textContent='📍 Home view',1500); };
+
+let mode='ab', want='', start=null, end=null, cands=[], sel=null;
+const mk=c=>new maplibregl.Marker({color:c});
+const narrow=()=>innerWidth<=700;
+const pad=()=>narrow()?{left:30,right:30,top:60,bottom:$('side').offsetHeight+20}:{left:380,top:40,right:40,bottom:40};
+$('grab').onclick=()=>$('side').classList.toggle('min');
+const mStart=mk('#16a34a'), mEnd=mk('#dc2626');
+function setMode(m){ mode=m; $('tab-ab').classList.toggle('on',m==='ab'); $('tab-loop').classList.toggle('on',m==='loop');
+  $('loop-opts').hidden=m!=='loop'; end=null; names.end=null; mEnd.remove(); ready(); showPts(); }
+$('tab-ab').onclick=()=>setMode('ab'); $('tab-loop').onclick=()=>setMode('loop');
+$('km').oninput=()=>$('kmv').textContent=$('km').value;
+$('loopback').onchange=()=>{ $('distnote').textContent=$('loopback').checked?'Out and around, back to your start.':"It's a virtual ride, so it can end anywhere: routes head off in different directions and stop when the distance is up."; };
+document.querySelectorAll('[data-want]').forEach(b=>b.onclick=()=>{want=b.dataset.want;
+  document.querySelectorAll('[data-want]').forEach(x=>x.classList.toggle('on',x===b));});
+function ready(){ $('find').disabled=!(start&&(mode==='loop'||end)); }
+// ---- Where am I? Name the start and finish after the nearest town. ----
+const names={start:null,end:null};
+async function nameOf(which,p){ names[which]='…'; showPts();
+  try{ const n=await (await fetch(`/api/near?lat=${p[0]}&lon=${p[1]}`)).json();
+    names[which]=n?(n.km<1.5?n.name:`${n.km} km from ${n.name}`):'somewhere quiet'; }catch(e){ names[which]=null; }
+  showPts(); }
+function showPts(){ const s=start&&`<b>● Start</b> ${names.start||''}`, e=end&&mode==='ab'&&`<b class="e">● Finish</b> ${names.end||''}`;
+  $('pts').innerHTML=[s,e].filter(Boolean).join('<br>')||(mode==='ab'?'Tap the map for your start, then your finish.':'Tap the map where you want to start.'); }
+function setStart(p){ start=p; mStart.setLngLat([p[1],p[0]]).addTo(map); nameOf('start',p); }
+function setEnd(p){ end=p; mEnd.setLngLat([p[1],p[0]]).addTo(map); nameOf('end',p); }
+// ---- Search: fly to a town or a mountain. ----
+let hitList=[], hitSel=-1, qT=0;
+$('q').oninput=()=>{ clearTimeout(qT); qT=setTimeout(async()=>{ const q=$('q').value.trim();
+  if(q.length<2){ $('hits').hidden=true; return; }
+  const j=await (await fetch('/api/places?q='+encodeURIComponent(q))).json(); hitList=j.results; hitSel=-1;
+  const box=$('hits'); box.hidden=false;
+  box.innerHTML=hitList.length?hitList.map((h,i)=>`<div data-i="${i}">${h.name}${h.en?` (${h.en})`:''}<small>${
+    h.kind==='peak'||h.kind==='volcano'?'⛰ mountain'+(h.ele?` · ${h.ele} m`:''):h.kind==='locality'?(h.rank>=8?'city':h.rank>=5?'town':'village'):h.kind==='neighbourhood'||h.kind==='macrohood'?'neighbourhood':h.kind
+    }${h.near?' · '+h.near:''}</small></div>`).join('')
+    :`<div>${j.indexing?'Still reading the map\'s place names - try again in a minute.':'Nothing by that name in the downloaded maps.'}</div>`;
+  box.querySelectorAll('[data-i]').forEach(d=>d.onclick=()=>go(hitList[+d.dataset.i])); },180); };
+$('q').onkeydown=e=>{ const n=hitList.length; if(!n) return;
+  if(e.key==='ArrowDown'||e.key==='ArrowUp'){ e.preventDefault(); hitSel=(hitSel+(e.key==='ArrowDown'?1:n-1))%n;
+    $('hits').querySelectorAll('[data-i]').forEach((d,i)=>d.classList.toggle('on',i===hitSel)); }
+  if(e.key==='Enter') go(hitList[Math.max(0,hitSel)]); if(e.key==='Escape') $('hits').hidden=true; };
+function go(h){ if(!h) return; $('hits').hidden=true; $('q').value=h.name; $('q').blur();
+  const z=h.kind==='peak'||h.kind==='volcano'?12.5:h.kind==='neighbourhood'||h.kind==='macrohood'?14:h.rank>=10?11.5:h.rank>=7?12.5:14;
+  map.flyTo({center:[h.lon,h.lat],zoom:z,padding:pad(),speed:1.6});
+  if(narrow()) $('side').classList.add('min'); }
+// ---- Ideas: famous rides, planned with one tap. ----
+let ideas=[], region=null;
+async function loadIdeas(){ ideas=await (await fetch('/api/ideas')).json();
+  const regs=[...new Set(ideas.map(d=>d.region))]; region=regs[0];
+  $('idtabs').innerHTML=regs.map((g,i)=>`<button data-reg="${g}" class="${i?'':'on'}">${g}</button>`).join('');
+  document.querySelectorAll('[data-reg]').forEach(b=>b.onclick=()=>{ region=b.dataset.reg;
+    document.querySelectorAll('[data-reg]').forEach(x=>x.classList.toggle('on',x===b)); showIdeas(); });
+  showIdeas(); }
+function showIdeas(){ $('ideas').innerHTML=ideas.map((d,i)=>d.region!==region?'':
+   `<div class="idea" data-i="${i}"><b>${d.name}</b><small>${d.blurb}</small></div>`).join('');
+  $('ideas').querySelectorAll('[data-i]').forEach(el=>el.onclick=()=>useIdea(ideas[+el.dataset.i])); }
+
+function useIdea(d){
+  if(d.kind==='loop'){ setMode('loop'); $('loopback').checked=true; $('km').value=d.km; $('kmv').textContent=d.km; setStart(d.start); }
+  else { setMode('ab'); setStart(d.start); setEnd(d.end); }
+  ready(); $('find').click(); }
+map.on('click',e=>{ const p=[e.lngLat.lat,e.lngLat.lng]; $('hits').hidden=true;
+  if(!start||(mode==='ab'&&end)){ end=null; names.end=null; mEnd.remove(); setStart(p); }
+  else if(mode==='ab') setEnd(p);
+  else setStart(p);
+  ready(); });
+
+function drawProfile(canvas, prof, color){
+  const c=canvas, dpr=devicePixelRatio||1; c.width=c.clientWidth*dpr; c.height=c.clientHeight*dpr;
+  const g=c.getContext('2d'); if(prof.length<2) return;
+  const es=prof.map(p=>p[1]), lo=Math.min(...es), hi=Math.max(...es,lo+20), L=prof[prof.length-1][0]||1;
+  g.beginPath(); prof.forEach(([d,e],i)=>{ const x=d/L*c.width, y=c.height-(e-lo)/(hi-lo)*c.height*0.9;
+    i?g.lineTo(x,y):g.moveTo(x,y); }); g.lineTo(c.width,c.height); g.lineTo(0,c.height); g.closePath();
+  g.fillStyle=color+'66'; g.fill(); g.strokeStyle=color; g.lineWidth=1.5*dpr; g.stroke();
+}
+function card(r,i,color,onclick){
+  const s=r.stats, d=document.createElement('div'); d.className='card'; d.style.setProperty('--c',color);
+  d.innerHTML=`<b>${r.name}</b><span class="kind ${s.kind}">${s.kind}</span><div class="sub">${s.km} km · ${s.climb_m} m up · steepest ${s.max_grade}%</div><canvas></canvas>`;
+  d.onclick=onclick; setTimeout(()=>drawProfile(d.querySelector('canvas'),r.profile,color)); return d;
+}
+function showCands(){
+  const fc={type:'FeatureCollection',features:cands.map((r,i)=>({type:'Feature',properties:{i,color:COLORS[i%4],sel:sel===i?1:0},
+     geometry:{type:'LineString',coordinates:r.points}}))};
+  if(map.getSource('cands')) map.getSource('cands').setData(fc);
+  else { map.addSource('cands',{type:'geojson',data:fc});
+    map.addLayer({id:'cands-casing',type:'line',source:'cands',paint:{'line-color':'#0b0f14','line-width':['case',['==',['get','sel'],1],9,6]}});
+    map.addLayer({id:'cands',type:'line',source:'cands',paint:{'line-color':['get','color'],'line-width':['case',['==',['get','sel'],1],6,3.5],
+      'line-opacity':['case',['==',['get','sel'],1],1,0.7]},layout:{'line-cap':'round','line-join':'round'}}); }
+  const box=$('cands'); box.innerHTML='';
+  cands.forEach((r,i)=>{ const c=card(r,i,COLORS[i%4],()=>pick(i)); if(sel===i) c.classList.add('sel'); box.appendChild(c); });
+}
+function pick(i){ sel=i; showCands(); $('savebox').hidden=false; $('rname').value=cands[i].name;
+  const b=new maplibregl.LngLatBounds(); cands[i].points.forEach(p=>b.extend(p)); map.fitBounds(b,{padding:pad()}); }
+$('find').onclick=async()=>{
+  $('find').disabled=true; $('msg').textContent=mode==='ab'?'Planning…':'Trying roads in every direction… (10-20 s)'; $('savebox').hidden=true; sel=null;
+  const body=mode==='ab'?{start,end}:{start,km:+$('km').value,want,loop:$('loopback').checked};
+  try{ const r=await fetch('/api/plan',{method:'POST',body:JSON.stringify(body)}); const j=await r.json();
+    if(!r.ok) throw new Error(j.error||'planning failed'); cands=j;
+    $('msg').textContent=j.length?`${j.length} route${j.length>1?'s':''} - pick one`:'No routes found there.'; showCands(); if(j.length) pick(0);
+  }catch(e){ $('msg').textContent=e.message; } finally{ ready(); }
+};
+async function save(ride){
+  const r=await fetch('/api/route/save',{method:'POST',body:JSON.stringify({cid:cands[sel].cid,name:$('rname').value})});
+  const j=await r.json(); if(!r.ok){ $('msg').textContent=j.error; return; }
+  $('msg').textContent='Saved.'; loadSaved(); if(ride) rideRoute(j.id);
+}
+$('save').onclick=()=>save(false); $('saveride').onclick=()=>save(true);
+async function rideRoute(id){ await fetch('/api/route/start/'+id,{method:'POST'}); location.href='/ride'; }
+async function loadSaved(){
+  const list=await (await fetch('/api/routes')).json(), box=$('saved');
+  if(!list.length){ box.textContent='None yet.'; return; } box.innerHTML='';
+  list.forEach(r=>{ const d=document.createElement('div'); d.className='saved';
+    d.innerHTML=`<div><b>${r.name}</b><span class="kind ${r.kind}">${r.kind}</span><br><small>${r.km} km · ${r.climb_m} m up · steepest ${r.max_grade}%</small></div>`;
+    const show=document.createElement('button'); show.textContent='Show'; show.onclick=async()=>{
+      const g=await (await fetch('/api/route/'+r.id)).json(); cands=[g]; sel=0; showCands(); $('savebox').hidden=true;
+      const b=new maplibregl.LngLatBounds(); g.points.forEach(p=>b.extend(p)); map.fitBounds(b,{padding:pad()}); };
+    const go=document.createElement('button'); go.className='ride'; go.textContent='Ride'; go.onclick=()=>rideRoute(r.id);
+    d.append(show,go); box.appendChild(d); });
+}
+$('gpx').onchange=async()=>{ const f=$('gpx').files[0]; if(!f) return;
+  const r=await fetch('/api/route/import',{method:'POST',body:await f.text()}); const j=await r.json();
+  $('msg').textContent=r.ok?`Imported "${j.name}".`:j.error; loadSaved(); $('gpx').value=''; };
+loadSaved(); loadIdeas(); showPts();
+</script></body></html>

@@ -1,0 +1,22 @@
+{
+ "name": "ERG check (10 min)",
+ "note": "First ERG ride: checks the bridge holds each wattage.",
+ "steps": [
+  {
+   "minutes": 3,
+   "pct": 44
+  },
+  {
+   "minutes": 3,
+   "pct": 61
+  },
+  {
+   "minutes": 2,
+   "pct": 78
+  },
+  {
+   "minutes": 2,
+   "pct": 44
+  }
+ ]
+}

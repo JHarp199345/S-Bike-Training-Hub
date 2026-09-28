@@ -1,0 +1,3 @@
+#!/bin/zsh
+# The bike hub from the command line (see hub.py).
+exec "${0:A:h}/.venv/bin/python" "${0:A:h}/hub.py" "$@"

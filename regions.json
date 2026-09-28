@@ -1,0 +1,7 @@
+{
+ "_help": "Regions to download with setup.sh and to show as buttons on the planner. bbox is [west, south, east, north] in degrees; keep each region to a few degrees across or split it (the map download is ~0.5-1.5 GB per 5x5 degrees of dense map). Tested regions: California and France.",
+ "regions": [
+  {"name": "California", "bbox": [-124.5, 32.5, -114.1, 42.1], "center": [-118.25, 34.05], "zoom": 9},
+  {"name": "France", "bbox": [-5.3, 41.3, 9.7, 51.2], "center": [1.9, 46.6], "zoom": 5.5}
+ ]
+}

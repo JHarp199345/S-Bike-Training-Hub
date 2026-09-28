@@ -1,0 +1,7 @@
+bleak==3.0.2
+bless==0.3.0
+pyobjc-core==12.2.2
+pyobjc-framework-Cocoa==12.2.2
+pyobjc-framework-CoreBluetooth==12.2.2
+pyobjc-framework-libdispatch==12.2.2
+rumps==0.4.0

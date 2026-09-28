@@ -1,0 +1,50 @@
+{
+ "name": "Hard 5x3",
+ "note": "Sharpening: ~92% FTP for 3 minutes, 5 times. Not for the base phase.",
+ "steps": [
+  {
+   "minutes": 10,
+   "pct": 50
+  },
+  {
+   "minutes": 3,
+   "pct": 92
+  },
+  {
+   "minutes": 3,
+   "pct": 50
+  },
+  {
+   "minutes": 3,
+   "pct": 92
+  },
+  {
+   "minutes": 3,
+   "pct": 50
+  },
+  {
+   "minutes": 3,
+   "pct": 92
+  },
+  {
+   "minutes": 3,
+   "pct": 50
+  },
+  {
+   "minutes": 3,
+   "pct": 92
+  },
+  {
+   "minutes": 3,
+   "pct": 50
+  },
+  {
+   "minutes": 3,
+   "pct": 92
+  },
+  {
+   "minutes": 10,
+   "pct": 47
+  }
+ ]
+}

@@ -1,0 +1,202 @@
+<!doctype html><html><head><meta charset="utf-8"><title>S-Bike Hub · Coach</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+ :root{color-scheme:dark}
+ [hidden]{display:none!important}
+ body{margin:0;background:#0b0f14;color:#eef1f5;font:15px/1.45 -apple-system,Roboto,"Helvetica Neue",sans-serif;-webkit-user-select:none;user-select:none}
+ main{max-width:860px;margin:0 auto;padding:20px 16px 60px}
+ h1{font-size:28px;margin:0}.sub{color:#8b98a8} a{color:#60a5fa}
+ h2{font-size:14px;letter-spacing:1.2px;color:#8b98a8;margin:24px 0 8px}
+ .card{background:#151b23;border-radius:16px;padding:16px;margin-bottom:12px}
+ button{background:#1f2937;color:#eef1f5;border:0;border-radius:12px;padding:12px 16px;font-size:16px;font-weight:700;cursor:pointer}
+ button.go{background:#16a34a} button.blue{background:#2563eb} button.purple{background:#9333ea} button.on{outline:3px solid #60a5fa}
+ button:disabled{opacity:.45}
+ .verdict{font-size:30px;font-weight:900}.v-go{color:#4ade80}.v-easy{color:#fbbf24}.v-rest{color:#f87171}
+ .why{color:#b7c1cd;margin-top:4px}
+ .note{background:#0f141b;border-left:4px solid #60a5fa;border-radius:0;padding:10px 12px;margin-top:10px;white-space:pre-wrap}
+ .steps{display:grid;grid-template-columns:2fr 2fr 1fr 1fr;gap:4px;margin:10px 0}
+ .steps div{background:#0f141b;border-radius:8px;padding:8px 4px;text-align:center;font-size:13px;color:#8b98a8}
+ .steps div.now{background:#1d3a6b;color:#fff;font-weight:800}
+ .big{font-size:44px;font-weight:900;text-align:center;font-variant-numeric:tabular-nums}
+ .ask{background:#3a2a06;border:2px solid #eab308;border-radius:14px;padding:14px;margin:10px 0}
+ .ask b{display:block;font-size:19px;margin-bottom:8px;color:#fde68a}
+ input[type=number]{width:110px;font-size:28px;font-weight:800;text-align:center;background:#0b0f14;color:#fff;border:1px solid #2a3441;border-radius:12px;padding:8px}
+ input[type=range]{width:100%}
+ .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+ .sl{margin:12px 0}.sl label{display:flex;justify-content:space-between;color:#b7c1cd}.sl label b{color:#fff;font-size:18px}
+ .gut{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+ .split{display:flex;align-items:flex-end;gap:6px;height:260px;padding:8px 4px 0;background:#0f141b;border-radius:12px;touch-action:none;position:relative}
+ .col{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:stretch;height:100%;cursor:ns-resize;min-width:0}
+ .bar{border-radius:8px 8px 0 0;position:relative;min-height:6px;transition:height .05s}
+ .col.sel .bar{outline:3px solid #fff;outline-offset:-3px}
+ .col .t{font-size:12px;font-weight:800;text-align:center;margin-bottom:3px;font-variant-numeric:tabular-nums;cursor:text;text-decoration:underline dotted #8b98a8}
+ .names{display:flex;gap:6px;padding:0 4px}.names div{flex:1;text-align:center;font-size:11px;color:#8b98a8;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+ .splitwrap{display:flex;gap:12px;align-items:center}
+ #pie{width:170px;height:170px;flex:none}
+ @media (max-width:560px){.splitwrap{flex-direction:column}#pie{width:190px;height:190px}}
+ .tot{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
+ .tot div{background:#0f141b;border-radius:10px;padding:8px;text-align:center}.tot b{display:block;font-size:20px}.tot span{font-size:11px;color:#8b98a8}
+ select,input[type=text]{background:#0b0f14;color:#eef1f5;border:1px solid #2a3441;border-radius:10px;padding:10px;font-size:16px}
+ #msg,#tmsg{min-height:20px;color:#fbbf24;margin-top:8px}
+ @media (max-width:560px){.split{height:220px;gap:3px}.names div{font-size:10px}.tot{grid-template-columns:repeat(2,1fr)}}
+</style></head><body><main>
+<h1>Coach</h1><div class="sub">Day by day: test, check in, then ride what today allows · <a href="/ride">Ride view</a> · <a href="/">Panel</a> · <a href="/fitness">Fitness</a></div>
+
+<h2>TODAY</h2>
+<div class="card" id="todaycard">
+ <div class="verdict" id="verdict">No check-in yet</div><div class="why" id="why">Start with the 6-minute diagnostic below, or just check in.</div>
+ <div class="note" id="plannote" hidden></div>
+ <div class="row" style="margin-top:10px" id="planrow" hidden><span class="sub">Today's ride:</span> <b id="planw"></b> <button class="purple" id="planride">▶ Ride it</button></div>
+</div>
+
+<h2>MORNING DIAGNOSTIC · 6 MIN</h2>
+<div class="card">
+ <div class="sub">Same watts every day, so your body's answer is the only thing that changes. Fan on, before coffee if you can. Keep your watch recording.</div>
+ <div class="steps" id="tsteps"><div>2 min · 60 W<br>settle</div><div>2 min · 90 W<br>key number</div><div>1 min · 120 W<br>push</div><div>1 min · easy<br>recovery</div></div>
+ <div id="trun" hidden><div class="big" id="tclock">0:00</div><div class="sub" style="text-align:center" id="tstep"></div></div>
+ <div class="ask" id="ask90" hidden><b>Look at your watch: heart rate right now?</b><div class="row"><input type="number" id="hr90" inputmode="numeric" min="40" max="220"> <span class="sub">bpm (end of 90 W)</span></div></div>
+ <div class="ask" id="ask120" hidden><b>End of the push: heart rate right now?</b><div class="row"><input type="number" id="hr120" inputmode="numeric" min="40" max="220"> <span class="sub">bpm (end of 120 W)</span></div></div>
+ <div class="ask" id="askrec" hidden><b>Stop pedalling. At 1:00 after the push, heart rate now?</b><div class="row"><input type="number" id="hrafter" inputmode="numeric" min="30" max="220"> <span class="sub">bpm (after 60 s easy)</span></div></div>
+ <div class="row"><button class="go" id="tstart">▶ Start the diagnostic</button><button id="skip">Just check in (no test)</button></div>
+ <div id="feel" hidden>
+  <div class="sl"><label>Legs <span><b id="legsv">4</b>/10 · 1 fresh, 10 wrecked</span></label><input type="range" id="legs" min="1" max="10" value="4"></div>
+  <div class="sl"><label>Breathing <span><b id="breathv">3</b>/10</span></label><input type="range" id="breath" min="1" max="10" value="3"></div>
+  <div class="sl"><label>Sleep <span><b id="sleepv">6</b>/10</span></label><input type="range" id="sleep" min="1" max="10" value="6"></div>
+  <div class="sub" style="margin:10px 0 6px">Is it happening today?</div>
+  <div class="gut"><button data-gut="go">Yes 💪</button><button data-gut="easy">Easy only</button><button data-gut="no">Not today</button></div>
+  <div class="row" style="margin-top:12px"><button class="blue" id="send">Save check-in</button></div>
+ </div>
+ <div id="tmsg"></div>
+</div>
+
+<h2>BUILD A TIMED WORKOUT</h2>
+<div class="card">
+ <div class="row"><label class="sub">1 · Total time <select id="total"></select></label><label class="sub">Intervals <select id="nint"></select></label>
+  <label class="sub">Targets in <select id="unit"><option value="pct">% of FTP</option><option value="watts">watts</option></select></label></div>
+ <div class="sub" style="margin:12px 0 6px">2 · Drag any bar up or down (5-second steps): the others give or take time in proportion. Tap a bar to set its target, or tap its time to type one.</div>
+ <div class="splitwrap"><div style="flex:1;min-width:0"><div class="split" id="split"></div><div class="names" id="names"></div></div>
+  <svg id="pie" viewBox="-110 -110 220 220" aria-label="Share of the workout for each part"></svg></div>
+ <div class="card" style="background:#0f141b;margin-top:10px" id="edit"></div>
+ <div class="tot"><div><b id="smin">–</b><span>TIME</span></div><div><b id="stss">–</b><span>LOAD</span></div><div><b id="savg">–</b><span>AVG WATTS</span></div><div><b id="skcal">–</b><span>KCAL</span></div></div>
+ <div class="row" style="margin-top:12px"><input type="text" id="wname" placeholder="Name" value="Timed workout" style="flex:1;min-width:160px">
+  <button class="purple" id="rideit">▶ Ride now</button><button id="saveit">Save</button><button id="planit">Make it today's ride</button></div>
+ <div id="msg"></div>
+</div>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const ZONES=[[55,'#6b7280'],[75,'#3b82f6'],[90,'#22c55e'],[105,'#eab308'],[120,'#f97316'],[999,'#ef4444']];
+let ftp=180, gut=null, day=null, plan=null, workouts=[];
+const colour=pct=>ZONES.find(z=>pct<z[0])[1];
+const mmss=m=>{ const s=Math.round(m*60); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
+const post=(u,b)=>fetch(u,{method:'POST',body:JSON.stringify(b||{})}).then(async r=>({ok:r.ok,j:await r.json()}));
+
+// ── Today ──
+async function loadToday(){ const r=await (await fetch('/api/coach/today')).json(); ftp=r.ftp; workouts=r.workouts; day=r;
+  const c=r.checkin||{}, v=c.verdict, p=r.plan||{};
+  const shown=p.verdict||v;
+  $('verdict').className='verdict'+(shown?' v-'+shown:''); $('verdict').textContent=shown?r.verdicts[shown]:'No check-in yet';
+  $('why').textContent=v?(c.why||[]).join(' · '):(p.verdict?'':'Start with the 6-minute diagnostic below, or just check in.');
+  if(c.hr90) $('why').textContent+=` · HR at 90 W ${c.hr90}`+(c.hrr!=null?`, recovered ${c.hrr} bpm`:'')+(r.baseline?` (normal ${Math.round(r.baseline.hr90)})`:'');
+  $('plannote').hidden=!p.note; $('plannote').textContent=p.note?'Coach: '+p.note:'';
+  const w=p.workout&&workouts.find(x=>x.id===p.workout); $('planrow').hidden=!w; if(w){ $('planw').textContent=w.name; plan=w; }
+  if(c.legs){ $('legs').value=c.legs; $('legsv').textContent=c.legs; } if(c.breathing){ $('breath').value=c.breathing; $('breathv').textContent=c.breathing; }
+  if(c.sleep){ $('sleep').value=c.sleep; $('sleepv').textContent=c.sleep; } if(c.hr90) $('hr90').value=c.hr90; if(c.hr120) $('hr120').value=c.hr120; if(c.hr_after) $('hrafter').value=c.hr_after; }
+$('planride').onclick=async()=>{ await post('/api/workouts/start/'+plan.id); location.href='/ride'; };
+
+// ── Diagnostic ──
+let tStart=null, tTimer=null;
+$('tstart').onclick=async()=>{ const r=await post('/api/coach/test/start'); if(!r.ok){ $('tmsg').textContent=r.j.error; return; }
+  tStart=Date.now(); $('trun').hidden=false; $('feel').hidden=false; $('tstart').disabled=true; $('tmsg').textContent='';
+  navigator.wakeLock?.request('screen').catch(()=>{}); clearInterval(tTimer); tTimer=setInterval(tick,250); tick(); };
+function tick(){ const s=(Date.now()-tStart)/1000; $('tclock').textContent=mmss(Math.min(s,360)/60);
+  const idx=s<120?0:s<240?1:s<300?2:3; document.querySelectorAll('#tsteps div').forEach((d,i)=>d.classList.toggle('now',i===idx&&s<360));
+  $('tstep').textContent=['Settle in at 60 W','Steady 90 W - watch your heart rate near the end','Push: 120 W','Easy - stop pushing, keep legs turning lightly'][idx];
+  if(s>=225&&s<300&&$('ask90').hidden){ $('ask90').hidden=false; navigator.vibrate?.([200,100,200]); }
+  if(s>=292&&s<330&&$('ask120').hidden){ $('ask120').hidden=false; navigator.vibrate?.([200,100,200]); }
+  if(s>=355&&$('askrec').hidden){ $('askrec').hidden=false; navigator.vibrate?.([200,100,200]); }
+  if(s>=365){ clearInterval(tTimer); $('tstep').textContent='Done. Fill in how it felt and save.'; $('tstart').disabled=false; } }
+$('skip').onclick=()=>{ $('feel').hidden=false; $('feel').scrollIntoView({behavior:'smooth'}); };
+for(const [id,v] of [['legs','legsv'],['breath','breathv'],['sleep','sleepv']]) $(id).oninput=()=>$(v).textContent=$(id).value;
+document.querySelectorAll('[data-gut]').forEach(b=>b.onclick=()=>{ gut=b.dataset.gut; document.querySelectorAll('[data-gut]').forEach(x=>x.classList.toggle('on',x===b)); });
+$('send').onclick=async()=>{ const body={legs:+$('legs').value,breathing:+$('breath').value,sleep:+$('sleep').value,gut};
+  if($('hr90').value) body.hr90=+$('hr90').value; if($('hr120').value) body.hr120=+$('hr120').value; if($('hrafter').value) body.hr_after=+$('hrafter').value;
+  const r=await post('/api/coach/checkin',body); if(!r.ok){ $('tmsg').textContent=r.j.error; return; }
+  $('tmsg').textContent='Saved.'; loadToday(); $('todaycard').scrollIntoView({behavior:'smooth'}); };
+
+// ── Timed workout: set the time, then drag the bars ──
+const DEFAULTS={warmup:{share:15,pct:50},ramp:{share:15,from:50,to:70},interval:{share:40,pct:80},rest:{share:20,pct:50},cooldown:{share:10,pct:45}};
+let parts=[], sel=0;
+for(let m=15;m<=90;m+=5) $('total').innerHTML+=`<option ${m===30?'selected':''}>${m}</option>`;
+for(let n=1;n<=8;n++) $('nint').innerHTML+=`<option ${n===3?'selected':''}>${n}</option>`;
+function build(){ const T=+$('total').value, n=+$('nint').value, shape=[{kind:'warmup',label:'Warm-up'},{kind:'ramp',label:'Ramp'}];
+  for(let i=0;i<n;i++){ shape.push({kind:'interval',label:'Int '+(i+1)}); if(i<n-1) shape.push({kind:'rest',label:'Rest '+(i+1)}); }
+  shape.push({kind:'cooldown',label:'Cool'});
+  const count=k=>shape.filter(s=>s.kind===k).length;
+  const raw=shape.map(s=>DEFAULTS[s.kind].share/(s.kind==='interval'||s.kind==='rest'?Math.max(1,count(s.kind)):1));
+  const sum=raw.reduce((a,b)=>a+b,0);
+  parts=shape.map((s,i)=>({...s,minutes:raw[i]/sum*T,...('pct' in DEFAULTS[s.kind]?{pct:DEFAULTS[s.kind].pct}:{from:DEFAULTS[s.kind].from,to:DEFAULTS[s.kind].to})}));
+  sel=Math.min(sel,parts.length-1); draw(); }
+function rebalance(i,v){ const T=+$('total').value, floor=0.25, n=parts.length;
+  v=Math.max(floor,Math.min(T-floor*(n-1),v)); const others=parts.reduce((a,p,k)=>k===i?a:a+p.minutes,0), rest=T-v;
+  parts.forEach((p,k)=>{ if(k!==i) p.minutes=others>0?rest*p.minutes/others:rest/(n-1); }); parts[i].minutes=v;
+  const pinned=new Set();
+  for(let r=0;r<n;r++){ const short=parts.map((p,k)=>k!==i&&!pinned.has(k)&&p.minutes<floor-1e-12?k:-1).filter(k=>k>=0); if(!short.length) break;
+    short.forEach(k=>{ parts[k].minutes=floor; pinned.add(k); }); const spare=parts.map((p,k)=>k!==i&&!pinned.has(k)?k:-1).filter(k=>k>=0);
+    const excess=parts.reduce((a,p)=>a+p.minutes,0)-T, pool=spare.reduce((a,k)=>a+parts[k].minutes,0); spare.forEach(k=>parts[k].minutes-=pool?excess*parts[k].minutes/pool:0); } }
+const target=p=>p.kind==='ramp'?Math.max(p.from,p.to):p.pct;
+function draw(){ const T=+$('total').value, top=Math.max(...parts.map(p=>p.minutes),T*0.25)*1.15, H=$('split').clientHeight-30;
+  $('split').innerHTML=parts.map((p,i)=>`<div class="col${i===sel?' sel':''}" data-i="${i}"><div class="t">${mmss(p.minutes)}</div>
+    <div class="bar" style="height:${Math.max(6,p.minutes/top*H)}px;background:${p.kind==='ramp'?`linear-gradient(${colour(p.to)},${colour(p.from)})`:colour(p.pct)}"></div></div>`).join('');
+  $('names').innerHTML=parts.map((p,i)=>`<div>${p.label}<br>${Math.round(p.minutes/T*100)}%</div>`).join('');
+  pie(); editor(); preview(); }
+function pie(){ const T=parts.reduce((a,p)=>a+p.minutes,0); let a0=-Math.PI/2, out='';
+  parts.forEach((p,i)=>{ const f=p.minutes/T, a1=a0+f*2*Math.PI, big=f>0.5?1:0, r=100, ri=48;
+    const P=(a,rr)=>`${(Math.cos(a)*rr).toFixed(2)} ${(Math.sin(a)*rr).toFixed(2)}`;
+    const col=p.kind==='ramp'?colour(p.to):colour(p.pct);
+    out+=`<path d="M ${P(a0,r)} A ${r} ${r} 0 ${big} 1 ${P(a1,r)} L ${P(a1,ri)} A ${ri} ${ri} 0 ${big} 0 ${P(a0,ri)} Z" fill="${col}" stroke="#151b23" stroke-width="${i===sel?0:2.5}"
+      ${i===sel?'stroke="#fff" stroke-width="4"':''} data-i="${i}" style="cursor:pointer"/>`;
+    if(f>=0.07){ const am=(a0+a1)/2; out+=`<text x="${(Math.cos(am)*74).toFixed(1)}" y="${(Math.sin(am)*74+4).toFixed(1)}" text-anchor="middle" font-size="12" font-weight="800" fill="#fff">${Math.round(f*100)}%</text>`; }
+    a0=a1; });
+  out+=`<text x="0" y="-4" text-anchor="middle" font-size="22" font-weight="900" fill="#fff">${Math.round(T)}</text><text x="0" y="16" text-anchor="middle" font-size="11" fill="#8b98a8">min</text>`;
+  $('pie').innerHTML=out; $('pie').querySelectorAll('path').forEach(el=>el.onclick=()=>{ sel=+el.dataset.i; draw(); }); }
+function editor(){ const p=parts[sel], u=$('unit').value;
+  const fld=(key,label)=>{ const pct=p[key], val=u==='watts'?Math.round(pct/100*ftp):pct;
+    return `<div class="sl"><label>${label} <span><b>${u==='watts'?val+' W':val+'%'}</b> · ${u==='watts'?pct+'% of FTP':Math.round(pct/100*ftp)+' W'}</span></label>
+      <input type="range" data-k="${key}" min="${u==='watts'?20:20}" max="${u==='watts'?Math.round(ftp*1.6/5)*5:160}" step="5" value="${Math.round(val/5)*5}"></div>`; };
+  $('edit').innerHTML=`<div class="row" style="justify-content:space-between"><b>${p.label}</b>
+     <label class="sub">Time <input id="ptime" type="text" inputmode="decimal" value="${mmss(p.minutes)}" style="width:84px;font-size:18px;font-weight:800;text-align:center"></label></div>
+     <div class="sub" id="ptimeerr" style="color:#fca5a5;min-height:0"></div>`+(p.kind==='ramp'?fld('from','From')+fld('to','To'):fld('pct','Target'));
+  const ti=$('ptime'), setT=()=>{ const v=ti.value.trim(); let m;
+    if(/^\d+:\d{1,2}$/.test(v)){ const [a,b]=v.split(':').map(Number); m=a+b/60; } else if(/^\d+(\.\d+)?$/.test(v)) m=+v;
+    if(m===undefined||!(m>0)){ $('ptimeerr').textContent='Type minutes:seconds (7:30) or minutes (7.5)'; return; }
+    const T=+$('total').value; if(m>T-0.25*(parts.length-1)){ $('ptimeerr').textContent='That leaves no time for the other parts'; return; }
+    rebalance(sel,Math.round(m*12)/12); draw(); };
+  ti.onkeydown=e=>{ if(e.key==='Enter'){ e.preventDefault(); setT(); ti.blur(); } }; ti.onchange=setT;
+  ti.oninput=()=>{ $('ptimeerr').textContent=''; };
+  $('edit').querySelectorAll('input').forEach(inp=>inp.oninput=()=>{ const v=+inp.value; p[inp.dataset.k]=u==='watts'?Math.round(v/ftp*100):v; editor(); drawBarsOnly(); preview(); }); }
+function drawBarsOnly(){ document.querySelectorAll('.col').forEach((el,i)=>{ const p=parts[i];
+  el.querySelector('.bar').style.background=p.kind==='ramp'?`linear-gradient(${colour(p.to)},${colour(p.from)})`:colour(p.pct); }); pie(); }
+let drag=null;
+$('split').addEventListener('pointerdown',e=>{ const col=e.target.closest('.col'); if(!col) return; const i=+col.dataset.i;
+  if(e.target.classList.contains('t')){ sel=i; draw(); const ti=$('ptime'); ti.focus(); ti.select(); return; }   // tap the time: type it
+  sel=i; drag={i,y:e.clientY,start:parts[i].minutes,moved:false}; $('split').setPointerCapture(e.pointerId); draw(); });
+$('split').addEventListener('pointermove',e=>{ if(!drag) return; const T=+$('total').value, top=Math.max(...parts.map(p=>p.minutes),T*0.25)*1.15;
+  const H=$('split').clientHeight-30, dy=drag.y-e.clientY; if(Math.abs(dy)>3) drag.moved=true;
+  const raw=drag.start+dy/H*top, step=5/60;                   // snap to the nearest 5 seconds
+  rebalance(drag.i,Math.max(step,Math.round(raw/step)*step)); draw(); });
+$('split').addEventListener('pointerup',()=>{ drag=null; });
+$('split').addEventListener('pointercancel',()=>{ drag=null; });
+$('total').onchange=()=>{ const T=+$('total').value, sum=parts.reduce((a,p)=>a+p.minutes,0); parts.forEach(p=>p.minutes*=T/sum); draw(); };
+$('nint').onchange=build; $('unit').onchange=editor;
+let pT=0; function preview(){ clearTimeout(pT); pT=setTimeout(async()=>{
+  const blocks=parts.map(p=>p.kind==='ramp'?{type:'ramp',minutes:p.minutes,from:p.from,to:p.to}:{type:'steady',minutes:p.minutes,pct:p.pct});
+  const r=await post('/api/workouts/preview',{blocks}); if(!r.ok){ $('msg').textContent=r.j.error; return; } const s=r.j.stats;
+  $('smin').textContent=Math.round(s.minutes)+' min'; $('stss').textContent=s.tss; $('savg').textContent=s.avg_w+' W'; $('skcal').textContent=s.kcal; },150); }
+async function saveSplit(extra){ const r=await post('/api/coach/split/save',{name:$('wname').value,parts,...extra});
+  $('msg').textContent=r.ok?(extra.ride?'Starting…':extra.plan?'Set as today\'s ride.':'Saved to your workouts.'):r.j.error; return r; }
+$('saveit').onclick=()=>saveSplit({}); $('planit').onclick=async()=>{ await saveSplit({plan:true}); loadToday(); };
+$('rideit').onclick=async()=>{ const r=await saveSplit({ride:true}); if(r.ok) location.href='/ride'; };
+addEventListener('resize',draw);
+build(); loadToday();
+</script></body></html>
