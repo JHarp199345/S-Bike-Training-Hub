@@ -1,0 +1,56 @@
+name: Does it work with my bike?
+description: Report how S-Bike Training Hub works (or doesn't) with a smart bike other than the Merach S29.
+title: "[Bike] <make and model>"
+labels: ["bike compatibility"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for trying the hub on another bike! It was only tested on the Merach S29, so every report helps.
+        With the bike awake (pedal a few turns) and **not** connected to any phone or app, run:
+        ```
+        .venv/bin/python scan.py --listen
+        ```
+  - type: input
+    id: bike
+    attributes:
+      label: Bike make and model
+      placeholder: e.g. Merach S26, Yesoul G1M, …
+    validations:
+      required: true
+  - type: input
+    id: ble-name
+    attributes:
+      label: Its Bluetooth name
+      description: As shown by scan.py (you start the bridge with --name <the start of it>).
+      placeholder: e.g. MRK-S26-1234
+    validations:
+      required: true
+  - type: checkboxes
+    id: works
+    attributes:
+      label: What worked?
+      options:
+        - label: The bridge found and connected to the bike
+        - label: Power and cadence show on the panel
+        - label: Resistance changes (gears / hills)
+        - label: ERG holds a wattage
+        - label: A watch or app connects to "SBike Hub"
+  - type: textarea
+    id: scan
+    attributes:
+      label: scan.py output
+      description: Paste the whole output. It lists what the bike speaks over Bluetooth.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else
+      description: What happened, what didn't, and anything odd (e.g. the bike rebooted, resistance only goes one way).
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version and Mac
+      placeholder: e.g. macOS 15.4, MacBook Air M2

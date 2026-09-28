@@ -1,0 +1,36 @@
+name: Bug report
+description: Something in the hub doesn't work as expected.
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part
+      options:
+        - Bluetooth bridge (bike / watch / apps)
+        - Auto-shift, gears or ERG
+        - Route planner or 3D ride view
+        - Phone / tablet remote
+        - Coach, workouts or ride reports
+        - Setup (setup.sh, maps, menu icon)
+        - Something else
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: bridge.log
+      description: The last ~50 lines of bridge.log from the project folder, if it's about the bridge.
+      render: text
+  - type: input
+    id: setup
+    attributes:
+      label: Bike, macOS version and Mac
+      placeholder: e.g. Merach S29, macOS 15.4, MacBook Pro M3
