@@ -52,9 +52,16 @@ PROJECT_DAYS = 800  # computed ahead (13 blocks is ~225 days; the projection is 
 TAIL_RUN_FACTOR = 1.1  # in the tail, running is blocked only while the load is over 1.1x the limit
 TAIL_DAYS = 120  # blocks: after the plateau and decline, a remodeling tail of ~4 months (the bone remodeling cycle)
 EVENT_KERNEL = (0.6, 1.0, 0.85, 0.6, 0.3)  # separate five-day exertion response
-HABITUAL_STEPS = 6000     # an ordinary day's walking, which the feet maintain on their own
-ALLOWANCE_FLOOR = 0.25    # the allowance shrinks with accumulated blocks, to a quarter at ALLOWANCE_ZERO_AT
-ALLOWANCE_ZERO_AT = 40    # (blocks) - the "even walking is too much" end of overtraining: 1 - blocks/40, floor 0.25
+HABITUAL_STEPS = 10000    # free walking a day when fresh, used only when there's no block to size it from
+CLEAR_DAYS_PER_BLOCK = 8  # a block clears in ~5 days plateau + 3 decline: the feet repair ~1/8 block a day
+ALLOWANCE_FLOOR = 0.25    # the allowance shrinks with accumulated blocks, never below a quarter of fresh
+ALLOWANCE_ZERO_AT = 32.5  # (blocks) 1 - blocks/32.5: about 60% of fresh at 13 blocks
+WALK_PROVEN_MIN = 3       # good mornings after walking needed before the walking habit counts as evidence
+WALK_PROVEN_DAYS = 60     # ...looked for over this many days
+WALK_MIN_STEPS = 3000     # a day this light proves nothing about capacity
+REPAIR_DOWN, REPAIR_UP = 0.93, 1.02   # a rough morning after a day over the line lowers the repair estimate
+                                      # faster than a good one raises it
+REPAIR_RANGE = (0.5, 2.0)
 HOP_CLEAR = 10            # pain-free single-leg hops (the worse leg) needed, with the model's date, to run again
 HOP_POOR = 3              # this few is a poor hop test - "worse than expected" once past the first half of the plateau
 HOP_FRESH_DAYS = 3        # a hop test counts for clearance for this many days
@@ -65,22 +72,29 @@ def overlap_multiplier(before):
     return 1 + min(3, before if before <= 1 else (before + 1) / 2)
 
 
-def walking_day(steps, pts_per_step, severity, before, habitual_steps=HABITUAL_STEPS):
-    """One day's walking (daily steps minus run steps): each step weighted by its own force (4th power), the
-    overlap multiplier scaled by how hard a walking step is next to a jogging step, less the day's allowance -
-    a normal day's walking the feet keep up with, which shrinks as accumulated load rises."""
+def walking_day(steps, pts_per_step, severity, before, fresh_steps=HABITUAL_STEPS):
+    """One day's walking (daily steps minus run steps). No step is free, but the feet repair a day's budget:
+    the free steps are that budget in walking steps (fresh_steps - see remodeling_response), shrinking as
+    accumulated load rises. Only the steps over the line count - each weighted by its own force (4th power) -
+    and only those carry the overlap multiplier (scaled by how hard a walking step is next to a jogging step)."""
     mult = 1 + (overlap_multiplier(before) - 1) * severity
     allow_frac = max(ALLOWANCE_FLOOR, 1 - before / ALLOWANCE_ZERO_AT)
-    allowance = habitual_steps * allow_frac
-    counted = max(0.0, steps * mult - allowance)
+    allowance = fresh_steps * allow_frac
+    counted = max(0.0, steps - allowance) * mult
     return {"steps": int(steps), "multiplier": round(mult, 2), "allowance_steps": round(allowance),
             "points": counted * pts_per_step}
 
 
 def remodeling_response(dates, doses, usual_week=None, weight_kg=70.0, feet_reports=None, walking=None, block=None):
     """Provisional blocks: 5 days/block plateau, 3 days/block decline (to 20%), then a ~4-month remodeling tail.
-    walking: {"steps": {date: steps walked outside runs}, "pts_per_step", "severity", "habitual_steps"} - daily
-    walking adds blocks above the allowance; it extends the plateau (5 days/block) instead of restarting it."""
+    walking: {"steps": {date: steps walked outside runs}, "pts_per_step", "severity"} - daily walking adds blocks
+    above the day's free steps; it extends the plateau (5 days/block) instead of restarting it.
+
+    Free steps: no step is free, but the feet repair a daily budget. Fresh,
+    that budget comes from the bigger of the two things that condition feet and bones - running (the block, in
+    walking steps: one day's repair = 1/8 block to start, corrected by the mornings) and walking (steps walked
+    and woken up fine from, scaled to fresh). Biking and swimming don't load them, so they earn nothing. The
+    budget shrinks with the load carried, and only the steps over it count - and carry the overlap multiplier."""
     if not dates:
         return None
     doses = list(doses)
@@ -142,12 +156,30 @@ def remodeling_response(dates, doses, usual_week=None, weight_kg=70.0, feet_repo
     walking = walking or {}
     wsteps = walking.get("steps") or {}
     walk_rows = []
+    repair = 1.0                      # the running-side repair estimate, as a share of the 1/8-block starting guess
+    proven = []                       # (day index, fresh-equivalent steps) walked and woken up fine from
+    last_hops = None
+    def morning(j):
+        """The report the morning after day j, and whether it was good / rough for walking evidence."""
+        if j + 1 >= len(dates) or dates[j + 1] not in reports:
+            return None
+        x = reports[dates[j + 1]]
+        if not isinstance(x, dict):
+            x = {"feet": x}
+        hops = x.get("hops")
+        dropped = hops is not None and last_hops is not None and hops <= last_hops - 2
+        rough = any(x.get(k) is not None and x[k] >= 6 for k in ("feet", "legs")) or dropped
+        good = (all(x.get(k) is not None and x[k] <= 3 for k in ("feet", "legs")) and not dropped)
+        return {"good": good, "rough": rough, "hops": hops}
+    walk_free = None
     rows,events=[],[]
     anchor_day,anchor_level,plateau,descent=0,0.0,0.0,1.0
     used=0
     day0=dt.date.fromisoformat(dates[0])
     for i,dose in enumerate(doses+[0.0]*PROJECT_DAYS):
         level=remaining(anchor_level,i-anchor_day,plateau,descent)
+        if i < len(dates) and isinstance(reports.get(dates[i]), dict) and reports[dates[i]].get("hops") is not None:
+            last_hops = reports[dates[i]]["hops"]
         if i<len(doses) and dose>0:
             before=level
             raw=dose/reference
@@ -170,8 +202,27 @@ def remodeling_response(dates, doses, usual_week=None, weight_kg=70.0, feet_repo
                            "descent_days":round(descent,1),"report_adjust_days":adjustment})
         w = wsteps.get(dates[i]) if i < len(doses) else None
         if w:
-            wd = walking_day(w, walking["pts_per_step"], walking["severity"], level,
-                             walking.get("habitual_steps", HABITUAL_STEPS))
+            # free steps when fresh: the bigger of running conditioning (a day's repair, 1/8 of the block to
+            # start, in walking steps) and walking conditioning (what's been walked and woken up fine from)
+            from_run = reference / CLEAR_DAYS_PER_BLOCK / walking["pts_per_step"] * repair
+            recent = [s for k, s in proven if i - k <= WALK_PROVEN_DAYS]
+            from_walk = statistics.median(recent) if len(recent) >= WALK_PROVEN_MIN else 0.0
+            fresh = max(from_run, from_walk)
+            wd = walking_day(w, walking["pts_per_step"], walking["severity"], level, fresh)
+            walk_free = {"fresh_steps": round(fresh), "from": "walking" if from_walk > from_run else "running",
+                         "from_running": round(from_run), "from_walking": round(from_walk) or None,
+                         "repair_estimate": round(repair, 3), "proven_days": len(recent)}
+            mo = morning(i)
+            if mo:
+                frac = max(ALLOWANCE_FLOOR, 1 - level / ALLOWANCE_ZERO_AT)
+                if mo["good"] and w >= WALK_MIN_STEPS:
+                    proven.append((i, w / frac))          # woke up fine: that walk, scaled to a fresh foot
+                if w > wd["allowance_steps"]:             # only a day over the line tests the line
+                    if mo["rough"]:
+                        repair = max(REPAIR_RANGE[0], repair * REPAIR_DOWN)
+                    elif mo["good"]:
+                        repair = min(REPAIR_RANGE[1], repair * REPAIR_UP)
+                walk_free["repair_estimate"] = round(repair, 3)       # where it stands going into tomorrow
             added = wd["points"] / reference
             if added > 0:
                 if level < 0.01:                          # nothing carried: walking starts its own small block
@@ -215,6 +266,7 @@ def remodeling_response(dates, doses, usual_week=None, weight_kg=70.0, feet_repo
             "conditioning_credit":round(credit,2),"confirmed_recoveries":len(clean),
             "components":events[-12:], "walking":walk_rows[-14:],
             "walking_week_blocks":round(sum(r["added_blocks"] for r in walk_rows[-7:]),2),
+            "walking_free":walk_free,
             "max_impact_multiplier":round(max((e["incoming_multiplier"] for e in events),default=1),2),
             "provisional":True}
 

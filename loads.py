@@ -358,7 +358,6 @@ def walking_inputs(scored, daily_steps, prof):
     jog_pps = rs["points_per_step"] if rs else REF_POINTS_PER_STEP * (step_force(m, 2.8, 170) / REF_FORCE) ** POWER
     return {"steps": {d: max(0, int(n) - run_steps.get(d, 0)) for d, n in (daily_steps or {}).items()},
             "pts_per_step": walk_pps, "severity": min(1.0, walk_pps / jog_pps),
-            "habitual_steps": int(prof.get("habitual_steps") or damage.HABITUAL_STEPS),
             "step_force_lb": round(step_force(m, 1.3, 105) / damage.LBF)}
 
 

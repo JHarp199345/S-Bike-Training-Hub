@@ -294,37 +294,60 @@ def main():
     check(f"the old bone clock alone does not set the running verdict ({rb['running']['verdict']})",
           rb["running"]["verdict"] == "go")
 
-    # walking: daily steps outside runs, weighted by their own force, over a shrinking allowance
+    # walking: daily steps outside runs, weighted by their own force, over the day's free steps
     wpps = loads.REF_POINTS_PER_STEP * (loads.step_force(100.0, 1.3, 105) / loads.REF_FORCE) ** 4
     jpps = loads.REF_POINTS_PER_STEP * (loads.step_force(100.0, 2.2, 150) / loads.REF_FORCE) ** 4
     check(f"a walking step does about a tenth of a jogging step's damage ({wpps / jpps:.2f})", 0.05 < wpps / jpps < 0.2)
-    fresh, loaded = damage.walking_day(8000, wpps, wpps / jpps, 0), damage.walking_day(8000, wpps, wpps / jpps, 13)
-    check(f"fresh: no overlap cost (x{fresh['multiplier']}), the full normal day allowed ({fresh['allowance_steps']})",
-          fresh["multiplier"] == 1 and fresh["allowance_steps"] == 6000)
-    check(f"loaded (13 blocks): a run would cost x4, a walk only x{loaded['multiplier']}; allowance down to {loaded['allowance_steps']}",
-          1 < loaded["multiplier"] < 1.5 and loaded["allowance_steps"] < 6000 and loaded["points"] > fresh["points"])
+    fresh, loaded = damage.walking_day(12000, wpps, wpps / jpps, 0), damage.walking_day(12000, wpps, wpps / jpps, 13)
+    check(f"fresh: no overlap cost (x{fresh['multiplier']}), the full free steps allowed ({fresh['allowance_steps']})",
+          fresh["multiplier"] == 1 and fresh["allowance_steps"] == 10000)
+    check(f"loaded (13 blocks): a run would cost x4, a walk only x{loaded['multiplier']}; free steps down to {loaded['allowance_steps']}",
+          1 < loaded["multiplier"] < 1.5 and loaded["allowance_steps"] == 6000 and loaded["points"] > fresh["points"])
+    check("only the steps over the line count, and only they carry the multiplier",
+          abs(loaded["points"] / ((12000 - loaded["allowance_steps"]) * wpps) - loaded["multiplier"]) < 0.01)
     deep = damage.walking_day(8000, wpps, wpps / jpps, 60)
-    check(f"deep in overtraining the allowance bottoms out at a quarter ({deep['allowance_steps']})", deep["allowance_steps"] == 1500)
-    check("a quiet day under the allowance adds nothing", damage.walking_day(3000, wpps, wpps / jpps, 5)["points"] == 0)
+    check(f"deep in overtraining the free steps bottom out at a quarter ({deep['allowance_steps']})", deep["allowance_steps"] == 2500)
+    check("a quiet day under the line adds nothing", damage.walking_day(3000, wpps, wpps / jpps, 5)["points"] == 0)
     wd = [(dt.date(2026, 3, 1) + dt.timedelta(days=i)).isoformat() for i in range(120)]
-    runs3 = [223.6] * 3 + [0.0] * 117                              # three reference runs: 6 blocks, a 30-day plateau
+    block = 160.0                                                   # three reference runs of 160 points: 6 blocks
+    runs3 = [block] * 3 + [0.0] * 117
+    fresh_steps = block / damage.CLEAR_DAYS_PER_BLOCK / wpps       # one day's repair, in this rider's walking steps
     W = lambda steps, days=wd: {"steps": {d: steps for d in days}, "pts_per_step": wpps, "severity": 0.094}
     under = lambda r: next((i for i, x in enumerate(r["history"]) if i > 5 and x["score"] < 1.5), None)
-    none_, quiet = damage.remodeling_response(wd, runs3), damage.remodeling_response(wd, runs3, walking=W(3000))
-    normal, busy = damage.remodeling_response(wd, runs3, walking=W(6000)), damage.remodeling_response(wd, runs3, walking=W(12000))
-    check(f"quiet days (3,000 steps) under the allowance change nothing (under the limit on day {under(quiet)} vs {under(none_)})",
-          under(quiet) == under(none_))
-    check(f"a normal 6,000 a day while loaded slows recovery (day {under(normal)}); 12,000 a day with no rest never clears "
-          f"({busy['history'][-1]['score']} blocks after 4 months)", under(normal) > under(none_) and under(busy) is None)
+    none_ = damage.remodeling_response(wd, runs3)
+    check(f"free steps start from running: one day's repair, 1/8 block ({none_['reference_points']} pts) in walking steps "
+          f"= {fresh_steps:.0f}", damage.remodeling_response(wd, runs3, walking=W(100))["walking_free"]["fresh_steps"] == round(fresh_steps))
+    quiet = damage.remodeling_response(wd, runs3, walking=W(round(fresh_steps * 0.45)))
+    busy = damage.remodeling_response(wd, runs3, walking=W(round(fresh_steps * 1.2)))
+    heavy = damage.remodeling_response(wd, runs3, walking=W(round(fresh_steps * 2)))
+    check(f"loaded (6 blocks): under the line changes nothing (day {under(quiet)} vs {under(none_)}); over it every day slows "
+          f"recovery (day {under(busy)}); double it with no rest and it never clears ({heavy['history'][-1]['score']} blocks)",
+          under(quiet) == under(none_) and under(busy) > under(none_) and under(heavy) is None)
     short = wd[:21]
     base21 = damage.remodeling_response(short, runs3[:21])
-    one_day = damage.remodeling_response(short, runs3[:21], walking={"steps": {wd[10]: 13000}, "pts_per_step": wpps, "severity": 0.094})
+    one_day = damage.remodeling_response(short, runs3[:21], walking={"steps": {wd[10]: round(fresh_steps * 1.5)}, "pts_per_step": wpps, "severity": 0.094})
     check(f"one big walking day pushes the plateau out by under a day ({base21['plateau_remaining_days']} -> "
           f"{one_day['plateau_remaining_days']}) - it doesn't restart it",
           0 < one_day["plateau_remaining_days"] - base21["plateau_remaining_days"] < 2)
-    capped = damage.remodeling_response(short, runs3[:21], walking=W(40000, short))
+    capped = damage.remodeling_response(short, runs3[:21], walking=W(round(fresh_steps * 5), short))
     check(f"however much walking, the plateau left never exceeds 5 days per block carried ({capped['plateau_remaining_days']} days, "
           f"{capped['score']} blocks)", capped["plateau_remaining_days"] <= 5 * capped["score"] + 0.1)
+    # walking conditioning: steps walked and woken up fine from earn free steps; rough mornings lower the repair estimate
+    walker = {d: round(fresh_steps * 1.3) for d in wd[:40]}
+    good = {d: {"feet": 2, "legs": 2} for d in wd[1:41]}
+    rough = {d: {"feet": 7, "legs": 3} for d in wd[1:41]}
+    wk = damage.remodeling_response(wd[:40], runs3[:40], feet_reports=good, walking={"steps": walker, "pts_per_step": wpps, "severity": 0.094})
+    rk = damage.remodeling_response(wd[:40], runs3[:40], feet_reports=rough, walking={"steps": walker, "pts_per_step": wpps, "severity": 0.094})
+    check(f"a walker who keeps waking up fine earns free steps from walking ({wk['walking_free']['fresh_steps']} vs "
+          f"{round(fresh_steps)} from running)", wk["walking_free"]["from"] == "walking" and wk["walking_free"]["fresh_steps"] > fresh_steps)
+    check(f"rough mornings after days over the line lower the running-side estimate ({rk['walking_free']['repair_estimate']}) "
+          f"and walking proves nothing", rk["walking_free"]["repair_estimate"] < 1 and rk["walking_free"]["from"] == "running")
+    check(f"...so the same walking costs more for the rough-morning rider ({rk['score']} vs {wk['score']} blocks)", rk["score"] > wk["score"])
+    hopdrop = {wd[1]: {"feet": 2, "legs": 2, "hops": 10}, wd[2]: {"feet": 2, "legs": 2, "hops": 6}}
+    hd = damage.remodeling_response(wd[:4], runs3[:4], feet_reports=hopdrop,
+                                    walking={"steps": {wd[1]: round(fresh_steps * 1.5)}, "pts_per_step": wpps, "severity": 0.094})
+    check(f"a hop count that drops after a big walking day is a rough morning ({hd['walking_free']['repair_estimate']})",
+          hd["walking_free"]["repair_estimate"] < 1)
     # the steps file, and a run's steps are taken out of the day's count
     ts_ = pathlib.Path(tempfile.mkdtemp())
     loads.set_steps(ts_, {"2026-09-26": 12975}); loads.set_steps(ts_, {"2026-09-27": 4491})

@@ -327,7 +327,7 @@ TOOLS = [
        usual_week={"type": ["number", "null"]}, note=STR("Why: what the rider reported")), t_capacity),
     ("record_steps", "Record the rider's daily step counts from the watch (e.g. from the COROS tool "
      "queryDailyHealthData): {\"YYYY-MM-DD\": steps}. Walking outside runs counts toward the feet's accumulated "
-     "load above a daily allowance (a normal day, 6,000 steps, shrinking as the load rises). Sync the last week "
+     "load above a daily allowance (free steps from conditioning - the bigger of running (the block) and walking woken up fine from - shrinking as the load rises; only steps over them count). Sync the last week "
      "whenever coaching; today's count is partial.",
      S(steps={"type": "object", "additionalProperties": {"type": "integer"}, "description": "date -> steps"}), t_steps),
     ("plan_area_route", "Find ride routes inside an area for today's focus (the cadence and watt ranges from set_plan): "

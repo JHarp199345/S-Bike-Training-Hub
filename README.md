@@ -183,9 +183,13 @@ So a load of 2 blocks plateaus about 10 days and declines over about 6. A load o
 
 **5. Walking counts too, but lightly.**
 - Your watch's daily steps, minus the steps in your runs, are your walking.
-- An ordinary day (default **6,000 steps**) costs nothing: your feet keep up with it.
-- Above that, walking adds blocks. The "load already there" multiplier is scaled down to match how light a walking step is.
-- The allowance **shrinks as your load rises**, bottoming out at a quarter. When you're badly overloaded, even normal walking starts to count.
+- **Free steps.** No step is free, but your feet repair a daily budget, and walking inside it doesn't pile up. The budget comes from your conditioning, whichever is bigger:
+  - **running:** one day's repair (1/8 of your block, to start) in your own walking steps. A bigger block from benchmark runs means more free steps.
+  - **walking:** what you've walked and woken up fine from (at least three good mornings in 60 days), scaled to a fresh foot.
+  - Biking and swimming earn nothing: they don't load feet and bones.
+- **Your mornings correct it.** A rough morning after a day over the line (feet or legs 6/10+, or hops down 2+) lowers the running-side estimate; a good one raises it, more slowly.
+- The free steps **shrink as your load rises**: about 60% of fresh at 13 blocks, never below a quarter.
+- Only the steps over the line count, and only they carry the "load already there" multiplier, scaled down to match how light a walking step is.
 - Walking extends the plateau (5 days per block) instead of restarting it. A few quiet days let it drain; weeks of 10,000+ steps with no rest don't.
 
 The Coach page shows all of it:
