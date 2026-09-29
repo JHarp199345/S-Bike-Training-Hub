@@ -43,7 +43,7 @@ On top of that:
   <img src="docs/planner.jpg" width="760" alt="The route planner: offline map with labels and hillshade, place search, and famous-ride ideas">
 </p>
 <p align="center">
-  <img src="docs/coach.png" width="480" alt="The Coach page: morning diagnostic and the timed-workout builder with draggable bars and a pie chart">
+  <img src="docs/coach.png" width="480" alt="The Coach page, Today tab (sample data): the verdict, this morning's check-in with the hop test per leg and a journal entry, a journal flag asking to be confirmed, and the cardio and mechanical load cards">
   &nbsp;
   <img src="docs/adherence.png" width="340" alt="Workout adherence: planned parts as a pie, and a radar chart of how well each part was held">
 </p>
