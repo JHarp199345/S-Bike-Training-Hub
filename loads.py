@@ -486,7 +486,8 @@ def analyse(acts, prof, today=None, meta=None, feet_reports=None, daily_steps=No
 
 def readiness(state, checkin=None):
     """Weakest link: each system's state from its load ratio and the rider's own report."""
-    checkin = checkin or {}
+    import journal
+    checkin = journal.effective(checkin or {})                  # a confirmed journal flag counts like a slider
     out = {}
     order = {"go": 0, "easy": 1, "rest": 2}
     for x in SYSTEMS:
@@ -547,12 +548,16 @@ def readiness(state, checkin=None):
         if x == "engine" and mo and mo["level"] != "go":           # the watch overnight: HRV, resting HR, sleep
             level = max(level, mo["level"], key=lambda v: order[v])
             why += ["this morning: " + w for w in mo["why"]]
+        if x == "engine" and checkin.get("illness") and level == "go":
+            level = "easy"; why.append("you confirmed your journal's flag: feeling ill")
         report = {"engine": checkin.get("breathing"), "impact": checkin.get("feet"), "muscle": checkin.get("legs")}[x]
         if report is not None:
+            said = ("your confirmed journal flag (reads as 6/10)"
+                    if {"impact": "feet", "muscle": "legs"}.get(x) in checkin.get("_flagged", []) else f"you rated it {report}/10")
             if report >= 8:
-                level = "rest"; why.append(f"you rated it {report}/10")
+                level = "rest"; why.append(said)
             elif report >= 6 and level == "go":
-                level = "easy"; why.append(f"you rated it {report}/10")
+                level = "easy"; why.append(said)
         out[x] = {"level": level, "why": why}
     # Two verdicts: the bike (engine and leg muscles - no impact on the bike) and running (feet and bones).
     names = {"engine": "heart and lungs", "impact": "feet and bones", "muscle": "leg muscles"}
@@ -651,6 +656,8 @@ def summary(base, today=None):
     try:
         import coach
         checkins = coach.load(base / "coach.json")["checkins"]
+        import journal
+        checkins = {day: journal.effective(c) for day, c in checkins.items()}   # confirmed flags count like sliders
         feet_reports = {day: {k: float(c[k]) for k in ("feet", "legs", "hops") if c.get(k) is not None}
                         for day, c in checkins.items() if any(c.get(k) is not None for k in ("feet", "legs", "hops"))}
     except (OSError, ValueError, TypeError):

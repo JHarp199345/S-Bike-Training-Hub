@@ -71,10 +71,15 @@ def _num(v, lo, hi):
 def record(d, date, fields):
     """Add or update the day's check-in (partial updates are fine)."""
     c = d["checkins"].setdefault(date, {})
-    for k, lo, hi in (("hr90", 40, 220), ("hr120", 40, 220), ("hr_after", 30, 220), ("legs", 1, 10), ("feet", 1, 10), ("hops", 0, 100), ("breathing", 1, 10),
+    for k, lo, hi in (("hr90", 40, 220), ("hr120", 40, 220), ("hr_after", 30, 220), ("legs", 1, 10), ("feet", 1, 10), ("hops", 0, 100), ("hops_left", 0, 100), ("hops_right", 0, 100), ("breathing", 1, 10),
                       ("sleep", 1, 10), ("motivation", 1, 10)):
         if k in fields:
             c[k] = _num(fields[k], lo, hi)
+    if "hops_left" in fields or "hops_right" in fields:          # the hop test, leg by leg: the worse leg is the number
+        sides = [c.get(k) for k in ("hops_left", "hops_right") if c.get(k) is not None]
+        c["hops"] = min(sides) if sides else None
+    if "journal" in fields:                                        # the rider's own words: kept, not scored
+        c["journal"] = str(fields["journal"] or "").strip()[:4000] or None
     if "gut" in fields:
         if fields["gut"] not in ("go", "easy", "no", None, ""):
             raise ValueError("gut is go, easy or no")
@@ -82,6 +87,9 @@ def record(d, date, fields):
     for k in ("note", "test_ride", "test_at"):
         if k in fields:
             c[k] = str(fields[k])[:500] if fields[k] is not None else None
+    if c.get("journal") or c.get("flags"):                        # the journal flags - it asks, never scores
+        import journal
+        journal.refresh(c)
     top = c.get("hr120") or c.get("hr90")
     if top and c.get("hr_after"):
         c["hrr"] = top - c["hr_after"]                 # heart-rate recovery: end of the push -> 60 s later
@@ -102,9 +110,12 @@ def baseline(d, before):
 
 def verdict(d, date):
     """(go/easy/rest or None, reasons)."""
-    c = d["checkins"].get(date, {})
+    import journal
+    c = journal.effective(d["checkins"].get(date, {}))    # a confirmed journal flag counts like its slider
     why, level = [], 0                                   # 0 go, 1 easy, 2 rest
     legs, gut = c.get("legs"), c.get("gut")
+    if c.get("illness"):
+        level = max(level, 1); why.append("journal flag confirmed: feeling ill")
     if legs is not None:
         if legs >= 8:
             level = max(level, 2); why.append(f"legs {legs}/10")

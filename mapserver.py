@@ -833,6 +833,19 @@ async def coach_api(bridge, method, path, p, body):
             since = (__import__("datetime").date.fromisoformat(date) - __import__("datetime").timedelta(days=days)).isoformat()
             return js({"checkins": {k: v for k, v in d["checkins"].items() if since <= k <= date},
                        "plans": {k: v for k, v in d["plans"].items() if since <= k <= date}})
+        if p == "/api/coach/flag" and method == b"POST":
+            import journal
+            c = d["checkins"].get(date)
+            try:
+                if not c:
+                    raise ValueError("no check-in that day")
+                f = journal.settle(c, req.get("id"), req.get("action"),
+                                   __import__("datetime").datetime.now().isoformat(timespec="minutes"))
+            except ValueError as e:
+                return js({"error": str(e)}, 400)
+            c["verdict"], c["why"] = coach.verdict(d, date)
+            coach.save(d); _load_cache["key"] = None
+            return js({"flag": f, **with_systems(coach.day(d, date), rides.parent)})
         if p == "/api/coach/checkin" and method == b"POST":
             c = coach.record(d, date, req)
             coach.save(d)

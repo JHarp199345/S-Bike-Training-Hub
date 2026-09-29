@@ -30,7 +30,7 @@ On top of that:
 | 🎚 **Daily focus** | Each day has a cadence range and a watt range: cadence habit (65–80 rpm, zone 2), grit (big gear, low cadence), leg speed, recovery, or your own. Auto-shift steers toward both, and a quiet monitor on the ride view shows time in range, with a hint only after you've drifted for a while. |
 | 📍 **Area routes** | Circle where you'd like to ride and say how long. The planner finds loops inside the circle and ranks them for today's focus: time at the focus's watts (climbs slow you), how much of it auto-shift can hold in range, and whether the terrain suits the day. |
 | ⛰ **Climb goals & efforts** | Put training on a route's climbs: "climb 2 in 10:00" becomes a watt target re-worked every second from what's left, and "3 × 15 s at 200 W" shifts you straight into a big gear. Every climb you ride is recorded (time, watts, cadence, VAM), and the planner knows the fastest time your **W′** could cover. |
-| 🧭 **Coach** | This week at a glance (a marker per day, including swims your watch calendar can't hold), a one-tap effort rating, morning readiness from your watch (HRV, resting heart rate, sleep), **skill ladders** that step up and down with the evidence, **test weeks**, and a calibration card for every capacity. A 6-minute **morning diagnostic** (fixed watts, heart rate read off your watch) gives a go / easy / rest verdict against your own normal. The **timed-workout builder** lets you pick a length, drag bars, and see the parts rebalance in proportion. |
+| 🧭 **Coach** | Three tabs: **Today** (the verdict and your morning check-in, right on the card), **Plan** and **Progress**. This week at a glance (a marker per day, including swims your watch calendar can't hold), a one-tap effort rating, morning readiness from your watch (HRV, resting heart rate, sleep), **skill ladders** that step up and down with the evidence, **test weeks**, and a calibration card for every capacity. A 6-minute **morning diagnostic** (fixed watts, heart rate read off your watch) gives a go / easy / rest verdict against your own normal. The **timed-workout builder** lets you pick a length, drag bars, and see the parts rebalance in proportion. A short **journal** goes with each check-in. It's never scored, but it raises a **flag** when your words and your sliders disagree (see [The journal flags](#the-journal-flags)). |
 | 🫀🦶🦵 **Training load for every sport** | Runs, walks, swims, gym and rides from your watch, scored on three body systems: **heart & lungs**, **feet & bones**, **leg muscles**. You get separate **bike** and **running** verdicts, and the running load is tracked as accumulated "blocks" that recover on a realistic, slow timeline. Tap any system for its graph, readings, and the sessions behind it. See [Training load: how it works](#training-load-how-it-works). |
 | 🎯 **Workout adherence** | Each part of a workout is graded A–F on how well you held it, shown as a pie and a radar chart in the ride report. |
 | 📈 **Live graph, calories, fitness** | A live power graph in zone colors, calories from real work (kJ), personal bests (5 s / 1 / 5 / 20 min) with callouts, and a power-based fitness / fatigue / form chart. |
@@ -105,7 +105,7 @@ Edit [`regions.json`](regions.json) (name, bounding box, center, zoom) and run `
 Everything the pages can do is also available headless, so an AI coach can read your data and write your plan:
 
 - **Command line:** `./hub today`, `./hub rides`, `./hub fitness`, `./hub load`, `./hub checkins`, `./hub checkin --feet 4 --legs 5`, `./hub steps 2026-09-27=6200`, `./hub import FILE.fit`, `./hub plan --verdict easy --note "…" --workout ID`, `./hub split --total 30 --intervals 3`. Run `./hub --help` for the rest.
-- **MCP server:** [`mcp_server.py`](mcp_server.py) exposes 35 tools (today, check-ins, rides, a ride's full story, fitness, body-system load, importing watch files, daily steps, morning readiness, effort ratings, the day's focus and plan, area routes, climb goals, skill ladders, calibration and tests, test weeks, the aerobic engine, sport carry-over, milestones, workouts…) to Claude Code or Claude Desktop:
+- **MCP server:** [`mcp_server.py`](mcp_server.py) exposes 36 tools (today, check-ins, rides, a ride's full story, fitness, body-system load, importing watch files, daily steps, morning readiness, effort ratings, the day's focus and plan, area routes, climb goals, skill ladders, calibration and tests, test weeks, the aerobic engine, sport carry-over, milestones, workouts…) to Claude Code or Claude Desktop:
 
   ```bash
   claude mcp add --scope user s-bike-hub -- "$PWD/.venv/bin/python" "$PWD/mcp_server.py"
@@ -143,6 +143,14 @@ Each system gets a **fitness** (long average: what it's used to) and a **fatigue
 - The bike doesn't load your feet, so sore feet bench your running, not your riding.
 - Your morning check-in (feet, legs, breathing, 1–10) can always make it more careful: 6+ means easy, 8+ means rest.
 
+#### The journal flags
+The journal is your own words, and it never moves a number by itself: letting words score invites drifting into a longer (or shorter) recovery without meaning to. Instead it **flags**:
+- **Words vs sliders.** "Sharp pain in my shin" with feet & bones at 3/10, "pulled my hamstring" with legs at 2, or "fever" with breathing at 3. The other way too: "feel great, no pain" with feet at 7.
+- **Something serious**, whatever the sliders say: swelling, a limp, can't bear weight, pain at night, chest pain.
+- Negations don't count ("no sharp pain", "not swollen").
+
+Each flag waits for you: **It's real - count it** or **It's fine**. Only a confirmed flag counts, the way moving its slider would: bone or muscle read as 6/10 that day (then judged by the phase rules), illness makes heart & lungs easy. An AI coach can settle a flag (`settle_journal_flag`) only on your say-so.
+
 ### Feet & bones: steps, force, and blocks
 
 Running is the scarcest resource, and it's the most closely managed.
@@ -170,7 +178,7 @@ So a load of 2 blocks plateaus about 10 days and declines over about 6. A load o
 - Over **1.5 blocks** means rest, and over 1.0 means easy.
 - In the tail, running is blocked only above 1.1 × the limit.
 - A tail day when your feet and legs both check in at 2/10 or better allows a short, easy run.
-- **The hop test.** Coming back from a block, running also needs a recent (last 3 days) single-leg hop test: **10 pain-free hops** on the worse leg. Log the count in the morning check-in.
+- **The hop test.** Coming back from a block, running also needs a recent (last 3 days) single-leg hop test: **10 pain-free hops** on the worse leg. Log each leg in the morning check-in; the worse one is the number.
 - A separate **five-day "recent run response"** catches the day-after hit of a single run.
 
 **5. Walking counts too, but lightly.**

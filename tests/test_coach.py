@@ -141,6 +141,14 @@ def main():
         coach.set_plan(dd, "2026-09-30", sport="skydive"); check("unknown sports refused", False)
     except ValueError:
         check("unknown sports refused", True)
+    import tempfile as _t
+    dj = coach.load(pathlib.Path(_t.mkdtemp()) / "coach.json")
+    cj = coach.record(dj, "2026-09-30", {"hops_left": 4, "hops_right": 2, "journal": "  calves tight, hamstrings worse  "})
+    check(f"the hop test leg by leg: the worse leg is the number ({cj['hops']})", cj["hops"] == 2)
+    cj = coach.record(dj, "2026-09-30", {"hops_right": 6})
+    check(f"...update one leg and it re-takes the worse ({cj['hops']})", cj["hops"] == 4)
+    check("the journal is kept in the rider's words, trimmed", cj["journal"] == "calves tight, hamstrings worse")
+    check("...and an empty one clears it", coach.record(dj, "2026-09-30", {"journal": " "})["journal"] is None)
     print("ALL PASS" if ok else "SOME FAILED")
     return ok
 

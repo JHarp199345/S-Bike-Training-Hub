@@ -57,8 +57,12 @@ def t_checkins(a):
 
 
 def t_checkin(a):
-    body = {k: a[k] for k in ("date", "legs", "feet", "hops", "breathing", "sleep", "motivation", "hr90", "hr120", "hr_after", "gut", "note") if k in a}
+    body = {k: a[k] for k in ("date", "legs", "feet", "hops", "hops_left", "hops_right", "journal", "breathing", "sleep", "motivation", "hr90", "hr120", "hr_after", "gut", "note") if k in a}
     return call("/api/coach/checkin", body)
+
+
+def t_flag(a):
+    return call("/api/coach/flag" + (f"?date={a['date']}" if a.get("date") else ""), {"id": a["id"], "action": a["action"]})
 
 
 def t_plan(a):
@@ -258,10 +262,18 @@ TOOLS = [
      "test, pain-free hops on the worse leg (10 clears running after a block; a poor count past halfway through the "
      "plateau adds time); gut is go/easy/no; heart rates in bpm. Returns the verdict.",
      S(date=DATE, legs=INT("1-10", 1, 10), feet=INT("Feet & bones 1-10", 1, 10),
-       hops=INT("Pain-free single-leg hops, worse leg", 0, 100), breathing=INT("1-10", 1, 10), sleep=INT("1-10", 1, 10),
+       hops=INT("Pain-free single-leg hops, worse leg (or give each leg)", 0, 100),
+       hops_left=INT("Pain-free hops, left leg", 0, 100), hops_right=INT("Pain-free hops, right leg", 0, 100),
+       journal=STR("Their journal entry, in their words - kept, not scored"), breathing=INT("1-10", 1, 10), sleep=INT("1-10", 1, 10),
        motivation=INT("1-10", 1, 10), hr90=INT("HR at the end of the 90 W stage", 40, 220),
        hr120=INT("HR at the end of the 120 W push", 40, 220), hr_after=INT("HR 60 s after the push", 30, 220),
        gut=STR("Their own call", enum=["go", "easy", "no"]), note=STR("Anything they said")), t_checkin),
+    ("settle_journal_flag", "Settle a flag the journal raised (get_checkins shows each day's flags: bone, muscle, "
+     "illness, better). ONLY on the rider's say-so in chat - never decide it for them. confirm = it's real, count it "
+     "(bone/muscle read as 6/10 on their slider that day; illness makes heart & lungs easy); dismiss = it's fine; "
+     "reopen = undo.",
+     S(date=DATE, id=STR("The flag id", enum=["bone", "muscle", "illness", "better"]),
+       action=STR("What the rider said", enum=["confirm", "dismiss", "reopen"])), t_flag),
     ("set_plan", "Write today's plan onto the rider's Coach page: the verdict (go/easy/rest), your coaching note to them "
      "(plain, specific: what to ride, how it should feel, when to stop), and optionally the workout to ride "
      "(workout_id from list_workouts or a create tool). They see it on their phone with a Ride button.",

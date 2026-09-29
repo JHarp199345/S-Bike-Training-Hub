@@ -13,6 +13,25 @@
  button:disabled{opacity:.45}
  .verdict{font-size:30px;font-weight:900}.v-go{color:#4ade80}.v-easy{color:#fbbf24}.v-rest{color:#f87171}
  .why{color:#b7c1cd;margin-top:4px}
+ .tabs{position:sticky;top:0;z-index:5;display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin:14px 0 4px;padding:4px;
+   background:#151b23;border:1px solid #2a3441;border-radius:14px}
+ .tabs button{padding:10px 0;font-size:15px;background:transparent;color:#b7c1cd}
+ .tabs button[aria-selected="true"]{background:#2563eb;color:#ffffff}
+ .cform{margin-top:10px;padding:4px 12px 12px;background:#0f141b;border:1px solid #2a3441;border-radius:12px}
+ .hops{display:flex;gap:14px;margin-top:6px}.hops label{display:flex;align-items:center;gap:8px;color:#b7c1cd}
+ .hops input[type=number]{width:84px;font-size:22px;padding:6px}
+ textarea{width:100%;box-sizing:border-box;margin-top:6px;background:#0b0f14;color:#eef1f5;border:1px solid #2a3441;border-radius:10px;
+   padding:10px;font:15px/1.4 -apple-system,Roboto,sans-serif;resize:vertical;-webkit-user-select:text;user-select:text}
+ .cijournal{margin-top:6px;color:#eef1f5;font-style:italic;white-space:pre-wrap}
+ #cimsg{min-height:18px;color:#fbbf24;margin-top:6px}
+ .flag{margin-top:8px;padding:10px 12px;border-radius:10px;background:#78350f;border:1px solid #fbbf24;font-size:14px}
+ .flag.severe{background:#7f1d1d;border-color:#f87171} .flag p{margin:0 0 8px;color:#eef1f5}
+ .flag .row button{padding:7px 12px;font-size:14px} .flag.settled{background:#0f141b;border-color:#2a3441;color:#8b98a8;padding:6px 12px}
+ .flag.settled button{padding:3px 8px;font-size:12px;margin-left:6px}
+ .jentry{padding:10px 0;border-bottom:1px solid #2a3441}.jentry:last-child{border:0}
+ .jentry b{color:#b7c1cd;font-size:13px}.jentry div{color:#eef1f5;white-space:pre-wrap;margin-top:3px;-webkit-user-select:text;user-select:text}
+ .checkedin{margin-top:10px;padding:8px 10px;background:#0f141b;border:1px solid #2a3441;border-radius:10px;font-size:14px;color:#b7c1cd}
+ .checkedin b{color:#eef1f5} .checkedin button{padding:4px 10px;font-size:13px;margin-left:6px} .cinote{margin-top:4px;color:#8b98a8;font-size:13px}
  .systems{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
  .sys{background:#0f141b;border-radius:12px;padding:10px}.sys b{display:block;font-size:13px;color:#b7c1cd}.sys span{display:block;font-size:20px;font-weight:900}
  .sys small{display:block;color:#8b98a8;font-size:12px;margin-top:2px}
@@ -52,7 +71,7 @@
  input[type=number]{width:110px;font-size:28px;font-weight:800;text-align:center;background:#0b0f14;color:#fff;border:1px solid #2a3441;border-radius:12px;padding:8px}
  input[type=range]{width:100%}
  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
- .sl{margin:12px 0}.sl label{display:flex;justify-content:space-between;color:#b7c1cd}.sl label b{color:#fff;font-size:18px}
+ .sl{margin:12px 0}.sl label{display:flex;justify-content:space-between;gap:10px;color:#b7c1cd}.sl label span{text-align:right}.sl label b{color:#fff;font-size:18px}
  .gut{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
  .split{display:flex;align-items:flex-end;gap:6px;height:260px;padding:8px 4px 0;background:#0f141b;border-radius:12px;touch-action:none;position:relative}
  .col{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:stretch;height:100%;cursor:ns-resize;min-width:0}
@@ -71,11 +90,30 @@
 </style></head><body><main>
 <h1>Coach</h1><div class="sub">Day by day: test, check in, then ride what today allows · <a href="/ride">Ride view</a> · <a href="/">Panel</a> · <a href="/fitness">Fitness</a></div>
 
-<h2>THIS WEEK</h2>
-<div class="weekstrip" id="weekstrip"></div>
+<nav class="tabs" role="tablist" aria-label="Coach sections">
+ <button role="tab" data-tab="today">Today</button><button role="tab" data-tab="plan">Plan</button><button role="tab" data-tab="progress">Progress</button>
+</nav>
+<section data-tab="today" role="tabpanel">
 <h2>TODAY</h2>
 <div class="card" id="todaycard">
  <div class="verdict" id="verdict">No check-in yet</div><div class="why" id="why">Start with the 6-minute diagnostic below, or just check in.</div>
+ <div class="checkedin" id="checkedin" hidden><span id="cilist"></span> <button type="button" id="ciedit">Edit</button><div class="cijournal" id="cijournal" hidden></div><div class="cinote" id="cinote" hidden></div></div>
+ <div id="flags"></div>
+ <div id="feel" class="cform" hidden>
+  <div class="sl"><label>Leg muscles <span><b id="legsv">4</b>/10 · 1 fresh, 10 wrecked</span></label><input type="range" id="legs" min="1" max="10" step="1" value="4"></div>
+  <div class="sl"><label>Feet &amp; bones <span><b id="feetv">3</b>/10 · 1 fine, 10 very sore</span></label><input type="range" id="feet" min="1" max="10" step="1" value="3"></div>
+  <div class="sl"><label>Hop test <span>pain-free, each leg · 10 clears running</span></label>
+   <div class="hops"><label>Left <input type="number" id="hopsl" inputmode="numeric" min="0" max="100" placeholder="–"></label>
+   <label>Right <input type="number" id="hopsr" inputmode="numeric" min="0" max="100" placeholder="–"></label></div></div>
+  <div class="sl"><label>Breathing <span><b id="breathv">3</b>/10</span></label><input type="range" id="breath" min="1" max="10" step="1" value="3"></div>
+  <div class="sl"><label>Sleep <span><b id="sleepv">6</b>/10</span></label><input type="range" id="sleep" min="1" max="10" step="1" value="6"></div>
+  <div class="sub" style="margin:10px 0 6px">Is it happening today?</div>
+  <div class="gut"><button data-gut="go">Yes 💪</button><button data-gut="easy">Easy only</button><button data-gut="no">Not today</button></div>
+  <div class="sl"><label for="journal">Journal <span>how you feel, and why · kept, not scored</span></label>
+   <textarea id="journal" rows="3" maxlength="4000" placeholder="Anything - what hurts, what's going well, what's on your mind."></textarea></div>
+  <div class="row" style="margin-top:12px"><button class="blue" id="send">Save check-in</button><button id="cicancel" hidden>Cancel</button></div>
+  <div id="cimsg"></div>
+ </div>
  <div class="headline" id="headline" hidden>
   <button id="cardiobtn"><small>❤️ CARDIO LOAD · tap for history</small><b id="cardionum">–</b><small id="cardiosub"></small></button>
   <button id="mechanicalbtn"><small>🦶 MECHANICAL LOAD vs LIMIT · tap for graph</small><b id="mechanicalnum">–</b><small id="mechanicalsub"></small></button>
@@ -95,6 +133,58 @@
  <div class="note" id="plannote" hidden></div>
  <div class="row" style="margin-top:10px" id="planrow" hidden><span class="sub">Today's ride:</span> <b id="planw"></b> <button class="purple" id="planride">▶ Ride it</button></div>
 </div>
+<h2>MORNING DIAGNOSTIC · 6 MIN · OPTIONAL</h2>
+<div class="card">
+ <div class="sub">Same watts every day, so your body's answer is the only thing that changes. Fan on, before coffee if you can. Keep your watch recording.</div>
+ <div class="steps" id="tsteps"><div>2 min · 60 W<br>settle</div><div>2 min · 90 W<br>key number</div><div>1 min · 120 W<br>push</div><div>1 min · easy<br>recovery</div></div>
+ <div id="trun" hidden><div class="big" id="tclock">0:00</div><div class="sub" style="text-align:center" id="tstep"></div></div>
+ <div class="ask" id="ask90" hidden><b>Look at your watch: heart rate right now?</b><div class="row"><input type="number" id="hr90" inputmode="numeric" min="40" max="220"> <span class="sub">bpm (end of 90 W)</span></div></div>
+ <div class="ask" id="ask120" hidden><b>End of the push: heart rate right now?</b><div class="row"><input type="number" id="hr120" inputmode="numeric" min="40" max="220"> <span class="sub">bpm (end of 120 W)</span></div></div>
+ <div class="ask" id="askrec" hidden><b>Stop pedalling. At 1:00 after the push, heart rate now?</b><div class="row"><input type="number" id="hrafter" inputmode="numeric" min="30" max="220"> <span class="sub">bpm (after 60 s easy)</span></div></div>
+ <div class="row"><button class="go" id="tstart">▶ Start the diagnostic</button></div>
+ <div id="tmsg"></div>
+</div>
+
+</section>
+<section data-tab="plan" role="tabpanel" hidden>
+<h2>THIS WEEK</h2>
+<div class="weekstrip" id="weekstrip"></div>
+<h2>COMING UP</h2>
+<div class="card" id="eventcard"><div id="eventlist" class="sub">Nothing on the calendar.</div>
+ <div class="row" style="margin-top:10px;gap:6px;flex-wrap:wrap">
+  <input id="evdate" type="date" style="padding:8px;border-radius:10px;background:#0b0f14;color:#eef1f5;border:1px solid #2a3441">
+  <input id="evname" type="text" placeholder="What - e.g. a spring 10K" style="flex:1;min-width:140px;padding:8px;border-radius:10px;background:#0b0f14;color:#eef1f5;border:1px solid #2a3441">
+  <select id="evkind" style="padding:8px;border-radius:10px;background:#0b0f14;color:#eef1f5;border:1px solid #2a3441"><option value="race">race</option><option value="test">test</option><option value="goal">goal</option></select>
+  <select id="evsport" style="padding:8px;border-radius:10px;background:#0b0f14;color:#eef1f5;border:1px solid #2a3441"><option>bike</option><option>run</option><option>swim</option><option>tri</option><option>other</option></select>
+  <button id="evadd">Add</button></div></div>
+
+<h2>BUILD A TIMED WORKOUT</h2>
+<div class="card">
+ <div class="row"><label class="sub">1 · Total time <select id="total"></select></label><label class="sub">Intervals <select id="nint"></select></label>
+  <label class="sub">Targets in <select id="unit"><option value="pct">% of FTP</option><option value="watts">watts</option></select></label></div>
+ <div class="sub" style="margin:12px 0 6px">2 · Drag any bar up or down (5-second steps): the others give or take time in proportion. Tap a bar to set its target, or tap its time to type one.</div>
+ <div class="splitwrap"><div style="flex:1;min-width:0"><div class="split" id="split"></div><div class="names" id="names"></div></div>
+  <svg id="pie" viewBox="-110 -110 220 220" aria-label="Share of the workout for each part"></svg></div>
+ <div class="card" style="background:#0f141b;margin-top:10px" id="edit"></div>
+ <div class="tot"><div><b id="smin">–</b><span>TIME</span></div><div><b id="stss">–</b><span>LOAD</span></div><div><b id="savg">–</b><span>AVG WATTS</span></div><div><b id="skcal">–</b><span>KCAL</span></div></div>
+ <div class="row" style="margin-top:12px"><input type="text" id="wname" placeholder="Name" value="Timed workout" style="flex:1;min-width:160px">
+  <button class="purple" id="rideit">▶ Ride now</button><button id="saveit">Save</button><button id="planit">Make it today's ride</button></div>
+ <div id="msg"></div>
+</div>
+</section>
+<section data-tab="progress" role="tabpanel" hidden>
+<h2>CALIBRATION</h2>
+<div class="card" id="calcard"><div class="sub" style="margin-bottom:6px">What you can do, from tests and training. A test anchors each number; training nudges it between tests; confidence fades until the next test. Tests go on the calendar - no buttons.</div>
+ <div id="callist"></div></div>
+
+<h2>PROGRESSIONS</h2>
+<div class="card" id="skillcard"><div class="sub" style="margin-bottom:6px">Each skill is a ladder. Two good sessions earn the next step; two poor ones drop one; on a day you're not recovered you ride a step down without losing your place.</div>
+ <div id="skilllist"></div></div>
+
+<h2>JOURNAL</h2>
+<div class="card"><div class="sub" style="margin-bottom:6px">What you wrote with each check-in. Kept as a record - not part of any score yet.</div>
+ <div id="journallist" class="sub">No entries yet.</div></div>
+</section>
 <dialog id="impactdialog" aria-labelledby="impacttitle"><div class="row" style="justify-content:space-between"><b id="impacttitle">Running load over time</b><button id="impactclose" aria-label="Close graph">✕</button></div>
  <canvas id="impactgraph" aria-label="Recent run response and accumulated load over time"></canvas>
  <div class="sub">Orange: a separate five-day exertion response. Blue: accumulated mechanical blocks. One provisional block uses the median impact of the first three recorded runs, with an estimated unconditioned baseline as a lower bound; it is a comparison unit, not a known safe dose. Each run adds load based on estimated steps and ground force, with an extra cost when load is already present. The blue curve stays high for about five days per block, then declines over about three days per block, to a fifth of its level, followed by a remodeling tail of about four months. There's no cap: 13 blocks holds about 65 days and declines over about 39. Gray marks show recorded run days; dotted lines assume no new runs. The 1.5-block line is a provisional running limit. Feet and leg reports move the estimated plateau by at most half a day per report; shortening requires both to be reassuring. Knee, ankle, and Achilles forces are related internal loads, not additional forces summed into the score. These are planning assumptions, not measured tissue damage or a diagnosis.</div>
@@ -113,63 +203,12 @@
  <details style="margin-top:10px"><summary>How this score is computed</summary><div class="sub" id="syshow" style="white-space:pre-wrap;margin-top:6px"></div></details>
 </dialog>
 
-<h2>COMING UP</h2>
-<div class="card" id="eventcard"><div id="eventlist" class="sub">Nothing on the calendar.</div>
- <div class="row" style="margin-top:10px;gap:6px;flex-wrap:wrap">
-  <input id="evdate" type="date" style="padding:8px;border-radius:10px;background:#0b0f14;color:#eef1f5;border:1px solid #2a3441">
-  <input id="evname" type="text" placeholder="What - e.g. a spring 10K" style="flex:1;min-width:140px;padding:8px;border-radius:10px;background:#0b0f14;color:#eef1f5;border:1px solid #2a3441">
-  <select id="evkind" style="padding:8px;border-radius:10px;background:#0b0f14;color:#eef1f5;border:1px solid #2a3441"><option value="race">race</option><option value="test">test</option><option value="goal">goal</option></select>
-  <select id="evsport" style="padding:8px;border-radius:10px;background:#0b0f14;color:#eef1f5;border:1px solid #2a3441"><option>bike</option><option>run</option><option>swim</option><option>tri</option><option>other</option></select>
-  <button id="evadd">Add</button></div></div>
-
-<h2>CALIBRATION</h2>
-<div class="card" id="calcard"><div class="sub" style="margin-bottom:6px">What you can do, from tests and training. A test anchors each number; training nudges it between tests; confidence fades until the next test. Tests go on the calendar - no buttons.</div>
- <div id="callist"></div></div>
-
-<h2>PROGRESSIONS</h2>
-<div class="card" id="skillcard"><div class="sub" style="margin-bottom:6px">Each skill is a ladder. Two good sessions earn the next step; two poor ones drop one; on a day you're not recovered you ride a step down without losing your place.</div>
- <div id="skilllist"></div></div>
-
-<h2>MORNING DIAGNOSTIC · 6 MIN</h2>
-<div class="card">
- <div class="sub">Same watts every day, so your body's answer is the only thing that changes. Fan on, before coffee if you can. Keep your watch recording.</div>
- <div class="steps" id="tsteps"><div>2 min · 60 W<br>settle</div><div>2 min · 90 W<br>key number</div><div>1 min · 120 W<br>push</div><div>1 min · easy<br>recovery</div></div>
- <div id="trun" hidden><div class="big" id="tclock">0:00</div><div class="sub" style="text-align:center" id="tstep"></div></div>
- <div class="ask" id="ask90" hidden><b>Look at your watch: heart rate right now?</b><div class="row"><input type="number" id="hr90" inputmode="numeric" min="40" max="220"> <span class="sub">bpm (end of 90 W)</span></div></div>
- <div class="ask" id="ask120" hidden><b>End of the push: heart rate right now?</b><div class="row"><input type="number" id="hr120" inputmode="numeric" min="40" max="220"> <span class="sub">bpm (end of 120 W)</span></div></div>
- <div class="ask" id="askrec" hidden><b>Stop pedalling. At 1:00 after the push, heart rate now?</b><div class="row"><input type="number" id="hrafter" inputmode="numeric" min="30" max="220"> <span class="sub">bpm (after 60 s easy)</span></div></div>
- <div class="row"><button class="go" id="tstart">▶ Start the diagnostic</button><button id="skip">Just check in (no test)</button></div>
- <div id="feel" hidden>
-  <div class="sl"><label>Leg muscles <span><b id="legsv">4</b>/10 · 1 fresh, 10 wrecked</span></label><input type="range" id="legs" min="1" max="10" value="4"></div>
-  <div class="sl"><label>Feet &amp; joints <span><b id="feetv">3</b>/10 · 1 fine, 10 very sore</span></label><input type="range" id="feet" min="1" max="10" value="3"></div>
-  <div class="sl"><label>Hop test <span>pain-free single-leg hops, worse leg · 10 clears running</span></label><input type="number" id="hops" inputmode="numeric" min="0" max="100" placeholder="–"></div>
-  <div class="sl"><label>Breathing <span><b id="breathv">3</b>/10</span></label><input type="range" id="breath" min="1" max="10" value="3"></div>
-  <div class="sl"><label>Sleep <span><b id="sleepv">6</b>/10</span></label><input type="range" id="sleep" min="1" max="10" value="6"></div>
-  <div class="sub" style="margin:10px 0 6px">Is it happening today?</div>
-  <div class="gut"><button data-gut="go">Yes 💪</button><button data-gut="easy">Easy only</button><button data-gut="no">Not today</button></div>
-  <div class="row" style="margin-top:12px"><button class="blue" id="send">Save check-in</button></div>
- </div>
- <div id="tmsg"></div>
-</div>
-
-<h2>BUILD A TIMED WORKOUT</h2>
-<div class="card">
- <div class="row"><label class="sub">1 · Total time <select id="total"></select></label><label class="sub">Intervals <select id="nint"></select></label>
-  <label class="sub">Targets in <select id="unit"><option value="pct">% of FTP</option><option value="watts">watts</option></select></label></div>
- <div class="sub" style="margin:12px 0 6px">2 · Drag any bar up or down (5-second steps): the others give or take time in proportion. Tap a bar to set its target, or tap its time to type one.</div>
- <div class="splitwrap"><div style="flex:1;min-width:0"><div class="split" id="split"></div><div class="names" id="names"></div></div>
-  <svg id="pie" viewBox="-110 -110 220 220" aria-label="Share of the workout for each part"></svg></div>
- <div class="card" style="background:#0f141b;margin-top:10px" id="edit"></div>
- <div class="tot"><div><b id="smin">–</b><span>TIME</span></div><div><b id="stss">–</b><span>LOAD</span></div><div><b id="savg">–</b><span>AVG WATTS</span></div><div><b id="skcal">–</b><span>KCAL</span></div></div>
- <div class="row" style="margin-top:12px"><input type="text" id="wname" placeholder="Name" value="Timed workout" style="flex:1;min-width:160px">
-  <button class="purple" id="rideit">▶ Ride now</button><button id="saveit">Save</button><button id="planit">Make it today's ride</button></div>
- <div id="msg"></div>
-</div>
 </main>
 <script>
 const $=id=>document.getElementById(id);
+const esc=t=>String(t).replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
 const ZONES=[[55,'#6b7280'],[75,'#3b82f6'],[90,'#22c55e'],[105,'#eab308'],[120,'#f97316'],[999,'#ef4444']];
-let ftp=180, gut=null, day=null, plan=null, workouts=[];
+let ftp=180, gut=null, day=null, plan=null, workouts=[], editing=false;
 const colour=pct=>ZONES.find(z=>pct<z[0])[1];
 const mmss=m=>{ const s=Math.round(m*60); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
 const post=(u,b)=>fetch(u,{method:'POST',body:JSON.stringify(b||{})}).then(async r=>({ok:r.ok,j:await r.json()}));
@@ -180,6 +219,17 @@ async function loadToday(){ const r=await (await fetch('/api/coach/today')).json
   const shown=p.verdict||r.verdict||v;
   $('verdict').className='verdict'+(shown?' v-'+shown:''); $('verdict').textContent=shown?r.verdicts[shown]:'No check-in yet';
   $('why').textContent=v?(c.why||[]).join(' · '):(p.verdict?'':'Start with the 6-minute diagnostic below, or just check in.');
+  const hopTxt=c.hops_left!=null||c.hops_right!=null?`L <b>${c.hops_left??'–'}</b> · R <b>${c.hops_right??'–'}</b>`:(c.hops!=null?`<b>${c.hops}</b>`:null);
+  const ci=[['Legs',c.legs,'/10'],['Feet & bones',c.feet,'/10'],['Breathing',c.breathing,'/10'],
+    ['Sleep',c.sleep,'/10'],['HR at 90 W',c.hr90,' bpm']].filter(x=>x[1]!=null).map(([k,v,u])=>`${k} <b>${v}</b>${u}`);
+  if(hopTxt) ci.splice(2,0,'Hops '+hopTxt);
+  const checked=ci.length>0;
+  $('checkedin').hidden=!checked;
+  $('cilist').innerHTML='✓ This morning: '+ci.join(' · ');
+  $('cijournal').hidden=!c.journal; $('cijournal').textContent=c.journal||'';
+  $('cinote').hidden=!c.note; $('cinote').textContent=c.note||'';
+  if(!editing){ $('feel').hidden=checked; $('cicancel').hidden=true; }
+  renderFlags(c.flags||[], r.date);
   if(c.hr90) $('why').textContent+=` · HR at 90 W ${c.hr90}`+(c.hrr!=null?`, recovered ${c.hrr} bpm`:'')+(r.baseline?` (normal ${Math.round(r.baseline.hr90)})`:'');
   sysline(r);
   focusLine(r);
@@ -195,7 +245,8 @@ async function loadToday(){ const r=await (await fetch('/api/coach/today')).json
   const w=p.workout&&workouts.find(x=>x.id===p.workout);
   const T={ftp:'FTP ramp test',big_gear:'Big-gear test',diagnostic:'Morning diagnostic'}[p.test];
   $('planrow').hidden=!(w||T); if(T){ $('planw').textContent=T; plan={test:p.test}; } else if(w){ $('planw').textContent=w.name; plan=w; }
-  if(c.legs){ $('legs').value=c.legs; $('legsv').textContent=c.legs; } if(c.feet){ $('feet').value=c.feet; $('feetv').textContent=c.feet; } if(c.hops!=null) $('hops').value=c.hops; if(c.breathing){ $('breath').value=c.breathing; $('breathv').textContent=c.breathing; }
+  if(c.legs){ $('legs').value=c.legs; $('legsv').textContent=c.legs; } if(c.feet){ $('feet').value=c.feet; $('feetv').textContent=c.feet; } $('hopsl').value=c.hops_left??''; $('hopsr').value=c.hops_right??'';
+  if(!editing) $('journal').value=c.journal||''; if(c.gut) document.querySelectorAll('[data-gut]').forEach(x=>x.classList.toggle('on',x.dataset.gut===c.gut)); gut=c.gut||gut; if(c.breathing){ $('breath').value=c.breathing; $('breathv').textContent=c.breathing; }
   if(c.sleep){ $('sleep').value=c.sleep; $('sleepv').textContent=c.sleep; } if(c.hr90) $('hr90').value=c.hr90; if(c.hr120) $('hr120').value=c.hr120; if(c.hr_after) $('hrafter').value=c.hr_after; }
 // The three body systems, weakest link first.
 function sysline(r){ const el=$('systems'); if(!r.systems){ el.hidden=true; return; } el.hidden=false;
@@ -403,7 +454,7 @@ addEventListener('resize',()=>{ const t=$('systitle').textContent; const k=Objec
 // ── Diagnostic ──
 let tStart=null, tTimer=null;
 $('tstart').onclick=async()=>{ const r=await post('/api/coach/test/start'); if(!r.ok){ $('tmsg').textContent=r.j.error; return; }
-  tStart=Date.now(); $('trun').hidden=false; $('feel').hidden=false; $('tstart').disabled=true; $('tmsg').textContent='';
+  tStart=Date.now(); $('trun').hidden=false; $('feel').hidden=false; editing=true; $('tstart').disabled=true; $('tmsg').textContent='';
   navigator.wakeLock?.request('screen').catch(()=>{}); clearInterval(tTimer); tTimer=setInterval(tick,250); tick(); };
 function tick(){ const s=(Date.now()-tStart)/1000; $('tclock').textContent=mmss(Math.min(s,360)/60);
   const idx=s<120?0:s<240?1:s<300?2:3; document.querySelectorAll('#tsteps div').forEach((d,i)=>d.classList.toggle('now',i===idx&&s<360));
@@ -411,15 +462,45 @@ function tick(){ const s=(Date.now()-tStart)/1000; $('tclock').textContent=mmss(
   if(s>=225&&s<300&&$('ask90').hidden){ $('ask90').hidden=false; navigator.vibrate?.([200,100,200]); }
   if(s>=292&&s<330&&$('ask120').hidden){ $('ask120').hidden=false; navigator.vibrate?.([200,100,200]); }
   if(s>=355&&$('askrec').hidden){ $('askrec').hidden=false; navigator.vibrate?.([200,100,200]); }
-  if(s>=365){ clearInterval(tTimer); $('tstep').textContent='Done. Fill in how it felt and save.'; $('tstart').disabled=false; } }
-$('skip').onclick=()=>{ $('feel').hidden=false; $('feel').scrollIntoView({behavior:'smooth'}); };
+  if(s>=365){ clearInterval(tTimer); $('tstep').textContent='Done. Fill in how it felt and save.'; $('tstart').disabled=false; $('feel').scrollIntoView({behavior:'smooth',block:'center'}); } }
+$('ciedit').onclick=()=>{ editing=true; $('feel').hidden=false; $('cicancel').hidden=false; };
+$('cicancel').onclick=()=>{ editing=false; $('feel').hidden=true; $('cicancel').hidden=true; $('cimsg').textContent=''; };
 for(const [id,v] of [['legs','legsv'],['feet','feetv'],['breath','breathv'],['sleep','sleepv']]) $(id).oninput=()=>$(v).textContent=$(id).value;
 document.querySelectorAll('[data-gut]').forEach(b=>b.onclick=()=>{ gut=b.dataset.gut; document.querySelectorAll('[data-gut]').forEach(x=>x.classList.toggle('on',x===b)); });
 $('send').onclick=async()=>{ const body={legs:+$('legs').value,feet:+$('feet').value,breathing:+$('breath').value,sleep:+$('sleep').value,gut};
-  if($('hops').value!=='') body.hops=+$('hops').value;
+  if($('hopsl').value!=='') body.hops_left=+$('hopsl').value; if($('hopsr').value!=='') body.hops_right=+$('hopsr').value;
+  body.journal=$('journal').value.trim();
   if($('hr90').value) body.hr90=+$('hr90').value; if($('hr120').value) body.hr120=+$('hr120').value; if($('hrafter').value) body.hr_after=+$('hrafter').value;
-  const r=await post('/api/coach/checkin',body); if(!r.ok){ $('tmsg').textContent=r.j.error; return; }
-  $('tmsg').textContent='Saved.'; loadToday(); $('todaycard').scrollIntoView({behavior:'smooth'}); };
+  const r=await post('/api/coach/checkin',body); if(!r.ok){ $('cimsg').textContent=r.j.error; return; }
+  $('cimsg').textContent=''; editing=false; await loadToday(); loadJournal(); $('todaycard').scrollIntoView({behavior:'smooth'}); };
+
+// ── journal flags: the journal never scores; it asks. Only a flag you confirm counts (like moving its slider).
+const FLAGNAME={bone:'feet & bones',muscle:'leg muscles',illness:'heart & lungs',better:'better than the sliders'};
+function renderFlags(fl,date){ $('flags').innerHTML=fl.map(f=>f.status==='open'
+  ?`<div class="flag${f.severe?' severe':''}"><p>⚑ ${esc(f.message)}</p><div class="row">`
+   +(f.kind==='better'?`<button data-flag="${f.id}" data-act="dismiss">Got it</button>`
+     :`<button data-flag="${f.id}" data-act="confirm">It's real - count it</button><button data-flag="${f.id}" data-act="dismiss">It's fine</button>`)+`</div></div>`
+  :`<div class="flag settled">⚑ ${FLAGNAME[f.kind]}: ${f.status==='confirmed'?(f.kind==='illness'?'confirmed - heart & lungs easy today':'confirmed - counts as 6/10 today'):'dismissed'}<button data-flag="${f.id}" data-act="reopen">Undo</button></div>`).join('');
+  $('flags').querySelectorAll('[data-flag]').forEach(b=>b.onclick=async()=>{
+    const r=await post('/api/coach/flag?date='+date,{id:b.dataset.flag,action:b.dataset.act}); if(r.ok) loadToday(); }); }
+
+// ── tabs: Today (every morning), Plan (the week), Progress (where you stand). Remembered; #plan etc. links work.
+const TABS=['today','plan','progress'];
+function showTab(t){ if(!TABS.includes(t)) t='today';
+  document.querySelectorAll('section[data-tab]').forEach(x=>x.hidden=x.dataset.tab!==t);
+  document.querySelectorAll('.tabs [data-tab]').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===t)));
+  try{ localStorage.setItem('coachTab',t); }catch(e){}
+  history.replaceState(null,'','#'+t); window.dispatchEvent(new Event('resize')); }
+document.querySelectorAll('.tabs [data-tab]').forEach(b=>b.onclick=()=>{ showTab(b.dataset.tab); window.scrollTo({top:0}); });
+let firstTab=location.hash.slice(1); if(!TABS.includes(firstTab)){ try{ firstTab=localStorage.getItem('coachTab'); }catch(e){} }
+showTab(firstTab||'today');
+
+// ── the journal: what was written with each check-in, newest first
+async function loadJournal(){ try{ const h=await (await fetch('/api/coach/history?days=365')).json();
+  const rows=Object.entries(h.checkins||{}).filter(([,c])=>c.journal).sort().reverse();
+  $('journallist').innerHTML=rows.length?rows.map(([d,c])=>`<div class="jentry"><b>${new Date(d+'T12:00').toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric',year:'numeric'})}</b><div>${esc(c.journal)}</div></div>`).join(''):'No entries yet.';
+  }catch(e){} }
+loadJournal();
 
 // ── Timed workout: set the time, then drag the bars ──
 const DEFAULTS={warmup:{share:15,pct:50},ramp:{share:15,from:50,to:70},interval:{share:40,pct:80},rest:{share:20,pct:50},cooldown:{share:10,pct:45}};
