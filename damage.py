@@ -55,6 +55,9 @@ EVENT_KERNEL = (0.6, 1.0, 0.85, 0.6, 0.3)  # separate five-day exertion response
 HABITUAL_STEPS = 6000     # an ordinary day's walking, which the feet maintain on their own
 ALLOWANCE_FLOOR = 0.25    # the allowance shrinks with accumulated blocks, to a quarter at ALLOWANCE_ZERO_AT
 ALLOWANCE_ZERO_AT = 40    # (blocks) - the "even walking is too much" end of overtraining: 1 - blocks/40, floor 0.25
+HOP_CLEAR = 10            # pain-free single-leg hops (the worse leg) needed, with the model's date, to run again
+HOP_POOR = 3              # this few is a poor hop test - "worse than expected" once past the first half of the plateau
+HOP_FRESH_DAYS = 3        # a hop test counts for clearance for this many days
 
 
 def overlap_multiplier(before):
@@ -84,8 +87,15 @@ def remodeling_response(dates, doses, usual_week=None, weight_kg=70.0, feet_repo
     reports = feet_reports or {}
     def high_report(value):
         if isinstance(value, dict):
-            return any(x is not None and x >= 6 for x in value.values())
+            hops = value.get("hops")
+            return (any(value.get(k) is not None and value[k] >= 6 for k in ("feet", "legs"))
+                    or (hops is not None and hops <= HOP_POOR))
         return value >= 6
+
+    def severity(value):
+        if isinstance(value, dict):
+            return max((value[k] for k in ("feet", "legs") if value.get(k) is not None), default=0)
+        return value
 
     def low_report(value):
         if isinstance(value, dict):
@@ -106,11 +116,21 @@ def remodeling_response(dates, doses, usual_week=None, weight_kg=70.0, feet_repo
     if block:                          # a calibrated block (benchmark runs taken well: calibration.py) replaces it
         reference = max(float(block), 1.0)
 
-    def adjust(j,stop):
+    def adjust(j,stop,plateau_len):
+        """Reports are judged against where you should be. Better than expected (feet and legs 3/10 or better)
+        always takes time off. Worse than expected (6/10+, or a poor hop test) adds time only past the first half
+        of the plateau - early on, beat up is expected - unless it's getting worse morning to morning."""
         observations = [(k-j,reports[dates[k]]) for k in range(j+1,min(stop,len(dates)))
                         if dates[k] in reports]
-        high = sum(age>=2 and high_report(x) for age,x in observations)
-        low = sum(age>=2 and low_report(x) for age,x in observations)
+        high = low = 0
+        prev = None
+        for age,x in observations:
+            if age>=2:
+                late = age >= plateau_len/2
+                worsening = prev is not None and severity(x) > severity(prev)
+                high += high_report(x) and (late or worsening)
+                low += low_report(x)
+            prev = x
         return max(-2,min(10,.5*high-.5*max(0,low-2))),len(observations)
 
     def remaining(level,age,plateau,descent):
@@ -135,10 +155,12 @@ def remodeling_response(dates, doses, usual_week=None, weight_kg=70.0, feet_repo
             added=raw*multiplier
             level=before+added
             stop=next((j for j in impacts if j>i),len(doses))
-            adjustment,n=adjust(i,stop)
+            # Days already served count: the plateau still owed from before, plus 5 days per block this run added
+            # (run, a day passes, run again as 2 blocks: 4 + 10 = 14 days). Scales with the load, no cap.
+            owed=max(0.0,anchor_day+plateau-i) if anchor_level>0 else 0.0
+            adjustment,n=adjust(i,stop,owed+5*added)
             used+=n
-            # Scales with the load, no cap: 13 blocks holds ~65 days, declines over ~39, then the tail.
-            plateau=max(1,5*level+adjustment)
+            plateau=max(1,owed+5*added+adjustment)
             descent=max(1,3*level)
             anchor_day,anchor_level=i,level
             events.append({"date":dates[i],"raw_blocks":round(raw,2),
@@ -169,6 +191,11 @@ def remodeling_response(dates, doses, usual_week=None, weight_kg=70.0, feet_repo
         rows.append({"date":(day0+dt.timedelta(days=i)).isoformat(),
                      "score":round(level,2),"dose":round(dose/reference,2),"phase":phase})
     current=rows[len(doses)-1]["score"]
+    hop_days=sorted(k for k,v in reports.items() if isinstance(v,dict) and v.get("hops") is not None and k<=dates[-1])
+    last_hop=hop_days[-1] if hop_days else None
+    hops={"last":reports[last_hop]["hops"] if last_hop else None,"date":last_hop,"needed":HOP_CLEAR,
+          "fresh":bool(last_hop) and _days_between(last_hop,dates[-1])<HOP_FRESH_DAYS,
+          "history":[{"date":k,"hops":reports[k]["hops"]} for k in hop_days[-14:]]}
     end = int(anchor_day + plateau + descent + TAIL_DAYS) + 2          # through the end of the tail
     projection=rows[len(doses):max(len(doses) + 1, end)]
     below=0 if current<1.5 else next((i+1 for i,r in enumerate(projection)
@@ -183,12 +210,17 @@ def remodeling_response(dates, doses, usual_week=None, weight_kg=70.0, feet_repo
             "phase":rows[len(doses)-1]["phase"],"tail_run_limit":round(1.5*TAIL_RUN_FACTOR,2),
             "cleared_to_run_in_days":cleared,
             "tail_starts_in_days":next((i+1 for i,r in enumerate(projection) if r["phase"]=="tail"),None),
+            "hops":hops,
             "reference_points":round(reference,1),"checkins_used":used,
             "conditioning_credit":round(credit,2),"confirmed_recoveries":len(clean),
             "components":events[-12:], "walking":walk_rows[-14:],
             "walking_week_blocks":round(sum(r["added_blocks"] for r in walk_rows[-7:]),2),
             "max_impact_multiplier":round(max((e["incoming_multiplier"] for e in events),default=1),2),
             "provisional":True}
+
+
+def _days_between(a, b):
+    return (dt.date.fromisoformat(b) - dt.date.fromisoformat(a)).days
 
 
 def zone(days):

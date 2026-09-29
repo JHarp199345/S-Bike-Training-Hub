@@ -209,10 +209,10 @@ def main():
           long_two["score"] > long_one["score"])
     consecutive = damage.remodeling_response(days[:3], [100.0] * 3, 300)
     blocks = consecutive["components"]
-    check("three equal consecutive runs add one, two, then three provisional blocks",
-          [b["added_blocks"] for b in blocks] == [1, 2, 3]
-          and consecutive["score"] == 6 and consecutive["plateau_days"] == 30
-          and consecutive["descent_days"] == 18)
+    check(f"three equal consecutive runs add one, two, then three blocks; days served count: 5, then 4 + 10 = 14, "
+          f"then 13 + 15 = 28 days of plateau ({[b['plateau_days'] for b in blocks]})",
+          [b["added_blocks"] for b in blocks] == [1, 2, 3] and [b["plateau_days"] for b in blocks] == [5, 14, 28]
+          and consecutive["score"] == 6 and consecutive["descent_days"] == 18)
     recovered = damage.remodeling_response(days[:10], [100.0] + [0.0] * 9, 300)
     check("a later run starts from the remaining long-tail block rather than zero",
           0 < recovered["history"][8]["score"] < 1)
@@ -233,7 +233,7 @@ def main():
     beyond_anchor = damage.remodeling_response(days[:6], [100.0] * 6, 300)
     check(f"timing keeps scaling past six blocks: {beyond_anchor['score']} blocks -> {beyond_anchor['plateau_days']} day plateau, "
           f"{beyond_anchor['descent_days']} day decline",
-          beyond_anchor["score"] > 6 and beyond_anchor["plateau_days"] == round(5 * beyond_anchor["score"], 1)
+          beyond_anchor["score"] > 6 and beyond_anchor["plateau_days"] == round(5 * beyond_anchor["score"] - 5, 1)
           and beyond_anchor["descent_days"] == round(3 * beyond_anchor["score"], 1))
     # three 100-point runs set the block (100), then a 13-block run lands once they've fully cleared
     thirteen = damage.remodeling_response(days[:171], [100.0] * 3 + [0.0] * 167 + [1300.0], 160)
@@ -246,15 +246,38 @@ def main():
                            "muscle": {"acwr": 0.9, "tuned": True, "form": 0, "last7": 1, "prev7": 1}},
                "days": [], "history_days": 30}
     over_ = loads.readiness(st_tail, {})["running"]["verdict"]
-    good = loads.readiness(st_tail, {"feet": 2, "legs": 1})["running"]["verdict"]
-    check(f"early in the tail ({tail_day['score']} blocks, over 1.65): rest ({over_}); feeling particularly good: easy ({good})",
-          tail_day["score"] > 1.65 and over_ == "rest" and good == "easy")
+    good_nohop = loads.readiness(st_tail, {"feet": 2, "legs": 1})["running"]
+    hopped = lambda n: {**st_tail, "systems": {**st_tail["systems"], "impact": {**st_tail["systems"]["impact"], "tissue": {
+        "remodeling": {**tail_day, "hops": {"last": n, "date": "x", "needed": 10, "fresh": True}}, "event": {"score": 0}}}}}
+    good = loads.readiness(hopped(12), {"feet": 2, "legs": 1})["running"]["verdict"]
+    good_few = loads.readiness(hopped(4), {"feet": 2, "legs": 1})["running"]
+    check(f"early in the tail ({tail_day['score']} blocks, over 1.65): rest ({over_}); feeling particularly good with 12 "
+          f"pain-free hops: easy ({good})", tail_day["score"] > 1.65 and over_ == "rest" and good == "easy")
+    check(f"...feeling good but no hop test: still rest ({good_nohop['why'][-1]})",
+          good_nohop["verdict"] == "rest" and "hop test first" in " ".join(good_nohop["why"]))
+    check(f"...4 hops: rest ({good_few['why'][-1]})", good_few["verdict"] == "rest" and "4 pain-free hops" in " ".join(good_few["why"]))
     plateau_good = dict(st_tail, systems={**st_tail["systems"], "impact": {"tissue": {"remodeling": thirteen, "event": {"score": 0}}, "acwr": None}})
     check("in the plateau, feeling good doesn't clear running", loads.readiness(plateau_good, {"feet": 1, "legs": 1})["running"]["verdict"] == "rest")
     th = (thirteen["history"] + thirteen["projection"])[170:]
     check(f"13 blocks: flat 65 days ({th[65]['score']}), down to 20% by day 104 ({th[104]['score']}), tail still there at 5 months "
           f"({th[150]['score']}), gone after ~7 ({th[-1]['score']})",
           th[65]["score"] == 13 and abs(th[104]["score"] - 2.6) < 0.01 and 0 < th[150]["score"] < 1 and th[-1]["score"] == 0)
+    # reports judged against the phase: a 30-day plateau (three runs), beat-up reports early vs late
+    three = [100.0] * 3 + [0.0] * 40
+    base3 = damage.remodeling_response(days[:43], three, 160)
+    early = damage.remodeling_response(days[:43], three, 160, feet_reports={days[i]: 7 for i in (5, 6, 7)})
+    late = damage.remodeling_response(days[:43], three, 160, feet_reports={days[i]: 7 for i in (20, 21, 22)})
+    worse = damage.remodeling_response(days[:43], three, 160, feet_reports={days[5]: 6, days[6]: 7, days[7]: 8})
+    check(f"early in a {base3['plateau_days']}-day plateau, beat-up mornings are expected: neutral ({early['plateau_days']})",
+          early["plateau_days"] == base3["plateau_days"])
+    check(f"...the same mornings past halfway add time ({late['plateau_days']})", late["plateau_days"] == base3["plateau_days"] + 1.5)
+    check(f"...early but getting worse morning to morning counts ({worse['plateau_days']})", worse["plateau_days"] > base3["plateau_days"])
+    hop_late = damage.remodeling_response(days[:43], three, 160, feet_reports={days[i]: {"feet": 5, "legs": 5, "hops": 2} for i in (20, 21)})
+    hop_early = damage.remodeling_response(days[:43], three, 160, feet_reports={days[i]: {"feet": 5, "legs": 5, "hops": 2} for i in (5, 6)})
+    check(f"a poor hop test (2) is neutral early, adds time late ({hop_early['plateau_days']} / {hop_late['plateau_days']})",
+          hop_early["plateau_days"] == base3["plateau_days"] and hop_late["plateau_days"] == base3["plateau_days"] + 1)
+    check(f"the latest hop test is reported for clearance ({hop_late['hops']['last']} on {hop_late['hops']['date']}, fresh: {hop_late['hops']['fresh']})",
+          hop_late["hops"]["last"] == 2 and hop_late["hops"]["date"] == days[21] and not hop_late["hops"]["fresh"])
     spaced = [100.0 if i in (0, 10, 20, 30, 40) else 0.0 for i in range(46)]
     clean_reports = {days[i + age]: 2 for i in (0, 10, 20, 30, 40) for age in (2, 3)}
     confirmed = damage.remodeling_response(days[:46], spaced, 160, feet_reports=clean_reports)

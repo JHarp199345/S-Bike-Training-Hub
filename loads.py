@@ -37,6 +37,7 @@ check-ins (legs, feet) are stored so the constants can be fit to the rider.
 import datetime as dt
 import json
 import math
+import statistics
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -177,6 +178,11 @@ def gather(folder_activities, folder_rides, extra_tcx=()):
 
 
 # ── scoring ─────────────────────────────────────────────────────────────────
+
+def _avg_hr(a):
+    hrs = [r["hr"] for r in a.get("records", []) if r.get("hr")]
+    return round(statistics.fmean(hrs), 1) if len(hrs) >= 60 else None
+
 
 def trimp(recs, hr_rest, hr_max):
     """Banister TRIMP: minutes x heart-rate reserve, weighted exponentially (men's 1.92)."""
@@ -374,6 +380,7 @@ def analyse(acts, prof, today=None, meta=None, feet_reports=None, daily_steps=No
                        "date": dt.date.fromtimestamp(a["start"]).isoformat(),
                        "start": dt.datetime.fromtimestamp(a["start"]).strftime("%H:%M"),
                        "minutes": round(a["minutes"], 1), "km": round(a["distance_m"] / 1000, 2),
+                       "avg_hr": _avg_hr(a), "descent_m": round(a.get("descent_m") or 0),
                        **{x: round(s[x], 1) for x in SYSTEMS},
                        "engine_from": ("swim pace vs CSS" if a["sport"] == "swim" else "watts") if s["power_tss"] is not None
                                       else "heart rate"})
@@ -513,6 +520,16 @@ def readiness(state, checkin=None):
             elif long and long["score"] >= 1.0:
                 level = max(level, "easy", key=lambda v: order[v])
                 why.append(f"accumulated mechanical load {long['score']:.1f} blocks (provisional limit {long['threshold_blocks']:.1f})")
+            hops = (long or {}).get("hops") or {}
+            if long and long["score"] >= 0.5 and level != "rest":
+                # coming back from a block: the model's date AND the hop test (pain-free single-leg hops, worse leg)
+                if not hops.get("fresh"):
+                    level = "rest"
+                    why.append(f"hop test first: {hops.get('needed', damage.HOP_CLEAR)} pain-free single-leg hops on the "
+                               f"worse leg clears you to run" + (f" (last: {hops['last']} on {hops['date']})" if hops.get("date") else ""))
+                elif hops["last"] < hops["needed"]:
+                    level = "rest"
+                    why.append(f"hop test: {hops['last']} pain-free hops - {hops['needed']} clears you to run")
             if long and long.get("walking_week_blocks", 0) >= 0.05:
                 why.append(f"walking added {long['walking_week_blocks']:.2f} blocks this week")
         elif s["acwr"] is not None and (state["history_days"] >= 14 or s.get("tuned")):
@@ -634,8 +651,8 @@ def summary(base, today=None):
     try:
         import coach
         checkins = coach.load(base / "coach.json")["checkins"]
-        feet_reports = {day: {k: float(c[k]) for k in ("feet", "legs") if c.get(k) is not None}
-                        for day, c in checkins.items() if c.get("feet") is not None or c.get("legs") is not None}
+        feet_reports = {day: {k: float(c[k]) for k in ("feet", "legs", "hops") if c.get(k) is not None}
+                        for day, c in checkins.items() if any(c.get(k) is not None for k in ("feet", "legs", "hops"))}
     except (OSError, ValueError, TypeError):
         feet_reports = {}
     try:                                        # calibrated capacities (calibration.py) feed the scoring

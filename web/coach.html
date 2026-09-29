@@ -142,6 +142,7 @@
  <div id="feel" hidden>
   <div class="sl"><label>Leg muscles <span><b id="legsv">4</b>/10 · 1 fresh, 10 wrecked</span></label><input type="range" id="legs" min="1" max="10" value="4"></div>
   <div class="sl"><label>Feet &amp; joints <span><b id="feetv">3</b>/10 · 1 fine, 10 very sore</span></label><input type="range" id="feet" min="1" max="10" value="3"></div>
+  <div class="sl"><label>Hop test <span>pain-free single-leg hops, worse leg · 10 clears running</span></label><input type="number" id="hops" inputmode="numeric" min="0" max="100" placeholder="–"></div>
   <div class="sl"><label>Breathing <span><b id="breathv">3</b>/10</span></label><input type="range" id="breath" min="1" max="10" value="3"></div>
   <div class="sl"><label>Sleep <span><b id="sleepv">6</b>/10</span></label><input type="range" id="sleep" min="1" max="10" value="6"></div>
   <div class="sub" style="margin:10px 0 6px">Is it happening today?</div>
@@ -194,7 +195,7 @@ async function loadToday(){ const r=await (await fetch('/api/coach/today')).json
   const w=p.workout&&workouts.find(x=>x.id===p.workout);
   const T={ftp:'FTP ramp test',big_gear:'Big-gear test',diagnostic:'Morning diagnostic'}[p.test];
   $('planrow').hidden=!(w||T); if(T){ $('planw').textContent=T; plan={test:p.test}; } else if(w){ $('planw').textContent=w.name; plan=w; }
-  if(c.legs){ $('legs').value=c.legs; $('legsv').textContent=c.legs; } if(c.feet){ $('feet').value=c.feet; $('feetv').textContent=c.feet; } if(c.breathing){ $('breath').value=c.breathing; $('breathv').textContent=c.breathing; }
+  if(c.legs){ $('legs').value=c.legs; $('legsv').textContent=c.legs; } if(c.feet){ $('feet').value=c.feet; $('feetv').textContent=c.feet; } if(c.hops!=null) $('hops').value=c.hops; if(c.breathing){ $('breath').value=c.breathing; $('breathv').textContent=c.breathing; }
   if(c.sleep){ $('sleep').value=c.sleep; $('sleepv').textContent=c.sleep; } if(c.hr90) $('hr90').value=c.hr90; if(c.hr120) $('hr120').value=c.hr120; if(c.hr_after) $('hrafter').value=c.hr_after; }
 // The three body systems, weakest link first.
 function sysline(r){ const el=$('systems'); if(!r.systems){ el.hidden=true; return; } el.hidden=false;
@@ -281,7 +282,7 @@ async function loadImpact(){ try{ const r=await fetch('/api/load'); if(!r.ok) re
     $('recentnum').textContent=impactData.event.score.toFixed(1)+'×';
     $('backlognum').textContent=impactData.remodeling.score.toFixed(2);
     const remodel=impactData.remodeling, e=remodel.components.at(-1);
-    $('impactmultipliers').textContent=e ? `Latest run: ${e.raw_blocks.toFixed(2)} raw blocks × ${e.incoming_multiplier.toFixed(2)} overlap = ${e.added_blocks.toFixed(2)} added. Accumulated: ${remodel.score.toFixed(2)} blocks. Estimated plateau: ${remodel.plateau_remaining_days.toFixed(1)} days remaining; then about ${remodel.descent_days.toFixed(1)} days of faster decline. Below the provisional 1.5-block limit in ${remodel.below_threshold_in_days ?? 'more than '+remodel.projection.length} days if no new run and the model holds. In the remodeling tail (${remodel.tail_starts_in_days!=null?'in '+remodel.tail_starts_in_days+' days':'now'}) running is blocked only above ${remodel.tail_run_limit} blocks, or cleared early on a day your feet and legs both feel particularly good - cleared to run in ${remodel.cleared_to_run_in_days ?? 'more than '+remodel.projection.length} days.`+(remodel.walking?.length?` Walking added ${remodel.walking_week_blocks.toFixed(2)} blocks in the last 7 days (steps over the daily allowance) - the projection assumes no more walking above it.`:'') : 'No impact sessions recorded yet.';
+    $('impactmultipliers').textContent=e ? `Latest run: ${e.raw_blocks.toFixed(2)} raw blocks × ${e.incoming_multiplier.toFixed(2)} overlap = ${e.added_blocks.toFixed(2)} added. Accumulated: ${remodel.score.toFixed(2)} blocks. Estimated plateau: ${remodel.plateau_remaining_days.toFixed(1)} days remaining; then about ${remodel.descent_days.toFixed(1)} days of faster decline. Below the provisional 1.5-block limit in ${remodel.below_threshold_in_days ?? 'more than '+remodel.projection.length} days if no new run and the model holds. In the remodeling tail (${remodel.tail_starts_in_days!=null?'in '+remodel.tail_starts_in_days+' days':'now'}) running is blocked only above ${remodel.tail_run_limit} blocks, or cleared early on a day your feet and legs both feel particularly good - cleared to run in ${remodel.cleared_to_run_in_days ?? 'more than '+remodel.projection.length} days, once the hop test also passes (${remodel.hops?.needed ?? 10} pain-free single-leg hops on the worse leg${remodel.hops?.last!=null?`; last: ${remodel.hops.last} on ${remodel.hops.date}`:''}).`+(remodel.walking?.length?` Walking added ${remodel.walking_week_blocks.toFixed(2)} blocks in the last 7 days (steps over the daily allowance) - the projection assumes no more walking above it.`:'') : 'No impact sessions recorded yet.';
     if($('impactdialog').open) drawImpact();
   }catch(e){ $('impactnums').hidden=true; } }
 function drawImpact(){ if(!impactData) return;
@@ -415,6 +416,7 @@ $('skip').onclick=()=>{ $('feel').hidden=false; $('feel').scrollIntoView({behavi
 for(const [id,v] of [['legs','legsv'],['feet','feetv'],['breath','breathv'],['sleep','sleepv']]) $(id).oninput=()=>$(v).textContent=$(id).value;
 document.querySelectorAll('[data-gut]').forEach(b=>b.onclick=()=>{ gut=b.dataset.gut; document.querySelectorAll('[data-gut]').forEach(x=>x.classList.toggle('on',x===b)); });
 $('send').onclick=async()=>{ const body={legs:+$('legs').value,feet:+$('feet').value,breathing:+$('breath').value,sleep:+$('sleep').value,gut};
+  if($('hops').value!=='') body.hops=+$('hops').value;
   if($('hr90').value) body.hr90=+$('hr90').value; if($('hr120').value) body.hr120=+$('hr120').value; if($('hrafter').value) body.hr_after=+$('hrafter').value;
   const r=await post('/api/coach/checkin',body); if(!r.ok){ $('tmsg').textContent=r.j.error; return; }
   $('tmsg').textContent='Saved.'; loadToday(); $('todaycard').scrollIntoView({behavior:'smooth'}); };

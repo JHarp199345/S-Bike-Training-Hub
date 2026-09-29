@@ -12,8 +12,10 @@ items, not buttons.
   legs_3min    big-gear test: best 3 minutes at 50-60 rpm; between tests, grit rides
   swim_css     critical swim speed: a 400 m and a 200 m time trial -> s per 100 m.
                Swims are then scored like TSS for the pool (hours x (CSS / pace)^3 x 100)
-  block        the running block: a benchmark run that the feet and legs took well (the
-               two mornings after at 3/10 or better) can grow it - up to 10% a test
+  block        the running block: how much running fits in one block. A benchmark run
+               (2 miles, same flat loop, fixed easy pace) grows it by a graded amount -
+               see block_test. Recovery time per block never changes (5 days); what
+               conditioning changes is how much running a block holds.
 
 The capacities feed the rest: FTP scales every bike number, the block sizes the
 running load, CSS scores the swims, and the diagnostic sets "your normal".
@@ -37,8 +39,10 @@ TESTS = {
                    "hard. Report both times (or the coach reads them from the watch's laps)."},
     "benchmark_run": {"name": "Benchmark run", "sport": "run", "minutes": 30, "every": 28, "capacity": "block",
                       "needs_running": True,
-                      "how": "Your usual easy run/walk on the same route. Then check in feet and legs the next two "
-                             "mornings - that's the test."},
+                      "how": "2 miles (3.2 km) on your same flat loop, at your fixed easy pace - not a race. Rested: "
+                             "nothing hard the day before, about the same time of day. Afterwards say how it felt "
+                             "(1-10) and whether anything hurt; then check in feet, legs and the hop test the next "
+                             "two mornings - that's the test."},
 }
 
 CAPACITIES = {
@@ -163,18 +167,115 @@ def record(d, capacity, value, kind="test", date=None, note=""):
     return e
 
 
-def block_test(d, date, run_points, checkins, prior_block):
-    """A benchmark run on `date`: if the two mornings after were good (feet and legs 3/10 or better), the block
-    grows toward that run - by at most 10% a test. Returns the entry recorded, or None (not yet / didn't pass)."""
-    after = [checkins.get((dt.date.fromisoformat(date) + dt.timedelta(days=k)).isoformat()) or {} for k in (1, 2)]
+# ── the benchmark run: a graded, predicted test of the running block ────────
+# Each benchmark is predicted (heart rate at the fixed pace, from the last
+# benchmarks), then graded on four things: how it felt, heart rate against the prediction, the check-ins leading
+# up to it, and the two mornings after. Growth follows a curve of diminishing returns (fast gains early, a
+# tapped-out mine near the ~5x ceiling), and the results overrule the curve: beating the prediction grows more
+# and shifts the curve up for next time; falling short grows little. A painful or scary one grows nothing - repeat it.
+BENCH_M = 3219              # 2 miles
+BENCH_TOL = 0.15            # within 15% of 2 miles counts as the standard run
+BENCH_CLIMB_M = 30          # flat: no more than this much descent over the run
+G_MAX = 0.125               # the curve's growth for a good benchmark at the start (x0.8 headroom there = 10%)
+CEILING_X = 5               # long-run capacity: about 5x the starting block (damage.ADAPT_GAIN 0.8 -> 1/(1-0.8))
+SURPRISE_K = 0.5            # extra growth per unit the heart rate beats the prediction past 3%
+MAX_GAIN = 0.15
+
+
+def _clamp(x, lo, hi):
+    return max(lo, min(hi, x))
+
+
+def benchmark_report(d, date, rpe=None, pain=False, note=""):
+    """How the benchmark felt (1 = nothing, 10 = a fight) and whether anything hurt."""
+    r = d.setdefault("benchmarks", {}).setdefault("runs", {}).setdefault(date, {})
+    if rpe is not None:
+        rpe = int(rpe)
+        if not 1 <= rpe <= 10:
+            raise ValueError("rpe is 1-10")
+        r["rpe"] = rpe
+    r["pain"] = bool(pain)
+    if note:
+        r["note"] = str(note)[:300]
+    return r
+
+
+def _efficiency(run):
+    """Metres a minute per heartbeat - and whether it was the standard run (2 miles, flat)."""
+    if not isinstance(run, dict) or not run.get("minutes") or not run.get("km"):
+        return None, False
+    standard = abs(run["km"] * 1000 - BENCH_M) <= BENCH_M * BENCH_TOL and (run.get("descent_m") or 0) <= BENCH_CLIMB_M
+    eff = run["km"] * 1000 / run["minutes"] / run["avg_hr"] if run.get("avg_hr") else None
+    return eff, standard
+
+
+def benchmark_expectation(d, date, prior_block):
+    """The prediction for a benchmark on `date`: heart-rate efficiency (median of the last three standard
+    benchmarks) and the growth if it goes as predicted, feels easy, and the mornings after are clean."""
+    bm = d.get("benchmarks") or {}
+    past = [r["eff"] for k, r in sorted((bm.get("runs") or {}).items()) if k < date and r.get("eff") and r.get("standard")][-3:]
+    start = bm.get("start_block") or prior_block
+    headroom = max(0.0, 1 - prior_block / (CEILING_X * start))
+    return {"predicted_eff": round(statistics.median(past), 4) if past else None, "from_benchmarks": len(past),
+            "rate": round(bm.get("rate", 1.0), 3), "headroom": round(headroom, 3),
+            "growth_if_as_predicted": round(G_MAX * bm.get("rate", 1.0) * headroom, 4)}
+
+
+def block_test(d, date, run, checkins, prior_block):
+    """Grade a benchmark run once both mornings after are in. Returns the result (and records the new block when
+    it grew), or None while waiting / already graded. `run` is the scored activity (impact, km, minutes, avg_hr,
+    descent_m); a bare number is taken as its impact points."""
+    bm = d.setdefault("benchmarks", {})
+    runs = bm.setdefault("runs", {})
+    rec = runs.setdefault(date, {})
+    if rec.get("result"):
+        return None
+    day = dt.date.fromisoformat(date)
+    after = [checkins.get((day + dt.timedelta(days=k)).isoformat()) or {} for k in (1, 2)]
     if not all(c.get("feet") is not None for c in after):
         return None
-    if not all(c["feet"] <= 3 and (c.get("legs") or 0) <= 3 for c in after):
-        return None
-    new = min(max(prior_block, run_points), prior_block * 1.10)
-    if any(e["date"] == date for e in d.get("calibration", {}).get("block", [])):
-        return None
-    return record(d, "block", new, "test", date, f"benchmark run {run_points:.0f} points taken well")
+    run = run if isinstance(run, dict) else {"impact": float(run)}
+    exp = benchmark_expectation(d, date, prior_block)
+    bm.setdefault("start_block", prior_block)
+    eff, standard = _efficiency(run)
+    pred = exp["predicted_eff"] if standard else None
+    ratio = eff / pred if eff and pred else None
+    feel = _clamp((8 - rec["rpe"]) / 5, 0.2, 1.0) if rec.get("rpe") else None
+    hr = _clamp((ratio - 0.95) / 0.10, 0.0, 1.0) if ratio else None
+    parts = [x for x in (feel, hr) if x is not None]
+    grade = sum(parts) / len(parts) if parts else 0.5
+    before = [checkins.get((day - dt.timedelta(days=k)).isoformat()) or {} for k in range(1, 8)]
+    before = [c for c in before if c.get("feet") is not None or c.get("legs") is not None]
+    good = sum(all(c.get(k) is not None and c[k] <= 3 for k in ("feet", "legs")) for c in before)
+    if any(c.get(k) is not None and c[k] >= 6 for c in before for k in ("feet", "legs")):
+        leadup = 0.5
+    else:
+        leadup = 0.6 + 0.4 * good / len(before) if before else 0.8
+    worst = max(c[k] for c in after for k in ("feet", "legs") if c.get(k) is not None)
+    mornings = 1.0 if worst <= 3 else 0.5 if worst <= 5 else 0.0
+    rate = bm.get("rate", 1.0)
+    if rec.get("pain") or mornings == 0:
+        gain, outcome = 0.0, "repeat"
+    else:
+        if ratio:
+            rate = _clamp(rate * (1 + 2 * (ratio - 1)), 0.5, 2.0)      # the results overrule the curve
+        curve = G_MAX * rate * exp["headroom"] * grade * leadup * mornings
+        surprise = SURPRISE_K * max(0.0, ratio - 1.03) * mornings if ratio else 0.0
+        gain = min(MAX_GAIN, curve + surprise)
+        outcome = "grew" if gain >= 0.005 else "held"
+    bm["rate"] = round(rate, 4)
+    new = round(prior_block * (1 + gain), 1)
+    rec.update({"result": outcome, "gain_pct": round(100 * gain, 1), "block_before": round(prior_block, 1),
+                "block_after": new if outcome == "grew" else round(prior_block, 1),
+                "eff": round(eff, 4) if eff else None, "standard": standard, "predicted_eff": pred,
+                "vs_prediction": round(ratio, 3) if ratio else None,
+                "grade": {"feel": feel, "heart_rate": hr, "lead_up": round(leadup, 2), "mornings_after": mornings,
+                          "headroom": exp["headroom"], "rate": round(rate, 3)}})
+    if outcome == "grew":
+        why = (f"benchmark {'(standard 2 mi flat) ' if standard else ''}+{rec['gain_pct']}%"
+               + (f", heart rate {ratio:.0%} of predicted" if ratio else "") + (f", felt {rec['rpe']}/10" if rec.get("rpe") else ""))
+        record(d, "block", new, "test", date, why)
+    return rec
 
 
 def all_estimates(d, profile, rides_dir, today=None, block_prior=None):

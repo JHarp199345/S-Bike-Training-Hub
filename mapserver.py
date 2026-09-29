@@ -737,9 +737,11 @@ def calibration_view(d, rides, running_cleared_in=None):
         rem = ((st.get("systems") or {}).get("impact", {}).get("tissue") or {}).get("remodeling") or {}
         for day, plan_ in d.get("plans", {}).items():
             if plan_.get("test") == "benchmark_run" and day in acts and rem.get("reference_points"):
-                if calibration.block_test(d, day, acts[day]["impact"], d.get("checkins", {}), rem["reference_points"]):
+                if calibration.block_test(d, day, acts[day], d.get("checkins", {}), rem["reference_points"]):
                     coach.save(d); _load_cache["key"] = None
-        return {"capacities": est, "due": calibration.due(est, running_cleared=(running_cleared_in == 0)),
+        bench = calibration.benchmark_expectation(d, coach.today(), rem["reference_points"]) if rem.get("reference_points") else None
+        return {"capacities": est, "due": calibration.due(est, running_cleared=(running_cleared_in == 0)), "benchmark": bench,
+                "benchmarks": dict(sorted(((d.get("benchmarks") or {}).get("runs") or {}).items())[-5:]),
                 "next_test_week": calibration.next_test_week(d)}
     except Exception as e:
         return {"error": str(e)}
@@ -886,7 +888,9 @@ async def coach_api(bridge, method, path, p, body):
         if p == "/api/calibration" and method == b"POST":
             import calibration
             try:
-                if req.get("t400") is not None:
+                if req.get("benchmark"):
+                    e = calibration.benchmark_report(d, req["benchmark"], req.get("rpe"), req.get("pain", False), req.get("note", ""))
+                elif req.get("t400") is not None:
                     import cp as cp_mod
                     note = f"400 m in {req['t400']} s, 200 m in {req['t200']} s"
                     e = calibration.record(d, "swim_css", calibration.css_from_times(req["t400"], req["t200"]), "test",

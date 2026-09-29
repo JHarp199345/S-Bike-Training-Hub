@@ -157,18 +157,20 @@ Running is the scarcest resource, and it's the most closely managed.
 **2. Runs add up in blocks.**
 - **One block** is your own unit: the median of your first three runs, with an estimate for an unconditioned body at your weight as the floor.
 - A run landing on load that's still there costs extra, up to ×4 on top of a heavy load. So the same run two days in a row costs far more the second time.
+- Days already served count. A new run adds 5 days per block it added to whatever plateau is still owed: run (5 days), a day passes (4 left), run again as 2 blocks (+10) = 14 days.
 
 **3. Blocks recover slowly, in three phases.** The timing scales with the load, with no cap:
 - a **plateau** of about **5 days per block**, when nothing seems to heal
 - a **decline** over about **3 days per block**, down to a fifth
 - a **remodeling tail** of about four months (a bone remodeling cycle)
 
-So a load of 2 blocks plateaus about 10 days and declines over about 6. A load of 13 blocks plateaus about 65 days and declines over about 39, then the tail.
+So a load of 2 blocks plateaus about 10 days and declines over about 6. A load of 13 blocks plateaus about 65 days (less the days served between the runs that built it) and declines over about 39, then the tail. Recovery time per block is the same at every level of fitness; conditioning changes how much running a block holds, not how long it takes to clear.
 
 **4. Running is cleared by the blocks.**
 - Over **1.5 blocks** means rest, and over 1.0 means easy.
 - In the tail, running is blocked only above 1.1 × the limit.
 - A tail day when your feet and legs both check in at 2/10 or better allows a short, easy run.
+- **The hop test.** Coming back from a block, running also needs a recent (last 3 days) single-leg hop test: **10 pain-free hops** on the worse leg. Log the count in the morning check-in.
 - A separate **five-day "recent run response"** catches the day-after hit of a single run.
 
 **5. Walking counts too, but lightly.**
@@ -204,8 +206,8 @@ Nothing here is fixed to the person it was first tuned on. With real use it lear
 |---|---|
 | **Heart-rate → points conversion** | The median ratio of watts-based load to heart-rate load on your own rides with both. |
 | **Your jogging step** | Runs without cadence (older .tcx exports) are scored from the per-step force and cadence of your runs that have it. |
-| **The size of a block** | Your first three runs. It **grows** (up to +30%) once you've shown recovery: at least four runs over four or more weeks, each followed by three run-free days and reassuring feet and legs check-ins. |
-| **How long a plateau lasts** | Your check-ins after each run. Feet or legs at 6/10 or worse (two or more days after) add half a day each. Good reports shorten it by half a day each, and only after more than two. |
+| **The size of a block** | Your first three runs, then **benchmark runs**: 2 miles on the same flat loop at a fixed easy pace. Each is graded once the two mornings after are in, on how it felt (1-10), heart rate against the prediction from your last benchmarks, your check-ins leading up to it, and those mornings. Growth follows diminishing returns (about 10% at your starting block, a sliver near 5×), and results overrule the curve: beat the prediction and it grows more and the curve shifts up; fall short and it grows little. Anything hurt, or a 6/10+ morning after: no growth, repeat it. Shown recovery also earns up to +30%: at least four runs over four or more weeks, each followed by three run-free days and reassuring check-ins. |
+| **How long a plateau lasts** | Your check-ins after each run, judged against where you should be. Beat-up mornings (feet or legs 6/10+, or 3 or fewer pain-free hops) in the first half of the plateau are expected, so they're neutral unless getting worse morning to morning; past halfway they add half a day each. Good reports shorten it by half a day each, after more than two. |
 | **Each system's usual week** | Tuned from how your body responded: `./hub capacity impact 150 --note "feet sore at this"`, the `set_capacity` MCP tool, or your AI coach. |
 | **Fitness** | The long averages rise as you train steadily. |
 | **Your normal morning** | The diagnostic verdict compares you with the median of your recent tests. |

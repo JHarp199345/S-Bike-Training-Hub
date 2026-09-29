@@ -57,7 +57,7 @@ def t_checkins(a):
 
 
 def t_checkin(a):
-    body = {k: a[k] for k in ("date", "legs", "breathing", "sleep", "motivation", "hr90", "hr120", "hr_after", "gut", "note") if k in a}
+    body = {k: a[k] for k in ("date", "legs", "feet", "hops", "breathing", "sleep", "motivation", "hr90", "hr120", "hr_after", "gut", "note") if k in a}
     return call("/api/coach/checkin", body)
 
 
@@ -221,7 +221,8 @@ def t_schedule_test(a):
 
 
 def t_record_test(a):
-    return call("/api/calibration", {k: a[k] for k in ("capacity", "value", "kind", "date", "note", "t400", "t200") if k in a})
+    return call("/api/calibration", {k: a[k] for k in ("capacity", "value", "kind", "date", "note", "t400", "t200",
+                                                        "benchmark", "rpe", "pain") if k in a})
 
 
 def t_test_week(a):
@@ -253,8 +254,11 @@ TOOLS = [
     ("get_checkins", "Recent daily check-ins, diagnostics, verdicts and plans - the trend over days.",
      S(days=INT("How many days back (default 14)", 1, 120)), t_checkins),
     ("record_checkin", "Record or update a day's check-in for the rider (when they tell you in chat). Legs/breathing/sleep "
-     "1-10 (legs: 1 fresh, 10 wrecked); gut is go/easy/no; heart rates in bpm. Returns the verdict.",
-     S(date=DATE, legs=INT("1-10", 1, 10), breathing=INT("1-10", 1, 10), sleep=INT("1-10", 1, 10),
+     "1-10 (legs: 1 fresh, 10 wrecked; feet = feet & bones, 1 fine, 10 very sore); hops = the single-leg hop "
+     "test, pain-free hops on the worse leg (10 clears running after a block; a poor count past halfway through the "
+     "plateau adds time); gut is go/easy/no; heart rates in bpm. Returns the verdict.",
+     S(date=DATE, legs=INT("1-10", 1, 10), feet=INT("Feet & bones 1-10", 1, 10),
+       hops=INT("Pain-free single-leg hops, worse leg", 0, 100), breathing=INT("1-10", 1, 10), sleep=INT("1-10", 1, 10),
        motivation=INT("1-10", 1, 10), hr90=INT("HR at the end of the 90 W stage", 40, 220),
        hr120=INT("HR at the end of the 120 W push", 40, 220), hr_after=INT("HR 60 s after the push", 30, 220),
        gut=STR("Their own call", enum=["go", "easy", "no"]), note=STR("Anything they said")), t_checkin),
@@ -393,8 +397,10 @@ TOOLS = [
      "has an 80% interval and a status: prior / learning / learned. Only running builds feet and bones.", S(), t_transfer),
     ("record_test", "Record a result the hub can't see: a swim CSS test ({t400, t200} seconds - from the rider or the "
      "watch's laps), or any capacity by hand ({capacity: ftp|engine_hr90|legs_3min|swim_css|block, value, kind: "
-     "test|manual|training, note}). Swims are then scored against CSS.",
-     S(t400={"type": "number"}, t200={"type": "number"},
+     "test|manual|training, note}), or how a benchmark run felt ({benchmark: its date, rpe 1-10, pain: true if "
+     "anything hurt}) - the benchmark is graded once the two mornings after are in. Swims are then scored against CSS.",
+     S(t400={"type": "number"}, t200={"type": "number"}, benchmark=DATE, rpe=INT("Benchmark feel, 1 nothing - 10 a fight", 1, 10),
+       pain={"type": "boolean", "description": "Anything hurt on the benchmark"},
        capacity=STR("Capacity", enum=["ftp", "engine_hr90", "legs_3min", "swim_css", "block"]),
        value={"type": "number"}, kind=STR("test, manual or training", enum=["test", "manual", "training"]),
        date=DATE, note=STR("Where it came from")), t_record_test),

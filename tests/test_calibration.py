@@ -36,12 +36,68 @@ def main():
           abs(s1["engine"] - 0.75 * (130 / 135) ** 3 * 100) < 0.1)
     check("...and from heart rate when there's no CSS yet", loads.score(swim, p, 1.2)["engine"] == 0)
 
-    d = {"checkins": {"2026-10-02": {"feet": 2, "legs": 3}, "2026-10-03": {"feet": 1, "legs": 2}}, "plans": {}}
-    b = calibration.block_test(d, "2026-10-01", 300, d["checkins"], 223.6)
-    check(f"a benchmark run taken well grows the block - by at most 10% ({b['value'] if b else None})", b and b["value"] == 246.0)
-    d2 = {"checkins": {"2026-10-02": {"feet": 5}, "2026-10-03": {"feet": 2}}, "plans": {}}
-    check("feet at 5/10 the morning after: no growth", calibration.block_test(d2, "2026-10-01", 300, d2["checkins"], 223.6) is None)
+    # ── the benchmark run: graded, predicted, diminishing returns, results overrule the curve ──
+    clean = {"2026-10-02": {"feet": 2, "legs": 3}, "2026-10-03": {"feet": 1, "legs": 2}}
+    std = lambda hr: {"impact": 200, "km": 3.22, "minutes": 32, "descent_m": 5, "avg_hr": hr}
+    def bench(date, run, prior, rpe=None, pain=False, checkins=None, d=None):
+        d = d if d is not None else {"plans": {}}
+        if rpe is not None or pain:
+            calibration.benchmark_report(d, date, rpe, pain)
+        return calibration.block_test(d, date, run, checkins if checkins is not None else clean, prior), d
+    b, _ = bench("2026-10-01", 300, 223.6)
+    check(f"no feel, no heart rate, clean mornings: a cautious middle grade ({b['gain_pct']}%)",
+          b["result"] == "grew" and 3 <= b["gain_pct"] <= 5)
+    easy, _ = bench("2026-10-01", std(140), 223.6, rpe=2)
+    hard, _ = bench("2026-10-01", std(140), 223.6, rpe=8)
+    check(f"felt like nothing grows more than felt like a fight ({easy['gain_pct']}% vs {hard['gain_pct']}%)",
+          easy["gain_pct"] > hard["gain_pct"] > 0)
     check("the mornings not in yet: wait", calibration.block_test({"plans": {}}, "2026-10-01", 300, {}, 223.6) is None)
+    sore = {"2026-10-02": {"feet": 5, "legs": 3}, "2026-10-03": {"feet": 2, "legs": 2}}
+    half, _ = bench("2026-10-01", std(140), 223.6, rpe=2, checkins=sore)
+    check(f"feet at 5/10 the morning after: half the growth ({half['gain_pct']}% vs {easy['gain_pct']}%)",
+          abs(half["gain_pct"] - easy["gain_pct"] / 2) <= 0.2)
+    ouch, dd = bench("2026-10-01", std(140), 223.6, rpe=4, pain=True)
+    check("anything hurt: no growth - repeat it", ouch["result"] == "repeat" and not dd.get("calibration"))
+    bad = {"2026-10-02": {"feet": 7, "legs": 3}, "2026-10-03": {"feet": 4, "legs": 2}}
+    rep_, _ = bench("2026-10-01", std(140), 223.6, rpe=3, checkins=bad)
+    check("a 7/10 morning after: repeat", rep_["result"] == "repeat")
+    again, d1 = bench("2026-10-01", std(140), 223.6, rpe=2)
+    check("graded once", calibration.block_test(d1, "2026-10-01", std(140), clean, 223.6) is None)
+    # a history of standard benchmarks -> a prediction; beating it grows more and moves the curve
+    def history(hrs):
+        d = {"plans": {}}
+        for i, h in enumerate(hrs):
+            day = f"2026-1{i}-01"
+            c = {f"2026-1{i}-02": {"feet": 2, "legs": 2}, f"2026-1{i}-03": {"feet": 2, "legs": 2}}
+            calibration.benchmark_report(d, day, 3)
+            calibration.block_test(d, day, std(h), c, 223.6)
+        return d
+    c9 = {"2026-12-02": {"feet": 2, "legs": 2}, "2026-12-03": {"feet": 2, "legs": 2}}
+    ex = calibration.benchmark_expectation(history([140, 140]), "2026-12-01", 223.6)
+    check(f"two standard benchmarks make a prediction ({ex['predicted_eff']} m/min per beat)", ex["predicted_eff"] and ex["from_benchmarks"] == 2)
+    dm = history([140, 140]); calibration.benchmark_report(dm, "2026-12-01", 3)
+    match = calibration.block_test(dm, "2026-12-01", std(140), c9, 223.6)
+    db = history([140, 140]); calibration.benchmark_report(db, "2026-12-01", 3)
+    blew = calibration.block_test(db, "2026-12-01", std(125), c9, 223.6)
+    ds = history([140, 140]); calibration.benchmark_report(ds, "2026-12-01", 3)
+    short = calibration.block_test(ds, "2026-12-01", std(150), c9, 223.6)
+    check(f"as predicted {match['gain_pct']}%, beat the prediction (HR 125 vs 140) {blew['gain_pct']}%, fell short {short['gain_pct']}%",
+          blew["gain_pct"] > match["gain_pct"] > short["gain_pct"])
+    check(f"...and beating it shifts the curve up for next time (rate {match['grade']['rate']} -> {blew['grade']['rate']}); "
+          f"falling short shifts it down ({short['grade']['rate']})",
+          blew["grade"]["rate"] > match["grade"]["rate"] > short["grade"]["rate"])
+    near = calibration.benchmark_expectation({"benchmarks": {"start_block": 100}}, "2026-12-01", 450)
+    start = calibration.benchmark_expectation({"benchmarks": {"start_block": 100}}, "2026-12-01", 100)
+    check(f"diminishing returns: at 1x the curve offers {start['growth_if_as_predicted']:.1%}, at 4.5x only {near['growth_if_as_predicted']:.1%}",
+          start["growth_if_as_predicted"] >= 0.09 and near["growth_if_as_predicted"] < 0.02)
+    dx = {"plans": {}, "benchmarks": {"start_block": 100, "rate": 1.0, "runs": {
+        "2026-11-01": {"result": "grew", "eff": 0.7, "standard": True}, "2026-11-15": {"result": "grew", "eff": 0.7, "standard": True}}}}
+    calibration.benchmark_report(dx, "2026-12-01", 2)
+    vet = calibration.block_test(dx, "2026-12-01", std(115), c9, 480)
+    check(f"...but a veteran at 4.8x who blows past the prediction still grows ({vet['gain_pct']}%) - results overrule the curve",
+          vet["gain_pct"] >= 3)
+    off = calibration.block_test({"plans": {}}, "2026-10-01", {**std(140), "km": 5.0}, clean, 223.6)
+    check("a 5 km run isn't the standard benchmark: no prediction compared", off["standard"] is False and off["vs_prediction"] is None)
     r = damage.remodeling_response(["2026-10-05"], [246.0], block=246.0)
     check("a calibrated block sizes the running load (one of its runs = 1 block)", r["history"][0]["score"] == 1.0)
 
