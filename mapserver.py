@@ -188,7 +188,19 @@ def style(host):
 async def handle(bridge, method, path, body, host):
     """(status, content type, body bytes, extra headers) for map paths, or None."""
     p = path.split("?")[0]
-    if p in ("/ride", "/plan", "/fitness", "/workouts", "/milestones", "/coach", "/course", "/dashboard"):
+    if p == "/api/setup":
+        # the welcome page's orientation (onboarding.py)
+        import onboarding
+        base = Path(bridge.csv_path).parent.parent if getattr(bridge, "csv_path", None) else HERE
+        if method == b"POST":
+            try:
+                out = onboarding.apply(base, json.loads(body or b"{}"))
+            except (ValueError, TypeError) as e:
+                return 400, "application/json", json.dumps({"error": str(e)}).encode(), {}
+            return 200, "application/json", json.dumps(out).encode(), {}
+        return 200, "application/json", json.dumps({"profile": onboarding.current(base), "first_run": onboarding.first_run(base),
+                                                    "folder": str(HERE), "no_bike": bool(getattr(getattr(bridge, "args", None), "no_bike", False))}).encode(), {}
+    if p in ("/ride", "/plan", "/fitness", "/workouts", "/milestones", "/coach", "/course", "/dashboard", "/welcome"):
         return 200, TYPES[".html"], (WEB / f"{p[1:]}.html").read_bytes(), {}
     if p.startswith("/web/") and p.endswith((".js", ".css", ".png", ".json")):
         f = (WEB / p[5:]).resolve()

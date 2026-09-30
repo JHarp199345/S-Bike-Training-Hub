@@ -301,9 +301,13 @@ async def serve(bridge, port=8729, lan=True):
         elif path == b"/stop" and method == b"POST":
             body, ctype = b'{"ok":true}', "application/json"
             asyncio.get_running_loop().call_later(0.3, bridge.stop.set)
-        elif getattr(bridge.args, "no_bike", False) and path.split(b"?")[0] in (b"/", b"/index.html"):
-            # no bike: there's no riding panel to show - start at the coach
-            writer.write(b"HTTP/1.1 302 Found\r\nLocation: /coach\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
+        elif path.split(b"?")[0] in (b"/", b"/index.html"):
+            # the front door: the welcome on a first run, then the coach - the riding panel lives at /panel
+            import onboarding
+            from pathlib import Path
+            base = Path(bridge.csv_path).parent.parent if getattr(bridge, "csv_path", None) else Path(__file__).resolve().parent
+            to = b"/welcome" if onboarding.first_run(base) else b"/coach"
+            writer.write(b"HTTP/1.1 302 Found\r\nLocation: " + to + b"\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
             await writer.drain(); writer.close()
             return
         else:
