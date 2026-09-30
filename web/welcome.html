@@ -12,9 +12,7 @@
  .lede{font-size:19px;color:#b7c1cd;max-width:760px}
  .card{background:#151b23;border-radius:16px;padding:18px;margin-bottom:12px;overflow-x:auto}
  .sports{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:22px 0 8px}
- .sport{border-radius:16px;overflow:hidden;background:linear-gradient(160deg,#1e293b,#0f172a);text-align:center;padding-bottom:10px}
- .sport svg{width:100%;height:auto;display:block}
- .sport b{font-size:13px;letter-spacing:1.4px;color:#cbd5e1}
+ .sports img{width:100%;height:auto;display:block;border-radius:16px;background:#0f172a}
  .how{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
  .how .card{margin:0}.how .n{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;background:#2563eb;color:#fff;font-weight:800;margin-bottom:8px}
  .how p{margin:0;color:#b7c1cd;font-size:15px}
@@ -42,21 +40,11 @@
 <h1>Train every sport without breaking down.</h1>
 <div class="lede">A free, local training hub for triathletes and multisport athletes. It measures the load each part of your body is carrying (heart and lungs, bones and tendons, the muscles you use) and matches it to how fast each one recovers, so your progress stays steady instead of two steps forward and one back.</div>
 
-<div class="sports" aria-hidden="true">
- <div class="sport"><svg viewBox="0 0 200 170"><rect width="200" height="170" fill="none"/><line x1="10" y1="150" x2="190" y2="150" stroke="#334155" stroke-width="3"/>
-  <g stroke="#a78bfa" stroke-width="11" stroke-linecap="round" fill="none"><path d="M100 72 L100 108"/><path d="M100 108 L82 128 L84 148"/><path d="M100 108 L118 128 L116 148"/><path d="M100 78 L74 60 L72 34"/><path d="M100 78 L126 60 L128 34"/></g>
-  <circle cx="100" cy="56" r="11" fill="#a78bfa"/><line x1="36" y1="32" x2="164" y2="32" stroke="#e2e8f0" stroke-width="6" stroke-linecap="round"/>
-  <rect x="30" y="16" width="12" height="32" rx="3" fill="#e2e8f0"/><rect x="158" y="16" width="12" height="32" rx="3" fill="#e2e8f0"/><rect x="18" y="20" width="10" height="24" rx="3" fill="#94a3b8"/><rect x="172" y="20" width="10" height="24" rx="3" fill="#94a3b8"/></svg><b>LIFTING</b></div>
- <div class="sport"><svg viewBox="0 0 200 170"><path d="M0 128 Q25 116 50 128 T100 128 T150 128 T200 128 V170 H0 Z" fill="#0e7490"/><path d="M0 140 Q25 130 50 140 T100 140 T150 140 T200 140 V170 H0Z" fill="#155e75"/>
-  <g stroke="#22d3ee" stroke-width="11" stroke-linecap="round" fill="none"><path d="M58 60 Q92 38 126 70"/><path d="M126 70 L150 96"/><path d="M58 60 L34 46"/><path d="M58 60 L40 38"/><path d="M126 70 L140 104"/></g>
-  <circle cx="160" cy="104" r="10" fill="#22d3ee"/><path d="M150 110 q10 12 22 2" stroke="#e0f2fe" stroke-width="3" fill="none"/><circle cx="176" cy="122" r="3" fill="#e0f2fe"/><circle cx="168" cy="118" r="2" fill="#e0f2fe"/></svg><b>SWIMMING</b></div>
- <div class="sport"><svg viewBox="0 0 200 170"><line x1="10" y1="150" x2="190" y2="150" stroke="#334155" stroke-width="3"/><g stroke="#475569" stroke-width="3" stroke-linecap="round"><line x1="22" y1="70" x2="46" y2="70"/><line x1="14" y1="86" x2="44" y2="86"/><line x1="26" y1="102" x2="48" y2="102"/></g>
-  <g stroke="#f97316" stroke-width="11" stroke-linecap="round" fill="none"><path d="M104 56 L96 96"/><path d="M96 96 L124 116 L112 146"/><path d="M96 96 L76 122 L56 124"/><path d="M102 64 L128 80 L140 64"/><path d="M102 64 L80 72 L70 92"/></g>
-  <circle cx="108" cy="40" r="11" fill="#f97316"/></svg><b>RUNNING</b></div>
- <div class="sport"><svg viewBox="0 0 200 170"><line x1="10" y1="150" x2="190" y2="150" stroke="#334155" stroke-width="3"/>
-  <g stroke="#e2e8f0" stroke-width="4" fill="none"><circle cx="52" cy="122" r="26"/><circle cx="148" cy="122" r="26"/><path d="M52 122 L88 84 L136 84 L148 122 M88 84 L104 122 L136 84 M104 122 L52 122"/><path d="M84 76 L96 76 M136 84 L134 70 L146 68"/></g>
-  <g stroke="#60a5fa" stroke-width="10" stroke-linecap="round" fill="none"><path d="M92 74 L124 50"/><path d="M92 74 L110 96 L104 122"/><path d="M92 74 L100 100 L120 108"/><path d="M122 52 L142 70"/></g>
-  <circle cx="134" cy="40" r="10" fill="#60a5fa"/></svg><b>CYCLING</b></div>
+<div class="sports">
+ <img src="/web/sports/sport-lifting.jpg" alt="Lifting: an athlete holding a barbell overhead in a gym">
+ <img src="/web/sports/sport-swimming.jpg" alt="Swimming: a swimmer in goggles mid-stroke through the waves">
+ <img src="/web/sports/sport-running.jpg" alt="Running: a runner mid-stride at sunset">
+ <img src="/web/sports/sport-cycling.jpg" alt="Cycling: a cyclist in a helmet on a road bike">
 </div>
 
 <h2>HOW IT WORKS</h2>

@@ -33,7 +33,7 @@ import ideas
 HERE = Path(__file__).resolve().parent
 MAPS = Path(__import__("os").environ.get("S_BIKE_MAPS") or HERE / "maps")     # made by setup.sh
 WEB = HERE / "web"
-TYPES = {".mjs": "text/javascript", ".js": "text/javascript", ".css": "text/css", ".png": "image/png",
+TYPES = {".mjs": "text/javascript", ".js": "text/javascript", ".css": "text/css", ".png": "image/png", ".jpg": "image/jpeg",
          ".html": "text/html; charset=utf-8", ".json": "application/json", ".map": "application/json"}
 
 _maps = None
@@ -204,7 +204,7 @@ async def handle(bridge, method, path, body, host):
         return 200, TYPES[".html"], (WEB / f"{p[1:]}.html").read_bytes(), {}
     if p.startswith("/web/") and p.endswith((".js", ".css", ".png", ".json")):
         f = (WEB / p[5:]).resolve()
-        if f.parent not in (WEB.resolve(), (WEB / "sprites").resolve(), (WEB / "vendor").resolve()) or not f.exists():
+        if f.parent not in (WEB.resolve(), (WEB / "sprites").resolve(), (WEB / "vendor").resolve(), (WEB / "sports").resolve()) or not f.exists():
             return 404, "text/plain", b"not found", {}
         return 200, TYPES[f.suffix], f.read_bytes(), {}
     if p.startswith("/lib/"):
