@@ -27,3 +27,4 @@ strava.json
 strava.tmp
 # Activity files and daily steps imported from the watch (personal)
 activities/
+course_forms.json

@@ -132,6 +132,7 @@
  <div id="rpebox" class="rpe" hidden><div class="sub" id="rpeq"></div><div class="rpebtns" id="rpebtns"></div></div>
  <div class="note" id="plannote" hidden></div>
  <div class="row" style="margin-top:10px" id="planrow" hidden><span class="sub">Today's ride:</span> <b id="planw"></b> <button class="purple" id="planride">▶ Ride it</button></div>
+ <div class="row" style="margin-top:10px" id="courserow" hidden><span class="sub">No route planned:</span> <button class="purple" id="plancourse">🎮 Ride today's course</button></div>
 </div>
 <h2>MORNING DIAGNOSTIC · 6 MIN · OPTIONAL</h2>
 <div class="card">
@@ -244,6 +245,7 @@ async function loadToday(){ const r=await (await fetch('/api/coach/today')).json
   $('plannote').hidden=!p.note; $('plannote').textContent=p.note?'Coach: '+p.note:'';
   const w=p.workout&&workouts.find(x=>x.id===p.workout);
   const T={ftp:'FTP ramp test',big_gear:'Big-gear test',diagnostic:'Morning diagnostic'}[p.test];
+  $('courserow').hidden=!(p.sport==='ride' && !T && (p.verdict||'go')!=='rest');   // a ride with no map route: the 8-bit course
   $('planrow').hidden=!(w||T); if(T){ $('planw').textContent=T; plan={test:p.test}; } else if(w){ $('planw').textContent=w.name; plan=w; }
   if(c.legs){ $('legs').value=c.legs; $('legsv').textContent=c.legs; } if(c.feet){ $('feet').value=c.feet; $('feetv').textContent=c.feet; } $('hopsl').value=c.hops_left??''; $('hopsr').value=c.hops_right??'';
   if(!editing) $('journal').value=c.journal||''; if(c.gut) document.querySelectorAll('[data-gut]').forEach(x=>x.classList.toggle('on',x.dataset.gut===c.gut)); gut=c.gut||gut; if(c.breathing){ $('breath').value=c.breathing; $('breathv').textContent=c.breathing; }
@@ -370,11 +372,12 @@ for(const id of ['recentbtn','backlogbtn','mechanicalbtn']) $(id).onclick=()=>{ 
 $('impactclose').onclick=()=>$('impactdialog').close();
 $('impactdialog').onclick=e=>{if(e.target===$('impactdialog')) $('impactdialog').close();};
 addEventListener('resize',()=>{if($('impactdialog').open)drawImpact();});
+$('plancourse').onclick=async()=>{ const r=await post('/api/course/start',{}); if(r.ok) location.href='/course'; };
 $('planride').onclick=async()=>{
   if(plan.test==='ftp'){ await fetch('/ftp/start',{method:'POST'}); location.href='/ride'; return; }
   if(plan.test==='diagnostic'){ $('tstart').click(); return; }
   if(plan.test){ location.href='/ride'; return; }                 // big-gear: the day's focus runs it
-  await post('/api/workouts/start/'+plan.id); location.href='/ride'; };
+  await post('/api/workouts/start/'+plan.id); location.href='/course'; };
 // ── One body system in detail: its readings, daily load, fatigue and fitness, and the sessions and check-ins behind it ──
 const SYS={
   engine:{name:'❤️ Heart & lungs',col:'#ef4444',check:'breathing',checkName:'breathing',unit:'engine points',
@@ -574,7 +577,7 @@ let pT=0; function preview(){ clearTimeout(pT); pT=setTimeout(async()=>{
 async function saveSplit(extra){ const r=await post('/api/coach/split/save',{name:$('wname').value,parts,...extra});
   $('msg').textContent=r.ok?(extra.ride?'Starting…':extra.plan?'Set as today\'s ride.':'Saved to your workouts.'):r.j.error; return r; }
 $('saveit').onclick=()=>saveSplit({}); $('planit').onclick=async()=>{ await saveSplit({plan:true}); loadToday(); };
-$('rideit').onclick=async()=>{ const r=await saveSplit({ride:true}); if(r.ok) location.href='/ride'; };
+$('rideit').onclick=async()=>{ const r=await saveSplit({ride:true}); if(r.ok) location.href='/course'; };   // a watts workout: the game, not the map
 addEventListener('resize',draw);
 build(); loadToday();
 </script></body></html>

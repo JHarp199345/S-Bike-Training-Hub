@@ -1,0 +1,42 @@
+/* overlays.css - the cycling overlays (overlays.js), shared by the map view and the game view.
+   Colours come from the page: --ov-bg, --ov-fg, --ov-dim, --ov-ok, --ov-off, --ov-accent, --ov-font. */
+/* Layout: row one is the watts + cadence readout on the left, the page's buttons on the right (they never meet);
+   the card sits below that row, full width; the dots and lock sit under the card. A page sets --ov-top (where the
+   card starts, clear of its buttons) and --ov-strip-right (room kept for its buttons). */
+.ov{position:fixed;left:12px;right:12px;top:calc(var(--ov-top,58px) + env(safe-area-inset-top));z-index:3;pointer-events:none;
+  font-family:var(--ov-font,system-ui,-apple-system,sans-serif);color:var(--ov-fg,#fff)}
+.ov-strip{position:fixed;left:14px;right:var(--ov-strip-right,120px);top:calc(var(--ov-strip-top,12px) + env(safe-area-inset-top));
+  display:flex;gap:16px;align-items:baseline;font-size:13px;font-weight:700;color:var(--ov-dim,rgba(255,255,255,.8));
+  text-shadow:0 1px 6px rgba(0,0,0,.6);white-space:nowrap;overflow:hidden}
+.ov-strip b{font-size:22px;color:var(--ov-fg,#fff)}.ov-strip .ok b{color:var(--ov-ok,#7dff9b)}.ov-strip .off b{color:var(--ov-off,#ffb347)}
+.ov-box{pointer-events:auto;cursor:pointer;touch-action:pan-y}
+.ov-card{display:none;background:var(--ov-bg,rgba(10,14,28,.55));border:1px solid rgba(255,255,255,.18);border-radius:14px;padding:10px 12px;
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);animation:ovIn .25s ease}
+.ov-card.on{display:block}
+@keyframes ovIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.ov-card h4{margin:0 0 6px;font-size:11px;letter-spacing:1.2px;color:var(--ov-dim,rgba(255,255,255,.75));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ov-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px 8px}
+.ov-grid div{display:flex;flex-direction:column}.ov-grid b{font-size:22px;line-height:1.1}.ov-grid span{font-size:10px;letter-spacing:1px;color:var(--ov-dim,rgba(255,255,255,.7))}
+.ov-fr{display:flex;align-items:baseline;gap:8px;font-size:11px;letter-spacing:1px;color:var(--ov-dim,rgba(255,255,255,.75));margin-top:4px}
+.ov-fr b{font-size:18px;color:var(--ov-fg,#fff)}.ov-fr small{margin-left:auto;font-size:11px}
+.ov-band{position:relative;height:8px;border-radius:4px;background:rgba(255,255,255,.14);margin:3px 0 4px}
+.ov-band u{position:absolute;top:0;bottom:0;background:rgba(125,255,155,.35);border-radius:4px}
+.ov-band em{position:absolute;top:-4px;width:14px;height:14px;margin-left:-7px;border-radius:50%;background:#fff;border:2px solid rgba(0,0,0,.4)}
+.ov-band em.ok{background:var(--ov-ok,#7dff9b)}.ov-band em.off{background:var(--ov-off,#ffb347)}
+.ov-hint{font-size:12px;margin-top:6px;color:var(--ov-fg,#fff);display:flex;justify-content:space-between;gap:8px}
+.ov-hint span{color:var(--ov-dim,rgba(255,255,255,.7));white-space:nowrap}
+.ov-row{display:flex;justify-content:space-between;gap:8px;font-size:12px;margin-top:6px;color:var(--ov-dim,rgba(255,255,255,.8))}
+.ov-row b{color:var(--ov-fg,#fff);font-size:15px}
+.ov .ov-graph{position:static;inset:auto;width:100%;height:118px;display:block;touch-action:pan-y}   /* not a page's full-screen canvas */
+.ov-prof{width:100%;height:46px;display:block}
+.ov-prof polygon{fill:rgba(255,255,255,.14)}.ov-prof polyline{fill:none;stroke:rgba(255,255,255,.7);stroke-width:.8;vector-effect:non-scaling-stroke}
+.ov-prof line{stroke:var(--ov-accent,#ffd678);stroke-width:2;vector-effect:non-scaling-stroke}
+.ov-blocks{display:flex;align-items:flex-end;gap:2px;height:34px;margin-top:8px}
+.ov-blocks i{background:rgba(255,255,255,.28);border-radius:2px 2px 0 0;min-width:2px}.ov-blocks i.done{background:rgba(255,255,255,.12)}
+.ov-blocks i.now{background:var(--ov-accent,#ffd678)}
+.ov-formbar{height:7px;border-radius:4px;background:rgba(255,255,255,.18);overflow:hidden}.ov-formbar i{display:block;height:100%;background:linear-gradient(90deg,#9ff4ff,#ffd678)}
+.ov-bar{display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-top:8px;pointer-events:auto}
+.ov-card{overflow:hidden}
+.ov-dots{display:flex;gap:5px}.ov-dots i{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.3)}.ov-dots i.on{background:#fff}
+.ov-lock{font-size:15px;line-height:1;background:var(--ov-bg,rgba(10,14,28,.55));border:1px solid rgba(255,255,255,.25);border-radius:10px;padding:5px 8px;color:#fff;cursor:pointer}
+.ov-lock.on{border-color:var(--ov-accent,#ffd678)}

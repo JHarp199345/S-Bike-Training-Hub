@@ -175,6 +175,8 @@ def list_routes(folder=None):
     for p in sorted(Path(folder or ROUTES).glob("*.json"), key=lambda q: q.stat().st_mtime, reverse=True):
         try:
             r = load(p.stem, folder)
+            if r.source == "course":            # made-up courses (course.py) aren't map routes
+                continue
             out.append({"id": r.id, "name": r.name, "created": r.created, **r.stats()})
         except (OSError, ValueError, KeyError):
             pass

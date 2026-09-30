@@ -61,7 +61,7 @@ def maps():
 
 
 def route_json(r, cid=None):
-    return {"id": r.id, "cid": cid, "name": r.name, "stats": r.stats(),
+    return {"id": r.id, "cid": cid, "name": r.name, "stats": r.stats(), "source": r.source,   # "course": made up, no real place
             "points": [[round(p[1], 6), round(p[0], 6)] for p in r.points],       # [lon, lat] for the map
             "profile": r.profile(100.0)}
 
@@ -188,13 +188,13 @@ def style(host):
 async def handle(bridge, method, path, body, host):
     """(status, content type, body bytes, extra headers) for map paths, or None."""
     p = path.split("?")[0]
-    if p in ("/ride", "/plan", "/fitness", "/workouts", "/milestones", "/coach"):
+    if p in ("/ride", "/plan", "/fitness", "/workouts", "/milestones", "/coach", "/course"):
         return 200, TYPES[".html"], (WEB / f"{p[1:]}.html").read_bytes(), {}
-    if p.startswith("/web/") and p.endswith(".js"):
+    if p.startswith("/web/") and p.endswith((".js", ".css", ".png", ".json")):
         f = (WEB / p[5:]).resolve()
-        if f.parent != WEB.resolve() or not f.exists():
+        if f.parent not in (WEB.resolve(), (WEB / "sprites").resolve()) or not f.exists():
             return 404, "text/plain", b"not found", {}
-        return 200, TYPES[".js"], f.read_bytes(), {}
+        return 200, TYPES[f.suffix], f.read_bytes(), {}
     if p.startswith("/lib/"):
         f = (MAPS / "web" / "maplibre" / p[5:]).resolve()
         if f.parent != (MAPS / "web" / "maplibre").resolve() or not f.exists():
@@ -386,6 +386,46 @@ async def handle(bridge, method, path, body, host):
         return 200, "application/json", json.dumps(ideas.IDEAS).encode(), {}
     if p == "/api/routes":
         return 200, "application/json", json.dumps(routes.list_routes()).encode(), {}
+    if p == "/api/course/forms":
+        # which animals are the rider's forms, in order (the rider on the bike always comes first) - kept on the bridge
+        f = HERE / "course_forms.json"
+        known = set(json.loads((WEB / "sprites" / "animals.json").read_text())["animals"])
+        if method == b"POST":
+            try:
+                forms = [x for x in json.loads(body or b"{}").get("forms", []) if x in known][:8]
+            except (ValueError, AttributeError):
+                forms = []
+            if not forms:
+                return 400, "application/json", b'{"error":"pick at least one animal"}', {}
+            f.write_text(json.dumps({"forms": forms}))
+        try:
+            forms = [x for x in json.loads(f.read_text())["forms"] if x in known]
+        except (OSError, ValueError, KeyError):
+            forms = []
+        return 200, "application/json", json.dumps({"forms": forms or ["unicorn", "wolf", "eagle", "dragon"]}).encode(), {}
+    if p == "/api/course/start" and method == b"POST":
+        # a ride planned without a map route: build today's course (course.py) and ride it like a route
+        import coach, course
+        try:
+            req = json.loads(body or b"{}")
+        except ValueError:
+            req = {}
+        rides = Path(bridge.csv_path).parent if getattr(bridge, "csv_path", None) else HERE / "rides"
+        d = coach.load(coach.file_for(rides))
+        day = with_focus(coach.day(d, coach.today()), bridge, d)
+        minutes = float(req.get("minutes") or (day.get("plan") or {}).get("minutes") or 30)
+        mass = getattr(getattr(bridge, "ride", None), "mass", 126.6)
+        r, meta = course.build(minutes, day["focus"], mass, name=f"{day['focus']['name']} course · {round(minutes)} min")
+        course.save(r, meta)
+        bridge.route_start(r.id)
+        return 200, "application/json", json.dumps({"id": r.id, "name": r.name}).encode(), {}
+    if p.startswith("/api/course/") and method == b"GET":
+        import course
+        try:
+            c = course.load(p.rsplit("/", 1)[1])
+        except (OSError, ValueError, KeyError) as e:
+            return 404, "application/json", json.dumps({"error": str(e)}).encode(), {}
+        return 200, "application/json", json.dumps(c).encode(), {}
     if p.startswith("/api/route/") and p.endswith("/climbs") and method == b"GET":
         import session
         try:

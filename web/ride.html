@@ -132,14 +132,21 @@
   #ghost{right:290px;bottom:calc(var(--pad) * 3 + var(--btn) + var(--profh))}
   #cal{bottom:calc(var(--pad) * 3 + var(--btn) + var(--profh))}
  }
-</style></head><body>
+ /* Phones: the shared cycling overlays (overlays.js) - the same ones the game view has - replace the two pages */
+ body.paged.ovmode .hud,body.paged.ovmode #cal,body.paged.ovmode #prof,body.paged.ovmode #pgctl{display:none!important}
+ body.paged.ovmode #banner,body.paged.ovmode #pbflash{top:calc(var(--pad) + 270px + env(safe-area-inset-top))}
+ body{--ov-top:calc(var(--pad) + 60px);--ov-strip-top:calc(var(--pad) + 12px);--ov-strip-right:calc(var(--pad) + 120px)}   /* 🎮 and ☰ are 48px */
+ #gamebtn{position:absolute;top:calc(var(--pad) + env(safe-area-inset-top));right:calc(var(--pad) + 58px);z-index:4;width:48px;height:48px;
+   display:flex;align-items:center;justify-content:center;font-size:22px;text-decoration:none;border-radius:14px}
+ body{--ov-bg:rgba(11,15,20,.82);--ov-fg:#eef1f5;--ov-dim:#b7c1cd;--ov-ok:#4ade80;--ov-off:#fbbf24;--ov-accent:#2563eb}
+</style><link rel="stylesheet" href="/web/overlays.css?v=4"><script src="/web/overlays.js?v=3"></script></head><body>
 <div id="map"></div>
 <div class="hud pg">
  <div class="t glass"><b id="spd">–</b><span>KM/H</span></div><div class="t glass"><b id="w">–</b><span>WATTS</span></div>
  <div class="t glass"><b id="rpm">–</b><span>RPM</span></div><div class="t glass"><b id="grade">–</b><span>GRADE</span></div>
  <div class="t glass"><b id="gear">–</b><span>GEAR</span></div><div class="t glass"><b id="left">–</b><span id="leftl">KM LEFT</span></div>
 </div>
-<button id="menu" class="glass" aria-label="Menu">☰</button>
+<button id="menu" class="glass" aria-label="Menu">☰</button><a id="gamebtn" class="glass" href="/course" aria-label="Game view">🎮</a>
 <button id="pgctl" class="glass" aria-label="Pages: tap to lock or unlock this page"></button>
 <div id="banner" class="glass" hidden></div>
 <div id="ghost" hidden></div>
@@ -208,6 +215,7 @@ function at(d){ // [lon,lat,heading] at d metres, from the route geometry
 
 async function loadRoute(id){
   route=await (await fetch('/api/route/'+id)).json(); rid=id; cum=[0];
+  if(route.source==='course'){ location.replace('/course'); return; }   // a made-up course has no place on a map: it's the game's
   for(let i=1;i<route.points.length;i++) cum.push(cum[i-1]+hav(route.points[i-1],route.points[i]));
   const line={type:'Feature',geometry:{type:'LineString',coordinates:route.points}};
   const add=()=>{ for(const s of ['r-all','r-done']) if(map.getLayer(s)) map.removeLayer(s);
@@ -241,6 +249,9 @@ function showGear(g){ $('gear').textContent=(g>0?'+':'')+g; }
 async function poll(){
   try{ const r=await fetch('/status'); if(r.status===401){ location.href='/pair'; return; } st=await r.json(); lastOk=Date.now(); }
   catch(e){ return; }
+  // a watts-and-cadence workout with no route: there's nothing for a map to follow - it rides in the game view
+  if(st.workout && !st.route && !st.test){ location.replace('/course'); return; }
+  if(ovMounted && PHONE.matches) Overlays.update(st,{profile:route?.profile, name:route?.name, hint:st.focus?.hint});
   const r=st.route;
   const wb=st.wbal, wtag=wb&&wb.pct<95?` <small style="color:${wb.pct<25?'#f87171':wb.pct<50?'#fbbf24':'#b7c1cd'}">· W′ ${Math.max(0,wb.pct)}%</small>`:'';
   const fp=focusPct(st.focus), kc=`${st.kcal} <small>kcal${fp?'':` · ${st.kcal_min.toFixed(1)}/min`}</small>${wtag}`;
@@ -338,7 +349,11 @@ function showPage(i, byHand){ page=(i+PAGES.length)%PAGES.length; pageAt=Date.no
   try{ localStorage.setItem('ridePage',page); }catch(e){}
   if(page===1) dispatchEvent(new Event('resize'));        // the profile/graph canvas sizes itself when shown
 }
-function paged(){ document.body.classList.toggle('paged',PHONE.matches); showPage(page); dispatchEvent(new Event('resize')); }
+let ovMounted=false;
+function paged(){ document.body.classList.toggle('paged',PHONE.matches); document.body.classList.toggle('ovmode',PHONE.matches);
+  if(PHONE.matches && !ovMounted && window.Overlays){ Overlays.mount(document.body); ovMounted=true; }
+  document.querySelector('.ov')?.toggleAttribute('hidden',!PHONE.matches);
+  showPage(page); dispatchEvent(new Event('resize')); }
 PHONE.addEventListener?.('change',paged); paged();
 $('pgctl').onclick=()=>{ locked=!locked; try{ localStorage.setItem('ridePageLock',locked?'1':'0'); }catch(e){} showPage(page); };
 setInterval(()=>{ if(!PHONE.matches) return;

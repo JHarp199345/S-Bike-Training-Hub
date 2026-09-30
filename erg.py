@@ -86,7 +86,9 @@ class Erg:
         for i, (d, watts) in enumerate(w["steps"]):
             if elapsed < t + d:
                 return {"name": w["name"], "step": i + 1, "steps": len(w["steps"]), "watts": watts,
-                        "step_left": int(t + d - elapsed), "left": int(total - elapsed)}
+                        "step_left": int(t + d - elapsed), "left": int(total - elapsed),
+                        "elapsed": round(elapsed, 1), "total": int(total),          # the game view draws the workout ahead
+                        "blocks": [[int(d2), int(w2)] for d2, w2 in w["steps"]]}
             t += d
         return None
 

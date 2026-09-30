@@ -1,0 +1,251 @@
+{
+ "frames": 12,
+ "frame_px": 256,
+ "credit": "3D models by Quaternius (CC0), filmed in colour in Blender",
+ "animals": {
+  "horse": {
+   "label": "Horse",
+   "kind": "run",
+   "size": 1,
+   "gaits": {
+    "walk": {
+     "file": "horse_walk.png",
+     "base": 0.168,
+     "top": 0.8359
+    },
+    "run": {
+     "file": "horse.png",
+     "base": 0.2344,
+     "top": 0.7695
+    }
+   }
+  },
+  "unicorn": {
+   "label": "Unicorn",
+   "kind": "run",
+   "size": 1,
+   "gaits": {
+    "walk": {
+     "file": "unicorn_walk.png",
+     "base": 0.1875,
+     "top": 0.8125
+    },
+    "run": {
+     "file": "unicorn.png",
+     "base": 0.2422,
+     "top": 0.7578
+    }
+   }
+  },
+  "zebra": {
+   "label": "Zebra",
+   "kind": "run",
+   "size": 1,
+   "gaits": {
+    "walk": {
+     "file": "zebra_walk.png",
+     "base": 0.1523,
+     "top": 0.8438
+    },
+    "run": {
+     "file": "zebra.png",
+     "base": 0.2266,
+     "top": 0.7734
+    }
+   }
+  },
+  "cow": {
+   "label": "Cow",
+   "kind": "run",
+   "size": 0.95,
+   "gaits": {
+    "walk": {
+     "file": "cow_walk.png",
+     "base": 0.2617,
+     "top": 0.7422
+    },
+    "run": {
+     "file": "cow.png",
+     "base": 0.293,
+     "top": 0.7031
+    }
+   }
+  },
+  "pig": {
+   "label": "Pig",
+   "kind": "run",
+   "size": 0.7,
+   "gaits": {
+    "walk": {
+     "file": "pig_walk.png",
+     "base": 0.2852,
+     "top": 0.7148
+    },
+    "run": {
+     "file": "pig.png",
+     "base": 0.3047,
+     "top": 0.6953
+    }
+   }
+  },
+  "sheep": {
+   "label": "Sheep",
+   "kind": "run",
+   "size": 0.75,
+   "gaits": {
+    "walk": {
+     "file": "sheep_walk.png",
+     "base": 0.168,
+     "top": 0.8281
+    },
+    "run": {
+     "file": "sheep.png",
+     "base": 0.2617,
+     "top": 0.7422
+    }
+   }
+  },
+  "llama": {
+   "label": "Llama",
+   "kind": "run",
+   "size": 1.05,
+   "gaits": {
+    "walk": {
+     "file": "llama_walk.png",
+     "base": 0.0312,
+     "top": 0.9609
+    },
+    "run": {
+     "file": "llama.png",
+     "base": 0.1367,
+     "top": 0.8633
+    }
+   }
+  },
+  "pug": {
+   "label": "Pug",
+   "kind": "run",
+   "size": 0.55,
+   "gaits": {
+    "walk": {
+     "file": "pug_walk.png",
+     "base": 0.1445,
+     "top": 0.8633
+    },
+    "run": {
+     "file": "pug.png",
+     "base": 0.2188,
+     "top": 0.7812
+    }
+   }
+  },
+  "dog": {
+   "label": "Dog",
+   "kind": "walk",
+   "size": 0.7,
+   "gaits": {
+    "run": {
+     "file": "dog.png",
+     "base": 0.1836,
+     "top": 0.8164
+    }
+   }
+  },
+  "cat": {
+   "label": "Cat",
+   "kind": "walk",
+   "size": 0.55,
+   "gaits": {
+    "run": {
+     "file": "cat.png",
+     "base": 0.1445,
+     "top": 0.8516
+    }
+   }
+  },
+  "wolf": {
+   "label": "Wolf",
+   "kind": "walk",
+   "size": 0.8,
+   "gaits": {
+    "run": {
+     "file": "wolf.png",
+     "base": 0.2344,
+     "top": 0.7695
+    }
+   }
+  },
+  "chick": {
+   "label": "Chick",
+   "kind": "walk",
+   "size": 0.45,
+   "gaits": {
+    "run": {
+     "file": "chick.png",
+     "base": 0.0312,
+     "top": 0.9531
+    }
+   }
+  },
+  "fox": {
+   "label": "Fox",
+   "kind": "walk",
+   "size": 0.6,
+   "gaits": {
+    "run": {
+     "file": "fox.png",
+     "base": 0.2852,
+     "top": 0.7188
+    }
+   }
+  },
+  "bird": {
+   "label": "Bird",
+   "kind": "fly",
+   "size": 0.45,
+   "gaits": {
+    "run": {
+     "file": "bird.png",
+     "base": 0.2656,
+     "top": 0.7383
+    }
+   }
+  },
+  "eagle": {
+   "label": "Eagle",
+   "kind": "fly",
+   "size": 0.9,
+   "gaits": {
+    "run": {
+     "file": "eagle.png",
+     "base": 0.2109,
+     "top": 0.7969
+    }
+   }
+  },
+  "dragon": {
+   "label": "Dragon",
+   "kind": "fly",
+   "size": 1.3,
+   "gaits": {
+    "run": {
+     "file": "dragon.png",
+     "base": 0.1758,
+     "top": 0.9062
+    }
+   }
+  },
+  "bat": {
+   "label": "Bat",
+   "kind": "fly",
+   "size": 0.7,
+   "gaits": {
+    "run": {
+     "file": "bat.png",
+     "base": 0.1172,
+     "top": 0.8867
+    }
+   }
+  }
+ }
+}

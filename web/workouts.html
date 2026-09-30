@@ -140,7 +140,7 @@ $('save').onclick=()=>save(false); $('saveas').onclick=()=>save(true);
 $('del').onclick=async()=>{ if(!cur?.id||!confirm(`Delete "${$('name').value}"?`)) return;
   const r=await fetch('/api/workouts/delete/'+cur.id,{method:'POST'}); if(r.ok){ cur=null; await loadList(); $('msg').textContent='Deleted.'; } };
 $('ride').onclick=async()=>{ const id=await save(false); if(!id) return;
-  const r=await fetch('/api/workouts/start/'+id,{method:'POST'}); if(r.ok) location.href='/ride'; else $('msg').textContent=(await r.json()).error; };
+  const r=await fetch('/api/workouts/start/'+id,{method:'POST'}); if(r.ok) location.href='/course'; else $('msg').textContent=(await r.json()).error; };
 addEventListener('resize',()=>{ render(); document.querySelectorAll('.w').forEach(el=>mini(el.querySelector('canvas'),list[+el.dataset.i].steps)); });
 loadList();
 </script></body></html>

@@ -1,0 +1,327 @@
+<!doctype html><html><head><meta charset="utf-8"><title>S-Bike Hub · Course</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1a1030">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+ /* The course: a ride planned without a map route, as an 8-bit side-scroller. The hills are the workout
+    (course.py); the lit road is the day's focus - inside both the cadence and watt ranges, you ride it. */
+ :root{color-scheme:dark;--px:"Press Start 2P",ui-monospace,Menlo,monospace}
+ [hidden]{display:none!important}
+ html,body{margin:0;height:100%;background:#1a1030;color:#fff;overflow:hidden;-webkit-user-select:none;user-select:none;touch-action:manipulation}
+ #cv{position:fixed;inset:0;width:100%;height:100%}
+ body[data-look="pixel"] #cv{image-rendering:pixelated;image-rendering:crisp-edges}
+ /* Modern: clean type, soft glass */
+ body[data-look="modern"]{--px:ui-rounded,system-ui,-apple-system,"SF Pro Rounded",sans-serif}
+ body[data-look="modern"] .hud{font:600 11px/1.4 var(--px);letter-spacing:.6px;text-shadow:0 1px 6px rgba(0,0,0,.6);opacity:.95}
+ body[data-look="modern"] .hud b{font-size:26px;font-weight:700;letter-spacing:0}
+ body[data-look="modern"] .form,body[data-look="modern"] #hint{font:600 11px/1.5 var(--px);letter-spacing:.8px;text-shadow:0 1px 6px rgba(0,0,0,.6)}
+ body[data-look="modern"] .form .bar{height:5px;border:0;border-radius:3px;background:rgba(255,255,255,.2)}
+ body[data-look="modern"] .form .bar i{border-radius:3px;background:linear-gradient(90deg,#9ff4ff,#ffd678)}
+ body[data-look="modern"] #banner{font:700 20px/1.5 var(--px);letter-spacing:1px;text-shadow:0 2px 14px rgba(0,0,0,.6)}
+ body[data-look="modern"] .ctl button{font:700 15px var(--px);border:1px solid rgba(255,255,255,.35);border-radius:16px;box-shadow:none;
+   backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+ body[data-look="modern"] #dn{background:rgba(59,130,246,.55)} body[data-look="modern"] #up{background:rgba(229,62,62,.55)}
+ body[data-look="modern"] #menubtn{font:600 16px var(--px);border-radius:10px;border:1px solid rgba(255,255,255,.35);background:rgba(0,0,0,.3)}
+ body[data-look="modern"] .start{background:rgba(18,22,42,.72);backdrop-filter:blur(8px);font:500 14px/1.6 var(--px)}
+ body[data-look="modern"] .start h1{font:800 26px/1.3 var(--px);letter-spacing:2px;color:#fff;text-shadow:0 2px 20px rgba(255,200,120,.5)}
+ body[data-look="modern"] .start button{font:700 16px var(--px);border-radius:16px;border:0;box-shadow:0 6px 24px rgba(47,133,90,.5)}
+ .dlg{position:fixed;inset:0;background:rgba(10,12,24,.7);z-index:5;display:flex;align-items:center;justify-content:center;padding:16px}
+ .dlgbox{background:#1c2140;border:1px solid rgba(255,255,255,.25);border-radius:16px;padding:16px;width:min(420px,100%);max-height:88vh;overflow:auto;
+   font:600 13px/1.4 system-ui,-apple-system,sans-serif;color:#fff}
+ .dlgbox b{font-size:15px;letter-spacing:1px}.sub2{color:#b9c0e6;font-weight:500;margin:6px 0}
+ #formlist{list-style:none;padding:0;margin:8px 0;display:flex;flex-direction:column;gap:6px;counter-reset:f}
+ #formlist li{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.07);border-radius:10px;padding:6px 8px;counter-increment:f}
+ #formlist li::before{content:counter(f);width:18px;color:#ffd678}
+ #formlist li span{flex:1}#formlist button,.addgrid button{font:600 13px system-ui;background:rgba(255,255,255,.12);color:#fff;border:0;border-radius:8px;padding:6px 9px;cursor:pointer}
+ .thumb{width:44px;height:44px;background-repeat:no-repeat;background-size:1200% 100%;background-position:0 0;flex:none}
+ .addgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:6px}
+ .addgrid button{display:flex;flex-direction:column;align-items:center;padding:4px}
+ .dlgrow{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}.dlgrow .save{background:#2f855a}
+ .looks{display:flex;gap:6px}.looks button{flex:1;padding:8px 4px!important;font-size:9px!important;background:#2d2b55!important}
+ .looks button[aria-pressed="true"]{background:#d69e2e!important;color:#111!important}
+ .hud{position:fixed;left:0;right:0;top:0;padding:calc(10px + env(safe-area-inset-top)) 12px 8px;display:flex;gap:10px;
+   justify-content:space-between;font:10px/1.5 var(--px);text-shadow:2px 2px 0 #000;pointer-events:none;padding-right:58px}
+ .hud b{display:block;font-size:18px;line-height:1.2}.hud .ok{color:#7dff9b}.hud .off{color:#ffb347}
+ .form{position:fixed;left:12px;right:12px;top:calc(62px + env(safe-area-inset-top));font:9px/1.6 var(--px);text-shadow:2px 2px 0 #000;pointer-events:none}
+ .form .bar{height:8px;background:#000;border:2px solid #fff;margin-top:4px}.form .bar i{display:block;height:100%;background:#ffd23f;width:0}
+ #hint{position:fixed;left:12px;right:12px;top:calc(112px + env(safe-area-inset-top));font:9px/1.6 var(--px);color:#ffe9a8;text-shadow:2px 2px 0 #000;pointer-events:none}
+ #banner{position:fixed;left:50%;top:38%;transform:translate(-50%,-50%);font:14px/1.6 var(--px);text-align:center;color:#fff;
+   text-shadow:3px 3px 0 #000;pointer-events:none;white-space:pre;opacity:0;transition:opacity .25s}
+ #banner.show{opacity:1}
+ .ctl{position:fixed;left:0;right:0;bottom:0;display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:10px 12px calc(12px + env(safe-area-inset-bottom))}
+ .ctl button,.start button,#menu button{font:12px/1.4 var(--px);color:#fff;border:3px solid #fff;border-radius:0;padding:16px 8px;
+   box-shadow:4px 4px 0 #000;cursor:pointer}
+ #dn{background:#2b6cb0}#up{background:#c53030}.ctl button:active{transform:translate(2px,2px);box-shadow:2px 2px 0 #000}
+ #mapbtn{position:fixed;right:56px;top:calc(10px + env(safe-area-inset-top));font:14px var(--px);background:#000a;color:#fff;border:2px solid #fff;padding:5px 7px;z-index:4;text-decoration:none}
+ body[data-look="modern"] #mapbtn{border-radius:10px;border:1px solid rgba(255,255,255,.35);background:rgba(0,0,0,.3);font-size:16px;padding:5px 8px}
+ body[data-look="pixel"]{--ov-font:"Press Start 2P",ui-monospace,monospace;--ov-bg:rgba(26,16,48,.85)}
+ body[data-look="pixel"] .ov-card{border:2px solid #fff;border-radius:0;box-shadow:3px 3px 0 #000}
+ body[data-look="pixel"] .ov,body[data-look="pixel"] .ov-card{font-size:9px}
+ body[data-look="pixel"] .ov-grid b,body[data-look="pixel"] .ov-strip b{font-size:14px}
+ body{--ov-top:54px;--ov-strip-top:14px;--ov-strip-right:112px}   /* the 🗺 and ☰ buttons are ~34px tall at the top right */
+ #menubtn{z-index:4;position:fixed;right:12px;top:calc(10px + env(safe-area-inset-top));font:12px var(--px);background:#000a;color:#fff;border:2px solid #fff;padding:6px 8px;z-index:3}
+ #menu,#drawer{position:fixed;right:12px;top:calc(46px + env(safe-area-inset-top));background:#1a1030;border:3px solid #fff;padding:10px;z-index:3;
+   display:flex;flex-direction:column;gap:8px;min-width:180px;box-shadow:4px 4px 0 #000}
+ #menu button{background:#553c9a;padding:10px 8px}
+ #menu a{font:9px var(--px);color:#9fd3ff}
+ .start{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px;text-align:center;
+   font:10px/1.8 var(--px);background:#1a1030e6;z-index:2}
+ .start h1{font:18px/1.4 var(--px);margin:0;color:#ffd23f;text-shadow:3px 3px 0 #000}
+ .start button{background:#2f855a;font-size:13px;padding:18px 22px}
+ .start .sub{color:#c9b8ff;max-width:420px}
+</style><link rel="stylesheet" href="/web/overlays.css?v=4"></head><body>
+<canvas id="cv"></canvas>
+<div id="banner"></div>
+<div class="ctl"><button id="dn">− EASIER</button><button id="up">+ HARDER</button></div>
+<button id="menubtn" aria-label="Menu">☰</button><a id="mapbtn" href="/ride" aria-label="Map view">🗺</a>
+<div id="menu" hidden><div class="looks"><button data-look-pick="modern">MODERN</button><button data-look-pick="pixel">8-BIT</button></div><button id="formsbtn">Forms…</button><button id="endbtn">End course</button><a href="/coach">Coach</a><a href="/ride">Ride view</a></div>
+<div class="dlg" id="formsdlg" hidden><div class="dlgbox">
+ <b>YOUR FORMS</b><div class="sub2">Time on the lit road evolves you, in this order. The rider on the bike always starts.</div>
+ <ol id="formlist"></ol><div class="sub2">Add an animal</div><div class="addgrid" id="addgrid"></div>
+ <div class="dlgrow"><button id="formscancel">Cancel</button><button id="formssave" class="save">Save</button></div><div class="sub2" id="formsmsg"></div>
+</div></div>
+<div class="start" id="start" hidden>
+ <h1>TODAY'S COURSE</h1>
+ <div class="sub" id="startsub">The hills are your workout. Stay inside your cadence and watt ranges to ride the lit road and evolve:
+  bike → unicorn → gorilla → panda → dragon.</div>
+ <button id="go">▶ START</button>
+ <div class="sub" id="startmsg"></div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+const cv=$('cv'), g=cv.getContext('2d');
+let W=256, H=144, S=1;
+let LOOK='modern'; try{ LOOK=localStorage.getItem('courseLook')||'modern'; }catch(e){}
+// 8-bit: a low-resolution world, ~3 screen pixels per world pixel. Modern: full resolution.
+function size(){ const cw=innerWidth, ch=innerHeight, dpr=Math.min(1.5,devicePixelRatio||1);   // 1.5x is sharp on a phone and keeps 60 fps
+  if(LOOK==='pixel'){ W=Math.round(Math.max(150,Math.min(320,cw/3))); H=Math.round(W*ch/cw); }
+  else { W=Math.round(cw*dpr); H=Math.round(ch*dpr); }
+  cv.width=W; cv.height=H; S=cw/W; document.body.dataset.look=LOOK; }
+function setLook(l){ LOOK=l; try{ localStorage.setItem('courseLook',l); }catch(e){} size();
+  document.querySelectorAll('[data-look-pick]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.lookPick===l))); }
+addEventListener('resize',size); size();
+
+// ── sprites: 16 x 12 pixel art, two pedal frames each ──
+const PAL={k:'#111',w:'#f5f5f5',g:'#8a8f98',G:'#4a4e57',r:'#e53e3e',o:'#f6893b',y:'#ffd23f',b:'#3182ce',B:'#1a4f8a',s:'#f2c7a5',
+  p:'#ff7ac6',c:'#66e0ff',v:'#9f7aea',n:'#2f855a',N:'#1c5236',l:'#b7f5c4',m:'#6b4a2b',d:'#2d2d2d'};
+const SPR={
+ bike:[[
+  '......rr........','.....rssr.......','......ss........','.....bbbb.......','....bbbbbb......','.....bB..b......',
+  '.....B....b.....','..kkk.kk..kkk...','.k.g.kggk.k.gk..','.kg..k..gkk..gk.','.k...k...k....k.','..kkk......kkk..'],[
+  '......rr........','.....rssr.......','......ss........','.....bbbb.......','....bbbbbb......','.....b..Bb......',
+  '......b..B......','..kkk..kk.kkk...','.kg..kgg.kk.g.k.','.k.g.k..gkk.g..k','.k...k...k....k.','..kkk......kkk..']],
+ unicorn:[[
+  '.............y..','............yw..','...........www..','...pvc....wwkww.','..pvcwwwwwwww...','.pc.wwwwwwwww...',
+  '.p..wwwwwwwww...','....wwwwwwwww...','....ww.....ww...','....w.w...w.w...','...w...w.w...w..','...g...g.g...g..'],[
+  '.............y..','............yw..','...........www..','...pvc....wwkww.','..pvcwwwwwwww...','.pc.wwwwwwwww...',
+  '.p..wwwwwwwww...','....wwwwwwwww...','....ww.....ww...','.....ww...ww....','.....w.w.w.w....','.....g.g.g.g....']],
+ gorilla:[[
+  '................','.......GGGG.....','......GGssGG....','......GsksGG....','....GGGGGGGGG...','...GGGGGGGGGGG..',
+  '..GG.GGGGGGG.GG.','..G..GGGGGGG..G.','..s..GGGGGGG..s.','.....GG...GG....','.....G.....G....','....ss.....ss...'],[
+  '................','.......GGGG.....','......GGssGG....','......GsksGG....','....GGGGGGGGG...','...GGGGGGGGGGG..',
+  '...GGGGGGGGGGG..','...G.GGGGGGG.G..','...s.GGGGGGG.s..','......GG.GG.....','......G...G.....','.....ss...ss....']],
+ panda:[[
+  '................','.....kk...kk....','.....kwwwwwk....','......wkwkw.....','......wwkww.....','.....kkwwwkk....',
+  '....kkkwwwkkk...','....kk.www.kk...','.......www......','......kk.kk.....','......k...k.....','.....kk...kk....'],[
+  '................','.....kk...kk....','.....kwwwwwk....','......wkwkw.....','......wwkww.....','.....kkwwwkk....',
+  '....kkkwwwkkk...','....kk.www.kk...','.......www......','.......kkk......','.......k.k......','......kk.kk.....']],
+ dragon:[[
+  '..........nn....','..l......nnnno..','.lll....nnknnyo.','llnll..nnnnn....','.lnnnlnnnnn.....','..nnnnnnnnnl....',
+  '...nnnnnnnnll...','...NnnnnnnN.l...','....NN...NN..l..','....N.N..N.N....','...n...n.n...n..','...N...N.N...N..'],[
+  '..l.......nn....','.lll.....nnnno..','llnll...nnknnyo.','.lnnl..nnnnn....','..lnnnnnnnn.....','..nnnnnnnnnl....',
+  '...nnnnnnnnll...','...NnnnnnnN.l...','....NN...NN..l..','.....NN..NN.....','.....N.N.N.N....','.....N.N.N.N....']],
+};
+// the forms: the rider on the bike, then the animals picked in the Forms editor (kept on the bridge), in order
+let FORMS=['bike','unicorn','wolf','eagle','dragon'], FORMNAME={bike:'BIKE'}, ANIMALS={}, SPRITES={}, SHEET=null;
+const LAST=()=>FORMS.length-1;
+async function loadAnimals(){
+  try{ SHEET=await (await fetch('/web/sprites/animals.json')).json(); ANIMALS=SHEET.animals; }catch(e){ SHEET=null; ANIMALS={}; }
+  for(const [k,a] of Object.entries(ANIMALS)){ FORMNAME[k]=a.label.toUpperCase();
+    for(const [gait,gd] of Object.entries(a.gaits||{})){ const key=k+':'+gait; if(!SPRITES[key]){ const im=new Image(); im.src='/web/sprites/'+gd.file; SPRITES[key]=im; } } }
+  try{ const f=(await (await fetch('/api/course/forms')).json()).forms; if(f?.length) FORMS=['bike',...f.filter(x=>ANIMALS[x])]; }catch(e){}
+  if(typeof game!=='undefined') game.form=Math.min(game.form,LAST());
+}
+// one frame of an animal's strip, feet on (x, groundY), `h` pixels tall. Pace shows the way animals show it:
+// a walk becomes a gallop as you speed up, and within a gait the legs keep a near-steady rhythm while the ground
+// goes by faster - longer strides, not frantic ones.
+let gaitNow={}, legPhase={}, lastLegT=0;
+function drawAnimal(ctx,name,x,groundY,h,t,dist){ const a=ANIMALS[name]; if(!a) return false;
+  const v=(st?.speed||0)/3.6, hasWalk=!!a.gaits?.walk, cur=gaitNow[name]||'run';
+  const gait=!hasWalk?'run':(cur==='run'?(v<4.4?'walk':'run'):(v>5.4?'run':'walk'));   // 16 / 19 km/h, with a gap so it doesn't flicker
+  gaitNow[name]=gait; const gd=a.gaits?.[gait], im=SPRITES[name+':'+gait]; if(!gd||!im?.complete||!im.naturalWidth) return false;
+  const rate=a.kind==='fly'?1.1:(gait==='walk'?0.95*Math.pow(Math.max(v,1)/3.5,0.3):1.45*Math.pow(Math.max(v,2)/7,0.3));   // cycles a second
+  const dt=Math.min(0.1,(t-(lastLegT||t))/1000); lastLegT=t; legPhase[name]=((legPhase[name]||0)+dt*(v>0.3||a.kind==='fly'?rate:0))%1;
+  const n=SHEET.frames, px=SHEET.frame_px, i=Math.floor(legPhase[name]*n)%n;
+  const s=h*a.size/((gd.top-gd.base)*px), w=px*s, lift=a.kind==='fly'?h*0.55+Math.sin(t/500)*h*0.06:0;
+  ctx.drawImage(im,i*px,0,px,px,x-w*0.55,groundY-lift-(1-gd.base)*px*s,w,w); return true; }
+function sprite(name,frame,x,y,scale){ const rows=SPR[name][frame];
+  for(let r=0;r<rows.length;r++) for(let c=0;c<rows[r].length;c++){ const ch=rows[r][c]; if(ch==='.') continue;
+    g.fillStyle=PAL[ch]; g.fillRect(Math.round(x+c*scale),Math.round(y+r*scale),scale,scale); } }
+
+// ── state ──
+let st=null, course=null, courseId=null, shownD=0, lastD=0, lastT=performance.now(), speed=0, shownV=0, prevFrame=0;
+let game={onRoad:0, form:0, off:0, gates:{}, cleared:0, missed:0, streak:0};
+const KEY=()=>'course:'+courseId;
+function saveGame(){ try{ localStorage.setItem(KEY(),JSON.stringify(game)); }catch(e){} }
+function loadGame(){ try{ const j=JSON.parse(localStorage.getItem(KEY())||'null'); if(j) game=j; }catch(e){} }
+let bannerT=null;
+function banner(t,ms=2200){ const b=$('banner'); b.textContent=t; b.classList.add('show'); clearTimeout(bannerT); bannerT=setTimeout(()=>b.classList.remove('show'),ms); }
+
+// ── a workout from the builder, with no route: the game draws the terrain from its blocks and follows its clock ──
+const WK_SPEED=6.5;                                  // metres of course per second of workout: it scrolls like riding
+function workoutCourse(wk){
+  const blocks=wk.blocks||[], maxW=Math.max(...blocks.map(b=>b[1]),1), minW=Math.min(...blocks.map(b=>b[1])), ftp=st.ftp||180;
+  const profile=[], parts=[], gates=[]; let d=0, e=100;
+  blocks.forEach(([secs,w],i)=>{ const len=secs*WK_SPEED, g=Math.max(-2.5,Math.min(6,(w-minW)/ftp*12-0.8));   // harder = steeper
+    const kind=w>=maxW*0.85&&maxW>minW?'climb':(i===0?'warmup':i===blocks.length-1?'cooldown':'spin');
+    parts.push({label:(kind==='climb'?'INTERVAL':kind==='warmup'?'WARM-UP':kind==='cooldown'?'COOL-DOWN':'EASY')+' · '+w+' W',kind,start_m:Math.round(d),end_m:Math.round(d+len)});
+    if(kind==='climb') gates.push({kind:'push',at_m:Math.round(d+Math.min(len/3,60*WK_SPEED)),secs:10,target:{watts:Math.round(w*0.96)},label:'Push gate'});
+    for(let x=0;x<len;x+=20){ profile.push([Math.round(d+x),+e.toFixed(1),g]); e+=g/100*Math.min(20,len-x); }
+    d+=len; });
+  profile.push([Math.round(d),+e.toFixed(1),0]);
+  return {id:'wk:'+wk.name+':'+wk.total, name:wk.name, length_m:Math.round(d), profile, parts, gates, form_minutes:5, workout:true};
+}
+async function poll(){
+  try{ const r=await fetch('/status'); if(r.status===401){ location.href='/pair'; return; } st=await r.json(); }catch(e){ return; }
+  const wk=st.workout && !st.route ? st.workout : null;
+  if(wk){
+    const id='wk:'+wk.name+':'+wk.total;
+    if(courseId!==id){ course=workoutCourse(wk); courseId=id; game={onRoad:0,form:0,off:0,gates:{},cleared:0,missed:0,streak:0}; loadGame(); shownD=wk.elapsed*WK_SPEED; finished=false; }
+    $('start').hidden=true; $('mapbtn').hidden=true; $('endbtn').textContent='End workout';   // no route: nothing for a map to show
+    lastD=wk.elapsed*WK_SPEED; lastT=performance.now(); speed=WK_SPEED;
+    step(1); render.hud(); return;
+  }
+  if(course?.workout){ finish(); return; }            // the workout just ended
+  $('mapbtn').hidden=!(st.route && course?.map_route); $('endbtn').textContent='End course';   // the map only for a real road
+  const rt=st.route;
+  if(rt && rt.id!==courseId){
+    const c=await (await fetch('/api/course/'+rt.id)).json().catch(()=>null);
+    if(c && !c.error){ course=c; courseId=c.id; game={onRoad:0,form:0,off:0,gates:{},cleared:0,missed:0,streak:0}; loadGame(); shownD=rt.done_m; }
+    else { course=null; courseId=null; }
+  }
+  $('start').hidden=!!(rt && course);
+  if(rt && course){
+    lastD=rt.done_m; lastT=performance.now(); speed=(st.speed||0)/3.6;
+    step(1); render.hud();
+    if(rt.finished) finish();
+  } else if(courseId && !rt){ finish(); }
+}
+
+// once a second: the lit road, the forms, the gates
+// on the lit road: cadence in range, and watts in range - the day's focus band, or near the block's target in a workout
+function onRoadNow(){ const f=st?.focus; if(!f || st.cadence<20) return false;
+  if(st.workout && course?.workout) return f.rpm_ok!==false && Math.abs(st.power-st.workout.watts)<=Math.max(10,st.workout.watts*0.08);
+  return f.rpm_ok===true && (f.watts_ok===true || f.watts_ok==null); }
+function step(dt){
+  const fm=(course.form_minutes||5)*60, on=onRoadNow();
+  if(on){ game.onRoad+=dt; game.off=0; game.streak+=dt; }
+  else if(st.cadence>=20){ game.off+=dt; game.streak=0;
+    if(game.off>=60 && game.form>0){ game.form--; game.onRoad=game.form*fm; game.off=0; banner('BACK TO\n'+FORMNAME[FORMS[game.form]]); } }
+  const want=Math.min(LAST(), Math.floor(game.onRoad/fm));
+  if(want>game.form){ game.form=want; banner('YOU EVOLVED!\n'+FORMNAME[FORMS[game.form]]+(game.form===LAST()?'\n🔥':''),3000); }
+  for(const gt of course.gates||[]){ const k=gt.kind+gt.at_m, s=game.gates[k]||(game.gates[k]={held:0,state:'ahead'});
+    if(s.state==='ahead' && lastD>=gt.at_m){ s.state='open'; s.age=0; banner((gt.kind==='spin'?'SPIN GATE\n':'PUSH GATE\n')+(gt.kind==='spin'?gt.target.rpm+'+ RPM':gt.target.watts+'+ W')+' · 10 S',2500); }
+    if(s.state==='open'){ s.age=(s.age||0)+dt; const met=gt.kind==='spin'?st.cadence>=gt.target.rpm:st.power>=gt.target.watts;
+      s.held=met?s.held+dt:Math.max(0,s.held-dt*0.5);
+      if(s.held>=gt.secs){ s.state='cleared'; game.cleared++; game.onRoad+=30; banner('GATE CLEARED!\n+30 S'); }
+      else if(s.age>30){ s.state='missed'; game.missed++; } } }          // 30 s to hold it for 10
+  saveGame();
+}
+
+let finished=false;
+function finish(){ if(finished) return; finished=true;
+  const pct=st?.focus?.in_range?.both;
+  banner(`COURSE DONE!\n${FORMNAME[FORMS[game.form]]}\nGATES ${game.cleared}/${(course?.gates||[]).length}`+(pct!=null?`\nLIT ROAD ${pct}%`:''),600000); }
+
+// ── the world ──
+const VEX=4;                                           // vertical pixels per metre of climb (hills made readable)
+function ele(d){ const pr=course.profile; if(!pr.length) return 0; const i=Math.max(0,Math.min(pr.length-1,Math.floor(d/20)));
+  const a=pr[i], b=pr[Math.min(pr.length-1,i+1)], f=Math.max(0,Math.min(1,(d-a[0])/20||0)); return a[1]+(b[1]-a[1])*f; }
+function hills(off,amp,base,col,seed){ g.fillStyle=col; for(let x=0;x<W;x+=2){ const u=(x+off)*0.02;
+  const h=base-amp*(Math.sin(u+seed)*0.6+Math.sin(u*2.3+seed*2)*0.3+Math.sin(u*5.1)*0.1); g.fillRect(x,Math.round(h),2,H-Math.round(h)); } }
+const render={
+  frame(t){
+    // smooth motion: the scenery moves at an eased speed every frame; the once-a-second position from the bridge
+    // only nudges that speed (a gentle pull toward where it predicts you are), so nothing ever snaps
+    const fdt=Math.min(0.1,(t-(prevFrame||t))/1000); prevFrame=t;
+    if(course && st?.route){ const target=lastD+speed*Math.min((t-lastT)/1000,2), err=target-shownD;
+      if(Math.abs(err)>60) shownD=target;                                    // a big jump (resume, new course): just go there
+      const want=Math.max(0, speed+err*0.6); shownV+=(want-shownV)*Math.min(1,fdt*3); shownD+=shownV*fdt; }
+    try{ (LOOK==='pixel'?render.pixel:MODERN.draw)(t); }catch(e){ console.error(e); }
+    requestAnimationFrame(render.frame);
+  },
+  pixel(t){
+    const sky=g.createLinearGradient(0,0,0,H); sky.addColorStop(0,'#1a1030'); sky.addColorStop(0.55,'#5b2a86'); sky.addColorStop(1,'#f08a5d');
+    g.fillStyle=sky; g.fillRect(0,0,W,H);
+    g.fillStyle='#fff'; for(let i=0;i<24;i++){ const x=(i*97+Math.floor(shownD*0.02))%W, y=(i*53)%Math.round(H*0.4); g.fillRect(W-x,y,1,1); }
+    g.fillStyle='#ffd23f'; g.fillRect(Math.round(W*0.78),Math.round(H*0.16),10,10);
+    hills(shownD*0.08,22,H*0.5,'#3b1f5c',1.3); hills(shownD*0.22,14,H*0.6,'#27164a',4.1);
+    if(!course) return;
+    const mpp=1.2*256/W, rx=Math.round(W*0.3), baseY=Math.round(H*0.66), e0=ele(shownD), on=onRoadNow();
+    const yAt=x=>baseY-(ele(shownD+(x-rx)*mpp)-e0)*VEX;
+    for(let x=0;x<W;x++){ const y=Math.round(yAt(x)); g.fillStyle='#1e3b2a'; g.fillRect(x,y,1,H-y);
+      g.fillStyle='#172e21'; for(let k=y+10+((x+Math.floor(shownD/mpp))%4);k<H;k+=9) g.fillRect(x,k,1,2); }
+    g.fillStyle='#2f5d3f'; for(let x=0;x<W;x++){ const y=Math.round(yAt(x)); g.fillRect(x,y,1,3); }
+    for(let x=0;x<W;x++){ const y=Math.round(yAt(x)), ahead=x>=rx;
+      if(on && ahead){ g.fillStyle=(Math.floor(x/3+t/60)%2)?'#66e0ff':'#b8f3ff'; g.fillRect(x,y-2,1,2); }
+      else { g.fillStyle=((x*7+Math.floor(shownD/mpp))%5===0)?'#8b6b45':'#5c4630'; g.fillRect(x,y-1,1,1); } }
+    for(const p of course.parts){ const x=rx+(p.start_m-shownD)/mpp; if(x>0&&x<W){ const y=Math.round(yAt(x)); g.fillStyle='#fff'; g.fillRect(Math.round(x),y-14,1,14);
+      g.fillStyle=p.kind==='climb'?'#e53e3e':p.kind==='spin'?'#3182ce':'#2f855a'; g.fillRect(Math.round(x)+1,y-14,6,4); } }
+    for(const gt of course.gates||[]){ const x=rx+(gt.at_m-shownD)/mpp; if(x<-10||x>W+10) continue; const y=Math.round(yAt(x)), s=game.gates[gt.kind+gt.at_m];
+      const col=s?.state==='cleared'?'#7dff9b':s?.state==='missed'?'#777':gt.kind==='spin'?'#66e0ff':'#ffb347';
+      g.fillStyle=col; g.fillRect(Math.round(x)-6,y-22,2,22); g.fillRect(Math.round(x)+5,y-22,2,22); g.fillRect(Math.round(x)-6,y-22,13,2);
+      if(s?.state==='open'){ g.fillStyle='#fff'; g.fillRect(Math.round(x)-6,y-26,Math.round(13*Math.min(1,s.held/gt.secs)),2); } }
+    const form=FORMS[game.form], rpm=st?.cadence||0, period=rpm>=20?60000/rpm/2:1e9, fr=Math.floor(t/period)%2;
+    const sc=2, sy=Math.round(yAt(rx))-12*sc-1, bob=rpm>=20&&fr?1:0;
+    const aura=Math.min(18,game.streak/10);
+    if(aura>1){ g.fillStyle=`rgba(255,210,63,${0.12+aura/80})`; g.beginPath(); g.arc(rx+8*sc,sy+6*sc,8*sc+aura,0,Math.PI*2); g.fill(); }
+    if(form==='dragon' && on && Math.floor(t/120)%2){ g.fillStyle='#ff7a1a'; g.fillRect(rx+16*sc,sy+2*sc,6,3); g.fillStyle='#ffd23f'; g.fillRect(rx+16*sc+6,sy+2*sc+1,4,2); }
+    g.imageSmoothingEnabled=false;                       // an animal's strip drawn small, unsmoothed: pixel art for free
+    if(form==='bike' || !drawAnimal(g,form,rx+8*sc,Math.round(yAt(rx)),26,t,shownD)){ if(SPR[form]) sprite(form,fr,rx,sy-bob,sc); }
+  },
+  hud(){ if(!course) return; const fm=(course.form_minutes||5)*60, form=game.form, last=form>=LAST();
+    Overlays.update(st, {profile: course.profile, name: course.name, total_m: course.length_m, done_m: lastD,
+      hint: onRoadNow()?'On the lit road':(st.focus?.hint||''),
+      form: {name: FORMNAME[FORMS[form]], next: last?'':FORMNAME[FORMS[form+1]], last, pct: last?100:Math.min(100,100*(game.onRoad-form*fm)/fm),
+             streak: game.streak, cleared: game.cleared, gates: (course.gates||[]).length, onroad: onRoadNow()}});
+    if(Object.values(game.gates).some(g=>g.state==='open')) Overlays.jump('focus',4); }
+};
+requestAnimationFrame(render.frame);
+
+// ── controls ──
+function shiftGear(d,btn){ navigator.vibrate?.(d>0?[25]:[15,40,15]); fetch('/gear/'+d,{method:'POST'}).catch(()=>{}); }
+$('up').onclick=()=>shiftGear(1); $('dn').onclick=()=>shiftGear(-1);
+$('menubtn').onclick=e=>{ e.stopPropagation(); $('menu').hidden=!$('menu').hidden; };
+document.addEventListener('click',e=>{ if(!$('menu').contains(e.target)) $('menu').hidden=true; });
+$('endbtn').onclick=async()=>{ await fetch(course?.workout?'/erg/off':'/api/route/stop',{method:'POST'}).catch(()=>{}); location.href='/coach'; };
+$('go').onclick=async()=>{ $('startmsg').textContent='Building your course…';
+  const r=await fetch('/api/course/start',{method:'POST',body:'{}'}).catch(()=>null);
+  if(!r||!r.ok){ $('startmsg').textContent='Could not start - is the bike connected?'; return; }
+  finished=false; $('startmsg').textContent=''; poll(); };
+let wake=null; async function keepAwake(){ try{ wake=await navigator.wakeLock?.request('screen'); }catch(e){} }
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') keepAwake(); }); keepAwake();
+// ── the Forms editor ──
+let draft=[];
+const thumb=k=>`<i class="thumb" style="background-image:url('/web/sprites/${(ANIMALS[k].gaits.walk||ANIMALS[k].gaits.run).file}')"></i>`;
+function drawForms(){
+  $('formlist').innerHTML=draft.map((k,i)=>`<li>${thumb(k)}<span>${ANIMALS[k].label}</span>
+    <button data-mv="${i}" data-d="-1" ${i?'':'disabled'} aria-label="Earlier">↑</button><button data-mv="${i}" data-d="1" ${i<draft.length-1?'':'disabled'} aria-label="Later">↓</button>
+    <button data-rm="${i}" aria-label="Remove">✕</button></li>`).join('');
+  $('addgrid').innerHTML=Object.keys(ANIMALS).filter(k=>!draft.includes(k)).map(k=>`<button data-add="${k}">${thumb(k)}${ANIMALS[k].label}</button>`).join('');
+  $('formlist').querySelectorAll('[data-mv]').forEach(b=>b.onclick=()=>{ const i=+b.dataset.mv, j=i+(+b.dataset.d); [draft[i],draft[j]]=[draft[j],draft[i]]; drawForms(); });
+  $('formlist').querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{ draft.splice(+b.dataset.rm,1); drawForms(); });
+  $('addgrid').querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>{ if(draft.length<8){ draft.push(b.dataset.add); drawForms(); } });
+  $('formsmsg').textContent=`${draft.length} of up to 8 · ${(course?.form_minutes||5)} min on the lit road each`; }
+$('formsbtn').onclick=e=>{ e.stopPropagation(); $('menu').hidden=true; draft=FORMS.slice(1); drawForms(); $('formsdlg').hidden=false; };
+$('formscancel').onclick=()=>{ $('formsdlg').hidden=true; };
+$('formsdlg').onclick=e=>{ e.stopPropagation(); if(e.target.id==='formsdlg') $('formsdlg').hidden=true; };
+$('formssave').onclick=async()=>{ if(!draft.length){ $('formsmsg').textContent='Pick at least one animal.'; return; }
+  const r=await fetch('/api/course/forms',{method:'POST',body:JSON.stringify({forms:draft})}).catch(()=>null);
+  if(!r||!r.ok){ $('formsmsg').textContent='Could not save.'; return; }
+  await loadAnimals(); if(course) render.hud(); $('formsdlg').hidden=true; };
+</script><script src="/web/course-modern.js?v=3"></script><script src="/web/overlays.js?v=3"></script>
+<script>document.querySelectorAll('[data-look-pick]').forEach(b=>b.onclick=e=>{ e.stopPropagation(); setLook(b.dataset.lookPick); }); setLook(LOOK);
+// start once everything above has loaded (the overlays come in after the page's own script)
+Overlays.mount(document.body);
+loadAnimals().then(()=>{ poll(); setInterval(poll,1000); });</script>
+</body></html>

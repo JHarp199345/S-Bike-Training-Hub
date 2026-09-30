@@ -30,6 +30,7 @@ On top of that:
 | 🎚 **Daily focus** | Each day has a cadence range and a watt range: cadence habit (65–80 rpm, zone 2), grit (big gear, low cadence), leg speed, recovery, or your own. Auto-shift steers toward both, and a quiet monitor on the ride view shows time in range, with a hint only after you've drifted for a while. |
 | 📍 **Area routes** | Circle where you'd like to ride and say how long. The planner finds loops inside the circle and ranks them for today's focus: time at the focus's watts (climbs slow you), how much of it auto-shift can hold in range, and whether the terrain suits the day. |
 | ⛰ **Climb goals & efforts** | Put training on a route's climbs: "climb 2 in 10:00" becomes a watt target re-worked every second from what's left, and "3 × 15 s at 200 W" shifts you straight into a big gear. Every climb you ride is recorded (time, watts, cadence, VAM), and the planner knows the fastest time your **W′** could cover. |
+| 🎮 **Game view** | A ride with no map route becomes a side-scroller whose hills are the workout. Plan a ride (a course sized to the planned minutes) or hit **Ride now** on a workout (terrain drawn from its blocks). Stay inside your cadence and watt ranges to ride the **lit road** and evolve through your chosen animals: bike → unicorn → wolf → eagle → dragon, or any order you pick from 17. Spin and push **gates** ask for the top of your range for 10 seconds. **Modern** (soft layered silhouettes, dawn to dusk) or **8-bit**. Saved map routes open here too, with their real hills, and 🎮 / 🗺 switch views mid-ride. See [The game view](#the-game-view). |
 | 🧭 **Coach** | Three tabs: **Today** (the verdict and your morning check-in, right on the card), **Plan** and **Progress**. This week at a glance (a marker per day, including swims your watch calendar can't hold), a one-tap effort rating, morning readiness from your watch (HRV, resting heart rate, sleep), **skill ladders** that step up and down with the evidence, **test weeks**, and a calibration card for every capacity. A 6-minute **morning diagnostic** (fixed watts, heart rate read off your watch) gives a go / easy / rest verdict against your own normal. The **timed-workout builder** lets you pick a length, drag bars, and see the parts rebalance in proportion. A short **journal** goes with each check-in. It's never scored, but it raises a **flag** when your words and your sliders disagree (see [The journal flags](#the-journal-flags)). |
 | 🫀🦶🦵 **Training load for every sport** | Runs, walks, swims, gym and rides from your watch, scored on three body systems: **heart & lungs**, **feet & bones**, **leg muscles**. You get separate **bike** and **running** verdicts, and the running load is tracked as accumulated "blocks" that recover on a realistic, slow timeline. Tap any system for its graph, readings, and the sessions behind it. See [Training load: how it works](#training-load-how-it-works). |
 | 🎯 **Workout adherence** | Each part of a workout is graded A–F on how well you held it, shown as a pie and a radar chart in the ride report. |
@@ -95,10 +96,22 @@ Edit [`regions.json`](regions.json) (name, bounding box, center, zoom) and run `
 | `/ride` | 3D ride view and handlebar remote (phone / tablet / computer) |
 | `/plan` | Route planner: search, A→B, loops, "by distance", **area** (routes for today's focus), a route's climbs with time goals and efforts, famous-ride ideas, GPX import |
 | `/coach` | This week, today's bike and running verdicts, the day's focus, morning readiness, effort rating, the body systems (tap for detail), coming up, calibration, progressions, the morning diagnostic, the timed-workout builder |
+| `/course` | The game view: today's course, a running workout, or the route you're riding |
 | `/workouts` | Block-based workout builder |
 | `/fitness` | Fitness, fatigue and form from power; body systems across every sport; the aerobic engine (watts per beat, decoupling); how your sports carry over |
 | `/milestones` | Streaks, totals, badges |
 | `/posts` | Ride infographics, captions, the Claude pack, optional Strava |
+
+## The game view
+
+- **Where the terrain comes from:**
+  - **A planned ride with no route:** warm-up, steady climbs with short descents between them, cool-down. It's sized so it takes the planned minutes at your focus's middle watts, and the bridge rides it like any route, so auto-shift and the focus work as usual.
+  - **A workout from the builder:** it runs in ERG, and the terrain comes from its blocks (harder blocks are steeper). The picture follows the workout's clock, so the next interval shows as a hill ahead.
+  - **A saved map route:** its real elevation profile.
+- **The lit road:** inside both your cadence and watt ranges (in a workout, watts near the block's target). Time on it evolves you, **5 minutes per form**; a minute off it drops you one form, not all the way.
+- **The animals:** 17 of them, filmed from CC0 3D models by [Quaternius](https://quaternius.com) into sprite strips, in colour. The farm animals walk below about 16 km/h and gallop above about 19, so pace shows as a change of gait. Pick your forms and their order from **☰ → Forms…**; the choice is kept on the bridge.
+- **Overlays:** the ride's numbers come one card at a time - Ride, Focus, Graph (the last 10 minutes), Route, Workout, Form - cycling every 8 seconds. Tap or swipe to move on, 🔒 to hold one. Something happening jumps to its card for a few seconds. Watts and cadence stay up top. The map view uses the same overlays on phones.
+- **No map where there's no road:** a watts-and-cadence workout, or a made-up course, only rides in the game view.
 
 ## Coaching with Claude (optional)
 
@@ -349,6 +362,7 @@ This software changes the resistance on real exercise equipment and relies on re
 
 - **Map data:** © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors (ODbL), via [Protomaps](https://protomaps.com).
 - **Terrain:** [Mapzen terrain tiles](https://github.com/tilezen/joerd/blob/master/docs/attribution.md) (AWS Open Data).
+- **Game art:** animals rendered from 3D models by [Quaternius](https://quaternius.com) (CC0) - see [web/sprites/CREDITS.md](web/sprites/CREDITS.md).
 - **Software:** routing by [BRouter](https://github.com/abrensch/brouter); maps drawn with [MapLibre GL JS](https://maplibre.org); Bluetooth via [bleak](https://github.com/hbldh/bleak) and [bless](https://github.com/kevincar/bless); menu bar via [rumps](https://github.com/jaredks/rumps) and [PyObjC](https://pyobjc.readthedocs.io).
 
 - **Science:** the models build on published work - Banister's fitness-fatigue model, Coggan's TSS/NP, Carter's daily stress stimulus, Williams' EWMA workload ratio, Skiba's W′ balance, Foster's session RPE, Millet et al. (2002) and Tanaka (1994) on cross-training, Boyle's progressions and regressions, and Kalman/Bayesian impulse-response fitting (Kolossa 2017; Swartz et al.). Formulas were cross-checked against [GoldenCheetah](https://github.com/GoldenCheetah/GoldenCheetah)'s open-source metrics; no code was copied.
