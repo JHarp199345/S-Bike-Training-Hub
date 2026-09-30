@@ -145,7 +145,7 @@ if [[ -z $NOBIKE ]] && ask "Add the 🚲 menu-bar icon (opens at login; starts/s
 fi
 
 if [[ -n $NOBIKE ]]; then
-  say "Done. Start it: double-click 'S-Bike Hub' on your Desktop. It opens the Coach."
+  say "Done. Start it: double-click 'S-Bike Hub' on your Desktop. The first time, it opens the welcome and a two-minute setup."
 else
   say "Done. Start it: double-click 'S-Bike Hub' on your Desktop (or use the menu icon)."
 fi

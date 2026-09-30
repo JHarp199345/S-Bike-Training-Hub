@@ -164,5 +164,5 @@ $('form').onsubmit=async ev=>{ ev.preventDefault();
   if(!r.ok){ $('msg').textContent=j.error||'Something went wrong.'; return; }
   $('setlist').innerHTML=j.set.map(x=>`<li>${x.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}</li>`).join('');
   $('nextlist').innerHTML=j.next.map(x=>`<li>${x}</li>`).join('');
-  $('form').hidden=true; $('welcome').hidden=false; $('welcome').scrollIntoView({behavior:'smooth'}); };
+  $('form').hidden=true; $('setup').hidden=true; $('welcome').hidden=false; $('welcome').scrollIntoView({behavior:'smooth'}); };
 </script></body></html>

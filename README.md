@@ -110,7 +110,8 @@ Edit [`regions.json`](regions.json) (name, bounding box, center, zoom) and run `
 
 | Page | What it's for |
 |---|---|
-| `/` panel | Connections, live numbers, gears, auto-shift, climbing, ERG, workouts, FTP test, personal bests, live graph, phone pairing |
+| `/welcome` | What the hub does, what you need, connecting your AI, and a two-minute setup. `/` opens it on a first run, then the Coach. |
+| `/panel` | Connections, live numbers, gears, auto-shift, climbing, ERG, workouts, FTP test, personal bests, live graph, phone pairing |
 | `/ride` | 3D ride view and handlebar remote (phone / tablet / computer) |
 | `/plan` | Route planner: search, A→B, loops, "by distance", **area** (routes for today's focus), a route's climbs with time goals and efforts, famous-ride ideas, GPX import |
 | `/coach` | This week, today's bike and running verdicts, the day's focus, morning readiness, effort rating, the body systems (tap for detail), coming up, calibration, progressions, the morning diagnostic, the timed-workout builder |
