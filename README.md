@@ -104,6 +104,13 @@ Edit [`regions.json`](regions.json) (name, bounding box, center, zoom) and run `
 
 ## The game view
 
+<p align="center">
+  <img src="docs/game-modern.jpg" width="200" alt="Game view, Modern look: a white unicorn galloping along the glowing lit road at dusk, with the Focus overlay showing cadence 65 and watts 112 inside their ranges">
+  <img src="docs/game-workout.jpg" width="200" alt="Game view during a builder workout: a dragon breathing fire above the road, with the Workout overlay showing the target watts, time left and every block">
+  <img src="docs/game-8bit.jpg" width="200" alt="Game view, 8-bit look: a pixel-art unicorn on the lit road, with the Form overlay showing progress to the next form and the streak">
+  <img src="docs/game-forms.jpg" width="200" alt="The Forms editor: the chosen forms in order (unicorn, wolf, eagle, dragon) and the other animals to add">
+</p>
+
 - **Where the terrain comes from:**
   - **A planned ride with no route:** warm-up, steady climbs with short descents between them, cool-down. It's sized so it takes the planned minutes at your focus's middle watts, and the bridge rides it like any route, so auto-shift and the focus work as usual.
   - **A workout from the builder:** it runs in ERG, and the terrain comes from its blocks (harder blocks are steeper). The picture follows the workout's clock, so the next interval shows as a hill ahead.
