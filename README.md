@@ -142,7 +142,7 @@ Edit [`regions.json`](regions.json) (name, bounding box, center, zoom) and run `
 Everything the pages can do is also available headless, so an AI coach can read your data and write your plan:
 
 - **Command line:** `./hub today`, `./hub rides`, `./hub fitness`, `./hub load`, `./hub checkins`, `./hub checkin --feet 4 --legs 5`, `./hub steps 2026-09-27=6200`, `./hub import FILE.fit`, `./hub plan --verdict easy --note "…" --workout ID`, `./hub split --total 30 --intervals 3`. Run `./hub --help` for the rest.
-- **MCP server:** [`mcp_server.py`](mcp_server.py) exposes 38 tools (today, check-ins, rides, a ride's full story, fitness, body-system load, importing watch files, daily steps, morning readiness, effort ratings, the day's focus and plan, area routes, climb goals, skill ladders, calibration and tests, test weeks, the aerobic engine, sport carry-over, milestones, workouts…) to Claude Code or Claude Desktop:
+- **MCP server:** [`mcp_server.py`](mcp_server.py) exposes 44 tools (today, check-ins, rides, a ride's full story, fitness, body-system load, importing watch files, daily steps, morning readiness, effort ratings, the day's focus and plan, area routes, climb goals, skill ladders, calibration and tests, test weeks, the aerobic engine, sport carry-over, milestones, workouts…) to Claude Code or Claude Desktop:
 
   ```bash
   claude mcp add --scope user s-bike-hub -- "$PWD/.venv/bin/python" "$PWD/mcp_server.py"
@@ -355,6 +355,16 @@ The thresholds (a 2-point SWOLF step, a 5% fade) are starting points to check ag
 
 A separate swim recovery estimate reads active pool lengths from the watch: `strokes × stroke factor × (length speed / 0.9 m/s)²`, adjusted for paddles, pull buoy and perceived effort. The stroke factors and gear multipliers are provisional tuning choices, not measured tendon forces. One provisional block starts at three times the median dose of the first three swims, then is **fitted continuously** to next-morning shoulder reports: a Bayesian fit over candidate block sizes, with the first-swims value as a log-normal prior, with an 80% interval that narrows as reports come in. The 1.5-block line is a planning convention, not an injury threshold. The Coach's body map (anatomy from [body-highlighter](https://www.npmjs.com/package/body-highlighter), MIT) shows where each sport's load lands; the colours are relative participation, not measured forces.
 
+### Lifting and functional strength
+
+A gym session is a list of exercises: barbell lifts, medicine-ball throws, cable and band moves, holds and hangs. List them yourself on the Plan tab (name, sets × reps or time, weight, tempo), or ask your AI to build the session. The AI scores it: the kind of exercise, whether it's **restorative** or **build** work, and how each movement's strain is shared across the body.
+- **The check-off** after the workout runs down the list. More weight than planned counts as more load. Less weight asks why: *too heavy* keeps the planned load and lowers the strength estimate; *chose to* counts what you lifted.
+- **Each muscle group gets a recovery block**, tuned by a follow-up two to four days later. Leg work shares the leg budget with running and riding.
+- **The Rules tab** holds your line items: "No barbell squats" is enforced, favourites come up often, anything else guides the AI.
+- **The steer** suggests how much of a session should be restorative: 5-10% when you're fresh, about 80% when any system is at its limit. Your after-session and follow-up reports move the curve, and your own call always wins.
+
+How to use it with an AI coach, and the thinking behind it: **[the wiki](https://github.com/JHarp199345/S-Bike-Training-Hub/wiki/Training-with-your-AI)**.
+
 ### How the sports carry over
 
 A carry-over table estimates how much training one sport builds another, compared with training that sport itself, plus how much each sport tires your legs compared with running.
@@ -385,7 +395,7 @@ Reports and pull requests for other bikes are very welcome.
 ## Development
 
 ```bash
-tests/run_all.sh        # 36 test files: auto-shift, ERG, FTP test, routes, pairing, coach, MCP, adherence, training load, focus, sessions, calibration, CP/W′, carry-over…
+tests/run_all.sh        # 37 test files: auto-shift, ERG, FTP test, routes, pairing, coach, MCP, adherence, training load, focus, sessions, calibration, CP/W′, carry-over…
 ```
 
 - `bridge.py` is the Bluetooth bridge, gears, ERG and the ride loop.
