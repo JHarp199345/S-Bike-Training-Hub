@@ -188,7 +188,7 @@ def style(host):
 async def handle(bridge, method, path, body, host):
     """(status, content type, body bytes, extra headers) for map paths, or None."""
     p = path.split("?")[0]
-    if p in ("/ride", "/plan", "/fitness", "/workouts", "/milestones", "/coach", "/course"):
+    if p in ("/ride", "/plan", "/fitness", "/workouts", "/milestones", "/coach", "/course", "/dashboard"):
         return 200, TYPES[".html"], (WEB / f"{p[1:]}.html").read_bytes(), {}
     if p.startswith("/web/") and p.endswith((".js", ".css", ".png", ".json")):
         f = (WEB / p[5:]).resolve()
@@ -740,13 +740,23 @@ def load_state(base):
     return _load_cache["data"]
 
 
+def weekly_due(d, date, base):
+    """The Sunday check-in, when it's open (Sunday through Tuesday) and not yet answered."""
+    import weekly, datetime as _dt
+    try:
+        return weekly.due(d, _dt.date.fromisoformat(date), done_by_day(base, d))
+    except Exception as e:
+        return {"error": str(e)}
+
+
 def lift_ctx(base, d, date):
     """What the steer needs from the load picture: the mechanical headline and today's readiness verdict."""
     import loads
     try:
         st = load_state(base)
         r = loads.readiness(st, (d["checkins"].get(date) or {})) if st.get("systems") else {}
-        return {"headline": st.get("headline"), "verdict": r.get("verdict")}
+        return {"headline": st.get("headline"), "verdict": r.get("verdict"),
+                "engine_level": ((r.get("systems") or {}).get("engine") or {}).get("level")}
     except Exception:
         return {}
 
@@ -933,7 +943,8 @@ async def coach_api(bridge, method, path, p, body):
                        "calibration": cal,
                        "rpe_words": coach.RPE_WORDS, "test_steps": coach.TEST_STEPS, "ftp": bridge.profile["ftp"],
                        "verdicts": coach.VERDICTS, "workouts": [{"id": w.get("id"), "name": w["name"]} for w in bridge.workouts],
-                       "lifting": lifting_today(d, date, rides.parent)})
+                       "lifting": lifting_today(d, date, rides.parent),
+                       "weekly": weekly_due(d, date, rides.parent)})
         if p == "/api/coach/history":
             days = int((q.get("days") or ["30"])[0])
             since = (__import__("datetime").date.fromisoformat(date) - __import__("datetime").timedelta(days=days)).isoformat()
@@ -1048,6 +1059,15 @@ async def coach_api(bridge, method, path, p, body):
             if hasattr(bridge, "refresh_focus"):
                 bridge.refresh_focus(force=True)
             return js({"changed": ev, "skills": skills.summary(d)})
+        if p == "/api/coach/weekly":
+            # the Sunday check-in (weekly.py): GET what's due, POST the answers
+            import weekly
+            if method == b"POST":
+                sun = req.get("sunday") or (weekly.sunday_for(__import__("datetime").date.fromisoformat(date)) or __import__("datetime").date.fromisoformat(date)).isoformat()
+                out = weekly.record(d, sun, req)
+                coach.save(d)
+                return js({"weekly": out, "sunday": sun})
+            return js({"due": weekly_due(d, date, rides.parent), "answered": d.get("weekly", {})})
         if p.startswith("/api/coach/lifting"):
             # lifting and functional strength (lifting.py): plan, evaluate, check off, follow up, the rider's rules
             import lifting

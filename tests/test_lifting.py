@@ -27,6 +27,9 @@ def main():
     e = v["exercises"][0]
     check(f"the movement's strain is shared by the AI's percentages (deadlift {e['points']} points: lower back {v['regions']['lower_back']}, quads {v['regions']['quads']})",
           abs(v["regions"]["lower_back"] - 0.30 * e["points"]) < 0.2 and abs(sum(v["regions"].values()) - e["points"]) < 0.3)
+    sw = lambda w: lifting.evaluate(d, [{"name": "Cable rotational swing", "kind": "power", "sets": 1, "reps": 10, "weight": w, "per_side": True,
+                                         "regions": {"obliques": 60, "abs": 40}}])["points_total"]
+    check(f"power moves (swings, chops) go by effort and weight, so a heavier set counts more ({sw(20)} < {sw(30)} < {sw(40)})", sw(20) < sw(30) < sw(40))
     slow = lifting.evaluate(d, [dict(bench, tempo="3-0-3")])["points_total"]
     check(f"tempo 3-0-3 counts as more strain per rep ({slow} vs {lifting.evaluate(d, [bench])['points_total']})",
           slow > lifting.evaluate(d, [bench])["points_total"] * 1.5)
@@ -116,6 +119,15 @@ def main():
     check(f"running blocks over the limit: restorative, ~80% ({beat['mode']}, {beat['restorative_share']}; {beat['why'][0]})",
           beat["mode"] == "restorative" and beat["restorative_share"] >= 0.75 and "running blocks" in beat["why"][0])
     check(f"an easy day leans restorative ({easy['restorative_share']})", easy["restorative_share"] >= 0.5)
+    core = lifting.steer(new(), {"headline": {"mechanical": {"remodeling_ratio": 8.8, "muscle_ratio": 0.9}}, "verdict": "easy", "engine_level": "go"},
+                         ["obliques", "abs", "lower_back"])
+    legday = lifting.steer(new(), {"headline": {"mechanical": {"remodeling_ratio": 8.8, "muscle_ratio": 0.9}}, "verdict": "easy", "engine_level": "go"},
+                           ["quads", "glutes"])
+    check(f"a core session doesn't carry the running blocks ({core['mode']} {core['restorative_share']}); a leg session does ({legday['mode']} {legday['restorative_share']})",
+          core["mode"] == "build" and legday["mode"] == "restorative")
+    kneel = lifting.steer(new(), {"headline": {"mechanical": {"remodeling_ratio": 8.8}}, "verdict": "easy", "engine_level": "go"},
+                          {"obliques": 25, "shoulders": 13, "abs": 12, "lower_back": 8, "glutes": 6})
+    check(f"kneeling core work with a little glute doesn't carry the running blocks ({kneel['mode']})", kneel["mode"] == "build")
     ev = lifting.evaluate(new(), [bench, dead], ctx={"headline": {"mechanical": {"remodeling_ratio": 1.3}}})
     check(f"evaluate says when a session grinds more than the steer suggests ({ev['fits_steer']})", ev["fits_steer"].startswith("more grinding"))
     dl = new()
@@ -131,15 +143,48 @@ def main():
     check("the rider's override is kept with the plan", dl["plans"]["2026-10-30"]["sessions"][0]["override"].startswith("Feeling great"))
 
     # recovery blocks and the follow-up
-    today = dt.date(2026, 10, 7)
+    check("two days after a session the follow-up isn't due yet", lifting.pending_followup(d, dt.date(2026, 10, 7)) is None)
+    today = dt.date(2026, 10, 8)
     pf = lifting.pending_followup(d, today)
-    check(f"two days later the follow-up is due ({[r['key'] for r in pf['regions']]})", pf and pf["log_date"] == day)
+    check(f"three days later the follow-up is due ({[r['key'] for r in pf['regions']]})", pf and pf["log_date"] == day)
     m0 = lifting.model(d, today)["regions"]["pecs"]
     lifting.followup(d, day, {"pecs": 9}, "harder", today=today)
     m1 = lifting.model(d, today)["regions"]["pecs"]
     check(f"very sore chest two days on: the chest's block shrinks ({m0['reference']} -> {m1['reference']})", m1["reference"] < m0["reference"])
     check("no follow-up due once it's answered", lifting.pending_followup(d, today) is None)
+    check("still open on day 5, gone on day 6", lifting.pending_followup(new() | {"lifting": {"logs": [{"date": day, "session": "x", "regions": {"abs": 5}}], "followups": {}}}, dt.date(2026, 10, 10)) is not None
+          and lifting.pending_followup(new() | {"lifting": {"logs": [{"date": day, "session": "x", "regions": {"abs": 5}}], "followups": {}}}, dt.date(2026, 10, 11)) is None)
+    # the Sunday check-in
+    import weekly
+    dw = new(); lifting.set_session(dw, "2026-10-07", [dead]); lifting.log(dw, "2026-10-07", None, 7, 7)
+    done = {"2026-10-06": [{"sport": "bike", "minutes": 40}], "2026-10-08": [{"sport": "swim", "minutes": 45}], "2026-10-07": [{"sport": "gym", "minutes": 30}]}
+    q = weekly.due(dw, dt.date(2026, 10, 11), done)
+    keys = [x["key"] for x in q["questions"]]
+    check(f"Sunday asks only about what the week held: riding, swimming, the lifted muscles, the week ({keys})",
+          "legs" in keys and "shoulders" in keys and "feet" not in keys and "lift:lower_back" in keys and keys[-1] == "week")
+    check("open through Tuesday, not Wednesday", weekly.due(dw, dt.date(2026, 10, 13), done) and weekly.due(dw, dt.date(2026, 10, 14), done) is None)
+    weekly.record(dw, "2026-10-11", {"legs": 4, "shoulders": 3, "lift": {"lower_back": 8}, "week": 6})
+    check("answered: it fills that Sunday's check-in, and isn't asked again", dw["checkins"]["2026-10-11"]["legs"] == 4
+          and weekly.due(dw, dt.date(2026, 10, 12), done) is None)
+    m2 = lifting.model(dw, dt.date(2026, 10, 11))["regions"]["lower_back"]
+    dw2 = new(); lifting.set_session(dw2, "2026-10-07", [dead]); lifting.log(dw2, "2026-10-07", None, 7, 7)
+    m1 = lifting.model(dw2, dt.date(2026, 10, 11))["regions"]["lower_back"]
+    check(f"a sore lower back on Sunday refits its lifting block ({m1['reference']} -> {m2['reference']}, {m2['reference_from']})",
+          m2["follow_ups_used"] == 1 and m2["reference"] < m1["reference"])
     check("kilograms work too", lifting.clean(d, [dict(bench, unit="kg", weight=84)])[0]["unit"] == "kg")
+    # lifting carries over into each sport's verdict, by how much the muscle works in that sport
+    import loads
+    sysd = {x: {"tuned": True, "acwr": 1.0, "last7": 0, "prev7": 0} for x in loads.SYSTEMS}
+    st = {"systems": sysd, "history_days": 30, "days": [],
+          "lifting": {"regions": {"shoulders": {"name": "Shoulders", "blocks": 2.0}, "obliques": {"name": "Obliques", "blocks": 0.4}}}}
+    rd = loads.readiness(st, {})
+    check(f"shoulders carrying 2 blocks from lifting: swimming rests, and says why ({rd['swimming']['verdict']}: {rd['swimming']['why']})",
+          rd["swimming"]["verdict"] == "rest" and "lifting: shoulders" in rd["swimming"]["why"][0])
+    check(f"...but the bike and running barely use shoulders: they stay go ({rd['verdict']}, {rd['running']['verdict']})",
+          rd["verdict"] == "go" and rd["running"]["verdict"] == "go")
+    st["lifting"]["regions"] = {"quads": {"name": "Quadriceps", "blocks": 1.2}}
+    rd = loads.readiness(st, {})
+    check(f"quads carrying 1.2 blocks: the bike goes easy ({rd['verdict']}, {rd['limited_by']})", rd["verdict"] == "easy" and any("quadriceps" in w for w in rd["limited_by"]))
     print("ALL PASS" if ok else "SOME FAILED"); return ok
 
 

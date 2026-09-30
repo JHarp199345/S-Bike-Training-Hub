@@ -113,7 +113,7 @@
  #msg,#tmsg{min-height:20px;color:#fbbf24;margin-top:8px}
  @media (max-width:560px){.split{height:220px;gap:3px}.names div{font-size:10px}.tot{grid-template-columns:repeat(2,1fr)}}
 </style></head><body><main>
-<h1>Coach</h1><div class="sub">Day by day: test, check in, then ride what today allows · <a href="/ride">Ride view</a> · <a href="/">Panel</a> · <a href="/fitness">Fitness</a></div>
+<h1>Coach</h1><div class="sub">Day by day: test, check in, then ride what today allows · <a href="/ride">Ride view</a> · <a href="/">Panel</a> · <a href="/fitness">Fitness</a> · <a href="/dashboard">Dashboard</a></div>
 
 <nav class="tabs" role="tablist" aria-label="Coach sections">
  <button role="tab" data-tab="today">Today</button><button role="tab" data-tab="plan">Plan</button><button role="tab" data-tab="progress">Progress</button><button role="tab" data-tab="rules">Rules</button>
@@ -161,6 +161,8 @@
  <div class="row" style="margin-top:10px" id="planrow" hidden><span class="sub">Today's ride:</span> <b id="planw"></b> <button class="purple" id="planride">▶ Ride it</button></div>
  <div class="row" style="margin-top:10px" id="courserow" hidden><span class="sub">No route planned:</span> <button class="purple" id="plancourse">🎮 Ride today's course</button></div>
 </div>
+<h2 id="weeklytitle" hidden>SUNDAY CHECK-IN · YOUR WEEK</h2>
+<div class="card" id="weeklycard" hidden></div>
 <h2 id="liftfollowtitle" hidden>LIFT FOLLOW-UP</h2>
 <div class="card" id="liftfollow" hidden></div>
 <h2 id="liftlogtitle" hidden>TODAY'S LIFTS · CHECK OFF</h2>
@@ -294,7 +296,7 @@ async function loadToday(){ const r=await (await fetch('/api/coach/today')).json
   if(c.hr90) $('why').textContent+=` · HR at 90 W ${c.hr90}`+(c.hrr!=null?`, recovered ${c.hrr} bpm`:'')+(r.baseline?` (normal ${Math.round(r.baseline.hr90)})`:'');
   sysline(r);
   focusLine(r);
-  rpeLine(r); liftToday(r.lifting);
+  rpeLine(r); liftToday(r.lifting); weeklyToday(r.weekly);
   morningLine(r.morning);
   weekStrip(r.week, r.date);
   skillList(r.skills);
@@ -420,7 +422,7 @@ function headline(h){if(!h){$('headline').hidden=true;$('balance').hidden=true;r
   $('cardionum').textContent=h.cardio.ratio.toFixed(2)+'×';
   $('cardiosub').textContent=`${Math.round(h.cardio.last7)} points this week / ${Math.round(h.cardio.usual_week)} reference`;
   $('mechanicalnum').textContent=h.mechanical.ratio.toFixed(2)+'×';
-  $('mechanicalsub').textContent=`run ${h.mechanical.remodeling_blocks.toFixed(2)} blocks · swim ${h.mechanical.swim_blocks==null?'building baseline':h.mechanical.swim_blocks.toFixed(2)+' blocks'} · legs ${h.mechanical.muscle_ratio.toFixed(2)}×`;
+  $('mechanicalsub').textContent=`run ${h.mechanical.remodeling_blocks.toFixed(2)} blocks · swim ${h.mechanical.swim_blocks==null?'building baseline':h.mechanical.swim_blocks.toFixed(2)+' blocks'} · legs ${h.mechanical.muscle_ratio.toFixed(2)}×${h.mechanical.lift_region?` · lifting ${h.mechanical.lift_blocks.toFixed(2)} blocks (${(loadData?.lifting?.regions?.[h.mechanical.lift_region]?.name||h.mechanical.lift_region).toLowerCase()})`:''}`;
   $('balancegrade').textContent=`Phase balance: ${h.balance.grade} (${h.balance.score}/100, provisional) · ${Math.round(h.balance.cardio_weight*100)}% cardio / ${Math.round(h.balance.mechanical_weight*100)}% mechanical`;
   $('phase').value=h.phase;
 }
@@ -711,7 +713,10 @@ function drawLift(){ const e=liftEdit, box=$('liftcard');
     if(!r.ok){ $('lmsg').textContent=r.j.error; return; }
     liftSaved=r.j.evaluation&&!r.j.evaluation.unscored.length?'Saved. '+evalHtml(r.j.evaluation):'Saved. Now ask your AI to score it - it fills in the muscles and the load, and can suggest changes.';
     $('lmsg').innerHTML=liftSaved; await liftMeta(); loadToday(); };
-  if(liftSaved){ $('lmsg').innerHTML=liftSaved; liftSaved=null; } }
+  if(liftSaved){ $('lmsg').innerHTML=liftSaved; liftSaved=null; }
+  const lx=payload();                                  // a scored session gets its own steer: its muscles decide which limits count
+  if(lx.length&&e.lifts.every(x=>!x.name||x.scored)) post('/api/coach/lifting/evaluate',{lifts:lx}).then(r=>{ const st=box.querySelector('.steer');
+    if(r.ok&&st) st.outerHTML=steerHtml(r.j.steer).replace('<b>Steer:','<b>This session\'s steer:'); }); }
 function evalHtml(v){ const R=LIFT.regions||{}, top=Object.entries(v.regions).sort((a,b)=>b[1]-a[1]).slice(0,5);
   return `${v.fits_steer?`<div>Steer: ${esc(v.fits_steer)}.</div>`:''}<b>${v.points_total} points</b> (estimate)${v.usual_session?` · ${Math.round(v.vs_usual*100)}% of your usual session`:''} · about ${v.minutes} min.
    Most on ${top.map(([k,p])=>`${esc(R[k]||k)} ${Math.round(p)}${v.regions_carrying_blocks[k]?` (already carrying ${v.regions_carrying_blocks[k]} blocks)`:''}`).join(', ')}.${v.leg_points?` Legs: ${v.leg_points} points toward the leg budget running and riding share.`:''}`; }
@@ -749,6 +754,18 @@ function liftToday(L){ if(!L){ return; } LIFT.unit=L.unit; LIFT.regions=L.region
       if(w&&+w.value!==x.weight) o.weight=+w.value; if(n&&x.reps&&+n.value!==x.reps) o.reps=+n.value; if(why[i]) o.why=why[i]; return o; });
     const r=await post('/api/coach/lifting/log',{date:day.date,done,rpe:+$('lrpe').value,wellness:+$('lwell').value,session_index:s.index});
     $('llogmsg').textContent=r.ok?'Checked off.':r.j.error; if(r.ok) setTimeout(loadToday,700); }; }
+function weeklyToday(W){ const box=$('weeklycard'); $('weeklytitle').hidden=box.hidden=!(W&&W.questions); if(!W||!W.questions) return;
+  const fmt=x=>new Date(x+'T12:00').toLocaleDateString(undefined,{month:'short',day:'numeric'});
+  box.innerHTML=`<div class="sub">A look back at ${fmt(W.week[0])}–${fmt(W.week[1])}: only what the week held. This is the calibration anchor - the models trust it most.</div>
+   ${W.questions.map(q=>q.key==='hops'?`<div class="sl"><label>${esc(q.label)} <span>${esc(q.scale)}</span></label><div class="hops"><label>Left <input type="number" data-wk="hops_left" min="0" max="100" placeholder="–"></label><label>Right <input type="number" data-wk="hops_right" min="0" max="100" placeholder="–"></label></div></div>`
+     :`<div class="sl"><label>${esc(q.label)} <span><b id="wkv-${q.key.replace(':','-')}">3</b>/10 · ${esc(q.scale)}</span></label><input type="range" min="1" max="10" value="3" data-wk="${q.key}"></div>`).join('')}
+   <div class="sl"><label for="wknote">Anything about the week <span>kept, not scored</span></label><textarea id="wknote" rows="2" maxlength="1000"></textarea></div>
+   <div class="row"><button class="blue" id="wksave">Save the week</button></div><div id="wkmsg" class="sub"></div>`;
+  box.querySelectorAll('input[type=range][data-wk]').forEach(i=>i.oninput=()=>$('wkv-'+i.dataset.wk.replace(':','-')).textContent=i.value);
+  $('wksave').onclick=async()=>{ const body={sunday:W.sunday,lift:{}}; box.querySelectorAll('[data-wk]').forEach(i=>{ const k=i.dataset.wk, v=i.value; if(v==='') return;
+      if(k.startsWith('lift:')) body.lift[k.slice(5)]=+v; else body[k]=+v; });
+    if($('wknote').value.trim()) body.note=$('wknote').value.trim();
+    const r=await post('/api/coach/weekly',body); $('wkmsg').textContent=r.ok?'Saved - thanks. The models are refitted.':r.j.error; if(r.ok) setTimeout(loadToday,900); }; }
 async function loadRules(){ await liftMeta(); const rs=LIFT.rules||[];
   $('rulelist').innerHTML=rs.length?rs.map(r=>`<div class="rule"><div>${esc(r.text)}<span class="rtag ${r.kind==='note'?'guide':r.kind}">${r.kind==='never'?'never planned':r.kind==='favourite'?'favourite':'guidance'}</span>${r.note?`<small>${esc(r.note)}</small>`:''}</div><button type="button" data-rm="${esc(r.text)}" aria-label="Remove rule ${esc(r.text)}">✕</button></div>`).join('')
     :'<div class="sub">No rules yet.</div>';

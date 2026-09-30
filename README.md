@@ -142,7 +142,7 @@ Edit [`regions.json`](regions.json) (name, bounding box, center, zoom) and run `
 Everything the pages can do is also available headless, so an AI coach can read your data and write your plan:
 
 - **Command line:** `./hub today`, `./hub rides`, `./hub fitness`, `./hub load`, `./hub checkins`, `./hub checkin --feet 4 --legs 5`, `./hub steps 2026-09-27=6200`, `./hub import FILE.fit`, `./hub plan --verdict easy --note "…" --workout ID`, `./hub split --total 30 --intervals 3`. Run `./hub --help` for the rest.
-- **MCP server:** [`mcp_server.py`](mcp_server.py) exposes 44 tools (today, check-ins, rides, a ride's full story, fitness, body-system load, importing watch files, daily steps, morning readiness, effort ratings, the day's focus and plan, area routes, climb goals, skill ladders, calibration and tests, test weeks, the aerobic engine, sport carry-over, milestones, workouts…) to Claude Code or Claude Desktop:
+- **MCP server:** [`mcp_server.py`](mcp_server.py) exposes 45 tools (today, check-ins, rides, a ride's full story, fitness, body-system load, importing watch files, daily steps, morning readiness, effort ratings, the day's focus and plan, area routes, climb goals, skill ladders, calibration and tests, test weeks, the aerobic engine, sport carry-over, milestones, workouts…) to Claude Code or Claude Desktop:
 
   ```bash
   claude mcp add --scope user s-bike-hub -- "$PWD/.venv/bin/python" "$PWD/mcp_server.py"
@@ -363,7 +363,16 @@ A gym session is a list of exercises: barbell lifts, medicine-ball throws, cable
 - **The Rules tab** holds your line items: "No barbell squats" is enforced, favourites come up often, anything else guides the AI.
 - **The steer** suggests how much of a session should be restorative: 5-10% when you're fresh, about 80% when any system is at its limit. Your after-session and follow-up reports move the curve, and your own call always wins.
 
+- **Calibration on a schedule:** a follow-up three days after every lift session, and a **Sunday check-in** (open through Tuesday) that asks only about what your week held: legs if you rode, feet and the hop test if you ran, shoulders if you swam, each muscle group you lifted, and the week overall. The running, swim and lifting models learn from it and trust it most.
+- **Lifting carries over:** a muscle group's lifting load counts toward the mechanical load, and toward each sport's verdict by how much that muscle works in the sport. A heavy shoulder day makes the swim verdict easy; kneeling core work barely touches running.
+
 How to use it with an AI coach, and the thinking behind it: **[the wiki](https://github.com/JHarp199345/S-Bike-Training-Hub/wiki/Training-with-your-AI)**.
+
+### The dashboard
+
+<p align="center"><img src="docs/dashboard.jpg" width="320" alt="The dashboard (sample data): today's verdicts for bike, running, swimming and lifting, then every piece of the mechanical load as a ring against its limit, and the cardio fitness, fatigue and form chart"></p>
+
+**/dashboard** shows everything the hub computes in one place, each chart with a plain "what it means": today's verdict per sport; every piece of the mechanical load as a ring against its limit; cardio fitness, fatigue and form, and where the week's load came from; where the load lands on the body; lifting blocks, the steer's suggestions against what you did, and strength estimates; what the watch saw; and what every model has learned from your tests and reports. Today, Plan and Progress stay simple; the dashboard is where the detail lives.
 
 ### How the sports carry over
 

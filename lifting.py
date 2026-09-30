@@ -12,7 +12,7 @@ The rider's design (2026-09-30):
         too heavy  -> the load stays as planned (the lighter weight was your limit, the same hard work) and the
                       strength estimate for that lift comes down, so the next plan starts where you really are
         chose to   -> the load is what you actually lifted
-  - Two to four days later it asks how those regions feel (1-10). Those answers fit each region's block, the
+  - Three days later it asks how those regions feel (1-10) - open for two more days. Those answers fit each region's block, the
     same way the swim block is fitted to next-morning shoulders.
   - Rules the rider types ("No squats", "Favorite lift: incline dumbbell press") that every AI reads. "No ..." and
     "never ..." rules are enforced: a plan with one of those exercises is refused.
@@ -25,7 +25,7 @@ LOAD (estimates from sets, reps, weight and tempo - not a measurement of tissue)
   weighted lifts (barbell, dumbbell, kettlebell, machine, cable) - intensity against an estimated one-rep max
       (Epley: 1RM = weight x (1 + reps/30), with the reps left in reserve from the effort rating):
           set points = reps x (weight / 1RM / 0.75)^2 x tempo       a set of 10 at 75% of max = 10 points
-  throws, bands, bodyweight, holds - effort, not a max:
+  throws, swings and chops (power), bands, bodyweight, holds - effort, not a max:
           set points = reps x (effort / 7)^2 x kind factor x (1 + kg / 20)^0.5 x tempo   (seconds count as reps / 3)
   tempo: seconds per rep (e.g. 3-0-3 = 6) against a normal ~2 s rep: x (seconds / 2)^0.5, at most x 2.
   The movement's points are shared across its regions by the AI's percentages. Leg regions count toward the
@@ -39,10 +39,11 @@ import statistics
 import bodymap
 
 KG = {"kg": 1.0, "lb": 0.45359237}
-KINDS = ("barbell", "dumbbell", "kettlebell", "machine", "cable", "band", "medicine_ball", "bodyweight", "other")
+KINDS = ("barbell", "dumbbell", "kettlebell", "machine", "cable", "band", "medicine_ball", "power", "bodyweight", "other")
 STYLES = ("restorative", "build")
 MAX_BASED = ("barbell", "dumbbell", "kettlebell", "machine", "cable")     # a one-rep max makes sense
-KIND_FACTOR = {"medicine_ball": 0.8, "band": 0.6, "bodyweight": 0.7, "other": 0.7, "cable": 0.6,
+# "power": swings, chops and throws with any implement (cable, band, bat) - fast, rotational, not judged against a max
+KIND_FACTOR = {"medicine_ball": 0.8, "power": 0.8, "band": 0.6, "bodyweight": 0.7, "other": 0.7, "cable": 0.6,
                "kettlebell": 0.8, "dumbbell": 0.8, "barbell": 0.9, "machine": 0.7}
 LEG_REGIONS = ("quads", "hamstrings", "glutes", "calves", "adductors", "hip_flexors")
 PLAN_RPE = 8              # an unlogged plan is judged as if done with ~2 reps left in reserve
@@ -56,8 +57,9 @@ THRESHOLD = 1.5
 DEFAULT_REF = 15.0        # points in one block before any session: about a hard 3 x 10 shared over a few regions
 PRIOR_SD = 0.5
 REPORT_SD = 1.5
+WEEKLY_SD = 1.0          # the Sunday check-in is the week's considered answer: trusted a little more
 GRID = [math.exp(math.log(0.33) + i * (math.log(3.0) - math.log(0.33)) / 60) for i in range(61)]
-FOLLOW_DAYS = (2, 4)      # the follow-up is asked 2-4 days after a session
+FOLLOW_DAYS = (3, 5)      # the follow-up is due 3 days after a session, and stays open two more (the rider's schedule)
 
 # the steer: the restorative share of a session's work, from the load carried (1.0 = a system at its limit)
 STEER_LO, STEER_HI = 0.075, 0.80     # fresh ... beat up (the rider's starting numbers - a guess, tuned by reports)
@@ -69,6 +71,8 @@ GUIDANCE = [
     "light carries. Build work is progressive strength: heavier sets, more reps over the weeks.",
     "When the steer says restorative, make about that share of the session's work restorative; when it says build, "
     "keep restorative work to 5-10% as maintenance.",
+    "The steer depends on the session's muscles: leg limits count only when the legs are worked (steer_without_legs "
+    "shows the day for an upper-body or core session). Evaluate a session to get its own steer.",
     "Space the legs: running, riding and leg lifting share one leg budget, and bone and tendon recover far more slowly "
     "than muscle. Prefer steady small doses over one big leg day that costs two weeks.",
     "The steer is a suggestion from the models. Explain it; if the rider wants something else, their call wins - "
@@ -377,13 +381,32 @@ def learned_offset(d):
     return max(-0.3, min(0.3, off))
 
 
+WORKS_SHARE = 0.2        # a session "works the legs" when they take at least a fifth of its load (kneeling core work doesn't)
+SWIM_REGIONS = ("shoulders", "scapula", "lats", "serratus", "pecs", "traps", "triceps")
+
+
 def steer(d, ctx=None, session_regions=None, today=None):
     """The suggested restorative share of today's session, and why. ctx: {"headline": loads headline, "verdict":
-    readiness verdict} from the load summary."""
+    readiness verdict, "engine_level": heart and lungs} from the load summary.
+    A session's own muscles decide which limits count (the rider's rule, 2026-09-30): running blocks, impact and the
+    leg muscles only when it works the legs; swim blocks only when it works the swimming muscles; and without the
+    legs, the day's heart-and-lungs verdict stands in for the leg-led overall one. With no session yet, all count."""
     ctx = ctx or {}
     mech = (ctx.get("headline") or {}).get("mechanical") or {}
-    parts = {"running blocks": mech.get("remodeling_ratio"), "impact": mech.get("impact_ratio"),
-             "leg muscles": mech.get("muscle_ratio"), "swim blocks": mech.get("swim_ratio")}
+    if isinstance(session_regions, dict):              # {region: points}: a group counts when it takes a real share of the work
+        tot = sum(session_regions.values()) or 1
+        share = lambda group: sum(v for r, v in session_regions.items() if r in group) / tot
+        legs, swim = share(LEG_REGIONS) >= WORKS_SHARE, share(SWIM_REGIONS) >= WORKS_SHARE
+    else:
+        regs = set(session_regions or [])
+        legs = not session_regions or bool(regs & set(LEG_REGIONS))
+        swim = not session_regions or bool(regs & set(SWIM_REGIONS))
+    parts = {}
+    if legs:
+        parts.update({"running blocks": mech.get("remodeling_ratio"), "impact": mech.get("impact_ratio"),
+                      "leg muscles": mech.get("muscle_ratio")})
+    if swim:
+        parts["swim blocks"] = mech.get("swim_ratio")
     rec = model(d, today)["regions"]
     look = session_regions or list(rec)
     for r in look:
@@ -391,12 +414,15 @@ def steer(d, ctx=None, session_regions=None, today=None):
             parts[f"{rec[r]['name'].lower()} (lifting)"] = rec[r]["blocks"] / THRESHOLD
     parts = {k: round(v, 2) for k, v in parts.items() if v is not None}
     ratio = max(parts.values(), default=0.0)
-    verdict = ctx.get("verdict")
+    verdict = ctx.get("verdict") if legs else (ctx.get("engine_level") or None)
+    said = "today's verdict" if legs else "today's heart-and-lungs verdict"
     why = [f"{k} at {round(100 * v)}% of the limit" for k, v in sorted(parts.items(), key=lambda kv: -kv[1])[:3] if v >= STEER_FROM]
     if verdict == "rest":
-        ratio = max(ratio, 1.0); why.insert(0, "today's verdict is rest")
+        ratio = max(ratio, 1.0); why.insert(0, f"{said} is rest")
     elif verdict == "easy":
-        ratio = max(ratio, 0.85); why.insert(0, "today's verdict is easy")
+        ratio = max(ratio, 0.85); why.insert(0, f"{said} is easy")
+    if session_regions and not legs:
+        why.append("the legs aren't worked, so the running and leg limits don't count")
     off = learned_offset(d)
     share = _curve(ratio, off)
     mode = "restorative" if share >= 0.5 else "build" if share <= 0.15 else "mixed"
@@ -429,7 +455,7 @@ def evaluate(d, lifts, today=None, ctx=None, draft=True):
     after = {r: round((rec["regions"].get(r, {}).get("blocks") or 0) + v / (rec["regions"].get(r, {}).get("reference") or DEFAULT_REF), 2)
              for r, v in reg.items()}
     total = sum(pts)
-    st = steer(d, ctx, list(reg), today)
+    st = steer(d, ctx, reg or list({r for x in ls for r in (x.get("regions") or {})}), today)
     share = restorative_share(ls, pts)
     fit = None
     if share is not None:
@@ -470,7 +496,11 @@ def log(d, date, done, rpe, wellness, session_index=None, compare_last=None, ove
             and x.get("weight") is not None and float(a["weight"]) < x["weight"] and a.get("why") not in WHY]
     if need:
         raise ValueError("lighter than planned - why? (too_heavy or chose): " + ", ".join(need))
-    st = steer(d, ctx, sorted({r for x in plan for r in (x.get("regions") or {})}), dt.date.fromisoformat(date))
+    plan_reg = {}
+    for x in plan:
+        for r, v in spread(x, points(d, x)[0]).items():
+            plan_reg[r] = plan_reg.get(r, 0) + v
+    st = steer(d, ctx, plan_reg or None, dt.date.fromisoformat(date))
     rows, reg, total, pts = [], {}, 0.0, []
     for x, a in zip(plan, done):
         if not a.get("done", True):
@@ -499,7 +529,11 @@ def log(d, date, done, rpe, wellness, session_index=None, compare_last=None, ove
                     new_rm = one_rm(wkg, reps, 0)                    # missed reps: at the limit
                 elif from_set > (known or anchor or 0) or not (known or anchor):
                     new_rm = from_set
-                p_, det = points(d, x, weight=w, reps=reps, sets=sets, rpe=rpe, e1rm=anchor or from_set)
+                # no history: at the planned weight, the plan's guess or what the reported effort says, whichever is stronger
+                # (an easy set means the weight was further from the max than the plan assumed); heavier than planned is
+                # judged against the plan, so it counts as harder
+                yard = known or (max(anchor or 0, from_set) if (w or 0) <= (x.get('weight') or 0) else (anchor or from_set))
+                p_, det = points(d, x, weight=w, reps=reps, sets=sets, rpe=rpe, e1rm=yard)
                 if why == "chose":
                     det["note"] = "chose lighter: the load is what was lifted"
         else:
@@ -597,13 +631,15 @@ def model(d, today=None):
                 events[l["date"]] = events.get(l["date"], 0) + l["regions"][r]
         doses = [v for _, v in sorted(events.items())][:3]
         initial = max(5.0, 3 * statistics.median(doses)) if doses else DEFAULT_REF
-        obs = [(f["date"], v) for ld, f in s["followups"].items() for rr, v in f["regions"].items() if rr == r and f["date"] <= today.isoformat()]
+        obs = [(f["date"], v, REPORT_SD) for ld, f in s["followups"].items() for rr, v in f["regions"].items() if rr == r and f["date"] <= today.isoformat()]
+        obs += [(sun, w["lift"][r], WEEKLY_SD) for sun, w in (d.get("weekly") or {}).items()     # the Sunday check-in: the anchor
+                if r in (w.get("lift") or {}) and sun <= today.isoformat() and sun >= logs[0]["date"]]
         ref, interval = initial, None
         if obs:
             logw = []
             for g in GRID:
                 hist = _simulate(events, first, today, initial * g)
-                ll = sum(-0.5 * ((y - _predict(hist.get(dd, 0.0))) / REPORT_SD) ** 2 for dd, y in obs)
+                ll = sum(-0.5 * ((y - _predict(hist.get(dd, 0.0))) / sd) ** 2 for dd, y, sd in obs)
                 logw.append(ll - 0.5 * (math.log(g) / PRIOR_SD) ** 2)
             top = max(logw); w = [math.exp(x - top) for x in logw]; tot = sum(w); w = [x / tot for x in w]
             ref = initial * math.exp(sum(wi * math.log(g) for wi, g in zip(w, GRID)))
@@ -640,6 +676,7 @@ def summary(d, today=None, ctx=None):
     s = state(d)
     return {"unit": s["unit"], "regions": regions(), "kinds": list(KINDS), "styles": list(STYLES),
             "rules": rules(d), "guidance": GUIDANCE, "steer": steer(d, ctx, None, today),
+            "steer_without_legs": steer(d, ctx, ["abs", "obliques", "lower_back", "biceps", "forearms"], today),
             "unscored_sessions": unscored_sessions(d, today),
             "library": sorted(s["library"].values(), key=lambda e: (-e.get("times_done", 0), e["name"]))[:60],
             "strength": {v["name"]: {"e1rm": round(v["e1rm_kg"] / KG[s["unit"]]), "unit": s["unit"], "date": v["date"], "from": v["from"]}

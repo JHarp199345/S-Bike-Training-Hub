@@ -369,7 +369,7 @@ def walking_inputs(scored, daily_steps, prof):
             "step_force_lb": round(step_force(m, 1.3, 105) / damage.LBF)}
 
 
-def analyse(acts, prof, today=None, meta=None, feet_reports=None, daily_steps=None, lift_blocks=None):
+def analyse(acts, prof, today=None, meta=None, feet_reports=None, daily_steps=None, lift_blocks=None, weekly=()):
     today = today or dt.date.today()
     meta = meta or {}
     for a in acts:
@@ -463,7 +463,7 @@ def analyse(acts, prof, today=None, meta=None, feet_reports=None, daily_steps=No
     if systems["impact"]["tissue"]:
         systems["impact"]["zone"] = zone(systems["impact"]["tissue"]["remodeling"]["score"])
     import swimload
-    swim_recovery = swimload.model([a for a in scored if a["sport"] == "swim"], prof, today, feet_reports)
+    swim_recovery = swimload.model([a for a in scored if a["sport"] == "swim"], prof, today, feet_reports, weekly)
     sports = {}
     for r in days[-7:]:
         for sp, v in r["sports"].items():
@@ -479,7 +479,9 @@ def analyse(acts, prof, today=None, meta=None, feet_reports=None, daily_steps=No
     remodeling = systems["impact"]["tissue"]["remodeling"]["score"]
     block_limit = systems["impact"]["tissue"]["remodeling"]["threshold_blocks"]
     swim_ratio = (swim_recovery["score"] or 0) / swim_recovery["threshold_blocks"]
-    mechanical = max(impact, muscle, remodeling / block_limit, swim_ratio)  # utilization ratios, not unlike units
+    lift_top = max((lift_blocks or {}).items(), key=lambda kv: kv[1], default=(None, 0.0))
+    lift_ratio = lift_top[1] / 1.5                                            # a muscle group's lifting block vs its limit
+    mechanical = max(impact, muscle, remodeling / block_limit, swim_ratio, lift_ratio)  # utilization ratios, not unlike units
     cardio_fit = max(0, 100 - 80 * abs(cardio - 0.9))
     mechanical_fit = max(0, 100 - 85 * max(0, mechanical - 1) - 20 * max(0, 0.6 - mechanical))
     cw, mw = PHASES[phase]
@@ -490,7 +492,9 @@ def analyse(acts, prof, today=None, meta=None, feet_reports=None, daily_steps=No
                 "mechanical": {"ratio": round(mechanical, 2), "impact_ratio": round(impact, 2),
                                "muscle_ratio": round(muscle, 2), "remodeling_ratio": round(remodeling / block_limit, 2),
                                "remodeling_blocks": remodeling, "block_limit": block_limit,
-                               "swim_blocks": swim_recovery["score"], "swim_ratio": round(swim_ratio, 2)},
+                               "swim_blocks": swim_recovery["score"], "swim_ratio": round(swim_ratio, 2),
+                               "lift_blocks": round(lift_top[1], 2) if lift_top[0] else None, "lift_region": lift_top[0],
+                               "lift_ratio": round(lift_ratio, 2)},
                 "balance": {"score": balance, "grade": grade, "cardio_weight": cw,
                             "mechanical_weight": mw, "provisional": True}}
     import bodymap
@@ -590,6 +594,30 @@ def readiness(state, checkin=None):
     if mo and mo["level"] == "rest":
         run_level = "rest"
         run_why = run_why + ["this morning: " + w for w in mo["why"]]
+
+    # lifting carries over: each muscle group's lifting blocks, weighted by how much that group works in the sport
+    # (bodymap.REGIONS), count like that sport's own blocks - 1 block easy, 1.5 rest
+    import bodymap
+    lift_regions = ((state.get("lifting") or {}).get("regions") or {})
+    def carry(sport):
+        best = None
+        for r, v in lift_regions.items():
+            coef = bodymap.REGIONS.get(r, ("", {}))[1].get(sport, 0)
+            eff = v["blocks"] * coef
+            if coef and (best is None or eff > best[0]):
+                best = (eff, v["name"], v["blocks"], coef)
+        if not best or best[0] < 1:
+            return None, None
+        return ("rest" if best[0] >= 1.5 else "easy"), (f"lifting: {best[1].lower()} carrying {best[2]:.2f} blocks "
+                                                         f"(counts {round(100 * best[3])}% in this sport)")
+    for sport in ("bike", "run"):
+        lv, why = carry(sport)
+        if lv and sport == "bike":
+            worst = max(worst, lv, key=lambda v: order[v])
+            limiting.append(why)
+        elif lv:
+            run_level = max(run_level, lv, key=lambda v: order[v])
+            run_why = run_why + [why]
     run_how = {
         "rest": "Skip running today. Recheck the recent response and how your feet feel tomorrow; use the bike or pool if comfortable.",
         "easy": "Keep it flat and short: try 1 minute of easy jogging, 2 minutes walking, for about 10 minutes. Stop if discomfort builds and check again tomorrow.",
@@ -606,6 +634,10 @@ def readiness(state, checkin=None):
         elif swim_blocks >= 1:
             swim_level = max(swim_level, "easy", key=lambda v: order[v])
             swim_why.append(f"swim recovery {swim_blocks:.2f} blocks")
+    lv, why = carry("swim")
+    if lv:
+        swim_level = max(swim_level, lv, key=lambda v: order[v])
+        swim_why.append(why)
     shoulders = checkin.get("shoulders")
     if shoulders is not None and shoulders >= 6:
         swim_level = max(swim_level, "rest" if shoulders >= 8 else "easy", key=lambda v: order[v])
@@ -765,7 +797,11 @@ def summary(base, today=None):
         lift_blocks = {r: v["blocks"] for r, v in lifted["regions"].items()}
     except Exception:
         pass
-    out = analyse(acts, prof, today, meta, feet_reports, load_steps(base), lift_blocks)
+    try:
+        weekly = set(_coach.load(base / "coach.json").get("weekly", {}))
+    except Exception:
+        weekly = set()
+    out = analyse(acts, prof, today, meta, feet_reports, load_steps(base), lift_blocks, weekly)
     out["lifting"] = lifted
     out["aerobic"] = aero
     try:                                        # the rest of what the watch saw, cross-referenced (insights.py)

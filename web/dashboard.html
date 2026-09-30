@@ -1,0 +1,151 @@
+<!doctype html><html><head><meta charset="utf-8"><title>S29 Hub · Dashboard</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+ :root{color-scheme:dark}
+ [hidden]{display:none!important}
+ body{margin:0;background:#0b0f14;color:#eef1f5;font:15px/1.45 -apple-system,Roboto,"Helvetica Neue",sans-serif}
+ main{max-width:1080px;margin:0 auto;padding:22px 16px 40px}
+ h1{font-size:28px;margin:0}.sub{color:#8b98a8} a{color:#60a5fa}
+ h2{font-size:13px;letter-spacing:1.6px;color:#8b98a8;margin:26px 0 8px}
+ .card{background:#151b23;border-radius:14px;padding:14px;margin-bottom:12px;overflow-x:auto}
+ .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+ .rings{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
+ .ring{text-align:center;background:#0f141b;border-radius:12px;padding:10px 6px}
+ .ring svg{width:96px;height:96px}.ring b{display:block;font-size:13px;color:#b7c1cd;margin-top:4px}.ring small{display:block;color:#8b98a8;font-size:12px}
+ .means{color:#b7c1cd;font-size:13px;margin-top:10px;border-top:1px solid #2a3441;padding-top:8px}
+ .means b{color:#eef1f5}
+ .verdicts{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+ .v{background:#0f141b;border-radius:12px;padding:10px}.v b{display:block;font-size:12px;letter-spacing:1.2px;color:#8b98a8}
+ .v .lv{font-size:22px;font-weight:900}.go{color:#4ade80}.easy{color:#fbbf24}.rest{color:#f87171}
+ .v small{display:block;color:#b7c1cd;font-size:12px;margin-top:4px}
+ .bars{display:grid;gap:6px}.brow{display:grid;grid-template-columns:140px 1fr 70px;gap:8px;align-items:center;font-size:13px}
+ .btrack{position:relative;height:12px;background:#1f2937;border-radius:6px;overflow:hidden}.btrack i{position:absolute;left:0;top:0;bottom:0;border-radius:6px}
+ .btrack em{position:absolute;top:-2px;bottom:-2px;width:2px;background:#fff8}
+ .brow span:last-child{text-align:right;color:#b7c1cd}
+ table{width:100%;border-collapse:collapse;font-size:13px} th,td{text-align:left;padding:6px;border-bottom:1px solid #2a3441} th{color:#8b98a8} td.r,th.r{text-align:right}
+ .legend{font-size:12px;color:#b7c1cd;display:flex;gap:12px;flex-wrap:wrap;margin-top:6px}.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px}
+ svg.chart{width:100%;height:auto;display:block}
+ .pie{display:flex;gap:14px;align-items:center;flex-wrap:wrap}.pie svg{width:140px;height:140px;flex:none}
+ @media(max-width:560px){.brow{grid-template-columns:100px 1fr 56px}}
+</style></head><body><main>
+<h1>Dashboard</h1>
+<div class="sub">Everything the hub computes, in one place · <a href="/coach">Coach</a> · <a href="/fitness">Fitness</a> · <a href="/ride">Ride view</a> · <a href="/">Panel</a></div>
+<div id="loading" class="sub" style="margin-top:14px">Reading the numbers…</div>
+
+<h2>TODAY'S VERDICTS</h2>
+<div class="card"><div class="verdicts" id="verdicts"></div>
+ <div class="means"><b>What it means:</b> each sport gets its own call from the weakest part of the body it uses - heart and lungs, feet and bones, leg muscles, shoulders, and the muscles your lifting worked. Your check-in can turn a call to easy or rest; it never pushes a sport past a limit.</div></div>
+
+<h2>MECHANICAL LOAD · EVERY PIECE AGAINST ITS LIMIT</h2>
+<div class="card"><div class="rings" id="rings"></div>
+ <div class="means"><b>What it means:</b> the mechanical headline on Today is the worst of these rings. A full ring is the limit: green is well under it, yellow close, orange past it, red at half as much again. Past the limit a ring shows how far over (1.1× is 10% over). Running blocks and impact are feet, bones and tendons (slow to heal); leg muscles are riding and running; swim is shoulders; lifting is its most-loaded muscle group.</div></div>
+
+<h2>CARDIO LOAD</h2>
+<div class="grid">
+ <div class="card"><svg class="chart" id="cardio"></svg><div class="legend"><span><i style="background:#60a5fa"></i>Fitness (6 weeks)</span><span><i style="background:#f472b6"></i>Fatigue (7 days)</span><span><i style="background:#a3e635"></i>Form</span></div>
+  <div class="means"><b>What it means:</b> fitness is your slow, 6-week average of heart-and-lungs load; fatigue is the last week's. Form is the gap: well below zero you're carrying a lot, near zero is balanced, above it you're fresh.</div></div>
+ <div class="card"><div class="pie" id="cardiopie"></div>
+  <div class="means"><b>What it means:</b> where this week's heart-and-lungs load came from, by sport.</div></div>
+</div>
+
+<h2>WHERE THE BODY'S LOAD LANDS</h2>
+<div class="grid">
+ <div class="card"><div class="bars" id="regions"></div><div class="legend" id="reglegend"></div>
+  <div class="means"><b>What it means:</b> each muscle group's load against its own reference, coloured by where it came from. Relative exposure, not measured tissue force.</div></div>
+ <div class="card"><div class="pie" id="mechpie"></div>
+  <div class="means"><b>What it means:</b> this week's mechanical work by sport: impact for the feet and bones, muscle for the legs and the lifted muscles.</div></div>
+</div>
+
+<h2>LIFTING</h2>
+<div class="grid">
+ <div class="card"><div class="bars" id="liftblocks"></div>
+  <div class="means"><b>What it means:</b> each muscle group's lifting block now, against the 1.5 limit, and when it's under one block. Each block's size is fitted to your three-day follow-ups and Sunday check-ins.</div></div>
+ <div class="card"><div id="steerhist"></div>
+  <div class="means"><b>What it means:</b> for each session, the restorative share the steer suggested and what you did. Your reports after sessions like these move the steer's curve.</div></div>
+ <div class="card"><div id="strength"></div>
+  <div class="means"><b>What it means:</b> estimated one-rep maxes from your check-offs. "Too heavy" lowers them; an easy heavier set raises them.</div></div>
+</div>
+
+<h2>WHAT THE WATCH SAW</h2>
+<div class="grid">
+ <div class="card"><div id="swimhold"></div>
+  <div class="means"><b>What it means:</b> how far into each swim your stroke held before it broke down (SWOLF rising past your start). Holding to the end means there's room to swim longer.</div></div>
+ <div class="card"><div id="rideins"></div>
+  <div class="means"><b>What it means:</b> how far heart rate falls in the minute after a hard effort, and heart rate at the same watts. Faster drops and lower heart rates mean a fitter engine.</div></div>
+</div>
+
+<h2>CALIBRATION · WHAT THE MODELS HAVE LEARNED</h2>
+<div class="card"><div id="calib"></div>
+ <div class="means"><b>What it means:</b> every model starts from a guess and learns from your tests and reports. Confidence rises with each test and report; a model still on its first guess says so.</div></div>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const esc=t=>String(t??'').replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
+const SPORTC={bike:'#60a5fa',run:'#f97316',swim:'#22d3ee',gym:'#a78bfa',walk:'#facc15',lift:'#a78bfa',impact:'#f97316',other:'#94a3b8'};
+const zone=r=>r<0.8?'#22c55e':r<1?'#eab308':r<1.5?'#f97316':'#ef4444';
+function ring(label,ratio,detail){ const r=36, c=2*Math.PI*r, f=Math.min(1,Math.max(0,ratio||0));
+  return `<div class="ring"><svg viewBox="0 0 96 96"><circle cx="48" cy="48" r="${r}" fill="none" stroke="#1f2937" stroke-width="10"/>
+   <circle cx="48" cy="48" r="${r}" fill="none" stroke="${ratio==null?'#1f2937':zone(ratio)}" stroke-width="10" stroke-linecap="round" stroke-dasharray="${f*c} ${c}" transform="rotate(-90 48 48)"/>
+   <text x="48" y="54" text-anchor="middle" font-size="18" font-weight="800" fill="#eef1f5">${ratio==null?'–':ratio>=1?ratio.toFixed(1)+'×':Math.round(ratio*100)+'%'}</text></svg><b>${esc(label)}</b><small>${esc(detail||'')}</small></div>`; }
+function bars(rows,max){ max=max||Math.max(1,...rows.map(r=>r.v));
+  return rows.map(r=>`<div class="brow"><span>${esc(r.label)}</span><div class="btrack"><i style="width:${Math.min(100,100*r.v/max)}%;background:${r.c||'#60a5fa'}"></i>${r.limit?`<em style="left:${Math.min(100,100*r.limit/max)}%"></em>`:''}</div><span>${esc(r.txt)}</span></div>`).join(''); }
+function pie(el,parts,unit){ const tot=parts.reduce((a,p)=>a+p.v,0); if(!tot){ el.innerHTML='<div class="sub">Nothing this week yet.</div>'; return; }
+  let a=-Math.PI/2, paths='';
+  for(const p of parts){ const b=a+2*Math.PI*p.v/tot, large=b-a>Math.PI?1:0, x1=70+60*Math.cos(a), y1=70+60*Math.sin(a), x2=70+60*Math.cos(b), y2=70+60*Math.sin(b);
+    paths+=parts.length===1?`<circle cx="70" cy="70" r="60" fill="${p.c}"/>`:`<path d="M70 70 L${x1} ${y1} A60 60 0 ${large} 1 ${x2} ${y2} Z" fill="${p.c}"/>`; a=b; }
+  el.innerHTML=`<svg viewBox="0 0 140 140">${paths}<circle cx="70" cy="70" r="30" fill="#151b23"/></svg><div class="legend" style="display:grid;gap:4px">${parts.map(p=>`<span><i style="background:${p.c}"></i>${esc(p.label)} · ${Math.round(p.v)}${unit} (${Math.round(100*p.v/tot)}%)</span>`).join('')}</div>`; }
+function lines(el,days,series){ const W=600,H=220,P=28; const n=days.length; if(n<2){ el.outerHTML='<div class="sub">Not enough days yet.</div>'; return; }
+  const vals=series.flatMap(s=>days.map(s.get)).filter(v=>v!=null), lo=Math.min(0,...vals), hi=Math.max(1,...vals);
+  const x=i=>P+(W-2*P)*i/(n-1), y=v=>H-P-(H-2*P)*(v-lo)/(hi-lo);
+  let g=`<line x1="${P}" x2="${W-P}" y1="${y(0)}" y2="${y(0)}" stroke="#2a3441"/>`;
+  for(const s of series) g+=`<polyline fill="none" stroke="${s.c}" stroke-width="2.5" points="${days.map((d,i)=>`${x(i)},${y(s.get(d)??0)}`).join(' ')}"/>`;
+  g+=`<text x="${P}" y="${H-6}" font-size="13" fill="#8b98a8">${esc(days[0].date.slice(5))}</text><text x="${W-P}" y="${H-6}" font-size="13" fill="#8b98a8" text-anchor="end">${esc(days[n-1].date.slice(5))}</text>`;
+  g+=`<text x="4" y="${y(hi)+4}" font-size="13" fill="#8b98a8">${Math.round(hi)}</text>`;
+  el.setAttribute('viewBox',`0 0 ${W} ${H}`); el.innerHTML=g; }
+async function load(){
+  const [L,T,F]=await Promise.all(['/api/load','/api/coach/today','/api/coach/lifting'].map(u=>fetch(u).then(r=>r.json()).catch(()=>({}))));
+  $('loading').hidden=true;
+  // verdicts
+  const rd=L.readiness||T.systems||{}, lvl=v=>`<div class="lv ${v}">${v||'–'}</div>`;
+  const vv=[['BIKE',rd.verdict,(rd.limited_by||[]).join('; ')],['RUNNING',rd.running?.verdict,(rd.running?.why||[]).slice(0,2).join('; ')],['SWIMMING',rd.swimming?.verdict,(rd.swimming?.why||[]).slice(0,2).join('; ')],
+    ['LIFTING',F.steer?.mode,F.steer?`steer: about ${Math.round(F.steer.restorative_share*100)}% restorative (without the legs: ${F.steer_without_legs?.mode||'–'})`:'']];
+  $('verdicts').innerHTML=vv.map(([k,v,w])=>`<div class="v"><b>${k}</b>${lvl(v)}<small>${esc(w||'everything under its limit')}</small></div>`).join('');
+  // rings
+  const m=L.headline?.mechanical||{}, lr=F.recovery?.regions||{};
+  const topLift=Object.values(lr).sort((a,b)=>b.blocks-a.blocks)[0];
+  $('rings').innerHTML=[ring('Running blocks',m.remodeling_ratio,`${(m.remodeling_blocks??0).toFixed(1)} of 1.5 blocks`),ring('Impact',m.impact_ratio,'feet and bones, this week vs usual'),
+    ring('Leg muscles',m.muscle_ratio,'riding, running, leg lifts'),ring('Swim',m.swim_ratio,m.swim_blocks==null?'building baseline':`${m.swim_blocks.toFixed(2)} of 1.5 blocks`),
+    ring('Lifting',m.lift_ratio??null,topLift?`${topLift.name}: ${topLift.blocks} of 1.5`:'no sessions yet'),ring('Headline',m.ratio,'the worst of these')].join('');
+  // cardio
+  const days=(L.days||[]).slice(-42);
+  lines($('cardio'),days,[{c:'#60a5fa',get:d=>d.engine?.fitness},{c:'#f472b6',get:d=>d.engine?.fatigue},{c:'#a3e635',get:d=>d.engine&&d.engine.fitness-d.engine.fatigue}]);
+  const s7=L.sports_last7||{};
+  pie($('cardiopie'),Object.entries(s7).filter(([,v])=>v.engine>0).map(([k,v])=>({label:k,v:v.engine,c:SPORTC[k]||SPORTC.other})),' pts');
+  pie($('mechpie'),Object.entries(s7).flatMap(([k,v])=>[v.impact>0?{label:k+' · impact',v:v.impact,c:SPORTC.impact}:null,v.muscle>0?{label:k+' · muscle',v:v.muscle,c:SPORTC[k]||SPORTC.other}:null]).filter(Boolean),' pts');
+  // regions
+  const R=L.body_map?.regions||{}, rows=Object.values(R).filter(r=>r.level>0).sort((a,b)=>b.level-a.level).slice(0,14);
+  $('regions').innerHTML=bars(rows.map(r=>({label:r.name,v:r.level,c:SPORTC[r.driver]||SPORTC.other,txt:r.level.toFixed(2)+' · '+r.driver,limit:1})),Math.max(1.5,...rows.map(r=>r.level)));
+  $('reglegend').innerHTML=['bike','run','swim','impact','lift'].map(k=>`<span><i style="background:${SPORTC[k]}"></i>${k}</span>`).join('');
+  // lifting
+  const lrows=Object.values(lr).sort((a,b)=>b.blocks-a.blocks);
+  $('liftblocks').innerHTML=lrows.length?bars(lrows.map(r=>({label:r.name,v:r.blocks,c:zone(r.blocks/1.5),limit:1.5,txt:`${r.blocks}${r.under_one_block_in_days?` · ${r.under_one_block_in_days} d`:''}`})),Math.max(2,...lrows.map(r=>r.blocks))):'<div class="sub">No lift sessions checked off yet.</div>';
+  const recent=(F.recent||[]).slice(0,8);
+  $('steerhist').innerHTML=recent.length?`<table><tr><th>Session</th><th class="r">Suggested</th><th class="r">Did</th><th class="r">After</th></tr>${recent.map(l=>`<tr><td>${esc(l.date.slice(5))} ${esc(l.session)}</td><td class="r">${l.steer_share==null?'–':Math.round(l.steer_share*100)+'%'}</td><td class="r">${l.restorative_share==null?'–':Math.round(l.restorative_share*100)+'%'}</td><td class="r">${l.wellness}/10</td></tr>`).join('')}</table>`:'<div class="sub">No sessions yet.</div>';
+  const st=Object.entries(F.strength||{});
+  $('strength').innerHTML=st.length?`<table><tr><th>Lift</th><th class="r">Est. max</th><th>From</th></tr>${st.map(([k,v])=>`<tr><td>${esc(k)}</td><td class="r">${v.e1rm} ${esc(v.unit)}</td><td>${esc(v.from)}</td></tr>`).join('')}</table>`:'<div class="sub">No estimates yet - they come from checked-off weighted lifts.</div>';
+  // watch
+  const sl=L.insights?.swim?.session_length;
+  $('swimhold').innerHTML=sl?`<div class="bars">${bars(sl.swims.slice(-8).map(s=>({label:s.date.slice(5),v:s.held_m,c:s.broke?'#eab308':'#22c55e',txt:`${s.held_m} of ${s.total_m} m`})),Math.max(...sl.swims.map(s=>s.total_m)))}</div><div class="sub" style="margin-top:8px">${esc(sl.read)}</div>`:'<div class="sub">No pool swims read yet.</div>';
+  const rec=L.insights?.ride?.recovery, aer=L.aerobic?.trend;
+  $('rideins').innerHTML=(rec?.rides?.length?`<div class="bars">${bars(rec.rides.slice(-8).map(r=>({label:r.date.slice(5),v:r.drop_60,c:'#60a5fa',txt:r.drop_60+' bpm'})))}</div>`:'<div class="sub">No hard efforts with heart rate yet.</div>')
+    +(aer?.hr_at_band?`<div class="sub" style="margin-top:8px">Heart rate at 100–120 W: ${aer.hr_at_band.latest} bpm (${aer.hr_at_band.per_week>0?'+':''}${aer.hr_at_band.per_week} a week over ${aer.hr_at_band.rides} rides)</div>`:'');
+  // calibration
+  const ce=L.calibration_estimates||{}, sw=L.swim_recovery||{};
+  const crow=(name,val,src,conf)=>`<tr><td>${esc(name)}</td><td class="r">${esc(val)}</td><td>${esc(src)}</td><td class="r">${conf==null?'–':Math.round(conf*100)+'%'}</td></tr>`;
+  let rowsC=Object.values(ce).filter(x=>x&&x.name).map(x=>crow(x.name,x.value==null?'–':`${x.value} ${x.unit||''}`,x.source||'not tested yet',x.confidence));
+  rowsC.push(crow('Swim block',sw.reference_units?Math.round(sw.reference_units)+' units':'–',sw.reference_from||'awaiting swims',null));
+  for(const r of lrows) rowsC.push(crow(`Lifting block · ${r.name}`,`${r.reference} pts`,r.reference_from,null));
+  $('calib').innerHTML=`<table><tr><th>Model</th><th class="r">Value</th><th>Learned from</th><th class="r">Confidence</th></tr>${rowsC.join('')}</table>`;
+}
+load();
+</script></body></html>

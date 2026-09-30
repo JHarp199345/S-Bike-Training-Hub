@@ -200,6 +200,10 @@ def t_rate(a):
     return call("/api/coach/rate", {k: a[k] for k in ("ride", "rpe") if k in a})
 
 
+def t_weekly(a):
+    return call("/api/coach/weekly", {k: a[k] for k in ("sunday", "legs", "feet", "hops_left", "hops_right", "shoulders", "lift", "week", "note") if k in a})
+
+
 def t_lifting(a):
     return call("/api/coach/lifting")
 
@@ -289,7 +293,7 @@ DATE = STR("Day as YYYY-MM-DD (default: today)")
 LIFTS = {"type": "array", "description": "The exercises, in order", "items": {"type": "object", "properties": {
     "name": {"type": "string"}, "how": {"type": "string", "description": "One line on how to do it"},
     "equipment": {"type": "string"},
-    "kind": {"type": "string", "enum": ["barbell", "dumbbell", "kettlebell", "machine", "cable", "band", "medicine_ball", "bodyweight", "other"]},
+    "kind": {"type": "string", "enum": ["barbell", "dumbbell", "kettlebell", "machine", "cable", "band", "medicine_ball", "power", "bodyweight", "other"], "description": "power = fast rotational swings, chops and throws (not judged against a one-rep max)"},
     "style": {"type": "string", "enum": ["restorative", "build"], "description": "restorative = controlled mild stress (holds, slow tempo, hangs, loaded stretching); build = progressive strength"},
     "sets": {"type": "integer", "minimum": 1, "maximum": 20}, "reps": {"type": "integer", "minimum": 1, "maximum": 100},
     "seconds": {"type": "integer", "minimum": 1, "maximum": 600}, "weight": {"type": "number", "minimum": 0},
@@ -366,6 +370,16 @@ TOOLS = [
      "weight), MUSCLE (leg force; pedal torque, gym effort, running). Each has fitness, fatigue, form, the "
      "acute:chronic ratio and zone (0.8-1.3 sweet spot, >1.5 danger for impact/muscle), this week's used load vs "
      "budget, and a weakest-link readiness verdict with what's limiting. Use this before set_plan.", S(), t_load),
+    ("record_weekly_checkin", "The Sunday check-in (get_today shows 'weekly' when it's due - Sunday through Tuesday): a "
+     "look back at the week, asking only about what it held. legs (after riding), feet and hops per leg (after running), "
+     "shoulders (after swimming), each muscle group the week's lifting worked (lift: {region: 1-10}), and the week "
+     "overall (1 easy, 10 too much), with a note. It's the calibration anchor: the running, swim and lifting fits "
+     "weight it most.",
+     S(sunday=STR("The Sunday (YYYY-MM-DD; default: the open one)"), legs=INT("1-10", 1, 10), feet=INT("1-10", 1, 10),
+       hops_left=INT("Pain-free hops, left leg", 0, 100), hops_right=INT("Pain-free hops, right leg", 0, 100),
+       shoulders=INT("1-10", 1, 10), week=INT("The week overall, 1 easy - 10 too much", 1, 10), note=STR("Their words"),
+       lift={"type": "object", "description": "{region: 1-10}", "additionalProperties": {"type": "integer", "minimum": 1, "maximum": 10}}),
+     t_weekly),
     ("get_lifting", "Lifting and functional strength. Read before planning or scoring a gym session: the rider's RULES "
      "(never plan what a 'No ...' rule excludes; use favourites), the coaching GUIDANCE, the STEER (restorative or build, "
      "the suggested restorative share of the session and why, from the load the rider carries), sessions the rider built "
@@ -562,6 +576,7 @@ INSTRUCTIONS = ("A bike, run, and swim training companion (built on a Merach S29
                 "buoy, and perceived effort, then record only what the athlete reports. get_insights holds what the "
                 "watch saw beyond the loads (stroke breakdown, run form, ride recovery, pauses): ask its flags as "
                 "questions, never as verdicts. "
+                "On Sundays (through Tuesday) ask the weekly check-in when get_today shows it due. "
                 "Gym sessions: read get_lifting first (the rider's rules, the coaching guidance, the steer, drafts waiting to be "
                 "scored), plan or score with plan_lift_session, check off with log_lift_session (ask why when they lifted "
                 "less), and ask the follow-up when it's due. If the rider says they have a plan, record it; if they ask "

@@ -69,6 +69,7 @@ def dose(a):
 # interval. With no reports it IS the prior, and says so. Refitted from all the data every time - continuous.
 PRIOR_SD = 0.5                    # log-units: the first-swims guess could easily be off by ~1.6x either way
 REPORT_SD = 1.5                   # rating points: how noisy a morning's shoulder number is
+WEEKLY_SD = 1.0                   # the Sunday check-in: the week's considered answer
 GRID = [math.exp(math.log(0.33) + i * (math.log(3.0) - math.log(0.33)) / 60) for i in range(61)]
 
 
@@ -83,21 +84,25 @@ def _predict(score):
     return max(1.0, min(10.0, 1 + 5 * score / THRESHOLD))
 
 
-def _fit(ordered, first, today, reports, initial):
+def _fit(ordered, first, today, reports, initial, weekly=()):
+    """Every shoulder report within a week after a swim is scored against the model's score for that day (the next
+    morning's most of all, but any day counts); the Sunday check-in's rating is trusted a little more."""
     obs = []
-    for a in ordered:
-        nxt = (dt.date.fromisoformat(a["date"]) + dt.timedelta(days=1)).isoformat()
-        r = reports.get(nxt) or {}
+    swim_days = sorted({a["date"] for a in ordered})
+    for day, r in sorted(reports.items()):
         y = r.get("shoulders") if isinstance(r, dict) else None
-        if y is not None and nxt <= today.isoformat():
-            obs.append((a["date"], float(y)))
+        if y is None or day > today.isoformat():
+            continue
+        prior = [s for s in swim_days if s < day]
+        if prior and (dt.date.fromisoformat(day) - dt.date.fromisoformat(prior[-1])).days <= 7:
+            obs.append((day, float(y), WEEKLY_SD if day in weekly else REPORT_SD))
     if not obs:
         return initial, None, 0
     logw = []
     for g in GRID:
         ref = initial * g
         hist = {h["date"]: h["score"] for h in _simulate(ordered, first, today, reports, ref)[0]}
-        ll = sum(-0.5 * ((y - _predict(hist.get(d, 0.0))) / REPORT_SD) ** 2 for d, y in obs)
+        ll = sum(-0.5 * ((y - _predict(hist.get(d, 0.0))) / sd) ** 2 for d, y, sd in obs)
         logw.append(ll - 0.5 * (math.log(g) / PRIOR_SD) ** 2)
     top = max(logw); w = [math.exp(x - top) for x in logw]; tot = sum(w)
     w = [x / tot for x in w]
@@ -151,7 +156,7 @@ def _simulate(ordered, first, today, reports, reference):
     return history, events
 
 
-def model(swims, profile, today, reports=None):
+def model(swims, profile, today, reports=None, weekly=()):
     """Daily swim-specific remaining load, plus a no-new-swim projection."""
     swims = [a for a in swims if a["date"] <= today.isoformat()]
     empty = {"score": None, "threshold_blocks": THRESHOLD, "reference_units": None,
@@ -168,8 +173,8 @@ def model(swims, profile, today, reports=None):
     if manual:
         reference, interval, n_obs, source = float(manual), None, 0, "manual"
     else:
-        reference, interval, n_obs = _fit(ordered, first, today, reports, initial)
-        source = (f"fitted to {n_obs} next-day shoulder report{'s' if n_obs != 1 else ''} · first swims as the prior"
+        reference, interval, n_obs = _fit(ordered, first, today, reports, initial, weekly)
+        source = (f"fitted to {n_obs} shoulder report{'s' if n_obs != 1 else ''} · first swims as the prior"
                   if n_obs else "first comparable swims · provisional (no shoulder reports yet)")
     history, events = _simulate(ordered, first, today, reports, reference)
     fast, slow = history[-1]["_fast"], history[-1]["_slow"]
