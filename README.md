@@ -133,7 +133,7 @@ Edit [`regions.json`](regions.json) (name, bounding box, center, zoom) and run `
 Everything the pages can do is also available headless, so an AI coach can read your data and write your plan:
 
 - **Command line:** `./hub today`, `./hub rides`, `./hub fitness`, `./hub load`, `./hub checkins`, `./hub checkin --feet 4 --legs 5`, `./hub steps 2026-09-27=6200`, `./hub import FILE.fit`, `./hub plan --verdict easy --note "…" --workout ID`, `./hub split --total 30 --intervals 3`. Run `./hub --help` for the rest.
-- **MCP server:** [`mcp_server.py`](mcp_server.py) exposes 36 tools (today, check-ins, rides, a ride's full story, fitness, body-system load, importing watch files, daily steps, morning readiness, effort ratings, the day's focus and plan, area routes, climb goals, skill ladders, calibration and tests, test weeks, the aerobic engine, sport carry-over, milestones, workouts…) to Claude Code or Claude Desktop:
+- **MCP server:** [`mcp_server.py`](mcp_server.py) exposes 38 tools (today, check-ins, rides, a ride's full story, fitness, body-system load, importing watch files, daily steps, morning readiness, effort ratings, the day's focus and plan, area routes, climb goals, skill ladders, calibration and tests, test weeks, the aerobic engine, sport carry-over, milestones, workouts…) to Claude Code or Claude Desktop:
 
   ```bash
   claude mcp add --scope user s-bike-hub -- "$PWD/.venv/bin/python" "$PWD/mcp_server.py"

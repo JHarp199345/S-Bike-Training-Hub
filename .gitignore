@@ -31,3 +31,5 @@ course_forms.json
 # The workout in progress (personal)
 resume.json
 resume.tmp
+# The built MCP bundle (attached to a GitHub release, not committed)
+mcpb/*.mcpb
