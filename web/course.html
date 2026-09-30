@@ -62,8 +62,9 @@
  #menubtn{z-index:4;position:fixed;right:12px;top:calc(10px + env(safe-area-inset-top));font:12px var(--px);background:#000a;color:#fff;border:2px solid #fff;padding:6px 8px;z-index:3}
  #pausebtn{position:fixed;right:56px;top:calc(10px + env(safe-area-inset-top));font:14px var(--px);background:#000a;color:#fff;border:2px solid #fff;padding:5px 8px;z-index:4;cursor:pointer}
  body[data-look="modern"] #pausebtn{border-radius:10px;border:1px solid rgba(255,255,255,.35);background:rgba(0,0,0,.3);font-size:16px}
- #resumebtn{position:fixed;left:50%;top:42%;transform:translate(-50%,-50%);z-index:9;font:16px var(--px);line-height:1.5;background:#2f855a;color:#fff;border:3px solid #fff;padding:14px 18px;cursor:pointer;white-space:pre-line;text-align:center;max-width:86vw}
- body[data-look="modern"] #resumebtn{border-radius:16px;border:1px solid rgba(255,255,255,.4);font-size:18px}
+ #resumebtn{font:14px/1.6 var(--px);background:#2f855a;color:#fff;border:3px solid #fff;padding:16px 20px;cursor:pointer;white-space:pre-line;text-align:center;max-width:86vw}
+ body[data-look="modern"] #resumebtn{border-radius:16px;border:0;font:700 17px/1.5 var(--px);box-shadow:0 6px 24px rgba(47,133,90,.5)}
+ .start.resuming #startsub{display:none}.start.resuming #go{background:transparent;box-shadow:none;border:1px solid rgba(255,255,255,.35)}
  #pausebtn.on{background:#d69e2e;color:#111}
  #menu,#drawer{z-index:8!important;position:fixed;right:12px;top:calc(46px + env(safe-area-inset-top));background:#1a1030;border:3px solid #fff;padding:10px;z-index:3;
    display:flex;flex-direction:column;gap:8px;min-width:180px;box-shadow:4px 4px 0 #000}
@@ -77,7 +78,6 @@
 </style><link rel="stylesheet" href="/web/overlays.css?v=4"></head><body>
 <canvas id="cv"></canvas>
 <div id="banner"></div>
-<button id="resumebtn" type="button" hidden></button>
 <div class="ctl"><button id="dn">− EASIER</button><button id="up">+ HARDER</button></div>
 <button id="menubtn" aria-label="Menu">☰</button><a id="mapbtn" href="/ride" aria-label="Map view">🗺</a><button id="pausebtn" type="button" aria-label="Pause the workout" hidden>⏸</button>
 <div id="menu" hidden><div class="looks"><button data-look-pick="modern">MODERN</button><button data-look-pick="pixel">8-BIT</button></div><button id="formsbtn">Forms…</button><button id="endbtn">End course</button><a href="/coach">Coach</a><a href="/ride">Ride view</a></div>
@@ -88,9 +88,10 @@
 </div></div>
 <div class="start" id="start" hidden>
  <h1>TODAY'S COURSE</h1>
+ <button id="resumebtn" type="button" hidden></button>
  <div class="sub" id="startsub">The hills are your workout. Stay inside your cadence and watt ranges to ride the lit road and evolve:
   bike → unicorn → gorilla → panda → dragon.</div>
- <button id="go">▶ START</button>
+ <button id="go">▶ START A COURSE</button>
  <div class="sub" id="startmsg"></div>
 </div>
 <script>
@@ -204,8 +205,9 @@ async function poll(){
   }
   $('pausebtn').hidden=true;
   const rs=!st.route && st.resume;                     // it stopped before the end: offer to pick it up where it was
-  $('resumebtn').hidden=!rs;
-  if(rs) $('resumebtn').textContent=`▶ RESUME\n${rs.name}\n${Math.floor(rs.elapsed/60)}:${String(rs.elapsed%60).padStart(2,'0')} in · ${Math.ceil(rs.left/60)} min left`;
+  $('resumebtn').hidden=!rs; $('start').classList.toggle('resuming',!!rs);
+  if(rs) $('resumebtn').textContent=`▶ RESUME YOUR WORKOUT\n${rs.name}\n${Math.floor(rs.elapsed/60)}:${String(rs.elapsed%60).padStart(2,'0')} in · ${Math.ceil(rs.left/60)} min left`;
+  if(rs && course?.workout){ course=null; courseId=null; }   // it stopped early: offer the resume, not the end screen
   if(course?.workout){ finish(); return; }            // the workout just ended
   $('mapbtn').hidden=!(st.route && course?.map_route); $('endbtn').textContent='End course';   // the map only for a real road
   const rt=st.route;

@@ -637,8 +637,8 @@ function insightBody(a){ let o='';
   if(a.swim){ const w=a.swim;
     o+=`<div>${esc(w.stroke)} · ${w.total_m} m · SWOLF ${w.swolf_avg} · ${w.strokes_avg} strokes a length${w.rate_avg?' · '+w.rate_avg+' strokes/min':''}</div>`
       +`<div class="sub">${w.broke_down?`Stroke first broke down ${w.broke_down.at_m} m in (${w.broke_down.at_min} min): SWOLF ${w.broke_down.swolf} against ${w.baseline_swolf} at the start.`:'The stroke held to the end.'}${w.rest_drop_60!=null?` Heart rate fell ${w.rest_drop_60} in the first minute of a rest (wrist in water: rough).`:''}</div>`
-      +itab(['Set','Metres','SWOLF','Strokes','Pace /100 m','Change',''],w.sets.map(s=>[s.set,s.metres,`${s.swolf_first} → ${s.swolf_last}`,`${s.strokes_first} → ${s.strokes_last}`,`${isec(s.pace_first)} → ${isec(s.pace_last)}`,ipct(s.fade_pct),
-         s.kind+(s.step?` · length ${s.step.length_in_set}: +${s.step.jump} (${esc(s.step.what)})`:'')])); }
+      +itab(['Set','m','SWOLF','Strokes','/100 m','±'],w.sets.map(s=>[s.set,s.metres,`${s.swolf_first}→${s.swolf_last}`,`${s.strokes_first}→${s.strokes_last}`,`${isec(s.pace_first)}→${isec(s.pace_last)}`,ipct(s.fade_pct)]))
+      +w.sets.filter(s=>s.step).map(s=>`<div class="sub">Set ${s.set}: a sudden step at length ${s.step.length_in_set} (${s.step.at_m} m), SWOLF +${s.step.jump}: ${esc(s.step.what)}.</div>`).join(''); }
   if(a.run){ const r=a.run, d=r.drift;
     o+=`<div>${r.steps?r.steps.toLocaleString()+' steps · ':''}${r.watts??'–'} W · ${r.contact_ms??'–'} ms on the ground · ${r.vertical_ratio_pct??'–'}% bounce · ${r.step_length_m??'–'} m steps</div>`;
     if(d) o+=`<div class="sub">Last third against the first: pace ${ipct(d.speed_pct)}, heart rate ${ipct(d.hr_pct)}, bounce ${ipct(d.vertical_ratio_pct)}, step length ${ipct(d.step_length_pct)}${d.contact_pct!=null?', ground contact '+ipct(d.contact_pct):''}. ${d.pace_matched?(d.form_changed.length?'At the same pace: '+d.form_changed.join(', ')+'.':'Same pace, form held.'):'The pace changed, so form is not judged.'}</div>`;

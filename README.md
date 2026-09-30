@@ -21,6 +21,12 @@ The S29 only accepts **one** Bluetooth connection, and it ignores the "hill" com
 - **Runs ERG workouts.** It holds a target wattage whatever your cadence. In a workout it works in zones around each block's target instead of chasing every watt: green (90–120%) never shifts, yellow (80–90% / 120–140%) is still on the road and shifts after 2 minutes, red after 30 seconds, black after 8. Before it shifts, it checks where the next gear would land, and it won't shift you off the road. FTP tests and Kinomap keep tight control.
 - **Pauses and resumes.** The workout clock only runs while you pedal with the bike connected: stop and it pauses by itself, or tap ⏸. If a workout stops before it's done (you tapped End, the page reloaded, the bridge restarted), the Coach page and the game view offer **Resume** for the rest of the day, at the same block and second. The pieces of a day's ride count as one session.
 
+<p align="center">
+  <img src="docs/resume-coach.jpg" width="280" alt="The Coach page with a purple Resume bar at the top: Resume, 5:24 into the planned workout, block 2 of 4, 25 minutes left, the clock waits for your pedals (sample data)">
+  <img src="docs/resume-game.jpg" width="200" alt="The game view's start card offering Resume your workout, 5:24 in, 25 minutes left, above a smaller Start a course button (sample data)">
+</p>
+
+
 On top of that:
 
 | | |
@@ -322,6 +328,10 @@ You test at your peak, then start the next block fresh.
 - **Aerobic decoupling:** watts per beat in the first half vs. the second. Under 5% means the ride stayed aerobic. It's only judged on steady rides of 40+ minutes.
 
 ### What the watch saw
+
+<p align="center">
+  <img src="docs/insights.jpg" width="320" alt="Coach, Progress tab, What the watch saw (sample data): flags that ask questions about a sudden stroke change in a swim, run form drift, and a ride with four pauses; trends for how long the stroke holds and ride recovery; a swim opened to its sets, with SWOLF, strokes and pace per set and the sudden step at length 8">
+</p>
 
 Beyond the loads, the hub reads the rest of each watch file and cross-references it (**Coach → Progress → What the watch saw**, and `get_insights` for Claude). It flags with the numbers behind it and a question. It never scores, and it changes no load number.
 - **Swim, length by length:** SWOLF (seconds + strokes), stroke rate and pace, set by set. Where the stroke changes, by how much and how fast: **held**, **gradual** (a slow fade: ordinary fatigue) or **sudden** (a step between neighbouring lengths; even a small one is the more telling strain signal), and what moved (more strokes, or slower). A set's first length, off the wall on fresh arms, is left out. Across swims it shows how far in the stroke usually breaks down, which is the session length it can hold. Heart-rate drop in the rests is shown, but a wrist in water reads roughly.
