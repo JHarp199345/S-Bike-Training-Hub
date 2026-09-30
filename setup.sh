@@ -144,5 +144,9 @@ if [[ -z $NOBIKE ]] && ask "Add the 🚲 menu-bar icon (opens at login; starts/s
   launchctl bootstrap gui/$(id -u) "$HOME/Library/LaunchAgents/com.sbikehub.menubar.plist" 2>/dev/null || true
 fi
 
-say "Done. Start it: double-click 'S-Bike Hub' on your Desktop (or use the menu icon)."
+if [[ -n $NOBIKE ]]; then
+  say "Done. Start it: double-click 'S-Bike Hub' on your Desktop. It opens the Coach."
+else
+  say "Done. Start it: double-click 'S-Bike Hub' on your Desktop (or use the menu icon)."
+fi
 echo "   Optional - coach from Claude: claude mcp add --scope user s-bike-hub -- \"$HERE/.venv/bin/python\" \"$HERE/mcp_server.py\""

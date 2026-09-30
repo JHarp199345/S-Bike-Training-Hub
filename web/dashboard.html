@@ -1,4 +1,4 @@
-<!doctype html><html><head><meta charset="utf-8"><title>S29 Hub · Dashboard</title>
+<!doctype html><html><head><meta charset="utf-8"><title>S-Bike Hub · Dashboard</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
  :root{color-scheme:dark}
@@ -109,7 +109,7 @@ async function load(){
   const rd=L.readiness||T.systems||{}, lvl=v=>`<div class="lv ${v}">${v||'–'}</div>`;
   const vv=[['BIKE',rd.verdict,(rd.limited_by||[]).join('; ')],['RUNNING',rd.running?.verdict,(rd.running?.why||[]).slice(0,2).join('; ')],['SWIMMING',rd.swimming?.verdict,(rd.swimming?.why||[]).slice(0,2).join('; ')],
     ['LIFTING',F.steer?.mode,F.steer?`steer: about ${Math.round(F.steer.restorative_share*100)}% restorative (without the legs: ${F.steer_without_legs?.mode||'–'})`:'']];
-  $('verdicts').innerHTML=vv.map(([k,v,w])=>`<div class="v"><b>${k}</b>${lvl(v)}<small>${esc(w||'everything under its limit')}</small></div>`).join('');
+  $('verdicts').innerHTML=vv.map(([k,v,w])=>`<div class="v"><b>${k}</b>${lvl(v)}<small>${esc(w||(v?'everything under its limit':'no data yet: check in, or import your watch files'))}</small></div>`).join('');
   // rings
   const m=L.headline?.mechanical||{}, lr=F.recovery?.regions||{};
   const topLift=Object.values(lr).sort((a,b)=>b.blocks-a.blocks)[0];
