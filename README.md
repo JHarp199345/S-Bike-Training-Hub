@@ -89,6 +89,8 @@ cd S-Bike-Training-Hub
 
 To skip maps and routes and get just the bridge, run `./setup.sh --no-maps`.
 
+**No smart bike?** Run `./setup.sh --no-bike`. You get the Coach, training load for every sport from your watch files, lifting, the dashboard and the AI coaching tools, with no Bluetooth at all. The launcher opens straight to the Coach.
+
 Then:
 
 1. **Wake the bike** (pedal a few turns). Make sure no phone or app is connected to it.

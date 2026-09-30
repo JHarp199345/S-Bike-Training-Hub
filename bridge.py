@@ -360,8 +360,13 @@ class Bridge:
         self.last_step = 0.0
         self.level_format = 3        # bytes in a resistance command: 3 (level x10, 16-bit) or 2 (8-bit)
         Path("rides").mkdir(exist_ok=True)
-        self.resumed = resumable_state()
-        if self.resumed:
+        self.resumed = None if getattr(args, "no_bike", False) else resumable_state()
+        if getattr(args, "no_bike", False):
+            # no bike, no ride: nothing is recorded (the path only says where the rides and the coach's files live)
+            self.csv_path = Path("rides").resolve() / "ride_no_bike.csv"
+            self.csv = csv.writer(open(os.devnull, "w"))
+            self.events_csv = csv.writer(open(os.devnull, "w"))
+        elif self.resumed:
             # Picking up a ride that a crash interrupted: same files, appended.
             self.csv_path = Path(self.resumed["ride"])
             self.live.load_ride(self.csv_path)       # calories so far and the graph's last ten minutes
@@ -405,6 +410,7 @@ class Bridge:
     def status(self):
         r, secs = self.ride, int(time.monotonic() - self.started)
         return {"name": self.args.broadcast, "elapsed": f"{secs // 60}:{secs % 60:02d}",
+                "no_bike": bool(getattr(self.args, "no_bike", False)),
                 "bike": bool(self.bike and self.bike.is_connected),
                 "watch": max(self.seen["power"], self.seen["cadence"]), "kinomap": self.seen["kinomap"],
                 "level": r.resistance, "gear": self.gear, "hill_shift": round(self.hill_shift),
@@ -432,6 +438,8 @@ class Bridge:
     # ── crash recovery ───────────────────────────────────────────────────────
     def snapshot(self, running=True):
         """What a restarted bridge needs to carry on the same ride."""
+        if getattr(self.args, "no_bike", False):
+            return                            # no ride to carry on
         now = time.monotonic()
         w = self.erg.workout
         write_state({
@@ -1486,6 +1494,8 @@ async def main():
     ap.add_argument("--ramp", type=float, default=1.2,
                     help="seconds between one-level resistance steps (default 1.2)")
     ap.add_argument("--port", type=int, default=8729)
+    ap.add_argument("--no-bike", action="store_true",
+                    help="no smart bike: the coach, training load, lifting and dashboard only - no Bluetooth at all")
     ap.add_argument("--no-remote", action="store_true",
                     help="panel on this Mac only: no phone remote over Wi-Fi")
     ap.add_argument("-v", action="store_true", help="debug logging")
@@ -1518,8 +1528,11 @@ async def main():
         if args.ui:
             webbrowser.open(f"http://127.0.0.1:{args.port}")
         return
-    await b.run_server()
-    if b.resumed:
+    if args.no_bike:
+        log.info("No-bike mode: coach, training load, lifting and the dashboard - Bluetooth stays off")
+    else:
+        await b.run_server()
+    if b.resumed and not args.no_bike:
         b.restore(b.resumed)
     elif args.ui:
         webbrowser.open(f"http://127.0.0.1:{args.port}")   # no new browser tab on an automatic restart
@@ -1533,8 +1546,8 @@ async def main():
     loop.add_signal_handler(signal.SIGHUP, window_closed, b)
     loop.add_signal_handler(signal.SIGTERM, b.stop.set)
     tasks = [asyncio.create_task(b.supervised(n, f)) for n, f in
-             (("Bike link", b.run_bike), ("Sensors", b.run_sensors), ("Sender", b.run_outbox),
-              ("Resistance ramp", b.run_ramp), ("Crash snapshots", b.run_snapshots))]
+             ((("Bike link", b.run_bike), ("Sensors", b.run_sensors), ("Sender", b.run_outbox),
+               ("Resistance ramp", b.run_ramp), ("Crash snapshots", b.run_snapshots)) if not args.no_bike else ())]
     await b.stop.wait()
     g = b.ghost.gap()
     if g and g[0] is not None:

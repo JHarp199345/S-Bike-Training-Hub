@@ -4,6 +4,7 @@
 #   ./setup.sh             everything: Python packages, route planner, maps for regions.json,
 #                          3D terrain, the Desktop launcher, the menu-bar icon
 #   ./setup.sh --no-maps   just the bike bridge (no route planner or 3D maps)
+#   ./setup.sh --no-bike   no smart bike: the coach, training load, lifting and dashboard only
 #
 # Downloads come from: PyPI (Python packages), GitHub releases (BRouter, pmtiles),
 # npm (MapLibre GL), brouter.de (road data), build.protomaps.com (map tiles),
@@ -11,6 +12,7 @@
 # Nothing is uploaded anywhere. Big downloads ask first.
 set -e
 cd "${0:A:h}"
+NOBIKE=; [[ $1 == --no-bike ]] && NOBIKE=1
 HERE=$PWD
 MAPS=${S_BIKE_MAPS:-$HERE/maps}
 say(){ print -P "%B==>%b $*"; }
@@ -39,12 +41,12 @@ cat > "$LAUNCHER" <<EOF
 # Double-click to start the S-Bike Hub bike bridge. The control panel opens in your
 # browser. Closing this window does NOT stop the bridge: use "Stop bridge" on the
 # panel or in the menu-bar icon.
-cd "$HERE" && .venv/bin/python bridge.py --ui
+cd "$HERE" && .venv/bin/python bridge.py --ui${NOBIKE:+ --no-bike}
 EOF
 chmod +x "$LAUNCHER"
 say "Made the launcher: ~/Desktop/S-Bike Hub.command"
 
-if [[ $1 != --no-maps ]]; then
+if [[ $1 != --no-maps && -z $NOBIKE ]]; then
   mkdir -p "$MAPS"/{tools,web/fonts,brouter/segments4,brouter/customprofiles,map,terrain}
 
   # ── route planner (BRouter) ───────────────────────────────────────────────
@@ -137,7 +139,7 @@ PYEOF
 fi
 
 # ── menu-bar icon ───────────────────────────────────────────────────────────
-if ask "Add the 🚲 menu-bar icon (opens at login; starts/stops the bridge, restarts it if it crashes)?"; then
+if [[ -z $NOBIKE ]] && ask "Add the 🚲 menu-bar icon (opens at login; starts/stops the bridge, restarts it if it crashes)?"; then
   .venv/bin/python -c "import menubar; menubar.install_login_item()"
   launchctl bootstrap gui/$(id -u) "$HOME/Library/LaunchAgents/com.sbikehub.menubar.plist" 2>/dev/null || true
 fi

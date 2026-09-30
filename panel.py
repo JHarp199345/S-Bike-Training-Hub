@@ -301,6 +301,11 @@ async def serve(bridge, port=8729, lan=True):
         elif path == b"/stop" and method == b"POST":
             body, ctype = b'{"ok":true}', "application/json"
             asyncio.get_running_loop().call_later(0.3, bridge.stop.set)
+        elif getattr(bridge.args, "no_bike", False) and path.split(b"?")[0] in (b"/", b"/index.html"):
+            # no bike: there's no riding panel to show - start at the coach
+            writer.write(b"HTTP/1.1 302 Found\r\nLocation: /coach\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
+            await writer.drain(); writer.close()
+            return
         else:
             body, ctype = PAGE.encode(), "text/html; charset=utf-8"
         writer.write(b"HTTP/1.1 200 OK\r\nContent-Type: " + ctype.encode()
