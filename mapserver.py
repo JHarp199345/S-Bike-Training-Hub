@@ -740,6 +740,30 @@ def load_state(base):
     return _load_cache["data"]
 
 
+def lift_ctx(base, d, date):
+    """What the steer needs from the load picture: the mechanical headline and today's readiness verdict."""
+    import loads
+    try:
+        st = load_state(base)
+        r = loads.readiness(st, (d["checkins"].get(date) or {})) if st.get("systems") else {}
+        return {"headline": st.get("headline"), "verdict": r.get("verdict")}
+    except Exception:
+        return {}
+
+
+def lifting_today(d, date, base=None):
+    """For Today: the day's planned lifts and whether they're checked off, the follow-up due, the unit."""
+    import lifting
+    s = lifting.state(d)
+    sessions = [x for x in ((d["plans"].get(date) or {}).get("sessions") or []) if x.get("sport") == "gym" and x.get("lifts")]
+    logged = {l["session"] for l in s["logs"] if l["date"] == date}
+    return {"unit": s["unit"], "sessions": [{"index": i, "name": x["name"], "lifts": x["lifts"], "logged": x["name"] in logged,
+                                            "log": next((l for l in s["logs"] if l["date"] == date and l["session"] == x["name"]), None)}
+                                           for i, x in enumerate(sessions)],
+            "pending_followup": lifting.pending_followup(d, __import__("datetime").date.fromisoformat(date)),
+            "regions": lifting.regions(), "steer": lifting.steer(d, lift_ctx(base, d, date)) if base else None}
+
+
 def with_systems(day_json, base):
     """Add the weakest-link body-systems readiness to a coach day, and let it win if it's worse."""
     import loads
@@ -908,7 +932,8 @@ async def coach_api(bridge, method, path, p, body):
                        "events": coach.upcoming(d, date, cleared), "week": coach.week(d, date, done_by_day(rides.parent, d)),
                        "calibration": cal,
                        "rpe_words": coach.RPE_WORDS, "test_steps": coach.TEST_STEPS, "ftp": bridge.profile["ftp"],
-                       "verdicts": coach.VERDICTS, "workouts": [{"id": w.get("id"), "name": w["name"]} for w in bridge.workouts]})
+                       "verdicts": coach.VERDICTS, "workouts": [{"id": w.get("id"), "name": w["name"]} for w in bridge.workouts],
+                       "lifting": lifting_today(d, date, rides.parent)})
         if p == "/api/coach/history":
             days = int((q.get("days") or ["30"])[0])
             since = (__import__("datetime").date.fromisoformat(date) - __import__("datetime").timedelta(days=days)).isoformat()
@@ -1023,6 +1048,47 @@ async def coach_api(bridge, method, path, p, body):
             if hasattr(bridge, "refresh_focus"):
                 bridge.refresh_focus(force=True)
             return js({"changed": ev, "skills": skills.summary(d)})
+        if p.startswith("/api/coach/lifting"):
+            # lifting and functional strength (lifting.py): plan, evaluate, check off, follow up, the rider's rules
+            import lifting
+            sub = p[len("/api/coach/lifting"):]
+            ctx = lift_ctx(rides.parent, d, date)
+            if sub == "" and method == b"GET":
+                return js(lifting.summary(d, ctx=ctx))
+            if method != b"POST":
+                return js({"error": "not found"}, 404)
+            if sub == "/plan":
+                pl = lifting.set_session(d, date, req.get("lifts"), req.get("name"), req.get("minutes"), req.get("index"),
+                                         req.get("note"), draft=bool(req.get("draft")), override=req.get("override"))
+                coach.save(d)
+                gym = [s_ for s_ in pl["sessions"] if s_.get("lifts")]
+                return js({"plan": pl, "evaluation": lifting.evaluate(d, gym[-1]["lifts"], ctx=ctx) if gym else None})
+            if sub == "/evaluate":
+                return js(lifting.evaluate(d, req.get("lifts"), ctx=ctx))
+            if sub == "/log":
+                entry = lifting.log(d, date, req.get("done"), req.get("rpe", 7), req.get("wellness", 7),
+                                    req.get("session_index"), req.get("compare_last"), req.get("override"), ctx)
+                coach.save(d)
+                return js({"log": {k: v for k, v in entry.items() if k != "inputs"}})
+            if sub == "/followup":
+                f = lifting.followup(d, req.get("log_date"), req.get("ratings"), req.get("compare"), req.get("note"))
+                coach.save(d)
+                return js({"followup": f, "recovery": lifting.model(d)})
+            if sub == "/rules":
+                rs = lifting.remove_rule(d, req["remove"]) if req.get("remove") else lifting.add_rule(d, req.get("text"), req.get("note"))
+                coach.save(d)
+                return js({"rules": rs})
+            if sub == "/exclude":                         # the first version's won't-do list: now rules
+                rs = lifting.include(d, req.get("name")) if req.get("remove") else lifting.exclude(d, req.get("name"), req.get("why"))
+                coach.save(d)
+                return js({"rules": rs})
+            if sub == "/unit":
+                if req.get("unit") not in lifting.KG:
+                    return js({"error": "unit is lb or kg"}, 400)
+                lifting.state(d)["unit"] = req["unit"]
+                coach.save(d)
+                return js({"unit": req["unit"]})
+            return js({"error": "not found"}, 404)
         if p == "/api/coach/session" and method == b"POST":
             import session
             rid = req.get("route_id")

@@ -17,11 +17,20 @@ REGIONS = {
     "quads": ("Quadriceps", {"swim": 0.27, "run": 0.75, "bike": 1.0}),
     "hamstrings": ("Hamstrings", {"swim": 0.25, "run": 0.70, "bike": 0.50}),
     "calves": ("Calves and Achilles", {"swim": 0.20, "run": 0.45, "bike": 0.20, "impact": 1.0}),
+    # finer regions for lifting and functional work (lifting.py); the sports reach them lightly
+    "abs": ("Abdominals", {"swim": 0.30, "run": 0.20, "bike": 0.15}),
+    "obliques": ("Obliques", {"swim": 0.40, "run": 0.20, "bike": 0.10}),
+    "lower_back": ("Lower back", {"swim": 0.30, "run": 0.25, "bike": 0.30}),
+    "adductors": ("Adductors", {"swim": 0.20, "run": 0.40, "bike": 0.20}),
+    "biceps": ("Biceps", {"swim": 0.20}),
+    "triceps": ("Triceps", {"swim": 0.45}),
+    "forearms": ("Forearms and grip", {"swim": 0.20, "bike": 0.05}),
+    "neck": ("Neck", {"swim": 0.15, "bike": 0.10}),
     "feet": ("Feet and bones", {"impact": 1.0}),
 }
 
 
-def build(run_blocks, swim_blocks, bike_leg_ratio, run_leg_ratio=0):
+def build(run_blocks, swim_blocks, bike_leg_ratio, run_leg_ratio=0, lift=None):
     """Normalize each source to its own reference, then show the strongest.
 
     The map illustrates where recorded sport exposure is concentrated. Its
@@ -34,9 +43,13 @@ def build(run_blocks, swim_blocks, bike_leg_ratio, run_leg_ratio=0):
     regions = {}
     for key, (name, weights) in REGIONS.items():
         parts = {sport: round(source[sport] * weight, 2) for sport, weight in weights.items() if weight}
+        if (lift or {}).get(key):                                   # lifting lands on the regions each exercise named
+            parts["lift"] = round(lift[key] / 1.5, 2)
         lead = max(parts, key=parts.get)
         regions[key] = {"name": name, "level": round(parts[lead], 2), "driver": lead,
                         "contributions": parts, "coefficients": weights}
+    if lift:
+        source["lift"] = max(lift.values()) / 1.5
     return {"regions": regions, "sources": {k: round(v, 2) for k, v in source.items()},
             "method": "relative participation · provisional, not measured muscle force",
             "references": ["https://pubmed.ncbi.nlm.nih.gov/22903317/",

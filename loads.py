@@ -324,6 +324,8 @@ def score(a, prof, k_hr):
         a["_steps"], a["_eq_km"] = steps, eq_km
     elif a["sport"] == "bike":
         muscle = bike_muscle(a["records"])
+    elif a["sport"] == "gym" and a.get("lift_muscle") is not None:
+        muscle = a["lift_muscle"]                            # logged lifts: the leg regions' points (lifting.py)
     elif a["sport"] == "gym":
         rpe = a.get("rpe") or prof.get("gym_rpe") or GYM_RPE_DEFAULT
         muscle = a["minutes"] * rpe / 6 * 0.9
@@ -367,7 +369,7 @@ def walking_inputs(scored, daily_steps, prof):
             "step_force_lb": round(step_force(m, 1.3, 105) / damage.LBF)}
 
 
-def analyse(acts, prof, today=None, meta=None, feet_reports=None, daily_steps=None):
+def analyse(acts, prof, today=None, meta=None, feet_reports=None, daily_steps=None, lift_blocks=None):
     today = today or dt.date.today()
     meta = meta or {}
     for a in acts:
@@ -494,7 +496,7 @@ def analyse(acts, prof, today=None, meta=None, feet_reports=None, daily_steps=No
     import bodymap
     bike_leg = sports.get("bike", {}).get("muscle", 0) / max(systems["muscle"]["usual_week"], 1)
     run_leg = sports.get("run", {}).get("muscle", 0) / max(systems["muscle"]["usual_week"], 1)
-    regional = bodymap.build(remodeling, swim_recovery["score"], bike_leg, run_leg)
+    regional = bodymap.build(remodeling, swim_recovery["score"], bike_leg, run_leg, lift_blocks)
     return {"activities": scored, "days": days, "systems": systems, "headline": headline,
             "swim_recovery": swim_recovery, "body_map": regional, "sports_last7": sports,
             "calibration": {"engine_points_per_trimp": round(k, 3), "from_rides": n_cal, "run_step": prof.get("_run_step")},
@@ -746,7 +748,25 @@ def summary(base, today=None):
         aero = aerobic.summary(acts, today=today)
     except Exception:
         aero = None
-    out = analyse(acts, prof, today, meta, feet_reports, load_steps(base))
+    lift_blocks, lifted = None, None
+    try:                                        # logged lift sessions (lifting.py): leg points into the muscle system
+        import coach as _coach, lifting
+        dd = _coach.load(base / "coach.json")
+        logs = [l for l in lifting.state(dd)["logs"] if l["date"] <= (today or dt.date.today()).isoformat()]
+        for i, l in enumerate(logs):
+            day0 = dt.datetime.fromisoformat(l["date"] + "T12:00").timestamp()
+            for a in acts:                      # the watch's file of the same session: its heart rate stays, its muscle guess goes
+                if a["sport"] == "gym" and dt.date.fromtimestamp(a["start"]).isoformat() == l["date"]:
+                    a["lift_muscle"] = 0.0
+            acts.append({"id": f"lift-{l['date']}-{i}", "source": "lifts", "start": day0 + i * 300, "sport": "gym",
+                         "minutes": l.get("minutes") or 45, "distance_m": 0, "descent_m": 0, "records": [],
+                         "lift_muscle": l["leg_points"]})
+        lifted = lifting.model(dd, today)
+        lift_blocks = {r: v["blocks"] for r, v in lifted["regions"].items()}
+    except Exception:
+        pass
+    out = analyse(acts, prof, today, meta, feet_reports, load_steps(base), lift_blocks)
+    out["lifting"] = lifted
     out["aerobic"] = aero
     try:                                        # the rest of what the watch saw, cross-referenced (insights.py)
         import insights

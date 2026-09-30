@@ -183,7 +183,7 @@ def set_plan(d, date, verdict_=None, note=None, workout=None, focus_=None, sport
     return p
 
 
-def set_sessions(d, date, sessions):
+def set_sessions(d, date, sessions, _trusted=False):
     """Replace the day's ordered sessions. Each session can carry a compact workout outline."""
     if not isinstance(sessions, list) or len(sessions) > 5:
         raise ValueError("sessions must be a list of at most five")
@@ -197,11 +197,17 @@ def set_sessions(d, date, sessions):
         steps = item.get("steps") or []
         if not isinstance(steps, list) or len(steps) > 30:
             raise ValueError("session steps must be a list of at most 30")
-        clean.append({"sport": item["sport"], "minutes": minutes,
-                      "name": str(item.get("name") or item["sport"].title())[:80],
-                      "steps": [str(step)[:160] for step in steps],
-                      "note": str(item.get("note") or "")[:300],
-                      "workout": str(item.get("workout") or "")[:120] or None})
+        entry = {"sport": item["sport"], "minutes": minutes,
+                 "name": str(item.get("name") or item["sport"].title())[:80],
+                 "steps": [str(step)[:160] for step in steps],
+                 "note": str(item.get("note") or "")[:300],
+                 "workout": str(item.get("workout") or "")[:120] or None}
+        if item["sport"] == "gym" and item.get("lifts"):            # planned lifts (lifting.py): checked, and the rider's rules apply
+            import lifting
+            entry["lifts"] = item["lifts"] if _trusted else lifting.clean(d, item["lifts"])
+            if item.get("override"):
+                entry["override"] = str(item["override"])[:300]
+        clean.append(entry)
     p = d["plans"].setdefault(date, {})
     p["sessions"] = clean
     if clean:

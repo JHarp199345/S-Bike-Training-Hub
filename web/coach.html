@@ -13,7 +13,7 @@
  button:disabled{opacity:.45}
  .verdict{font-size:30px;font-weight:900}.v-go{color:#4ade80}.v-easy{color:#fbbf24}.v-rest{color:#f87171}
  .why{color:#b7c1cd;margin-top:4px}
- .tabs{position:sticky;top:0;z-index:5;display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin:14px 0 4px;padding:4px;
+ .tabs{position:sticky;top:0;z-index:5;display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin:14px 0 4px;padding:4px;
    background:#151b23;border:1px solid #2a3441;border-radius:14px}
  .tabs button{padding:10px 0;font-size:15px;background:transparent;color:#b7c1cd}
  .tabs button[aria-selected="true"]{background:#2563eb;color:#ffffff}
@@ -34,6 +34,19 @@
  .iact summary::-webkit-details-marker{display:none}.iact summary span{color:#8b98a8;font-size:13px;text-align:right}.iact .body{padding:0 0 12px;font-size:14px;color:#eef1f5}
  .iact .tag{font-size:11px;border-radius:999px;padding:1px 8px;margin-left:6px;border:1px solid #2a3441;color:#8b98a8}.iact .tag.sudden{border-color:#e53e3e;color:#e53e3e}.iact .tag.gradual{border-color:#ecc94b;color:#ecc94b}
  #resumebar{display:flex;gap:8px;margin:0 0 12px}#resumebar #resumego{flex:1;text-align:left;padding:14px 16px;font-size:16px;line-height:1.35}#resumebar small{display:block;opacity:.85;font-size:13px}
+ .lx{border-bottom:1px solid #2a3441}.lx:last-of-type{border:0}.lx summary{padding:10px 0;cursor:pointer;display:flex;justify-content:space-between;gap:8px;list-style:none}.lx summary::-webkit-details-marker{display:none}
+ .lx summary span{color:#8b98a8;font-size:13px;text-align:right}.lx .body{display:grid;gap:8px;padding:0 0 12px}.lx input,.lx select,.lx textarea,.lfield{padding:8px;border-radius:10px;background:#0b0f14;color:#eef1f5;border:1px solid #2a3441;font:inherit;min-width:0}
+ .lgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}.lgrid label{display:grid;gap:3px;font-size:12px;color:#b7c1cd}
+ .chips{display:flex;flex-wrap:wrap;gap:6px}.chip{font-size:12px;padding:4px 10px;border-radius:999px;border:1px solid #2a3441;background:transparent;color:#b7c1cd;cursor:pointer}.chip.on{background:#2563eb;border-color:#2563eb;color:#fff}
+ .lrow{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid #2a3441}.lrow input[type=number]{width:68px!important;min-width:0!important;font-size:16px!important;padding:6px 8px!important}
+ .lrow .lname{min-width:0}.lrow .lname small{display:block;color:#8b98a8}.lwhy{grid-column:2/-1}.lin{grid-column:2/-1;display:flex;gap:10px;flex-wrap:wrap;align-items:center;color:#b7c1cd;font-size:13px}.lin label{display:flex;align-items:center;gap:6px}
+ .rule{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #2a3441}.rule:last-child{border:0}.rule small{display:block;color:#8b98a8}
+ .rtag{font-size:11px;border-radius:999px;padding:1px 8px;margin-left:6px;border:1px solid #2a3441;color:#8b98a8}.rtag.never{border-color:#e53e3e;color:#e53e3e}.rtag.favourite{border-color:#48bb78;color:#48bb78}
+ .steer{padding:10px 12px;border-radius:10px;background:#0f141b;border-left:4px solid #60a5fa;margin-bottom:10px;font-size:14px}.steer b{text-transform:uppercase;letter-spacing:.04em}
+ .lxs{display:grid;grid-template-columns:minmax(0,1fr) repeat(3,64px) 64px auto;gap:6px;align-items:center;padding:6px 0;border-bottom:1px solid #2a3441}.lxs input{width:100%}.lxs .ai{grid-column:1/-1;font-size:12px;color:#8b98a8}
+ .lxs input[type=number]{width:100%!important;min-width:0!important;font-size:15px!important;font-weight:400!important;padding:8px!important;text-align:left;border-radius:10px}
+ .lxh{font-size:11px;color:#8b98a8;border:0;padding-bottom:0}
+ @media(max-width:520px){.lxs{grid-template-columns:repeat(4,minmax(0,1fr)) auto}.lxs .nm{grid-column:1/-1}}
  .jentry{padding:10px 0;border-bottom:1px solid #2a3441}.jentry:last-child{border:0}
  .jentry b{color:#b7c1cd;font-size:13px}.jentry div{color:#eef1f5;white-space:pre-wrap;margin-top:3px;-webkit-user-select:text;user-select:text}
  .checkedin{margin-top:10px;padding:8px 10px;background:#0f141b;border:1px solid #2a3441;border-radius:10px;font-size:14px;color:#b7c1cd}
@@ -103,7 +116,7 @@
 <h1>Coach</h1><div class="sub">Day by day: test, check in, then ride what today allows · <a href="/ride">Ride view</a> · <a href="/">Panel</a> · <a href="/fitness">Fitness</a></div>
 
 <nav class="tabs" role="tablist" aria-label="Coach sections">
- <button role="tab" data-tab="today">Today</button><button role="tab" data-tab="plan">Plan</button><button role="tab" data-tab="progress">Progress</button>
+ <button role="tab" data-tab="today">Today</button><button role="tab" data-tab="plan">Plan</button><button role="tab" data-tab="progress">Progress</button><button role="tab" data-tab="rules">Rules</button>
 </nav>
 <div id="resumebar" hidden><button class="purple" id="resumego"></button><button id="resumedrop" aria-label="Forget this unfinished workout">✕</button></div>
 <section data-tab="today" role="tabpanel">
@@ -148,6 +161,10 @@
  <div class="row" style="margin-top:10px" id="planrow" hidden><span class="sub">Today's ride:</span> <b id="planw"></b> <button class="purple" id="planride">▶ Ride it</button></div>
  <div class="row" style="margin-top:10px" id="courserow" hidden><span class="sub">No route planned:</span> <button class="purple" id="plancourse">🎮 Ride today's course</button></div>
 </div>
+<h2 id="liftfollowtitle" hidden>LIFT FOLLOW-UP</h2>
+<div class="card" id="liftfollow" hidden></div>
+<h2 id="liftlogtitle" hidden>TODAY'S LIFTS · CHECK OFF</h2>
+<div class="card" id="liftlog" hidden></div>
 <h2>MORNING DIAGNOSTIC · 6 MIN · OPTIONAL</h2>
 <div class="card">
  <div class="sub">Same watts every day, so your body's answer is the only thing that changes. Fan on, before coffee if you can. Keep your watch recording.</div>
@@ -182,6 +199,8 @@
 </div>
 <h2 id="othertitle" hidden></h2>
 <div class="card" id="othercard" hidden></div>
+<h2 id="lifttitle" hidden></h2>
+<div class="card" id="liftcard" hidden></div>
 <h2>COMING UP</h2>
 <div class="card" id="eventcard"><div id="eventlist" class="sub">Nothing on the calendar.</div>
  <div class="row" style="margin-top:10px;gap:6px;flex-wrap:wrap">
@@ -208,6 +227,13 @@
 <h2>JOURNAL</h2>
 <div class="card"><div class="sub" style="margin-bottom:6px">What you wrote with each check-in. Kept as a record - not part of any score yet.</div>
  <div id="journallist" class="sub">No entries yet.</div></div>
+</section>
+<section data-tab="rules" role="tabpanel" hidden>
+<h2>YOUR RULES</h2>
+<div class="card"><div class="sub" style="margin-bottom:8px">Line items your AI follows when it plans your workouts. Start one with "No" or "Never" and that exercise is never planned; mention a favourite and it comes up often; anything else is guidance it takes into account.</div>
+ <div id="rulelist"></div>
+ <div class="row" style="margin-top:10px"><input class="lfield" id="ruletext" style="flex:1;min-width:0" maxlength="200" placeholder="e.g. No deadlifts · Favorite lift: incline dumbbell press · Nothing heavy overhead"><button class="blue" id="ruleadd">Add</button></div>
+ <div id="rulemsg" class="sub"></div></div>
 </section>
 <dialog id="impactdialog" aria-labelledby="impacttitle"><div class="row" style="justify-content:space-between"><b id="impacttitle">Running load over time</b><button id="impactclose" aria-label="Close graph">✕</button></div>
  <canvas id="impactgraph" aria-label="Recent run response and accumulated load over time"></canvas>
@@ -268,7 +294,7 @@ async function loadToday(){ const r=await (await fetch('/api/coach/today')).json
   if(c.hr90) $('why').textContent+=` · HR at 90 W ${c.hr90}`+(c.hrr!=null?`, recovered ${c.hrr} bpm`:'')+(r.baseline?` (normal ${Math.round(r.baseline.hr90)})`:'');
   sysline(r);
   focusLine(r);
-  rpeLine(r);
+  rpeLine(r); liftToday(r.lifting);
   morningLine(r.morning);
   weekStrip(r.week, r.date);
   skillList(r.skills);
@@ -341,10 +367,12 @@ function weekStrip(wk,today){ if(!wk) return; const box=$('weekstrip');
   const showSessions=(i,si)=>{const d=wk[i], sessions=d.sessions||[]; si=Math.min(si??0, Math.max(0,sessions.length-1));
     const cur=sessions[si]; box.querySelectorAll('.wd').forEach((e,k)=>e.querySelectorAll('.wds').forEach((x,n)=>x.classList.toggle('on',k===i&&n===si&&sessions.length>1)));
     const ride=cur?.sport==='ride'; $('timedtitle').hidden=!ride; $('timedcard').hidden=!ride; if(ride) setTimeout(()=>loadPlanned(d,cur));
-    sessionCard(d,cur);
+    sessionCard(d,cur); liftCard(d,cur,si);
     $('sessionpreview').innerHTML=cur
     ?`<div><b>${ICON[cur.sport]||'•'} ${esc(cur.name||cur.sport)}${cur.sport==='rest'?'':` · ${cur.minutes} min`}</b>${sessions.length>1?`<span class="sub"> · session ${si+1} of ${sessions.length} - tap the other icon above to switch</span>`:''}${cur.note?`<div class="sub">${esc(cur.note)}</div>`:''}${cur.sport==='ride'?rideHow(cur):''}${!['ride','swim','run'].includes(cur.sport)&&cur.steps?.length?`<ol class="sub" style="margin:6px 0 0 18px;padding:0">${cur.steps.map(x=>`<li>${esc(x)}</li>`).join('')}</ol>`:''}</div>`
-    :'<div class="sub">Nothing planned this day.</div>';};
+    :'<div class="sub">Nothing planned this day.</div>';
+    if(!sessions.some(x=>x.sport==='gym')) $('sessionpreview').insertAdjacentHTML('beforeend',`<div style="margin-top:8px"><a href="#" id="addgym">+ gym session</a></div>`);
+    const ag=$('addgym'); if(ag) ag.onclick=e=>{ e.preventDefault(); liftCard(d,{sport:'gym',name:'Strength',lifts:[]},null,true); $('liftcard').scrollIntoView({behavior:'smooth'}); };};
   box.querySelectorAll('.wd').forEach(e=>e.onclick=ev=>{ const s=ev.target.closest('.wds'); show(+e.dataset.i); showSessions(+e.dataset.i, s?+s.dataset.s:null); });
   const selected=Math.max(0,wk.findIndex(d=>d.date===today));show(selected);showSessions(selected); }
 // A swim or run session's workout, shown like the ride's: its own sets if the plan has them, otherwise a standard
@@ -447,7 +475,8 @@ addEventListener('resize',()=>{if($('impactdialog').open)drawImpact();});
 // higher. It has no feet, so feet & bones get their own button under the figures.
 const MUSCLES={shoulders:['front-deltoids','back-deltoids'], scapula:['upper-back'], lats:['upper-back'], serratus:['obliques'],
   pecs:['chest'], traps:['trapezius'], trunk:['abs','obliques','lower-back'], hip_flexors:['adductor'], glutes:['gluteal','abductors'],
-  quads:['quadriceps'], hamstrings:['hamstring'], calves:['calves','left-soleus','right-soleus']};
+  quads:['quadriceps'], hamstrings:['hamstring'], calves:['calves','left-soleus','right-soleus'],
+  abs:['abs'], obliques:['obliques'], lower_back:['lower-back'], adductors:['adductor'], biceps:['biceps'], triceps:['triceps'], forearms:['forearm'], neck:['neck']};
 const HEAT=['#3b82f6','#22c55e','#eab308','#f97316','#ef4444'];                     // the same scale as the old map
 const heatStep=v=>v<.08?0:v<.35?1:v<.7?2:v<1?3:v<1.5?4:5;
 const heat=v=>v<.08?'#1f2937':v<.35?'#3b82f6':v<.7?'#22c55e':v<1?'#eab308':v<1.5?'#f97316':'#ef4444';
@@ -601,7 +630,7 @@ function renderFlags(fl,date){ $('flags').innerHTML=fl.map(f=>f.status==='open'
     const r=await post('/api/coach/flag?date='+date,{id:b.dataset.flag,action:b.dataset.act}); if(r.ok) loadToday(); }); }
 
 // ── tabs: Today (every morning), Plan (the week), Progress (where you stand). Remembered; #plan etc. links work.
-const TABS=['today','plan','progress'];
+const TABS=['today','plan','progress','rules'];
 function showTab(t){ if(!TABS.includes(t)) t='today';
   document.querySelectorAll('section[data-tab]').forEach(x=>x.hidden=x.dataset.tab!==t);
   document.querySelectorAll('.tabs [data-tab]').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===t)));
@@ -626,6 +655,108 @@ async function loadResume(){ let st; try{ st=await (await fetch('/status')).json
 $('resumego').onclick=async()=>{ const r=await post('/api/workout/resume',{}); if(r.ok) location.href='/course'; else loadResume(); };
 $('resumedrop').onclick=async()=>{ if(confirm('Forget this unfinished workout?')){ await post('/api/workout/resume/discard',{}); loadResume(); } };
 loadResume(); setInterval(loadResume,15000);
+
+// ── lifting (lifting.py): the builder under a gym day, the check-off and the follow-up on Today
+let LIFT={unit:'lb',regions:{},exclusions:[],library:[]}, liftEdit=null, liftSaved=null;
+async function liftMeta(){ try{ LIFT=await (await fetch('/api/coach/lifting')).json(); }catch(e){} }
+const lsum=x=>`${x.sets} × ${x.reps?x.reps:x.seconds+' s'}${x.per_side?' each side':''}${x.weight!=null?` @ ${x.weight} ${x.unit||LIFT.unit}`:''}`;
+function liftCard(d,s,index,fresh){ const box=$('liftcard'), ttl=$('lifttitle');
+  if(!s||s.sport!=='gym'){ box.hidden=true; ttl.hidden=true; return; }
+  const isToday=d.date===day?.date, when=new Date(d.date+'T12:00');
+  ttl.textContent=`${isToday?"TODAY'S":when.toLocaleDateString(undefined,{weekday:'long'}).toUpperCase()+"'S"} GYM · ${esc((s.name||'Strength').toUpperCase())}`;
+  liftEdit={date:d.date,index:fresh?null:index,name:s.name||'Strength',lifts:JSON.parse(JSON.stringify(s.lifts||[]))};
+  box.hidden=false; ttl.hidden=false; drawLift(); }
+function blank(){ return {name:'',sets:3,reps:10,seconds:null,weight:null,unit:LIFT.unit,tempo:''}; }
+function aiLine(x){ const R=LIFT.regions||{};
+  if(!x.scored) return x.name?'Not scored yet - ask your AI to score this session.':'';
+  return `${x.style==='restorative'?'Restorative':'Build'} · ${x.kind.replace('_',' ')} · ${Object.entries(x.regions||{}).map(([k,v])=>`${esc(R[k]||k)} ${Math.round(v*100)}%`).join(', ')}`; }
+function steerHtml(st){ if(!st) return '';
+  return `<div class="steer"><b>Steer: ${esc(st.mode)}</b> · about ${Math.round(st.restorative_share*100)}% restorative work. <span class="sub">${esc(st.why.join('; '))}. A suggestion - your call wins.</span></div>`; }
+function drawLift(){ const e=liftEdit, box=$('liftcard');
+  const unscored=e.lifts.some(x=>x.name&&!x.scored);
+  box.innerHTML=`${steerHtml(LIFT.steer)}
+   <div class="row" style="justify-content:space-between"><input class="lfield" id="lsname" value="${esc(e.name)}" style="flex:1;min-width:0" aria-label="Session name">
+    <select class="lfield" id="lunit" aria-label="Weight unit"><option value="lb"${LIFT.unit==='lb'?' selected':''}>lb</option><option value="kg"${LIFT.unit==='kg'?' selected':''}>kg</option></select></div>
+   <div class="sub" style="margin:8px 0">List the exercises; your AI scores them (muscles, type, load) and can suggest changes. Or just ask your AI to build the whole session.</div>
+   <div class="lxs lxh"><span class="nm">Exercise</span><span>Sets</span><span>Reps / s</span><span>Weight</span><span>Tempo</span><span></span></div>
+   ${e.lifts.map((x,i)=>`<div class="lxs" data-i="${i}">
+     <input class="lfield nm" data-f="name" value="${esc(x.name)}" placeholder="e.g. Kneeling rainbow throw" aria-label="Exercise name">
+     <input class="lfield" data-f="sets" type="number" min="1" max="20" value="${x.sets}" aria-label="Sets">
+     <input class="lfield" data-f="count" value="${x.seconds?x.seconds+'s':(x.reps??'')}" placeholder="10 or 30s" aria-label="Reps, or seconds like 30s">
+     <input class="lfield" data-f="weight" type="number" min="0" step="2.5" value="${x.weight??''}" placeholder="–" aria-label="Weight">
+     <input class="lfield" data-f="tempo" value="${esc(x.tempo||'')}" placeholder="3-0-3" aria-label="Tempo, seconds down-pause-up">
+     <button type="button" data-act="del" aria-label="Remove ${esc(x.name||'exercise')}">✕</button>
+     <div class="ai">${aiLine(x)}</div></div>`).join('')}
+   <div class="row" style="margin-top:10px"><button type="button" id="ladd">+ Exercise</button>
+    ${LIFT.library?.length?`<select class="lfield" id="llib" style="min-width:0;flex:1"><option value="">+ From your library…</option>${LIFT.library.map((l,i)=>`<option value="${i}">${esc(l.name)}${l.times_done?` · done ${l.times_done}×`:''}</option>`).join('')}</select>`:''}</div>
+   <div class="row" style="margin-top:12px"><button class="blue" id="lsave">Save to ${e.date===day?.date?'today':new Date(e.date+'T12:00').toLocaleDateString(undefined,{weekday:'long'})}</button>${unscored?'':'<button id="leval">Evaluate</button>'}</div>
+   <div id="lmsg" class="sub" style="margin-top:8px"></div>`;
+  box.querySelectorAll('.lxs[data-i]').forEach(row=>{ const i=+row.dataset.i, x=e.lifts[i];
+    row.querySelectorAll('[data-f]').forEach(inp=>inp.onchange=()=>{ const f=inp.dataset.f, v=inp.value.trim();
+      if(f==='name'){ if(v!==x.name){ x.name=v; x.scored=false; x.regions={}; } }
+      else if(f==='sets') x.sets=v?+v:1;
+      else if(f==='count'){ const m=v.match(/^(\d+)\s*s/i); if(m){ x.seconds=+m[1]; x.reps=null; } else { x.reps=v?+v:null; x.seconds=null; } }
+      else if(f==='weight') x.weight=v===''?null:+v;
+      else if(f==='tempo') x.tempo=v; });
+    row.querySelector('[data-act="del"]').onclick=()=>{ e.lifts.splice(i,1); drawLift(); }; });
+  $('lsname').onchange=ev=>e.name=ev.target.value;
+  $('lunit').onchange=async ev=>{ await post('/api/coach/lifting/unit',{unit:ev.target.value}); LIFT.unit=ev.target.value; e.lifts.forEach(x=>x.unit=LIFT.unit); drawLift(); };
+  $('ladd').onclick=()=>{ e.lifts.push(blank()); drawLift(); const rows=box.querySelectorAll('.lxs[data-i] .nm'); rows[rows.length-1]?.focus(); };
+  if($('llib')) $('llib').onchange=ev=>{ const l=LIFT.library[+ev.target.value]; if(!l) return;
+    e.lifts.push({...blank(),name:l.name,kind:l.kind,style:l.style,regions:l.shares,scored:!!l.scored,...(l.last||{}),unit:(l.last&&l.last.unit)||LIFT.unit}); drawLift(); };
+  const payload=()=>e.lifts.filter(x=>x.name).map(x=>{ const o={name:x.name,sets:x.sets,reps:x.reps,seconds:x.seconds,weight:x.weight,unit:x.unit||LIFT.unit,tempo:x.tempo||null,how:x.how,per_side:x.per_side};
+    if(x.scored) Object.assign(o,{kind:x.kind,style:x.style,regions:Object.fromEntries(Object.entries(x.regions||{}).map(([k,v])=>[k,v*100]))}); return o; });
+  if($('leval')) $('leval').onclick=async()=>{ const r=await post('/api/coach/lifting/evaluate',{lifts:payload()}); $('lmsg').innerHTML=r.ok?evalHtml(r.j):esc(r.j.error); };
+  $('lsave').onclick=async()=>{ const r=await post('/api/coach/lifting/plan',{date:e.date,index:e.index,name:e.name,lifts:payload(),draft:true});
+    if(!r.ok){ $('lmsg').textContent=r.j.error; return; }
+    liftSaved=r.j.evaluation&&!r.j.evaluation.unscored.length?'Saved. '+evalHtml(r.j.evaluation):'Saved. Now ask your AI to score it - it fills in the muscles and the load, and can suggest changes.';
+    $('lmsg').innerHTML=liftSaved; await liftMeta(); loadToday(); };
+  if(liftSaved){ $('lmsg').innerHTML=liftSaved; liftSaved=null; } }
+function evalHtml(v){ const R=LIFT.regions||{}, top=Object.entries(v.regions).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  return `${v.fits_steer?`<div>Steer: ${esc(v.fits_steer)}.</div>`:''}<b>${v.points_total} points</b> (estimate)${v.usual_session?` · ${Math.round(v.vs_usual*100)}% of your usual session`:''} · about ${v.minutes} min.
+   Most on ${top.map(([k,p])=>`${esc(R[k]||k)} ${Math.round(p)}${v.regions_carrying_blocks[k]?` (already carrying ${v.regions_carrying_blocks[k]} blocks)`:''}`).join(', ')}.${v.leg_points?` Legs: ${v.leg_points} points toward the leg budget running and riding share.`:''}`; }
+function liftToday(L){ if(!L){ return; } LIFT.unit=L.unit; LIFT.regions=L.regions||LIFT.regions;
+  const fu=L.pending_followup, fb=$('liftfollow');
+  $('liftfollowtitle').hidden=fb.hidden=!fu;
+  if(fu){ fb.innerHTML=`<div class="sub">${fu.days_ago} days since <b>${esc(fu.session)}</b>. How do these feel now? (1 fine, 10 very sore)</div>
+    ${fu.regions.map(r=>`<div class="sl"><label>${esc(r.name)} <span><b id="fuv-${r.key}">3</b>/10</span></label><input type="range" min="1" max="10" value="3" data-fu="${r.key}"></div>`).join('')}
+    <div class="sub">Compared with the session before it:</div><div class="gut"><button data-cmp="easier">Easier</button><button data-cmp="same">Same</button><button data-cmp="harder">Harder</button></div>
+    <div class="row" style="margin-top:10px"><button class="blue" id="fusave">Save</button></div><div id="fumsg" class="sub"></div>`;
+    let cmp=null; fb.querySelectorAll('[data-fu]').forEach(i=>i.oninput=()=>$('fuv-'+i.dataset.fu).textContent=i.value);
+    fb.querySelectorAll('[data-cmp]').forEach(b=>b.onclick=()=>{ cmp=b.dataset.cmp; fb.querySelectorAll('[data-cmp]').forEach(x=>x.classList.toggle('on',x===b)); });
+    $('fusave').onclick=async()=>{ const ratings={}; fb.querySelectorAll('[data-fu]').forEach(i=>ratings[i.dataset.fu]=+i.value);
+      const r=await post('/api/coach/lifting/followup',{log_date:fu.log_date,ratings,compare:cmp}); $('fumsg').textContent=r.ok?'Saved - the region blocks are refitted.':r.j.error; if(r.ok) setTimeout(loadToday,900); }; }
+  const s=(L.sessions||[])[0], lb=$('liftlog');
+  $('liftlogtitle').hidden=lb.hidden=!s;
+  if(!s) return;
+  if(s.logged){ lb.innerHTML=`<b>✓ ${esc(s.name)} checked off</b><div class="sub">${s.log.points_total} points (estimate) · effort ${s.log.rpe}/10 · feeling ${s.log.wellness}/10 after. ${s.log.lifts.filter(x=>x.note).map(x=>`${esc(x.name)}: ${esc(x.note)}`).join(' · ')}</div>`; return; }
+  lb.innerHTML=`<div class="sub">After the workout: tick what you did. Weights start as planned - change any you lifted differently.</div>
+   ${s.lifts.map((x,i)=>`<div class="lrow" data-i="${i}"><input type="checkbox" checked data-k="done" aria-label="Did ${esc(x.name)}">
+     <div class="lname">${esc(x.name)}<small>${lsum(x)}</small></div>
+     <div class="lin">${x.weight!=null?`<label>Weight <input type="number" data-k="weight" step="2.5" value="${x.weight}" aria-label="Weight for ${esc(x.name)}"> ${x.unit||LIFT.unit}</label>`:''}
+     <label>${x.seconds?'Seconds':'Reps'} <input type="number" data-k="${x.seconds?'seconds':'reps'}" value="${x.seconds||x.reps}" aria-label="${x.seconds?'Seconds':'Reps'} for ${esc(x.name)}"></label></div>
+     <div class="lwhy" hidden><span class="sub">Lighter than planned - why?</span> <button type="button" data-why="too_heavy">Too heavy</button> <button type="button" data-why="chose">Chose to</button></div></div>`).join('')}
+   <div class="sl"><label>Effort, the whole session <span><b id="lrpev">7</b>/10</span></label><input type="range" id="lrpe" min="1" max="10" value="7"></div>
+   <div class="sl"><label>How you feel after <span><b id="lwellv">7</b>/10</span></label><input type="range" id="lwell" min="1" max="10" value="7"></div>
+   <div class="row"><button class="blue" id="llogsave">Check it off</button></div><div id="llogmsg" class="sub"></div>`;
+  const why={};
+  lb.querySelectorAll('.lrow').forEach(row=>{ const i=+row.dataset.i, x=s.lifts[i], w=row.querySelector('[data-k="weight"]'), wy=row.querySelector('.lwhy');
+    if(w) w.oninput=()=>{ wy.hidden=!(+w.value<x.weight); };
+    row.querySelectorAll('[data-why]').forEach(b=>b.onclick=()=>{ why[i]=b.dataset.why; row.querySelectorAll('[data-why]').forEach(y=>y.classList.toggle('on',y===b)); }); });
+  $('lrpe').oninput=ev=>$('lrpev').textContent=ev.target.value; $('lwell').oninput=ev=>$('lwellv').textContent=ev.target.value;
+  $('llogsave').onclick=async()=>{ const done=s.lifts.map((x,i)=>{ const row=lb.querySelector(`.lrow[data-i="${i}"]`), o={done:row.querySelector('[data-k="done"]').checked};
+      const w=row.querySelector('[data-k="weight"]'), n=row.querySelector('[data-k="reps"]')||row.querySelector('[data-k="seconds"]');
+      if(w&&+w.value!==x.weight) o.weight=+w.value; if(n&&x.reps&&+n.value!==x.reps) o.reps=+n.value; if(why[i]) o.why=why[i]; return o; });
+    const r=await post('/api/coach/lifting/log',{date:day.date,done,rpe:+$('lrpe').value,wellness:+$('lwell').value,session_index:s.index});
+    $('llogmsg').textContent=r.ok?'Checked off.':r.j.error; if(r.ok) setTimeout(loadToday,700); }; }
+async function loadRules(){ await liftMeta(); const rs=LIFT.rules||[];
+  $('rulelist').innerHTML=rs.length?rs.map(r=>`<div class="rule"><div>${esc(r.text)}<span class="rtag ${r.kind==='note'?'guide':r.kind}">${r.kind==='never'?'never planned':r.kind==='favourite'?'favourite':'guidance'}</span>${r.note?`<small>${esc(r.note)}</small>`:''}</div><button type="button" data-rm="${esc(r.text)}" aria-label="Remove rule ${esc(r.text)}">✕</button></div>`).join('')
+    :'<div class="sub">No rules yet.</div>';
+  $('rulelist').querySelectorAll('[data-rm]').forEach(b=>b.onclick=async()=>{ await post('/api/coach/lifting/rules',{remove:b.dataset.rm}); loadRules(); }); }
+$('ruleadd').onclick=async()=>{ const t=$('ruletext').value.trim(); if(!t) return; const r=await post('/api/coach/lifting/rules',{text:t});
+  if(r.ok){ $('ruletext').value=''; $('rulemsg').textContent=''; loadRules(); } else $('rulemsg').textContent=r.j.error; };
+$('ruletext').onkeydown=ev=>{ if(ev.key==='Enter') $('ruleadd').click(); };
+liftMeta().then(loadRules);
 
 // ── what the watch saw (insights.py): flags that ask, trends, and each activity in detail
 const ISPORT={swim:'🏊 Swim',run:'🏃 Run',bike:'🚴 Ride',gym:'🏋 Gym',walk:'🚶 Walk'};

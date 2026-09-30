@@ -200,6 +200,30 @@ def t_rate(a):
     return call("/api/coach/rate", {k: a[k] for k in ("ride", "rpe") if k in a})
 
 
+def t_lifting(a):
+    return call("/api/coach/lifting")
+
+
+def t_lift_plan(a):
+    return call("/api/coach/lifting/plan", {k: a[k] for k in ("date", "lifts", "name", "minutes", "index", "note", "override") if k in a})
+
+
+def t_lift_eval(a):
+    return call("/api/coach/lifting/evaluate", {"lifts": a["lifts"]})
+
+
+def t_lift_log(a):
+    return call("/api/coach/lifting/log", {k: a[k] for k in ("date", "done", "rpe", "wellness", "session_index", "compare_last", "override") if k in a})
+
+
+def t_lift_follow(a):
+    return call("/api/coach/lifting/followup", {k: a[k] for k in ("log_date", "ratings", "compare", "note") if k in a})
+
+
+def t_lift_rule(a):
+    return call("/api/coach/lifting/rules", {k: a[k] for k in ("text", "note", "remove") if k in a})
+
+
 def t_swim_activity(a):
     return call("/api/load/swim-activity", {k: a[k] for k in ("activity_id", "paddles", "pull_buoy", "swim_rpe") if k in a})
 
@@ -262,6 +286,18 @@ INT = lambda d, lo=None, hi=None: {"type": "integer", "description": d, **({"min
                                    **({"maximum": hi} if hi is not None else {})}
 STR = lambda d, **k: {"type": "string", "description": d, **k}
 DATE = STR("Day as YYYY-MM-DD (default: today)")
+LIFTS = {"type": "array", "description": "The exercises, in order", "items": {"type": "object", "properties": {
+    "name": {"type": "string"}, "how": {"type": "string", "description": "One line on how to do it"},
+    "equipment": {"type": "string"},
+    "kind": {"type": "string", "enum": ["barbell", "dumbbell", "kettlebell", "machine", "cable", "band", "medicine_ball", "bodyweight", "other"]},
+    "style": {"type": "string", "enum": ["restorative", "build"], "description": "restorative = controlled mild stress (holds, slow tempo, hangs, loaded stretching); build = progressive strength"},
+    "sets": {"type": "integer", "minimum": 1, "maximum": 20}, "reps": {"type": "integer", "minimum": 1, "maximum": 100},
+    "seconds": {"type": "integer", "minimum": 1, "maximum": 600}, "weight": {"type": "number", "minimum": 0},
+    "unit": {"type": "string", "enum": ["lb", "kg"]}, "per_side": {"type": "boolean"},
+    "tempo": {"type": "string", "description": "Seconds down-pause-up, e.g. '3-0-3' (slower = more strain per rep)"},
+    "regions": {"type": "object", "description": "How the whole movement's strain is shared across body regions (from get_lifting), as percentages adding to ~100, e.g. deadlift {lower_back: 30, glutes: 25, hamstrings: 20, quads: 15, forearms: 10}",
+                "additionalProperties": {"type": "number", "minimum": 0}}},
+    "required": ["name", "kind", "sets", "regions"]}}
 
 TOOLS = [
     ("get_today", "Today's coaching picture: the rider's check-in and morning diagnostic (heart rate at 90 W / 120 W / "
@@ -330,6 +366,49 @@ TOOLS = [
      "weight), MUSCLE (leg force; pedal torque, gym effort, running). Each has fitness, fatigue, form, the "
      "acute:chronic ratio and zone (0.8-1.3 sweet spot, >1.5 danger for impact/muscle), this week's used load vs "
      "budget, and a weakest-link readiness verdict with what's limiting. Use this before set_plan.", S(), t_load),
+    ("get_lifting", "Lifting and functional strength. Read before planning or scoring a gym session: the rider's RULES "
+     "(never plan what a 'No ...' rule excludes; use favourites), the coaching GUIDANCE, the STEER (restorative or build, "
+     "the suggested restorative share of the session and why, from the load the rider carries), sessions the rider built "
+     "that are waiting for you to score (unscored_sessions), the exercise library, estimated one-rep maxes, recent "
+     "sessions, the follow-up that's due, and each region's recovery block. Units: the rider's (lb or kg). All load "
+     "numbers are estimates.", S(), t_lifting),
+    ("plan_lift_session", "Put a scored gym session on a day's plan - one you designed from the rider's goals, rules and "
+     "the steer (search the web for exercises when you can), or the rider's own draft that you're scoring. Each exercise: "
+     "name, how (one line), kind, style (restorative/build), sets, reps OR seconds, weight (omit for bodyweight), tempo, "
+     "per_side, and regions: how the whole movement's strain is shared, as percentages. Replaces the day's gym session "
+     "(or the one at index); a session already checked off is recalculated. If the rider chose something other than the "
+     "steer, pass their reason as override. Returns the plan and its evaluation.",
+     S(date=DATE, name=STR("Session name, e.g. 'Rotational core'"), minutes=INT("Minutes (estimated if left out)", 5, 240),
+       index=INT("Which of the day's sessions to replace (default: the first gym session, or add one)", 0, 4),
+       note=STR("A short note for the rider"), override=STR("The rider's call when it departs from the steer, in their words"),
+       lifts=LIFTS), t_lift_plan),
+    ("evaluate_lift_session", "Score a lift session before it's done: points per exercise (intensity against the estimated "
+     "one-rep max, or effort for throws/bands/holds, times tempo), shared across regions, the restorative share against "
+     "the steer (fits_steer), against the rider's usual, and what each region is already carrying. Use it to judge and "
+     "adjust; nothing is saved.", S(lifts=LIFTS), t_lift_eval),
+    ("log_lift_session", "The check-off after a gym session, from what the rider tells you: one entry per planned lift, in "
+     "order ({done, weight, reps, sets, why} - leave out what went as planned). If they lifted LESS weight than planned, "
+     "ask why and pass why = too_heavy (the load stays as planned; the strength estimate comes down) or chose (the load "
+     "is what they lifted). More weight = more load. rpe = session effort 1-10, wellness = how they feel after 1-10. "
+     "These reports also tune the steer.",
+     S(date=DATE, rpe=INT("Session effort 1-10", 1, 10), wellness=INT("How they feel after, 1-10", 1, 10),
+       session_index=INT("Which of the day's gym sessions (default the first)", 0, 4),
+       compare_last=STR("How it felt against their last lift session", enum=["easier", "same", "harder"]),
+       override=STR("If they overrode the steer, their reason"),
+       done={"type": "array", "description": "One per planned lift, in order", "items": {"type": "object", "properties": {
+           "done": {"type": "boolean"}, "weight": {"type": "number"}, "reps": {"type": "integer"}, "sets": {"type": "integer"},
+           "why": {"type": "string", "enum": ["too_heavy", "chose"]}}}}), t_lift_log),
+    ("record_lift_followup", "Two to four days after a lift session (get_lifting shows when one is due): how each region "
+     "it worked feels now, 1-10 (1 fine, 10 very sore), and how the session compared with the one before. This refits "
+     "each region's recovery block and tunes the steer.",
+     S(log_date=STR("The date of the lift session (YYYY-MM-DD)"), ratings={"type": "object", "description": "{region: 1-10}",
+       "additionalProperties": {"type": "integer", "minimum": 1, "maximum": 10}},
+       compare=STR("Against the session before", enum=["easier", "same", "harder"]), note=STR("Anything they said")), t_lift_follow),
+    ("set_lift_rule", "Add one of the rider's lifting rules, in their words (\"No squats\", \"Favorite lift: incline "
+     "dumbbell press\", \"Nothing heavy overhead - left shoulder\"), or remove one (remove = the rule's text, or the "
+     "exercise it excludes). 'No ...' / 'never ...' rules are enforced: plans with those exercises are refused. Every AI "
+     "the rider uses reads these rules.",
+     S(text=STR("The rule"), note=STR("Why, if they said"), remove=STR("A rule to remove")), t_lift_rule),
     ("record_swim_activity", "Attach the rider's report to one imported pool swim: whether paddles or a pull buoy "
      "were used and how hard the swim felt. Use get_load for swim activity IDs, then record_checkin with a "
      "shoulders rating for how the shoulders feel. This updates provisional swim recovery blocks.",
@@ -465,6 +544,12 @@ for name, _, schema, _ in TOOLS:
         schema["required"] = ["workout_id"]
     if name in ("import_activities",):
         schema["required"] = ["urls"]
+    if name in ("plan_lift_session", "evaluate_lift_session"):
+        schema["required"] = ["lifts"]
+    if name == "log_lift_session":
+        schema["required"] = ["rpe", "wellness"]
+    if name == "record_lift_followup":
+        schema["required"] = ["log_date", "ratings"]
     if name in ("set_capacity",):
         schema["required"] = ["system", "usual_week"]
 BY_NAME = {t[0]: t for t in TOOLS}
@@ -476,7 +561,11 @@ INSTRUCTIONS = ("A bike, run, and swim training companion (built on a Merach S29
                 "own 'not today' outrank scores. After an imported swim, ask about shoulder response, paddles or "
                 "buoy, and perceived effort, then record only what the athlete reports. get_insights holds what the "
                 "watch saw beyond the loads (stroke breakdown, run form, ride recovery, pauses): ask its flags as "
-                "questions, never as verdicts.")
+                "questions, never as verdicts. "
+                "Gym sessions: read get_lifting first (the rider's rules, the coaching guidance, the steer, drafts waiting to be "
+                "scored), plan or score with plan_lift_session, check off with log_lift_session (ask why when they lifted "
+                "less), and ask the follow-up when it's due. If the rider says they have a plan, record it; if they ask "
+                "you to consult, lead with the load numbers and the steer. Their call wins.")
 
 
 def handle(msg):
