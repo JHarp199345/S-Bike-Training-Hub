@@ -2,21 +2,41 @@
   "manifest_version": "0.3",
   "name": "s-bike-hub",
   "display_name": "S-Bike Training Hub",
-  "version": "1.0.0",
-  "description": "Coach from your smart-bike training hub: check-ins, plans, rides, workouts and training load for bike, run and swim.",
-  "long_description": "Connects your AI assistant to S-Bike Training Hub running on your Mac (https://github.com/JHarp199345/S-Bike-Training-Hub): today's verdict and plan, morning check-ins, rides and ride stories, fitness and body-system load across bike, run, swim, walk and gym, watch file import, swim/run/ride insights, timed workouts, route planning and calibration tests. Everything stays on the Mac: the tools call the hub at http://127.0.0.1:8729, which must be running.",
-  "author": {"name": "JHarp199345", "url": "https://github.com/JHarp199345"},
-  "repository": {"type": "git", "url": "https://github.com/JHarp199345/S-Bike-Training-Hub"},
+  "version": "1.1.0",
+  "description": "Coach from your smart-bike training hub: check-ins, plans, rides, lifting, workouts and training load for bike, run and swim.",
+  "long_description": "Connects your AI assistant to S-Bike Training Hub running on your Mac (https://github.com/JHarp199345/S-Bike-Training-Hub): today's verdict and plan, morning check-ins, rides and ride stories, fitness and body-system load across bike, run, swim, walk and gym, watch file import, swim/run/ride insights, lifting sessions (planning, scoring, check-offs, follow-ups, rules and a restorative/build steer), the Sunday check-in, timed workouts, route planning and calibration tests. Everything stays on the Mac: the tools call the hub at http://127.0.0.1:8729, which must be running.",
+  "author": {
+    "name": "JHarp199345",
+    "url": "https://github.com/JHarp199345"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/JHarp199345/S-Bike-Training-Hub"
+  },
   "homepage": "https://github.com/JHarp199345/S-Bike-Training-Hub",
   "license": "MIT",
-  "keywords": ["smart-bike", "indoor-cycling", "triathlon", "training-load", "ftms", "merach-s29", "coaching"],
+  "keywords": [
+    "coaching",
+    "ftms",
+    "indoor-cycling",
+    "lifting",
+    "merach-s29",
+    "smart-bike",
+    "strength-training",
+    "training-load",
+    "triathlon"
+  ],
   "server": {
     "type": "python",
     "entry_point": "server/mcp_server.py",
     "mcp_config": {
       "command": "python3",
-      "args": ["${__dirname}/server/mcp_server.py"],
-      "env": {"S29_HUB_URL": "${user_config.hub_url}"}
+      "args": [
+        "${__dirname}/server/mcp_server.py"
+      ],
+      "env": {
+        "S29_HUB_URL": "${user_config.hub_url}"
+      }
     }
   },
   "user_config": {
@@ -28,5 +48,12 @@
       "required": false
     }
   },
-  "compatibility": {"platforms": ["darwin"], "runtimes": {"python": ">=3.9"}}
+  "compatibility": {
+    "platforms": [
+      "darwin"
+    ],
+    "runtimes": {
+      "python": ">=3.9"
+    }
+  }
 }
