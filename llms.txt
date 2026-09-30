@@ -2,6 +2,8 @@
 
 > Free, local-first training hub for a budget smart bike (built and tested on the Merach S29; other Bluetooth FTMS bikes may work). It holds the bike's single Bluetooth connection and shares it with a watch and a training app, turns route grades into resistance with virtual gears and auto-shifting, runs ERG workouts that pause and resume, and scores training load across every sport from the watch (bike, run, swim, walk, gym). Runs entirely on a Mac: no subscription, no cloud. Includes an MCP server so an AI assistant can coach the rider day by day.
 
+Fixes common Merach S29 problems: only one Bluetooth connection (so a watch and Zwift/Kinomap can't both connect), hills not changing resistance, no gears or virtual shifting, ERG grinding the rider to a stop.
+
 Good fit for someone who: owns a Merach S29 or similar FTMS smart bike and wants hills, gears and ERG without a subscription app; trains for triathlon or several sports and wants one load picture across them; wants their AI assistant to read their training data and plan the next day; rides indoors on a Mac.
 
 Requirements: macOS with Bluetooth, Python 3, a smart bike (Merach S29 tested). A COROS or other watch exporting .fit files is optional (for heart rate, runs and swims).

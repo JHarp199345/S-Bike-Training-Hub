@@ -4,6 +4,15 @@
 
 It was built for, and has only been tested on, the **Merach S29**. Other smart bikes that speak Bluetooth FTMS may work, but we couldn't test them (see [Other bikes](#other-bikes)).
 
+**Merach S29 owner? The problems this was built to fix:**
+- **Only one thing can connect to the bike at a time**, so your watch can't record power and cadence while Zwift or Kinomap is connected. The hub holds the one connection and shares it with both.
+- **Hills didn't change the resistance** in Zwift or Kinomap on our S29: it ignored the apps' hill commands. The hub turns the grade into resistance itself, eased in smoothly.
+- **No gears, and no virtual shifting.** The hub adds virtual gears and auto-shifting that keeps your cadence in a band, plus big shift buttons on your phone.
+- **ERG that grinds you to a stop when you tire.** The hub's ERG works in zones around the target, backs off when your cadence falls, and pauses and resumes the workout.
+- **No subscription needed:** routes, workouts and training load all run on your Mac.
+
+Newer S29 units, and the S29R2 (2026), may handle hills in Zwift and Kinomap on their own; we haven't tested them.
+
 <p align="center">
   <img src="docs/ride-view.png" width="300" alt="The 3D ride view on Alpe d'Huez: speed, watts, cadence, grade, gear, a ghost race and the climb profile, with big shift buttons">
   &nbsp;
