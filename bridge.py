@@ -244,6 +244,8 @@ def describe_command(v: bytes) -> str:
 
 STATE = Path(__file__).resolve().parent / "state.json"
 RESUME_WITHIN = 15 * 60     # seconds: a crash older than this starts a fresh ride
+RESUME = STATE.with_name("resume.json")   # the workout in progress: survives End, a reload, a restart (until it finishes)
+RESUME_AFTER = 30           # seconds of pedalling before a workout is worth resuming (or replaces the saved one)
 
 
 def pid_alive(pid):
@@ -343,6 +345,12 @@ class Bridge:
         self.session_gear = None     # the gear from before an effort shifted, to hand back
         self._applied = None         # the (rpm, watts) ranges last given to auto-shift by the session
         self.erg = Erg()
+        self.resume_file = RESUME
+        try:
+            self.resume = json.loads(RESUME.read_text())
+        except (OSError, ValueError):
+            self.resume = None       # {"name", "steps": [[seconds, watts]], "active", "date", "saved"}
+        self._had_workout = False
         self.workouts = load_workouts(Path(__file__).resolve().parent / "workouts")
         self.bike_sims = True        # assume hill simulation works until the bike says otherwise
         self.res_range = (1.0, 32.0)  # replaced by the bike's own range on connect
@@ -412,6 +420,7 @@ class Bridge:
                 "ghost": self.ghost.status(),
                 "route": self.route_ride.status(self.ride.vdistance) if self.route_ride else None,
                 "workout": self.erg.workout_status(time.monotonic()),
+                "resume": self.resume_offer(),
                 "workouts": [w["name"] for w in self.workouts], "grade": round(r.grade, 1),
                 "power": int(r.power), "cadence": int(r.cadence), "speed": round(r.road_kmh(), 1),
                 "distance": round(r.road_m() / 1000, 2),
@@ -884,6 +893,69 @@ class Bridge:
             base = self.hill_level if self.hill_level is not None else self.flat_level()
             self.set_level(base + self.hill_shift + self.gear, "Hills")
 
+    # ── resuming a workout that stopped before it finished ─────────────────
+    def _write_resume(self):
+        try:
+            if self.resume is None:
+                self.resume_file.unlink(missing_ok=True)
+            else:
+                tmp = self.resume_file.with_suffix(".tmp")
+                tmp.write_text(json.dumps(self.resume)); os.replace(tmp, self.resume_file)
+        except OSError:
+            pass
+
+    def resume_tick(self):
+        """Once a second: remember how far into the workout the rider is; forget it once it finishes by itself."""
+        import coach
+        w = self.erg.workout
+        if w and not self.test and w["name"] != coach.TEST_NAME:
+            self._had_workout = True
+            active = w.get("active", 0.0)
+            if active >= RESUME_AFTER and (not self.resume or abs(active - self.resume.get("active", -99)) >= 5
+                                           or self.resume.get("name") != w["name"]):
+                self.resume = {"name": w["name"], "steps": [[d, watts] for d, watts in w["steps"]],
+                               "active": round(active, 1), "date": dt.date.today().isoformat(), "saved": round(time.time())}
+                self._write_resume()
+        elif self._had_workout:
+            self._had_workout = False
+            if self.erg.source == "workout finished" and self.resume:     # ended by itself: nothing left to resume
+                self.resume = None
+                self._write_resume()
+
+    def resume_offer(self):
+        """What can be picked up again: today's unfinished workout, when nothing is running."""
+        s = self.resume
+        if not s or self.erg.workout or s.get("date") != dt.date.today().isoformat():
+            return None
+        total = sum(d for d, _ in s["steps"])
+        if s["active"] >= total - 5:
+            return None
+        t, step = 0.0, len(s["steps"])
+        for i, (d, _) in enumerate(s["steps"]):
+            if s["active"] < t + d:
+                step = i + 1
+                break
+            t += d
+        return {"name": s["name"], "elapsed": int(s["active"]), "total": int(total), "left": int(total - s["active"]),
+                "step": step, "steps": len(s["steps"])}
+
+    def workout_resume(self):
+        """Pick the saved workout up at the same block and second. The clock waits for the pedals."""
+        if not self.resume_offer():
+            return False
+        s, now = self.resume, time.monotonic()
+        self.test = None
+        self.erg.start_workout({"name": s["name"], "steps": [{"minutes": d / 60, "watts": w} for d, w in s["steps"]]}, now)
+        self.erg.workout["active"] = float(s["active"])
+        self.erg._advance_workout(now)               # the right block's watts, straight away
+        m, sec = divmod(int(s["active"]), 60)
+        self.event(f"Workout resumed: {s['name']} at {m}:{sec:02d}")
+        return True
+
+    def resume_discard(self):
+        self.resume = None
+        self._write_resume()
+
     def reload_workouts(self):
         """After the builder saves or deletes one."""
         self.workouts = load_workouts(Path(__file__).resolve().parent / "workouts")
@@ -1019,7 +1091,7 @@ class Bridge:
     def save_climb(self, rec):
         rr = self.route_ride
         rec = {"date": dt.date.today().isoformat(), "ride": Path(self.csv_path).stem, "route_id": rr.route.id,
-               "route": rr.route.name, **rec}
+               "route": rr.route.name, "ended": round(time.time()), **rec}   # when: insights.py finds the watch's heart rate
         f = Path(self.csv_path).parent / "climbs.json"
         try:
             have = json.loads(f.read_text()) if f.exists() else []
@@ -1328,6 +1400,9 @@ class Bridge:
             self.refresh_focus()
             self.feed_route()
             self.feed_ghost()
+            # the workout clock runs only while pedalling with the bike connected: stopping pauses it
+            self.erg.tick_clock(time.monotonic(), r.cadence, bool(self.bike and self.bike.is_connected))
+            self.resume_tick()
             if self.bike and self.bike.is_connected:
                 now = time.monotonic()
                 if self.wbal and r.cadence >= 20:
@@ -1335,7 +1410,8 @@ class Bridge:
                 if self.test:
                     self.ftp_test_tick(now, r.power, r.cadence)
                 if self.erg.on:
-                    move = self.erg.update(r.power, r.cadence, now)
+                    move = self.erg.update(r.power, r.cadence, now,
+                                           self.target_level if self.target_level is not None else r.resistance)
                     if move:
                         cur = self.target_level if self.target_level is not None else r.resistance or 5
                         why = (f"ERG {self.erg.target} W: {int(r.power)} W at {int(r.cadence)} rpm, "

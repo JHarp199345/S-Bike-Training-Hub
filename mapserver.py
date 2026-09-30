@@ -192,7 +192,7 @@ async def handle(bridge, method, path, body, host):
         return 200, TYPES[".html"], (WEB / f"{p[1:]}.html").read_bytes(), {}
     if p.startswith("/web/") and p.endswith((".js", ".css", ".png", ".json")):
         f = (WEB / p[5:]).resolve()
-        if f.parent not in (WEB.resolve(), (WEB / "sprites").resolve()) or not f.exists():
+        if f.parent not in (WEB.resolve(), (WEB / "sprites").resolve(), (WEB / "vendor").resolve()) or not f.exists():
             return 404, "text/plain", b"not found", {}
         return 200, TYPES[f.suffix], f.read_bytes(), {}
     if p.startswith("/lib/"):
@@ -298,6 +298,17 @@ async def handle(bridge, method, path, body, host):
             return 400, "application/json", json.dumps({"error": str(e)}).encode(), {}
         _load_cache["key"] = None
         return 200, "application/json", json.dumps({"calibration": cal}).encode(), {}
+    if p == "/api/load/swim-activity" and method == b"POST":
+        import loads
+        base = Path(bridge.csv_path).parent.parent if getattr(bridge, "csv_path", None) else HERE
+        try:
+            req = json.loads(body or b"{}")
+            info = loads.set_swim_activity(base, req.get("activity_id"), req.get("paddles"),
+                                           req.get("pull_buoy"), req.get("swim_rpe"))
+        except (ValueError, TypeError) as e:
+            return 400, "application/json", json.dumps({"error": str(e)}).encode(), {}
+        _load_cache["key"] = None
+        return 200, "application/json", json.dumps({"activity": info}).encode(), {}
     if p == "/api/load/phase" and method == b"POST":
         import loads
         base = Path(bridge.csv_path).parent.parent if getattr(bridge, "csv_path", None) else HERE
@@ -386,6 +397,21 @@ async def handle(bridge, method, path, body, host):
         return 200, "application/json", json.dumps(ideas.IDEAS).encode(), {}
     if p == "/api/routes":
         return 200, "application/json", json.dumps(routes.list_routes()).encode(), {}
+    if p == "/api/workout/resume" and method == b"POST":
+        # pick up today's unfinished workout where it stopped (bridge.resume_offer is in /status as "resume")
+        ok = bridge.workout_resume()
+        return (200 if ok else 409), "application/json", json.dumps({"ok": ok}).encode(), {}
+    if p == "/api/workout/resume/discard" and method == b"POST":
+        bridge.resume_discard()
+        return 200, "application/json", b'{"ok":true}', {}
+    if p == "/api/workout/pause" and method == b"POST":
+        # pause or resume the running workout by hand (it also pauses by itself when the rider stops)
+        try:
+            want = json.loads(body or b"{}").get("paused")
+        except ValueError:
+            want = None
+        bridge.erg.paused = (not bridge.erg.paused) if want is None else bool(want)
+        return 200, "application/json", json.dumps({"paused": bridge.erg.paused}).encode(), {}
     if p == "/api/course/forms":
         # which animals are the rider's forms, in order (the rider on the bike always comes first) - kept on the bridge
         f = HERE / "course_forms.json"
@@ -754,15 +780,30 @@ def with_focus(day_json, bridge, d=None):
             "skills": skills.summary(d, step)}
 
 
-def done_by_day(base):
-    """What was actually done each day (watch activities and bike rides): {date: [{sport, minutes}]}."""
+def done_by_day(base, d=None):
+    """What was actually done each day (watch activities and bike rides): {date: [{sport, minutes}]}.
+    With the coach data `d`, attempts that were cut short are left out (coach.counts)."""
+    import coach
     try:
         st = load_state(base)
     except Exception:
         return {}
-    out = {}
+    out, small = {}, {}
     for a in st.get("activities", []):
-        out.setdefault(a["date"], []).append({"sport": a["sport"], "minutes": round(a["minutes"])})
+        if d is not None and not coach.counts(d, a["date"], a["sport"], a["minutes"]):
+            small[(a["date"], a["sport"])] = small.get((a["date"], a["sport"]), 0) + a["minutes"]
+            continue
+        out.setdefault(a["date"], []).append({"sport": a["sport"], "minutes": a["minutes"]})
+    # pieces of one session (stopped, then resumed or restarted): together they are the day's session
+    for (day, sport), mins in small.items():
+        whole = [x for x in out.get(day, []) if x["sport"] == sport]
+        if whole:
+            whole[-1]["minutes"] += mins
+        elif coach.counts(d, day, sport, mins):
+            out.setdefault(day, []).append({"sport": sport, "minutes": mins})
+    for day in out:
+        for x in out[day]:
+            x["minutes"] = round(x["minutes"])
     return out
 
 
@@ -854,7 +895,7 @@ async def coach_api(bridge, method, path, p, body):
             return js({"error": "date is YYYY-MM-DD"}, 400)
         if p == "/api/coach/today":
             evaluate_skills(bridge, d, rides)
-            lr = coach.last_ride(rides)
+            lr = coach.last_ride(rides, d=d)
             if lr:
                 lr["rpe"] = (d["ratings"].get(lr["id"]) or {}).get("rpe")
             try:
@@ -864,7 +905,7 @@ async def coach_api(bridge, method, path, p, body):
                 cleared = None
             cal = calibration_view(d, rides, cleared)
             return js({**with_focus(with_systems(coach.day(d, date), rides.parent), bridge, d), "last_ride": lr,
-                       "events": coach.upcoming(d, date, cleared), "week": coach.week(d, date, done_by_day(rides.parent)),
+                       "events": coach.upcoming(d, date, cleared), "week": coach.week(d, date, done_by_day(rides.parent, d)),
                        "calibration": cal,
                        "rpe_words": coach.RPE_WORDS, "test_steps": coach.TEST_STEPS, "ftp": bridge.profile["ftp"],
                        "verdicts": coach.VERDICTS, "workouts": [{"id": w.get("id"), "name": w["name"]} for w in bridge.workouts]})
@@ -903,6 +944,8 @@ async def coach_api(bridge, method, path, p, body):
             try:
                 coach.set_plan(d, date, req.get("verdict"), req.get("note"), req.get("workout"), req.get("focus"),
                                req.get("sport"), req.get("minutes"))
+                if "sessions" in req:
+                    coach.set_sessions(d, date, req["sessions"])
             except (focus.BadFocus, ValueError, TypeError) as e:
                 return js({"error": str(e)}, 400)
             coach.save(d)
@@ -910,7 +953,7 @@ async def coach_api(bridge, method, path, p, body):
                 bridge.refresh_focus(force=True)            # a new focus reaches the bike right away
             return js(with_focus(with_systems(coach.day(d, date), rides.parent), bridge))
         if p == "/api/coach/rate" and method == b"POST":
-            ride = req.get("ride") or (coach.last_ride(rides) or {}).get("id")
+            ride = req.get("ride") or (coach.last_ride(rides, d=d) or {}).get("id")
             if not ride:
                 return js({"error": "no ride to rate yet"}, 400)
             r = coach.rate(d, ride, req.get("rpe"))

@@ -87,7 +87,7 @@ def main(argv=None):
     p = sub.add_parser("today"); p.add_argument("--date")
     p = sub.add_parser("checkins"); p.add_argument("--days", type=int, default=14)
     p = sub.add_parser("checkin"); p.add_argument("--date")
-    for k in ("feet", "legs", "breathing", "sleep", "motivation", "hr90", "hr120", "hr-after"):
+    for k in ("feet", "legs", "shoulders", "breathing", "sleep", "motivation", "hr90", "hr120", "hr-after"):
         p.add_argument(f"--{k}", type=int)
     p.add_argument("--gut", choices=["go", "easy", "no"]); p.add_argument("--note")
     p = sub.add_parser("plan"); p.add_argument("--date"); p.add_argument("--verdict", choices=["go", "easy", "rest"])
@@ -125,7 +125,7 @@ def main(argv=None):
         dates = sorted(set(d["checkins"]) | set(d["plans"]))
         show(d, j, "\n".join(fmt_checkin(x, d["checkins"].get(x), d["plans"].get(x)) for x in dates) or "no check-ins yet")
     elif a.cmd == "checkin":
-        body = {k: v for k, v in {"date": a.date, "feet": a.feet, "legs": a.legs, "breathing": a.breathing, "sleep": a.sleep,
+        body = {k: v for k, v in {"date": a.date, "feet": a.feet, "legs": a.legs, "shoulders": a.shoulders, "breathing": a.breathing, "sleep": a.sleep,
                                   "motivation": a.motivation, "hr90": a.hr90, "hr120": a.hr120, "hr_after": a.hr_after,
                                   "gut": a.gut, "note": a.note}.items() if v is not None}
         d = call("/api/coach/checkin", body)

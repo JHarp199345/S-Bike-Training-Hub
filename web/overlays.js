@@ -72,6 +72,13 @@ const Overlays = (() => {
     const top = max || hi * 1.35, p = x => Math.max(0, Math.min(100, 100 * x / top));
     return `<div class="ov-band"><u style="left:${p(lo)}%;width:${p(hi) - p(lo)}%"></u><em class="${ok === false ? 'off' : ok ? 'ok' : ''}" style="left:${p(v)}%"></em></div>`;
   }
+  // a workout block's watt zones (erg.py): black / red / yellow / GREEN / yellow / red / black around the target
+  const WZ = [[0, .65, '#111'], [.65, .8, '#e53e3e'], [.8, .9, '#ecc94b'], [.9, 1.2, '#48bb78'], [1.2, 1.4, '#ecc94b'], [1.4, 1.6, '#e53e3e'], [1.6, 1.8, '#111']];
+  function zoneBar(v, target, zone) {
+    const p = x => Math.max(0, Math.min(100, 100 * x / 1.8));
+    const grad = WZ.map(([a, b, c]) => `${c} ${p(a)}% ${p(b)}%`).join(',');
+    return `<div class="ov-band" style="background:linear-gradient(90deg,${grad});opacity:.95"><em class="${zone === 'green' || zone === 'yellow' ? 'ok' : 'off'}" style="left:${p(v / target)}%"></em></div>`;
+  }
   function profileSvg(profile, doneM, totalM) {                            // the route's hills, where you are on them
     if (!profile || profile.length < 2) return '';
     const es = profile.map(p => p[1]), lo = Math.min(...es), hi = Math.max(...es, lo + 20), L = profile[profile.length - 1][0] || totalM || 1;
@@ -85,8 +92,8 @@ const Overlays = (() => {
     if (!root || !st) return;
     const f = st.focus || {}, wk = st.workout, rt = st.route;
     // workout blocks: the lit-road watts are the block's target, not the day's focus band
-    const wTarget = wk ? wk.watts : null, wLo = wk ? Math.round(wTarget * 0.92) : f.watts?.[0], wHi = wk ? Math.round(wTarget * 1.08) : f.watts?.[1];
-    const wOk = wk ? Math.abs(st.power - wTarget) <= Math.max(10, wTarget * 0.08) : f.watts_ok;
+    const wTarget = wk ? wk.watts : null, wLo = wk ? Math.round(wTarget * 0.9) : f.watts?.[0], wHi = wk ? Math.round(wTarget * 1.2) : f.watts?.[1];
+    const wOk = wk ? (st.power >= wTarget * 0.8 && st.power <= wTarget * 1.4) : f.watts_ok;   // green or yellow: on the road
     strip.innerHTML = `<span class="${wOk === false ? 'off' : wOk ? 'ok' : ''}"><b>${st.power ?? '–'}</b> W</span>` +
                       `<span class="${f.rpm_ok === false ? 'off' : f.rpm_ok ? 'ok' : ''}"><b>${st.cadence ?? '–'}</b> rpm</span>`;
     const doneM = rt ? rt.done_m : null, totalM = rt ? rt.total_m : extra.total_m;
@@ -98,7 +105,8 @@ const Overlays = (() => {
     const pct = f.in_range?.both;
     cards.focus.innerHTML = `<h4>FOCUS · ${esc(wk ? 'BLOCK ' + wk.step + ' OF ' + wk.steps : (f.name || 'free ride').toUpperCase())}</h4>
       <div class="ov-fr"><span>CADENCE</span><b>${st.cadence ?? '–'}</b><small>${f.rpm ? f.rpm[0] + '–' + f.rpm[1] : ''}</small></div>${bar(st.cadence, f.rpm?.[0], f.rpm?.[1], f.rpm_ok, 110)}
-      <div class="ov-fr"><span>WATTS</span><b>${st.power ?? '–'}</b><small>${wLo != null ? wLo + '–' + wHi : 'no target'}</small></div>${bar(st.power, wLo, wHi, wOk)}
+      <div class="ov-fr"><span>WATTS</span><b>${st.power ?? '–'}</b><small>${wLo != null ? wLo + '–' + wHi + (wk ? ' green' : '') : 'no target'}</small></div>${wk ? zoneBar(st.power, wTarget, wk.zone) : bar(st.power, wLo, wHi, wOk)}
+      ${wk && wk.zone && wk.zone !== 'green' ? `<div class="ov-hint"><span>${wk.zone.toUpperCase()} ${wk.zone_for}s · ${wk.zone === 'yellow' ? 'still on the road; a gear after 2 min if it keeps you on it' : 'off the road; a gear after ' + ({red: '30 s', black: '8 s'})[wk.zone]}</span></div>` : ''}
       <div class="ov-hint">${esc(extra.hint ?? f.hint ?? '')}${pct != null ? `<span>${pct}% in range</span>` : ''}</div>`;
     avail.clear(); avail.add('ride'); avail.add('focus'); avail.add('graph');
     if (rt || extra.profile) {

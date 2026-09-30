@@ -6,7 +6,12 @@ layout, "data" records fill it in. We keep the messages training needs:
   record  (20)  second by second: time, heart rate, power, cadence, speed,
                 distance, altitude
   session (18)  the summary: sport, start, time, distance, climbing, HR
-  lap     (19)  laps (kept raw)
+  lap     (19)  laps: time, distance, heart rate, power, cadence, running dynamics
+  length  (101) pool lengths: stroke count, style, cadence and active time
+  event   (21)  timer starts and stops (the pauses)
+
+Running dynamics (vertical oscillation mm, vertical ratio %, step length mm, stance time ms) come
+second by second in the records and averaged in the laps and the session.
 
 read(path_or_bytes) -> {"sport", "sub_sport", "start", "records": [...], "session": {...}}
 Timestamps become Unix seconds. Unknown messages and developer fields are skipped.
@@ -27,14 +32,35 @@ BASE = {0x00: ("B", 1, 0xFF), 0x01: ("b", 1, 0x7F), 0x02: ("B", 1, 0xFF), 0x83: 
 FIELDS = {
     20: {253: ("timestamp", 1, 0), 0: ("lat", 1, 0), 1: ("lon", 1, 0), 2: ("altitude", 5, 500), 3: ("heart_rate", 1, 0),
          4: ("cadence", 1, 0), 5: ("distance", 100, 0), 6: ("speed", 1000, 0), 7: ("power", 1, 0),
-         78: ("enhanced_altitude", 5, 500), 73: ("enhanced_speed", 1000, 0), 13: ("temperature", 1, 0)},
+         78: ("enhanced_altitude", 5, 500), 73: ("enhanced_speed", 1000, 0), 13: ("temperature", 1, 0),
+         29: ("accumulated_power", 1, 0), 39: ("vertical_oscillation", 10, 0), 41: ("stance_time", 10, 0),
+         83: ("vertical_ratio", 100, 0), 85: ("step_length", 10, 0)},
     18: {253: ("timestamp", 1, 0), 2: ("start_time", 1, 0), 5: ("sport", 1, 0), 6: ("sub_sport", 1, 0),
          7: ("total_elapsed_time", 1000, 0), 8: ("total_timer_time", 1000, 0), 9: ("total_distance", 100, 0),
-         11: ("total_calories", 1, 0), 16: ("avg_heart_rate", 1, 0), 17: ("max_heart_rate", 1, 0),
-         18: ("avg_cadence", 1, 0), 20: ("avg_power", 1, 0), 22: ("total_ascent", 1, 0), 23: ("total_descent", 1, 0),
-         14: ("avg_speed", 1000, 0), 124: ("enhanced_avg_speed", 1000, 0), 34: ("normalized_power", 1, 0)},
-    19: {253: ("timestamp", 1, 0), 2: ("start_time", 1, 0), 7: ("total_elapsed_time", 1000, 0),
-         8: ("total_timer_time", 1000, 0), 9: ("total_distance", 100, 0), 15: ("avg_heart_rate", 1, 0)},
+         10: ("total_cycles", 1, 0), 11: ("total_calories", 1, 0), 15: ("max_speed", 1000, 0),
+         16: ("avg_heart_rate", 1, 0), 17: ("max_heart_rate", 1, 0), 64: ("min_heart_rate", 1, 0),
+         18: ("avg_cadence", 1, 0), 19: ("max_cadence", 1, 0), 20: ("avg_power", 1, 0), 21: ("max_power", 1, 0),
+         22: ("total_ascent", 1, 0), 23: ("total_descent", 1, 0),
+         14: ("avg_speed", 1000, 0), 124: ("enhanced_avg_speed", 1000, 0), 34: ("normalized_power", 1, 0),
+         41: ("total_strokes", 1, 0), 44: ("pool_length", 100, 0), 46: ("pool_length_unit", 1, 0),
+         48: ("total_work", 1, 0), 57: ("avg_temperature", 1, 0), 59: ("total_moving_time", 1000, 0),
+         89: ("avg_vertical_oscillation", 10, 0), 91: ("avg_stance_time", 10, 0), 132: ("avg_vertical_ratio", 100, 0),
+         134: ("avg_step_length", 10, 0)},
+    19: {253: ("timestamp", 1, 0), 254: ("message_index", 1, 0), 2: ("start_time", 1, 0),
+         7: ("total_elapsed_time", 1000, 0), 8: ("total_timer_time", 1000, 0), 9: ("total_distance", 100, 0),
+         10: ("total_cycles", 1, 0), 11: ("total_calories", 1, 0), 13: ("avg_speed", 1000, 0), 14: ("max_speed", 1000, 0),
+         15: ("avg_heart_rate", 1, 0), 16: ("max_heart_rate", 1, 0), 63: ("min_heart_rate", 1, 0),
+         17: ("avg_cadence", 1, 0), 18: ("max_cadence", 1, 0), 19: ("avg_power", 1, 0), 20: ("max_power", 1, 0),
+         21: ("total_ascent", 1, 0), 22: ("total_descent", 1, 0), 32: ("num_lengths", 1, 0),
+         33: ("normalized_power", 1, 0), 35: ("first_length_index", 1, 0), 38: ("swim_stroke", 1, 0),
+         40: ("num_active_lengths", 1, 0), 50: ("avg_temperature", 1, 0),
+         77: ("avg_vertical_oscillation", 10, 0), 79: ("avg_stance_time", 10, 0), 118: ("avg_vertical_ratio", 100, 0),
+         120: ("avg_step_length", 10, 0)},
+    101: {253: ("timestamp", 1, 0), 254: ("message_index", 1, 0), 2: ("start_time", 1, 0),
+          3: ("total_elapsed_time", 1000, 0),
+          4: ("total_timer_time", 1000, 0), 5: ("total_strokes", 1, 0), 6: ("avg_speed", 1000, 0),
+          7: ("swim_stroke", 1, 0), 9: ("avg_swimming_cadence", 1, 0), 12: ("length_type", 1, 0)},
+    21: {253: ("timestamp", 1, 0), 0: ("event", 1, 0), 1: ("event_type", 1, 0)},     # timer start/stop: the pauses
     0: {0: ("type", 1, 0), 1: ("manufacturer", 1, 0), 4: ("time_created", 1, 0)},
 }
 SPORTS = {0: "generic", 1: "running", 2: "cycling", 4: "fitness_equipment", 5: "swimming", 10: "training",
@@ -54,7 +80,7 @@ def read(src):
         raise FitError("not a FIT file")
     size = struct.unpack_from("<I", data, 4)[0]
     pos, end = hsize, min(len(data), hsize + size)
-    defs, out = {}, {"records": [], "sessions": [], "laps": [], "file_id": {}}
+    defs, out = {}, {"records": [], "sessions": [], "laps": [], "lengths": [], "events": [], "file_id": {}}
     last_ts = None
     while pos < end:
         h = data[pos]; pos += 1
@@ -104,6 +130,10 @@ def read(src):
     for key in ("timestamp", "start_time"):
         if key in sess:
             sess[key] += FIT_EPOCH
+    for m in out["laps"] + out["lengths"] + out["events"]:
+        for key in ("timestamp", "start_time"):
+            if key in m:
+                m[key] += FIT_EPOCH
     for r in out["records"]:
         if "timestamp" in r:
             r["timestamp"] += FIT_EPOCH
@@ -114,7 +144,7 @@ def read(src):
     start = sess.get("start_time") or (out["records"][0]["timestamp"] if out["records"] and "timestamp" in out["records"][0] else None)
     return {"sport": SPORTS.get(sess.get("sport"), str(sess.get("sport"))), "sport_code": sess.get("sport"),
             "sub_sport": sess.get("sub_sport"), "start": start, "session": sess,
-            "records": out["records"], "laps": out["laps"]}
+            "records": out["records"], "laps": out["laps"], "lengths": out["lengths"], "events": out["events"]}
 
 
 def _data(data, pos, d):
@@ -143,5 +173,9 @@ def _keep(out, num, msg):
         out["sessions"].append(msg)
     elif num == 19:
         out["laps"].append(msg)
+    elif num == 101:
+        out["lengths"].append(msg)
+    elif num == 21:
+        out["events"].append(msg)
     elif num == 0:
         out["file_id"] = msg

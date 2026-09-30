@@ -108,6 +108,20 @@ def main():
     (rd / "ride_2026-09-28_0900_events.csv").write_text("time,event\n")
     lr = coach.last_ride(rd)
     check(f"the last ride is the latest with 5+ minutes of pedalling ({lr})", lr and lr["id"] == "ride_2026-09-28_0900" and lr["minutes"] == 10)
+    plan30 = {"plans": {"2026-09-30": {"sport": "ride", "minutes": 30}}}
+    check("an attempt cut short is not the day's ride: 5 of a planned 30 minutes doesn't count, nor 12; 15 does",
+          not coach.counts(plan30, "2026-09-30", "bike", 5.4) and not coach.counts(plan30, "2026-09-30", "bike", 12)
+          and coach.counts(plan30, "2026-09-30", "bike", 15))
+    check("nothing planned: it counts from 10 minutes", coach.counts({"plans": {}}, "2026-09-30", "bike", 11)
+          and not coach.counts({"plans": {}}, "2026-09-30", "bike", 9))
+    (rd / "ride_2026-09-30_0322.csv").write_text(hdr + "".join(f"2026-09-30T03:{22 + m:02d}:{s:02d},110,70\n" for m in range(5) for s in range(60)))
+    lr2 = coach.last_ride(rd, d=plan30)
+    check(f"...and it isn't the ride offered for rating ({lr2 and lr2['id']})", lr2 and lr2["id"] == "ride_2026-09-28_0900")
+    (rd / "ride_2026-09-30_0400.csv").write_text(hdr + "".join(f"2026-09-30T04:{m:02d}:{s:02d},110,70\n" for m in range(25) for s in range(60)))
+    lr3 = coach.last_ride(rd, d=plan30)
+    check(f"stopped then picked up again: the two pieces are one 30-minute ride ({lr3})",
+          lr3 and lr3["date"] == "2026-09-30" and lr3["minutes"] == 30 and lr3["id"] == "ride_2026-09-30_0400")
+    (rd / "ride_2026-09-30_0400.csv").unlink(); (rd / "ride_2026-09-30_0322.csv").unlink()
     dd = coach.load(coach.file_for(rd))
     check("a rating is kept", coach.rate(dd, lr["id"], 6)["rpe"] == 6 and dd["ratings"][lr["id"]]["rpe"] == 6)
     for bad in ((lr["id"], 11), ("../x", 5)):
@@ -137,6 +151,12 @@ def main():
     check(f"Monday to Sunday, with markers and what was done ({[(w['date'][5:], w['sport'], w['minutes']) for w in wk if w['sport']]})",
           len(wk) == 7 and wk[0]["date"] == "2026-09-28" and wk[1]["sport"] == "swim" and wk[1]["minutes"] == 60
           and wk[1]["done"][0]["minutes"] == 58 and wk[5]["sport"] == "test")
+    coach.set_sessions(dd, "2026-09-30", [
+        {"sport": "swim", "minutes": 35, "name": "Technique", "steps": ["6 x 50 easy drill"]},
+        {"sport": "ride", "minutes": 25, "name": "Easy spin", "steps": ["5 min warm-up", "20 min easy"]}])
+    wed = coach.week(dd, "2026-09-30")[2]
+    check("two sports and their sets stay on one day", len(wed["sessions"]) == 2
+          and wed["sessions"][0]["steps"] == ["6 x 50 easy drill"] and wed["sessions"][1]["sport"] == "ride")
     try:
         coach.set_plan(dd, "2026-09-30", sport="skydive"); check("unknown sports refused", False)
     except ValueError:

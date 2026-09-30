@@ -18,7 +18,8 @@ The S29 only accepts **one** Bluetooth connection, and it ignores the "hill" com
 - **Makes hills real.** Grades from a route or a training app become resistance, eased in smoothly, with **virtual gears** on top.
 - **Auto-shifts.** It keeps your cadence in a band (65–80 rpm by default), shifting sooner the harder you spin. With a **daily focus** it also steers your watts into a range: easy but still productive. A **climbing mode** handles low-cadence standing efforts.
 - **Computes virtual speed** from watts, weight and grade, so climbs feel like climbs.
-- **Runs ERG workouts.** It holds a target wattage whatever your cadence.
+- **Runs ERG workouts.** It holds a target wattage whatever your cadence. In a workout it works in zones around each block's target instead of chasing every watt: green (90–120%) never shifts, yellow (80–90% / 120–140%) is still on the road and shifts after 2 minutes, red after 30 seconds, black after 8. Before it shifts, it checks where the next gear would land, and it won't shift you off the road. FTP tests and Kinomap keep tight control.
+- **Pauses and resumes.** The workout clock only runs while you pedal with the bike connected: stop and it pauses by itself, or tap ⏸. If a workout stops before it's done (you tapped End, the page reloaded, the bridge restarted), the Coach page and the game view offer **Resume** for the rest of the day, at the same block and second. The pieces of a day's ride count as one session.
 
 On top of that:
 
@@ -118,6 +119,7 @@ Edit [`regions.json`](regions.json) (name, bounding box, center, zoom) and run `
 - **The lit road:** inside both your cadence and watt ranges (in a workout, watts near the block's target). Time on it evolves you, **5 minutes per form**; a minute off it drops you one form, not all the way.
 - **The animals:** 17 of them, filmed from CC0 3D models by [Quaternius](https://quaternius.com) into sprite strips, in colour. The farm animals walk below about 16 km/h and gallop above about 19, so pace shows as a change of gait. Pick your forms and their order from **☰ → Forms…**; the choice is kept on the bridge.
 - **Overlays:** the ride's numbers come one card at a time - Ride, Focus, Graph (the last 10 minutes), Route, Workout, Form - cycling every 8 seconds. Tap or swipe to move on, 🔒 to hold one. Something happening jumps to its card for a few seconds. Watts and cadence stay up top. The map view uses the same overlays on phones.
+- **Yellow is on the road too:** in a workout, watts within 80–140% of the block's target count toward your forms and gates. Red and black don't.
 - **No map where there's no road:** a watts-and-cadence workout, or a made-up course, only rides in the game view.
 
 ## Coaching with Claude (optional)
@@ -319,6 +321,21 @@ You test at your peak, then start the next block fresh.
 - **Heart rate at a fixed 100–120 W** falls.
 - **Aerobic decoupling:** watts per beat in the first half vs. the second. Under 5% means the ride stayed aerobic. It's only judged on steady rides of 40+ minutes.
 
+### What the watch saw
+
+Beyond the loads, the hub reads the rest of each watch file and cross-references it (**Coach → Progress → What the watch saw**, and `get_insights` for Claude). It flags with the numbers behind it and a question. It never scores, and it changes no load number.
+- **Swim, length by length:** SWOLF (seconds + strokes), stroke rate and pace, set by set. Where the stroke changes, by how much and how fast: **held**, **gradual** (a slow fade: ordinary fatigue) or **sudden** (a step between neighbouring lengths; even a small one is the more telling strain signal), and what moved (more strokes, or slower). A set's first length, off the wall on fresh arms, is left out. Across swims it shows how far in the stroke usually breaks down, which is the session length it can hold. Heart-rate drop in the rests is shown, but a wrist in water reads roughly.
+- **Run:** laps and 5-minute splits of power, cadence, heart rate, pace, vertical oscillation and ratio, step length, and ground contact per lap. Form drift in the last third is judged only when the pace matched.
+- **Ride:** work in kJ against the next morning's legs; heart rate in the opening minutes against your usual at those watts; how far heart rate falls in the minute after a hard effort; whether cadence and heart rate show the running load your legs carried in; heart rate on each climb against the last time up it.
+- **Pauses:** stops mid-workout in every sport, counted and timed. A lot of them asks what was going on.
+- **Attempts don't count:** a session under 10 minutes, or under half its planned time, isn't marked done or offered for rating.
+
+The thresholds (a 2-point SWOLF step, a 5% fade) are starting points to check against how the sessions felt.
+
+### Swim recovery
+
+A separate swim recovery estimate reads active pool lengths from the watch: `strokes × stroke factor × (length speed / 0.9 m/s)²`, adjusted for paddles, pull buoy and perceived effort. The stroke factors and gear multipliers are provisional tuning choices, not measured tendon forces. One provisional block starts at three times the median dose of the first three swims, then is **fitted continuously** to next-morning shoulder reports: a Bayesian fit over candidate block sizes, with the first-swims value as a log-normal prior, with an 80% interval that narrows as reports come in. The 1.5-block line is a planning convention, not an injury threshold. The Coach's body map (anatomy from [body-highlighter](https://www.npmjs.com/package/body-highlighter), MIT) shows where each sport's load lands; the colours are relative participation, not measured forces.
+
 ### How the sports carry over
 
 A carry-over table estimates how much training one sport builds another, compared with training that sport itself, plus how much each sport tires your legs compared with running.
@@ -349,7 +366,7 @@ Reports and pull requests for other bikes are very welcome.
 ## Development
 
 ```bash
-tests/run_all.sh        # 32 test files: auto-shift, ERG, FTP test, routes, pairing, coach, MCP, adherence, training load, focus, sessions, calibration, CP/W′, carry-over…
+tests/run_all.sh        # 36 test files: auto-shift, ERG, FTP test, routes, pairing, coach, MCP, adherence, training load, focus, sessions, calibration, CP/W′, carry-over…
 ```
 
 - `bridge.py` is the Bluetooth bridge, gears, ERG and the ride loop.
@@ -369,6 +386,7 @@ This software changes the resistance on real exercise equipment and relies on re
 
 - **Map data:** © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors (ODbL), via [Protomaps](https://protomaps.com).
 - **Terrain:** [Mapzen terrain tiles](https://github.com/tilezen/joerd/blob/master/docs/attribution.md) (AWS Open Data).
+- **Body map:** [body-highlighter](https://www.npmjs.com/package/body-highlighter) (MIT) - see [web/vendor/body-highlighter.LICENSE](web/vendor/body-highlighter.LICENSE).
 - **Game art:** animals rendered from 3D models by [Quaternius](https://quaternius.com) (CC0) - see [web/sprites/CREDITS.md](web/sprites/CREDITS.md).
 - **Software:** routing by [BRouter](https://github.com/abrensch/brouter); maps drawn with [MapLibre GL JS](https://maplibre.org); Bluetooth via [bleak](https://github.com/hbldh/bleak) and [bless](https://github.com/kevincar/bless); menu bar via [rumps](https://github.com/jaredks/rumps) and [PyObjC](https://pyobjc.readthedocs.io).
 

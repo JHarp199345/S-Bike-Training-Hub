@@ -71,7 +71,7 @@ def _num(v, lo, hi):
 def record(d, date, fields):
     """Add or update the day's check-in (partial updates are fine)."""
     c = d["checkins"].setdefault(date, {})
-    for k, lo, hi in (("hr90", 40, 220), ("hr120", 40, 220), ("hr_after", 30, 220), ("legs", 1, 10), ("feet", 1, 10), ("hops", 0, 100), ("hops_left", 0, 100), ("hops_right", 0, 100), ("breathing", 1, 10),
+    for k, lo, hi in (("hr90", 40, 220), ("hr120", 40, 220), ("hr_after", 30, 220), ("legs", 1, 10), ("feet", 1, 10), ("shoulders", 1, 10), ("hops", 0, 100), ("hops_left", 0, 100), ("hops_right", 0, 100), ("breathing", 1, 10),
                       ("sleep", 1, 10), ("motivation", 1, 10)):
         if k in fields:
             c[k] = _num(fields[k], lo, hi)
@@ -151,6 +151,8 @@ def set_plan(d, date, verdict_=None, note=None, workout=None, focus_=None, sport
     sport + minutes: the day's marker on the calendar (e.g. swim, 60) - what to do and for how long."""
     import focus
     p = d["plans"].setdefault(date, {})
+    if sport is not None or minutes is not None:
+        p.pop("sessions", None)  # a new single-session marker replaces an older multi-session schedule
     if sport is not None:
         if sport not in SPORTS and sport != "":
             raise ValueError(f"sport is one of {', '.join(SPORTS)}")
@@ -177,6 +179,34 @@ def set_plan(d, date, verdict_=None, note=None, workout=None, focus_=None, sport
         p["note"] = str(note)[:1000]
     if workout is not None:
         p["workout"] = workout or None
+    p["updated"] = dt.datetime.now().isoformat(timespec="minutes")
+    return p
+
+
+def set_sessions(d, date, sessions):
+    """Replace the day's ordered sessions. Each session can carry a compact workout outline."""
+    if not isinstance(sessions, list) or len(sessions) > 5:
+        raise ValueError("sessions must be a list of at most five")
+    clean = []
+    for item in sessions:
+        if not isinstance(item, dict) or item.get("sport") not in SPORTS:
+            raise ValueError(f"session sport is one of {', '.join(SPORTS)}")
+        minutes = int(item.get("minutes", 0))
+        if not 0 <= minutes <= 600:
+            raise ValueError("session minutes is 0-600")
+        steps = item.get("steps") or []
+        if not isinstance(steps, list) or len(steps) > 30:
+            raise ValueError("session steps must be a list of at most 30")
+        clean.append({"sport": item["sport"], "minutes": minutes,
+                      "name": str(item.get("name") or item["sport"].title())[:80],
+                      "steps": [str(step)[:160] for step in steps],
+                      "note": str(item.get("note") or "")[:300],
+                      "workout": str(item.get("workout") or "")[:120] or None})
+    p = d["plans"].setdefault(date, {})
+    p["sessions"] = clean
+    if clean:
+        p.pop("sport", None)
+        p.pop("minutes", None)
     p["updated"] = dt.datetime.now().isoformat(timespec="minutes")
     return p
 
@@ -255,9 +285,27 @@ def rate(d, ride, rpe):
     return d["ratings"][ride]
 
 
-def last_ride(rides_dir, min_seconds=300):
-    """The latest ride with at least five minutes of pedalling: {id, date, minutes}."""
+ATTEMPT_MIN = 10          # under this many minutes it was an attempt, whatever was planned
+ATTEMPT_SHARE = 0.5       # ...and so is anything under half of what the day's plan asked for
+
+
+def counts(d, date, sport, minutes):
+    """Did this count as the day's session? An attempt that was cut short (the rider's rule, 2026-09-30: a
+    5-minute ride the app broke is not "today's ride") doesn't: it isn't shown as done and isn't up for rating.
+    It counts from 10 minutes, and from half the planned time when that sport was planned."""
+    if minutes < ATTEMPT_MIN:
+        return False
+    p = (d.get("plans") or {}).get(date) or {}
+    want = {"bike": "ride"}.get(sport, sport)
+    planned = [s.get("minutes") for s in (p.get("sessions") or [p]) if s.get("sport") == want and s.get("minutes")]
+    return not planned or minutes >= ATTEMPT_SHARE * max(planned)
+
+
+def last_ride(rides_dir, min_seconds=300, d=None):
+    """The latest ride that counted: {id, date, minutes}. Without `d`, five minutes of pedalling. With the coach
+    data, the day's pieces are one ride (stopped, then resumed or restarted) and the whole has to count (see counts)."""
     import csv
+    days = {}
     for p in sorted(Path(rides_dir).glob("ride_*.csv"), reverse=True):
         if p.stem.count("_") != 2:
             continue                                  # _events / _session / _report files
@@ -266,8 +314,15 @@ def last_ride(rides_dir, min_seconds=300):
                 secs = {row["time"] for row in csv.DictReader(f) if float(row.get("cadence_rpm") or 0) > 20}
         except (OSError, ValueError, KeyError):
             continue
-        if len(secs) >= min_seconds:
-            return {"id": p.stem, "date": p.stem[5:15], "minutes": round(len(secs) / 60)}
+        if d is None:
+            if len(secs) >= min_seconds:
+                return {"id": p.stem, "date": p.stem[5:15], "minutes": round(len(secs) / 60)}
+        elif len(secs) >= 60:
+            days.setdefault(p.stem[5:15], []).append((p.stem, len(secs)))
+    for day in sorted(days, reverse=True):
+        total = sum(n for _, n in days[day])
+        if counts(d, day, "bike", total / 60):
+            return {"id": max(days[day], key=lambda x: x[1])[0], "date": day, "minutes": round(total / 60)}
     return None
 
 
@@ -279,7 +334,12 @@ def week(d, date, done=None):
     for i in range(7):
         k = (mon + dt.timedelta(days=i)).isoformat()
         p = d["plans"].get(k) or {}
-        out.append({"date": k, "sport": p.get("sport"), "minutes": p.get("minutes"), "note": p.get("note"),
+        sessions = p.get("sessions") or ([{"sport": p.get("sport"), "minutes": p.get("minutes"),
+                                          "name": p.get("sport", "").title(), "steps": [],
+                                          "note": p.get("note") or "", "workout": p.get("workout")}] if p.get("sport") else [])
+        out.append({"date": k, "sport": p.get("sport") or (sessions[0]["sport"] if sessions else None),
+                    "minutes": p.get("minutes") or (sessions[0]["minutes"] if sessions else None),
+                    "sessions": sessions, "note": p.get("note"),
                     "verdict": p.get("verdict"), "done": (done or {}).get(k, [])})
     return out
 

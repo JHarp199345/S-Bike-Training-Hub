@@ -57,7 +57,7 @@ def t_checkins(a):
 
 
 def t_checkin(a):
-    body = {k: a[k] for k in ("date", "legs", "feet", "hops", "hops_left", "hops_right", "journal", "breathing", "sleep", "motivation", "hr90", "hr120", "hr_after", "gut", "note") if k in a}
+    body = {k: a[k] for k in ("date", "legs", "feet", "shoulders", "hops", "hops_left", "hops_right", "journal", "breathing", "sleep", "motivation", "hr90", "hr120", "hr_after", "gut", "note") if k in a}
     return call("/api/coach/checkin", body)
 
 
@@ -66,7 +66,7 @@ def t_flag(a):
 
 
 def t_plan(a):
-    body = {k: a[k] for k in ("date", "verdict", "note", "focus", "sport", "minutes") if k in a}
+    body = {k: a[k] for k in ("date", "verdict", "note", "focus", "sport", "minutes", "sessions") if k in a}
     if "workout_id" in a:
         body["workout"] = a["workout_id"]
     return call("/api/coach/plan", body)
@@ -200,6 +200,10 @@ def t_rate(a):
     return call("/api/coach/rate", {k: a[k] for k in ("ride", "rpe") if k in a})
 
 
+def t_swim_activity(a):
+    return call("/api/load/swim-activity", {k: a[k] for k in ("activity_id", "paddles", "pull_buoy", "swim_rpe") if k in a})
+
+
 def t_morning(a):
     return call("/api/morning", {"days": a["days"]})
 
@@ -237,6 +241,14 @@ def t_aerobic(a):
     return call("/api/load").get("aerobic")
 
 
+def t_insights(a):
+    out = call("/api/load").get("insights") or {}
+    if a.get("sport") and out.get("activities"):
+        want = {"ride": "bike"}.get(a["sport"], a["sport"])
+        out = out | {"activities": [r for r in out["activities"] if r["sport"] == want]}
+    return out
+
+
 def t_transfer(a):
     return call("/api/load").get("transfer")
 
@@ -261,7 +273,7 @@ TOOLS = [
      "1-10 (legs: 1 fresh, 10 wrecked; feet = feet & bones, 1 fine, 10 very sore); hops = the single-leg hop "
      "test, pain-free hops on the worse leg (10 clears running after a block; a poor count past halfway through the "
      "plateau adds time); gut is go/easy/no; heart rates in bpm. Returns the verdict.",
-     S(date=DATE, legs=INT("1-10", 1, 10), feet=INT("Feet & bones 1-10", 1, 10),
+     S(date=DATE, legs=INT("1-10", 1, 10), feet=INT("Feet & bones 1-10", 1, 10), shoulders=INT("Shoulders 1-10", 1, 10),
        hops=INT("Pain-free single-leg hops, worse leg (or give each leg)", 0, 100),
        hops_left=INT("Pain-free hops, left leg", 0, 100), hops_right=INT("Pain-free hops, right leg", 0, 100),
        journal=STR("Their journal entry, in their words - kept, not scored"), breathing=INT("1-10", 1, 10), sleep=INT("1-10", 1, 10),
@@ -283,6 +295,8 @@ TOOLS = [
                  "(swims can't go on the COROS calendar - this is where they live)",
                  enum=["ride", "swim", "run", "walk", "gym", "test", "rest", "other", ""]),
        minutes=INT("The time goal for the day's session", 0, 600),
+       sessions={"description": "Optional ordered sessions for this day, each {sport, minutes, name, steps: [set or interval descriptions], note, workout}. Replaces the day's sessions; use two or more for a double-session day. Check recovery before scheduling.",
+                 "type": "array", "items": {"type": "object"}},
        focus={"description": "What the ride is coaching for - a cadence range plus a watt range that auto-shift "
               "steers toward: 'cadence' (65-80 rpm, zone 2: builds the cadence habit), 'grit' (50-65 rpm, 76-90% FTP: "
               "force; loads the leg muscles more - not when legs are tired), 'speed' (85-100 rpm, 50-67% FTP), "
@@ -316,6 +330,11 @@ TOOLS = [
      "weight), MUSCLE (leg force; pedal torque, gym effort, running). Each has fitness, fatigue, form, the "
      "acute:chronic ratio and zone (0.8-1.3 sweet spot, >1.5 danger for impact/muscle), this week's used load vs "
      "budget, and a weakest-link readiness verdict with what's limiting. Use this before set_plan.", S(), t_load),
+    ("record_swim_activity", "Attach the rider's report to one imported pool swim: whether paddles or a pull buoy "
+     "were used and how hard the swim felt. Use get_load for swim activity IDs, then record_checkin with a "
+     "shoulders rating for how the shoulders feel. This updates provisional swim recovery blocks.",
+     S(activity_id=STR("Imported swim activity ID"), paddles={"type": "boolean"},
+       pull_buoy={"type": "boolean"}, swim_rpe=INT("Swim effort 1-10", 1, 10)), t_swim_activity),
     ("import_activities", "Import watch activity files into the hub so every sport counts: pass the https download "
      "links for .fit files (e.g. from the COROS tool queryActivityFitFileDownloadUrls, one activity at a time).",
      S(urls={"type": "array", "items": {"type": "string"}, "description": "https links to .fit or .tcx files"}), t_import),
@@ -402,6 +421,20 @@ TOOLS = [
      "decoupling (watts per beat, first half vs second - under 5% stayed aerobic; judged only on 40+ min steady rides), "
      "and heart rate at the same 100-120 W (falls as the heart gets fitter), with trends. Import the watch's ride "
      "files first (import_activities).", S(), t_aerobic),
+    ("get_insights", "The rest of what the watch recorded, cross-referenced. Signals and flags only - nothing here "
+     "scores the rider or changes a load model; ask the rider each flag's question rather than judging. "
+     "SWIM, per set: SWOLF (seconds + strokes per length), strokes, stroke rate, pace, and how the stroke changed - "
+     "held / gradual (slow fade: ordinary fatigue) / sudden (a step between neighbouring lengths - even a small one is "
+     "the more telling strain signal) - plus how far in it first broke down. swim.session_length reads that across "
+     "swims: use it to decide how long swims should be. Heart-rate drop in the rests is a wrist reading in water: rough. "
+     "RUN: laps and 5-minute splits of power, cadence, heart rate, pace, vertical oscillation/ratio, step length, "
+     "ground contact; form drift is flagged only when the pace matched. "
+     "RIDE: work in kJ, heart rate in the opening minutes against the usual at those watts, heart-rate recovery in the "
+     "minute after hard efforts, and (from get_aerobic) drift; ride.work_vs_legs fits kJ to the next morning's legs, "
+     "ride.leg_check asks whether cadence and heart rate show the running load, ride.climbs compares each climb to the "
+     "last time up. ALL: pauses mid-workout (count, time) - many of them is a question, not a fault. "
+     "Trends say when they have too little data.",
+     S(sport=STR("Only this sport: swim, run, ride, gym or walk (optional)")), t_insights),
     ("get_transfer", "How much each sport carries over to the others for this rider, learned from their data: "
      "fitness carry-over (from -> to, relative to training the target sport itself; e.g. bike -> run 0.5 means an "
      "hour on the bike builds running fitness like half an hour of running) and how much each sport tires the legs "
@@ -435,10 +468,15 @@ for name, _, schema, _ in TOOLS:
     if name in ("set_capacity",):
         schema["required"] = ["system", "usual_week"]
 BY_NAME = {t[0]: t for t in TOOLS}
-INSTRUCTIONS = ("An indoor smart-bike training hub (built on a Merach S29). Coach the rider day by day: start "
-                "with get_today, look at recent check-ins and rides, then set_plan with a verdict, a short plain "
-                "note, and a workout if they're riding. Their legs and their own 'not today' outrank the numbers. "
-                "Heart rate on the bike comes only from the morning diagnostic (read off their watch).")
+INSTRUCTIONS = ("A bike, run, and swim training companion (built on a Merach S29 smart bike). Start with get_today "
+                "and recent check-ins and activity, then set a concrete day plan. A day can contain ordered ride and "
+                "swim sessions with intervals or drills; consider both shared cardiovascular and sport-specific "
+                "recovery before adding a second session. Running impact and swim recovery blocks are provisional "
+                "planning estimates, not measured tissue damage or injury clearance. Reported pain and the athlete's "
+                "own 'not today' outrank scores. After an imported swim, ask about shoulder response, paddles or "
+                "buoy, and perceived effort, then record only what the athlete reports. get_insights holds what the "
+                "watch saw beyond the loads (stroke breakdown, run form, ride recovery, pauses): ask its flags as "
+                "questions, never as verdicts.")
 
 
 def handle(msg):

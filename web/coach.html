@@ -28,6 +28,12 @@
  .flag.severe{background:#7f1d1d;border-color:#f87171} .flag p{margin:0 0 8px;color:#eef1f5}
  .flag .row button{padding:7px 12px;font-size:14px} .flag.settled{background:#0f141b;border-color:#2a3441;color:#8b98a8;padding:6px 12px}
  .flag.settled button{padding:3px 8px;font-size:12px;margin-left:6px}
+  .iflag{border-left:3px solid #ecc94b;padding:6px 10px;margin:8px 0;background:rgba(236,201,75,.08);border-radius:0 8px 8px 0}.iflag i{display:block;color:#8b98a8;font-style:normal;font-size:13px;margin-top:2px}
+ .itrend{padding:8px 0;border-bottom:1px solid #2a3441;font-size:14px}.itrend b{display:block;color:#b7c1cd;font-size:12px;letter-spacing:.04em}
+ .iact{border-bottom:1px solid #2a3441}.iact:last-child{border:0}.iact summary{padding:10px 0;cursor:pointer;color:#eef1f5;display:flex;gap:8px;justify-content:space-between;list-style:none}
+ .iact summary::-webkit-details-marker{display:none}.iact summary span{color:#8b98a8;font-size:13px;text-align:right}.iact .body{padding:0 0 12px;font-size:14px;color:#eef1f5}
+ .iact .tag{font-size:11px;border-radius:999px;padding:1px 8px;margin-left:6px;border:1px solid #2a3441;color:#8b98a8}.iact .tag.sudden{border-color:#e53e3e;color:#e53e3e}.iact .tag.gradual{border-color:#ecc94b;color:#ecc94b}
+ #resumebar{display:flex;gap:8px;margin:0 0 12px}#resumebar #resumego{flex:1;text-align:left;padding:14px 16px;font-size:16px;line-height:1.35}#resumebar small{display:block;opacity:.85;font-size:13px}
  .jentry{padding:10px 0;border-bottom:1px solid #2a3441}.jentry:last-child{border:0}
  .jentry b{color:#b7c1cd;font-size:13px}.jentry div{color:#eef1f5;white-space:pre-wrap;margin-top:3px;-webkit-user-select:text;user-select:text}
  .checkedin{margin-top:10px;padding:8px 10px;background:#0f141b;border:1px solid #2a3441;border-radius:10px;font-size:14px;color:#b7c1cd}
@@ -40,6 +46,7 @@
  .wd b{display:block;font-size:22px;margin:2px 0}.wd.today{outline:2px solid #60a5fa}.wd .dn{font-weight:700;color:#eef1f5}
  .wd .did{color:#4ade80;font-size:11px;margin-top:3px}.wd.sel{background:#1f2937}
  #weeknote{margin:0 0 6px}
+ .wds{display:inline-block;border-radius:8px;padding:0 2px}.wds.on{box-shadow:0 0 0 2px #2563eb;background:#1f2937}   /* the chosen session */
  @media(max-width:480px){.wd{padding:6px 2px;font-size:11px}.wd b{font-size:18px}}
  .rpe{margin-top:12px}.rpebtns{display:grid;grid-template-columns:repeat(10,1fr);gap:4px;margin-top:6px}
  .rpebtns button{padding:9px 0;font-weight:800;border-radius:8px}.rpebtns button.on{background:#2563eb}
@@ -52,6 +59,11 @@
  .impactnum b{display:block;font-size:25px}.impactnum small{display:block;color:#b7c1cd;font-size:12px;font-weight:400}
  dialog{background:#151b23;color:#eef1f5;border:1px solid #394555;border-radius:16px;width:min(700px,calc(100vw - 36px));box-sizing:border-box}
  dialog::backdrop{background:rgba(0,0,0,.76)}
+ .bodymap{padding:10px 0}.bm2{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:470px;margin:0 auto}
+ .bmlab{text-align:center;color:#8b98a8;font-size:12px;letter-spacing:1.2px;margin-bottom:4px}
+ .bodymap svg polygon{cursor:pointer;transition:opacity .15s}.bodymap svg polygon:hover{opacity:.8}
+ .bmfeet{display:block;margin:10px auto 0;padding:8px 14px;font-size:14px;color:#fff;border-radius:10px}
+ #regiondetail b{display:block}#regiondetail small{display:block;color:#8b98a8}
  #impactgraph{display:block;width:100%;height:340px;margin:12px 0}
  @media(max-width:480px){.impactnums,.headline{grid-template-columns:1fr}}
  @media (max-width:560px){.systems{grid-template-columns:1fr}}
@@ -93,6 +105,7 @@
 <nav class="tabs" role="tablist" aria-label="Coach sections">
  <button role="tab" data-tab="today">Today</button><button role="tab" data-tab="plan">Plan</button><button role="tab" data-tab="progress">Progress</button>
 </nav>
+<div id="resumebar" hidden><button class="purple" id="resumego"></button><button id="resumedrop" aria-label="Forget this unfinished workout">✕</button></div>
 <section data-tab="today" role="tabpanel">
 <h2>TODAY</h2>
 <div class="card" id="todaycard">
@@ -102,6 +115,7 @@
  <div id="feel" class="cform" hidden>
   <div class="sl"><label>Leg muscles <span><b id="legsv">4</b>/10 · 1 fresh, 10 wrecked</span></label><input type="range" id="legs" min="1" max="10" step="1" value="4"></div>
   <div class="sl"><label>Feet &amp; bones <span><b id="feetv">3</b>/10 · 1 fine, 10 very sore</span></label><input type="range" id="feet" min="1" max="10" step="1" value="3"></div>
+  <div class="sl"><label>Shoulders <span>optional · move slider to report · <b id="shouldersv">2</b>/10</span></label><input type="range" id="shoulders" min="1" max="10" step="1" value="2"></div>
   <div class="sl"><label>Hop test <span>pain-free, each leg · 10 clears running</span></label>
    <div class="hops"><label>Left <input type="number" id="hopsl" inputmode="numeric" min="0" max="100" placeholder="–"></label>
    <label>Right <input type="number" id="hopsr" inputmode="numeric" min="0" max="100" placeholder="–"></label></div></div>
@@ -116,7 +130,7 @@
  </div>
  <div class="headline" id="headline" hidden>
   <button id="cardiobtn"><small>❤️ CARDIO LOAD · tap for history</small><b id="cardionum">–</b><small id="cardiosub"></small></button>
-  <button id="mechanicalbtn"><small>🦶 MECHANICAL LOAD vs LIMIT · tap for graph</small><b id="mechanicalnum">–</b><small id="mechanicalsub"></small></button>
+  <button id="mechanicalbtn"><small>🦶 MECHANICAL LOAD vs LIMIT · tap for body map</small><b id="mechanicalnum">–</b><small id="mechanicalsub"></small></button>
  </div>
  <div class="balance" id="balance" hidden><span id="balancegrade"></span><label>Training phase <select id="phase"><option value="run_durability">Run durability</option><option value="aerobic_base">Aerobic base</option><option value="bike_performance">Bike performance</option></select></label></div>
  <div class="systems" id="systems" hidden></div>
@@ -150,17 +164,11 @@
 <section data-tab="plan" role="tabpanel" hidden>
 <h2>THIS WEEK</h2>
 <div class="weekstrip" id="weekstrip"></div>
-<h2>COMING UP</h2>
-<div class="card" id="eventcard"><div id="eventlist" class="sub">Nothing on the calendar.</div>
- <div class="row" style="margin-top:10px;gap:6px;flex-wrap:wrap">
-  <input id="evdate" type="date" style="padding:8px;border-radius:10px;background:#0b0f14;color:#eef1f5;border:1px solid #2a3441">
-  <input id="evname" type="text" placeholder="What - e.g. a spring 10K" style="flex:1;min-width:140px;padding:8px;border-radius:10px;background:#0b0f14;color:#eef1f5;border:1px solid #2a3441">
-  <select id="evkind" style="padding:8px;border-radius:10px;background:#0b0f14;color:#eef1f5;border:1px solid #2a3441"><option value="race">race</option><option value="test">test</option><option value="goal">goal</option></select>
-  <select id="evsport" style="padding:8px;border-radius:10px;background:#0b0f14;color:#eef1f5;border:1px solid #2a3441"><option>bike</option><option>run</option><option>swim</option><option>tri</option><option>other</option></select>
-  <button id="evadd">Add</button></div></div>
-
-<h2>BUILD A TIMED WORKOUT</h2>
-<div class="card">
+<div class="card" id="sessionpreview" style="margin-top:10px"></div>
+<h2 id="timedtitle">TODAY'S RIDE · TIME TO GET IT IN GEAR</h2>
+<div class="card" id="timedcard">
+ <div class="row" style="justify-content:space-between;align-items:flex-start;margin-bottom:10px"><div class="sub" id="timedhint" style="flex:1">Your planned ride, loaded and ready.</div>
+  <button type="button" id="fromscratch" style="padding:6px 10px;font-size:13px">Start from scratch</button></div>
  <div class="row"><label class="sub">1 · Total time <select id="total"></select></label><label class="sub">Intervals <select id="nint"></select></label>
   <label class="sub">Targets in <select id="unit"><option value="pct">% of FTP</option><option value="watts">watts</option></select></label></div>
  <div class="sub" style="margin:12px 0 6px">2 · Drag any bar up or down (5-second steps): the others give or take time in proportion. Tap a bar to set its target, or tap its time to type one.</div>
@@ -172,6 +180,17 @@
   <button class="purple" id="rideit">▶ Ride now</button><button id="saveit">Save</button><button id="planit">Make it today's ride</button></div>
  <div id="msg"></div>
 </div>
+<h2 id="othertitle" hidden></h2>
+<div class="card" id="othercard" hidden></div>
+<h2>COMING UP</h2>
+<div class="card" id="eventcard"><div id="eventlist" class="sub">Nothing on the calendar.</div>
+ <div class="row" style="margin-top:10px;gap:6px;flex-wrap:wrap">
+  <input id="evdate" type="date" style="padding:8px;border-radius:10px;background:#0b0f14;color:#eef1f5;border:1px solid #2a3441">
+  <input id="evname" type="text" placeholder="What - e.g. a spring 10K" style="flex:1;min-width:140px;padding:8px;border-radius:10px;background:#0b0f14;color:#eef1f5;border:1px solid #2a3441">
+  <select id="evkind" style="padding:8px;border-radius:10px;background:#0b0f14;color:#eef1f5;border:1px solid #2a3441"><option value="race">race</option><option value="test">test</option><option value="goal">goal</option></select>
+  <select id="evsport" style="padding:8px;border-radius:10px;background:#0b0f14;color:#eef1f5;border:1px solid #2a3441"><option>bike</option><option>run</option><option>swim</option><option>tri</option><option>other</option></select>
+  <button id="evadd">Add</button></div></div>
+
 </section>
 <section data-tab="progress" role="tabpanel" hidden>
 <h2>CALIBRATION</h2>
@@ -182,6 +201,10 @@
 <div class="card" id="skillcard"><div class="sub" style="margin-bottom:6px">Each skill is a ladder. Two good sessions earn the next step; two poor ones drop one; on a day you're not recovered you ride a step down without losing your place.</div>
  <div id="skilllist"></div></div>
 
+<h2>WHAT THE WATCH SAW</h2>
+<div class="card" id="insightcard"><div class="sub" style="margin-bottom:6px">The rest of what your watch records, read across the hub: how the stroke held up, run form, recovery on the bike, pauses. It flags and asks - it never scores, and it changes no load number.</div>
+ <div id="insightflags"></div><div id="insighttrends"></div><div id="insightlist" class="sub">Reading the watch files…</div></div>
+
 <h2>JOURNAL</h2>
 <div class="card"><div class="sub" style="margin-bottom:6px">What you wrote with each check-in. Kept as a record - not part of any score yet.</div>
  <div id="journallist" class="sub">No entries yet.</div></div>
@@ -190,6 +213,15 @@
  <canvas id="impactgraph" aria-label="Recent run response and accumulated load over time"></canvas>
  <div class="sub">Orange: a separate five-day exertion response. Blue: accumulated mechanical blocks. One provisional block uses the median impact of the first three recorded runs, with an estimated unconditioned baseline as a lower bound; it is a comparison unit, not a known safe dose. Each run adds load based on estimated steps and ground force, with an extra cost when load is already present. The blue curve stays high for about five days per block, then declines over about three days per block, to a fifth of its level, followed by a remodeling tail of about four months. There's no cap: 13 blocks holds about 65 days and declines over about 39. Gray marks show recorded run days; dotted lines assume no new runs. The 1.5-block line is a provisional running limit. Feet and leg reports move the estimated plateau by at most half a day per report; shortening requires both to be reassuring. Knee, ankle, and Achilles forces are related internal loads, not additional forces summed into the score. These are planning assumptions, not measured tissue damage or a diagnosis.</div>
  <div class="sub" id="impactmultipliers"></div>
+</dialog>
+
+<dialog id="mechanicaldialog" aria-labelledby="mechanicaltitle"><div class="row" style="justify-content:space-between"><b id="mechanicaltitle">Mechanical load · body map</b><button id="mechanicalclose" aria-label="Close body map">✕</button></div>
+ <div class="sub" id="mechanicalsummary"></div>
+ <div class="bodymap" id="bodymap"></div>
+ <div class="sub">Tap a highlighted region for its sources. Color shows relative modeled exposure, not measured tissue damage.</div>
+ <div class="card" id="regiondetail" style="margin-top:10px"></div>
+ <div class="row" style="margin-top:10px"><button id="maprun">Running curve</button><button id="mapswim">Swim recovery</button></div>
+ <div class="card" id="swimdetail" hidden style="margin-top:10px"></div>
 </dialog>
 
 <dialog id="sysdialog" aria-labelledby="systitle"><div class="row" style="justify-content:space-between"><b id="systitle"></b><button id="sysclose" aria-label="Close">✕</button></div>
@@ -210,6 +242,8 @@ const $=id=>document.getElementById(id);
 const esc=t=>String(t).replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
 const ZONES=[[55,'#6b7280'],[75,'#3b82f6'],[90,'#22c55e'],[105,'#eab308'],[120,'#f97316'],[999,'#ef4444']];
 let ftp=180, gut=null, day=null, plan=null, workouts=[], editing=false;
+let shoulderTouched=false, fullWorkouts=[];      // saved workouts with their steps, for "what you'll ride"
+fetch('/api/workouts').then(r=>r.json()).then(j=>{ fullWorkouts=j.workouts||[]; if(day) weekStrip(day.week, day.date); }).catch(()=>{});
 const colour=pct=>ZONES.find(z=>pct<z[0])[1];
 const mmss=m=>{ const s=Math.round(m*60); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
 const post=(u,b)=>fetch(u,{method:'POST',body:JSON.stringify(b||{})}).then(async r=>({ok:r.ok,j:await r.json()}));
@@ -221,7 +255,7 @@ async function loadToday(){ const r=await (await fetch('/api/coach/today')).json
   $('verdict').className='verdict'+(shown?' v-'+shown:''); $('verdict').textContent=shown?r.verdicts[shown]:'No check-in yet';
   $('why').textContent=v?(c.why||[]).join(' · '):(p.verdict?'':'Start with the 6-minute diagnostic below, or just check in.');
   const hopTxt=c.hops_left!=null||c.hops_right!=null?`L <b>${c.hops_left??'–'}</b> · R <b>${c.hops_right??'–'}</b>`:(c.hops!=null?`<b>${c.hops}</b>`:null);
-  const ci=[['Legs',c.legs,'/10'],['Feet & bones',c.feet,'/10'],['Breathing',c.breathing,'/10'],
+  const ci=[['Legs',c.legs,'/10'],['Feet & bones',c.feet,'/10'],['Shoulders',c.shoulders,'/10'],['Breathing',c.breathing,'/10'],
     ['Sleep',c.sleep,'/10'],['HR at 90 W',c.hr90,' bpm']].filter(x=>x[1]!=null).map(([k,v,u])=>`${k} <b>${v}</b>${u}`);
   if(hopTxt) ci.splice(2,0,'Hops '+hopTxt);
   const checked=ci.length>0;
@@ -247,16 +281,17 @@ async function loadToday(){ const r=await (await fetch('/api/coach/today')).json
   const T={ftp:'FTP ramp test',big_gear:'Big-gear test',diagnostic:'Morning diagnostic'}[p.test];
   $('courserow').hidden=!(p.sport==='ride' && !T && (p.verdict||'go')!=='rest');   // a ride with no map route: the 8-bit course
   $('planrow').hidden=!(w||T); if(T){ $('planw').textContent=T; plan={test:p.test}; } else if(w){ $('planw').textContent=w.name; plan=w; }
-  if(c.legs){ $('legs').value=c.legs; $('legsv').textContent=c.legs; } if(c.feet){ $('feet').value=c.feet; $('feetv').textContent=c.feet; } $('hopsl').value=c.hops_left??''; $('hopsr').value=c.hops_right??'';
+  if(c.legs){ $('legs').value=c.legs; $('legsv').textContent=c.legs; } if(c.feet){ $('feet').value=c.feet; $('feetv').textContent=c.feet; } if(c.shoulders){$('shoulders').value=c.shoulders;$('shouldersv').textContent=c.shoulders;shoulderTouched=true;} $('hopsl').value=c.hops_left??''; $('hopsr').value=c.hops_right??'';
   if(!editing) $('journal').value=c.journal||''; if(c.gut) document.querySelectorAll('[data-gut]').forEach(x=>x.classList.toggle('on',x.dataset.gut===c.gut)); gut=c.gut||gut; if(c.breathing){ $('breath').value=c.breathing; $('breathv').textContent=c.breathing; }
   if(c.sleep){ $('sleep').value=c.sleep; $('sleepv').textContent=c.sleep; } if(c.hr90) $('hr90').value=c.hr90; if(c.hr120) $('hr120').value=c.hr120; if(c.hr_after) $('hrafter').value=c.hr_after; }
-// The three body systems, weakest link first.
+// The shared body systems, with separate running and swimming recovery verdicts.
 function sysline(r){ const el=$('systems'); if(!r.systems){ el.hidden=true; return; } el.hidden=false;
   const N={engine:'❤️ Heart & lungs',impact:'🦶 Feet & bones',muscle:'🦵 Leg muscles'}, C={go:'#4ade80',easy:'#fbbf24',rest:'#f87171'};
   el.innerHTML=Object.entries(r.systems.systems).map(([k,v])=>`<button class="sys" data-sys="${k}"><b>${N[k]}</b><span style="color:${C[v.level]}">${v.level.toUpperCase()}</span>
     <small>${r.zones?r.zones[k]:''}${v.why.length?' · '+v.why.join(', '):''}</small><em>tap for graph and details</em></button>`).join('')
     +(r.systems.limited_by.length?`<div class="sub" style="grid-column:1/-1">Bike limited by ${r.systems.limited_by.join(' and ')} - the weakest link sets the ride.</div>`:'')
-    +(r.systems.running?`<div class="sub" style="grid-column:1/-1">Running: <b style="color:${C[r.systems.running.verdict]}">${r.systems.running.verdict.toUpperCase()}</b>${r.systems.running.why.length?' · '+r.systems.running.why.join(' · '):''}</div>`:'');
+    +(r.systems.running?`<div class="sub" style="grid-column:1/-1">Running: <b style="color:${C[r.systems.running.verdict]}">${r.systems.running.verdict.toUpperCase()}</b>${r.systems.running.why.length?' · '+r.systems.running.why.join(' · '):''}</div>`:'')
+    +(r.systems.swimming?`<div class="sub" style="grid-column:1/-1">Swimming: <b style="color:${C[r.systems.swimming.verdict]}">${r.systems.swimming.verdict.toUpperCase()}</b>${r.systems.swimming.why.length?' · '+r.systems.swimming.why.join(' · '):''}</div>`:'');
   $('runhow').hidden=!r.systems.running?.how; $('runhow').textContent=r.systems.running?.how||'';
   el.querySelectorAll('.sys').forEach(b=>b.onclick=()=>sysDetail(b.dataset.sys)); }
 // Today's focus: the cadence and watt ranges auto-shift steers toward. Grit loads the leg muscles more.
@@ -289,15 +324,50 @@ const ICON={ride:'🚴',swim:'🏊',run:'🏃',walk:'🚶',gym:'🏋️',test:'�
 function weekStrip(wk,today){ if(!wk) return; const box=$('weekstrip');
   box.innerHTML=wk.map((d,i)=>{ const did=d.done.filter(x=>x.minutes>=5);
     return `<div class="wd${d.date===today?' today':''}" data-i="${i}"><div class="dn">${new Date(d.date+'T12:00').toLocaleDateString(undefined,{weekday:'short'})}</div>
-      <b>${d.sport?ICON[d.sport]||'•':d.verdict==='rest'?'😴':'·'}</b>${d.minutes?`${d.minutes} min`:d.sport==='rest'?'rest':'&nbsp;'}
+      <b>${d.sessions?.length?d.sessions.map((s,n)=>`<span class="wds" data-s="${n}" title="${esc(s.name||s.sport)}">${ICON[s.sport]||'•'}</span>`).join(' '):d.sport?ICON[d.sport]||'•':d.verdict==='rest'?'😴':'·'}</b>${d.sessions?.length?d.sessions.map(s=>s.sport==='rest'?'rest':s.minutes?s.minutes+' min':'').filter(Boolean).join(' + ')||'&nbsp;':d.minutes?`${d.minutes} min`:d.sport==='rest'?'rest':'&nbsp;'}
       ${did.length?`<div class="did">✓ ${did.map(x=>`${ICON[x.sport]||x.sport} ${x.minutes}`).join(' ')}</div>`:''}</div>`; }).join('')
     +`<div class="sub" id="weeknote" style="grid-column:1/-1"></div>`;
   const show=i=>{ const d=wk[i]; box.querySelectorAll('.wd').forEach((e,k)=>e.classList.toggle('sel',k===i));
     $('weeknote').innerHTML=`<b>${new Date(d.date+'T12:00').toLocaleDateString(undefined,{weekday:'long',month:'short',day:'numeric'})}</b>`
-      +(d.sport?` · ${d.sport}${d.minutes?` ${d.minutes} min`:''}`:'')+(d.note?` - ${d.note}`:(d.sport?'':' - nothing planned'))
+      +(d.sessions?.length?` · ${d.sessions.length} session${d.sessions.length===1?'':'s'}`:'')+(d.note?` - ${esc(d.note)}`:(d.sport?'':' - nothing planned'))
       +(d.done.length?` · done: ${d.done.map(x=>`${x.sport} ${x.minutes} min`).join(', ')}`:''); };
-  box.querySelectorAll('.wd').forEach(e=>e.onclick=()=>show(+e.dataset.i));
-  show(Math.max(0,wk.findIndex(d=>d.date===today))); }
+  // what you'll actually ride: a planned workout's blocks in plain terms, or - with none - that it's a steady ride in the focus
+  const rideHow=s=>{ const w=s.workout&&fullWorkouts.find(x=>x.id===s.workout);
+    if(w) return `<div class="sub" style="margin-top:6px"><b>What you'll ride:</b> ${esc(w.name)}</div><ol class="sub" style="margin:4px 0 0 18px;padding:0">${(w.steps||[]).map(st=>`<li>${mmss(st.minutes)} at ${st.pct}% of FTP (${Math.round(st.pct*ftp/100)} W)</li>`).join('')}</ol>`;
+    if(s.steps?.length) return `<div class="sub" style="margin-top:6px"><b>What you'll ride:</b></div><ol class="sub" style="margin:4px 0 0 18px;padding:0">${s.steps.map(x=>`<li>${esc(x)}</li>`).join('')}</ol>`;
+    const f=day?.focus; return `<div class="sub" style="margin-top:6px"><b>No intervals today:</b> ride ${s.minutes} min steady in today's focus${f?` - ${esc(f.name)}, ${f.rpm[0]}–${f.rpm[1]} rpm${f.watts?`, ${f.watts[0]}–${f.watts[1]} W`:''}`:''}. It's loaded below, ready to ride.</div>`; };
+  // One session at a time: the day's first, until you tap another session's icon in the strip. Its summary and its
+  // workout show below - a ride loaded in the builder, a swim's sets, a run's warm-up, drills and build-ups.
+  const showSessions=(i,si)=>{const d=wk[i], sessions=d.sessions||[]; si=Math.min(si??0, Math.max(0,sessions.length-1));
+    const cur=sessions[si]; box.querySelectorAll('.wd').forEach((e,k)=>e.querySelectorAll('.wds').forEach((x,n)=>x.classList.toggle('on',k===i&&n===si&&sessions.length>1)));
+    const ride=cur?.sport==='ride'; $('timedtitle').hidden=!ride; $('timedcard').hidden=!ride; if(ride) setTimeout(()=>loadPlanned(d,cur));
+    sessionCard(d,cur);
+    $('sessionpreview').innerHTML=cur
+    ?`<div><b>${ICON[cur.sport]||'•'} ${esc(cur.name||cur.sport)}${cur.sport==='rest'?'':` · ${cur.minutes} min`}</b>${sessions.length>1?`<span class="sub"> · session ${si+1} of ${sessions.length} - tap the other icon above to switch</span>`:''}${cur.note?`<div class="sub">${esc(cur.note)}</div>`:''}${cur.sport==='ride'?rideHow(cur):''}${!['ride','swim','run'].includes(cur.sport)&&cur.steps?.length?`<ol class="sub" style="margin:6px 0 0 18px;padding:0">${cur.steps.map(x=>`<li>${esc(x)}</li>`).join('')}</ol>`:''}</div>`
+    :'<div class="sub">Nothing planned this day.</div>';};
+  box.querySelectorAll('.wd').forEach(e=>e.onclick=ev=>{ const s=ev.target.closest('.wds'); show(+e.dataset.i); showSessions(+e.dataset.i, s?+s.dataset.s:null); });
+  const selected=Math.max(0,wk.findIndex(d=>d.date===today));show(selected);showSessions(selected); }
+// A swim or run session's workout, shown like the ride's: its own sets if the plan has them, otherwise a standard
+// shape for the time (swim paces from CSS; a run's warm-up, dynamic stretches, easy running and build-ups).
+function sessionCard(d,s){ const box=$('othercard'), ttl=$('othertitle');
+  if(!s||!['swim','run'].includes(s.sport)){ box.hidden=true; ttl.hidden=true; return; }
+  const when=new Date(d.date+'T12:00'), isToday=d.date===day?.date, T=s.minutes||30, fmt=sec=>`${Math.floor(sec/60)}:${String(Math.round(sec%60)).padStart(2,'0')}`;
+  const dayName=isToday?"TODAY'S":when.toLocaleDateString(undefined,{weekday:'long'}).toUpperCase()+"'S";
+  let rows, head='';
+  if(s.sport==='swim'){
+    const css=day?.calibration?.capacities?.swim_css?.value, pace=add=>css?` · ${fmt(css+add)}/100 m`:'';
+    ttl.textContent=`${dayName} SWIM · INTO THE WATER`;
+    rows=s.steps?.length?s.steps:[`Warm-up · ${Math.round(T*.15)} min easy${pace(20)}`,`Drills · ${Math.round(T*.15)} min (catch-up, single arm, kick on side)`,
+      `Main set · ${Math.round(T*.55)} min steady${pace(8)} - rest 15-20 s every 100`,`Cool-down · ${Math.round(T*.15)} min easy, any stroke`];
+    head=css?`<div class="sub">Paces from your CSS (${fmt(css)}/100 m). ${s.steps?.length?'':'No sets planned, so this is the standard shape for the time.'}</div>`:'';
+  } else {
+    const r=day?.systems?.running; ttl.textContent=`${dayName} RUN · LACE UP`;
+    head=r&&r.verdict==='rest'?`<div class="note" style="border-left-color:#f87171">Running is on hold today: ${esc((r.why||[]).join(' · '))}</div>`:'';
+    rows=s.steps?.length?s.steps:[`Warm-up walk · 5 min`,`Dynamic stretches · 5 min (leg swings, walking lunges, high knees, butt kicks)`,
+      `Easy run · ${Math.max(5,T-18)} min, conversational`,`Build-ups · 4 × 20 s, easing up to quick but relaxed, walk back between`,`Cool-down walk · 5 min`];
+  }
+  box.innerHTML=`<b>${ICON[s.sport]} ${esc(s.name||s.sport)} · ${T} min</b>${head}<ol style="margin:8px 0 0 18px;padding:0;line-height:1.6">${rows.map(x=>`<li>${esc(x)}</li>`).join('')}</ol>`;
+  box.hidden=false; ttl.hidden=false; }
 function skillList(sk){ if(!sk){ $('skillcard').hidden=true; return; } $('skillcard').hidden=false;
   $('skilllist').innerHTML=Object.values(sk).map(k=>{ const h=k.history.at(-1);
     return `<div class="sys" style="margin:6px 0"><b>${k.name} · step ${k.level} of ${k.of}</b>
@@ -322,7 +392,7 @@ function headline(h){if(!h){$('headline').hidden=true;$('balance').hidden=true;r
   $('cardionum').textContent=h.cardio.ratio.toFixed(2)+'×';
   $('cardiosub').textContent=`${Math.round(h.cardio.last7)} points this week / ${Math.round(h.cardio.usual_week)} reference`;
   $('mechanicalnum').textContent=h.mechanical.ratio.toFixed(2)+'×';
-  $('mechanicalsub').textContent=`impact ${h.mechanical.impact_ratio.toFixed(2)}× · muscles ${h.mechanical.muscle_ratio.toFixed(2)}× · accumulated ${h.mechanical.remodeling_blocks.toFixed(2)} blocks`;
+  $('mechanicalsub').textContent=`run ${h.mechanical.remodeling_blocks.toFixed(2)} blocks · swim ${h.mechanical.swim_blocks==null?'building baseline':h.mechanical.swim_blocks.toFixed(2)+' blocks'} · legs ${h.mechanical.muscle_ratio.toFixed(2)}×`;
   $('balancegrade').textContent=`Phase balance: ${h.balance.grade} (${h.balance.score}/100, provisional) · ${Math.round(h.balance.cardio_weight*100)}% cardio / ${Math.round(h.balance.mechanical_weight*100)}% mechanical`;
   $('phase').value=h.phase;
 }
@@ -368,10 +438,52 @@ function drawImpact(){ if(!impactData) return;
   [0,longPast.length-1,Math.min(long.length-1,longPast.length+29),Math.min(long.length-1,longPast.length+89),long.length-1].forEach(i=>g.fillText(long[i].date.slice(5),lx(i),H-8));
   g.textAlign='right';g.fillText(shortTop.toFixed(1)+'×',L-4,T+6);g.fillText(longTop.toFixed(1),L-4,split+30);
 }
-for(const id of ['recentbtn','backlogbtn','mechanicalbtn']) $(id).onclick=()=>{ $('impactdialog').showModal();drawImpact(); };
+for(const id of ['recentbtn','backlogbtn']) $(id).onclick=()=>{ $('impactdialog').showModal();drawImpact(); };
 $('impactclose').onclick=()=>$('impactdialog').close();
 $('impactdialog').onclick=e=>{if(e.target===$('impactdialog')) $('impactdialog').close();};
 addEventListener('resize',()=>{if($('impactdialog').open)drawImpact();});
+// The body map is drawn by body-highlighter (MIT, web/vendor/): real front and back muscle shapes. Our regions
+// map onto its muscles; where two regions share a muscle (scapular muscles and lats on the upper back) it shows the
+// higher. It has no feet, so feet & bones get their own button under the figures.
+const MUSCLES={shoulders:['front-deltoids','back-deltoids'], scapula:['upper-back'], lats:['upper-back'], serratus:['obliques'],
+  pecs:['chest'], traps:['trapezius'], trunk:['abs','obliques','lower-back'], hip_flexors:['adductor'], glutes:['gluteal','abductors'],
+  quads:['quadriceps'], hamstrings:['hamstring'], calves:['calves','left-soleus','right-soleus']};
+const HEAT=['#3b82f6','#22c55e','#eab308','#f97316','#ef4444'];                     // the same scale as the old map
+const heatStep=v=>v<.08?0:v<.35?1:v<.7?2:v<1?3:v<1.5?4:5;
+const heat=v=>v<.08?'#1f2937':v<.35?'#3b82f6':v<.7?'#22c55e':v<1?'#eab308':v<1.5?'#f97316':'#ef4444';
+function regionInfo(k){const r=loadData?.body_map?.regions?.[k];if(!r)return;
+ const names={impact:'running impact',run:'running leg work',swim:'swim recovery',bike:'cycling leg work'};
+ $('regiondetail').innerHTML=`<b>${esc(r.name)} · ${r.level.toFixed(2)}× reference</b><small>Strongest source: ${names[r.driver]||r.driver}. This shade is the largest regional contribution; sources are not summed.</small>`
+  +`<div class="sub" style="margin-top:6px">${Object.entries(r.contributions).map(([s,v])=>`${names[s]||s} ${v.toFixed(2)}×`).join(' · ')}</div>`
+  +`<details><summary>How it is estimated</summary><div class="sub">Each sport's current load is divided by its own provisional capacity, then scaled by a regional participation factor. These factors locate likely work; they are assumptions informed by swim and run muscle studies, not measured percentages or force in this muscle. Reported symptoms and future sessions will improve the sport-specific recovery estimate.</div></details>`;
+}
+async function openMechanical(){if(!loadData){try{loadData=await (await fetch('/api/load')).json()}catch(e){return}}
+ const m=loadData.body_map;if(!m)return;
+ const owner={}, lvl=k=>m.regions[k]?.level||0;                 // each muscle -> the region shown there (the higher)
+ for(const [k,ms] of Object.entries(MUSCLES)) for(const mu of ms) if(!owner[mu] || lvl(k)>lvl(owner[mu])) owner[mu]=k;
+ const data=Object.entries(owner).filter(([,k])=>heatStep(lvl(k))>0).map(([mu,k])=>({name:m.regions[k].name, muscles:[mu], frequency:heatStep(lvl(k))}));
+ const css=getComputedStyle(document.documentElement), body=(css.getPropertyValue('--control')||'').trim()||'#3a4250';
+ $('bodymap').innerHTML=`<div class="bm2"><div><div class="bmlab">FRONT</div><div id="bmfront"></div></div><div><div class="bmlab">BACK</div><div id="bmback"></div></div></div>
+   <button type="button" class="bmfeet" id="bmfeet" style="background:${heatStep(lvl('feet'))?HEAT[heatStep(lvl('feet'))-1]:body}">🦶 Feet &amp; bones · ${lvl('feet').toFixed(2)}×</button>`;
+ try{ const {createBodyHighlighter}=await import('/web/vendor/body-highlighter.esm.js');
+   const opts={data, bodyColor:body, highlightedColors:HEAT, style:{width:'100%'}, onClick:({muscle})=>{ if(owner[muscle]) regionInfo(owner[muscle]); }};
+   createBodyHighlighter({...opts, container:$('bmfront'), type:'anterior'}); createBodyHighlighter({...opts, container:$('bmback'), type:'posterior'});
+ }catch(e){ $('bodymap').insertAdjacentHTML('afterbegin','<div class="sub">The body map could not load.</div>'); }
+ $('bmfeet').onclick=()=>regionInfo('feet');
+ const sr=loadData.swim_recovery;
+ $('mechanicalsummary').textContent=`Running ${loadData.headline.mechanical.remodeling_blocks.toFixed(2)} blocks · swim ${sr?.score==null?'baseline pending':sr.score.toFixed(2)+' blocks'} · provisional threshold 1.5 per sport.`;
+ regionInfo('shoulders');$('swimdetail').hidden=true;$('mechanicaldialog').showModal();}
+$('mechanicalbtn').onclick=openMechanical;
+$('mechanicalclose').onclick=()=>$('mechanicaldialog').close();
+$('mechanicaldialog').onclick=e=>{if(e.target===$('mechanicaldialog'))$('mechanicaldialog').close()};
+$('maprun').onclick=()=>{$('mechanicaldialog').close();$('impactdialog').showModal();drawImpact()};
+$('mapswim').onclick=()=>{const s=loadData?.swim_recovery;if(!s)return;const box=$('swimdetail');box.hidden=false;
+ box.innerHTML=`<b>Swim recovery · ${s.score==null?'building baseline':s.score.toFixed(2)+' blocks'}</b><div class="sub">One block: ${s.reference_units==null?'pending':Math.round(s.reference_units)+' relative stroke units'}${s.reference_interval?` (80% range ${Math.round(s.reference_interval[0])}–${Math.round(s.reference_interval[1])})`:''} - ${esc(s.reference_from)}. Every swim plus the next morning's shoulder rating refines it. Recent ${s.recent??'–'} · repeated exposure ${s.history_component??'–'}. ${esc(s.method||'')}</div><div class="sub">This follows local swim exposure. Heart-rate load tracks the shared cardiovascular response separately; glycogen and hydration are not measured.</div><canvas id="swimcurve" style="width:100%;height:150px;margin-top:8px"></canvas><div class="sub">Solid: modeled history. Dotted: no new swims. Orange line: provisional 1.5-block threshold. This curve describes planned recovery, not observed tissue repair.</div><details><summary>Recent swims and formula</summary><div class="sub">Each active pool length contributes stroke count × relative pull factor × (speed ÷ 0.9 m/s)². Paddles, buoy and reported effort modify the dose when recorded. Dose ÷ personal reference gives fresh blocks; an existing swim score increases incoming blocks. Recent exposure has a 1.5-day half-life; a smaller 14-day history component represents repeated sessions. These constants are provisional.</div>${(s.events||[]).slice(-8).reverse().map(e=>`<div>${e.date}: ${e.raw_blocks.toFixed(2)} raw × ${e.incoming_multiplier.toFixed(2)} overlap = ${e.added_blocks.toFixed(2)} added</div>`).join('')}</details>`;
+ const c=$('swimcurve'),w=c.clientWidth,h=150,sc=devicePixelRatio||1;c.width=w*sc;c.height=h*sc;const g=c.getContext('2d');g.setTransform(sc,0,0,sc,0,0);const hist=s.history.slice(-21),pred=s.projection.slice(0,14),pts=hist.concat(pred);if(!pts.length)return;
+ const top=Math.max(1.8,...pts.map(p=>p.score))*1.1,Y=v=>h-20-v/top*(h-32),X=i=>10+i*(w-20)/Math.max(1,pts.length-1);
+ g.strokeStyle='#f97316';g.setLineDash([4,4]);g.beginPath();g.moveTo(10,Y(1.5));g.lineTo(w-10,Y(1.5));g.stroke();g.setLineDash([]);
+ for(const [arr,start,dashed,color] of [[hist,0,false,'#3b82f6'],[pred,hist.length-1,true,'#3b82f6']]){g.beginPath();arr.forEach((p,j)=>{const i=start+j,x=X(i);j?g.lineTo(x,Y(p.score)):g.moveTo(x,Y(p.score))});g.strokeStyle=color;g.lineWidth=2.5;g.setLineDash(dashed?[5,4]:[]);g.stroke()}g.setLineDash([]);
+};
 $('plancourse').onclick=async()=>{ const r=await post('/api/course/start',{}); if(r.ok) location.href='/course'; };
 $('planride').onclick=async()=>{
   if(plan.test==='ftp'){ await fetch('/ftp/start',{method:'POST'}); location.href='/ride'; return; }
@@ -468,9 +580,10 @@ function tick(){ const s=(Date.now()-tStart)/1000; $('tclock').textContent=mmss(
   if(s>=365){ clearInterval(tTimer); $('tstep').textContent='Done. Fill in how it felt and save.'; $('tstart').disabled=false; $('feel').scrollIntoView({behavior:'smooth',block:'center'}); } }
 $('ciedit').onclick=()=>{ editing=true; $('feel').hidden=false; $('cicancel').hidden=false; };
 $('cicancel').onclick=()=>{ editing=false; $('feel').hidden=true; $('cicancel').hidden=true; $('cimsg').textContent=''; };
-for(const [id,v] of [['legs','legsv'],['feet','feetv'],['breath','breathv'],['sleep','sleepv']]) $(id).oninput=()=>$(v).textContent=$(id).value;
+for(const [id,v] of [['legs','legsv'],['feet','feetv'],['shoulders','shouldersv'],['breath','breathv'],['sleep','sleepv']]) $(id).oninput=()=>{if(id==='shoulders')shoulderTouched=true;$(v).textContent=$(id).value};
 document.querySelectorAll('[data-gut]').forEach(b=>b.onclick=()=>{ gut=b.dataset.gut; document.querySelectorAll('[data-gut]').forEach(x=>x.classList.toggle('on',x===b)); });
 $('send').onclick=async()=>{ const body={legs:+$('legs').value,feet:+$('feet').value,breathing:+$('breath').value,sleep:+$('sleep').value,gut};
+  if(shoulderTouched)body.shoulders=+$('shoulders').value;
   if($('hopsl').value!=='') body.hops_left=+$('hopsl').value; if($('hopsr').value!=='') body.hops_right=+$('hopsr').value;
   body.journal=$('journal').value.trim();
   if($('hr90').value) body.hr90=+$('hr90').value; if($('hr120').value) body.hr120=+$('hr120').value; if($('hrafter').value) body.hr_after=+$('hrafter').value;
@@ -504,6 +617,55 @@ async function loadJournal(){ try{ const h=await (await fetch('/api/coach/histor
   $('journallist').innerHTML=rows.length?rows.map(([d,c])=>`<div class="jentry"><b>${new Date(d+'T12:00').toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric',year:'numeric'})}</b><div>${esc(c.journal)}</div></div>`).join(''):'No entries yet.';
   }catch(e){} }
 loadJournal();
+
+// ── an unfinished workout from today: pick it up where it stopped (Ride now still starts over)
+async function loadResume(){ let st; try{ st=await (await fetch('/status')).json(); }catch(e){ return; }
+  const rs=st.resume; $('resumebar').hidden=!rs; if(!rs) return;
+  const mm=s=>`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+  $('resumego').innerHTML=`▶ Resume · ${mm(rs.elapsed)} into ${esc(rs.name)}<small>Block ${rs.step} of ${rs.steps} · ${Math.ceil(rs.left/60)} min left · the clock waits for your pedals</small>`; }
+$('resumego').onclick=async()=>{ const r=await post('/api/workout/resume',{}); if(r.ok) location.href='/course'; else loadResume(); };
+$('resumedrop').onclick=async()=>{ if(confirm('Forget this unfinished workout?')){ await post('/api/workout/resume/discard',{}); loadResume(); } };
+loadResume(); setInterval(loadResume,15000);
+
+// ── what the watch saw (insights.py): flags that ask, trends, and each activity in detail
+const ISPORT={swim:'🏊 Swim',run:'🏃 Run',bike:'🚴 Ride',gym:'🏋 Gym',walk:'🚶 Walk'};
+const itab=(head,rows)=>rows.length?`<div style="overflow-x:auto"><table class="srctab"><tr>${head.map((x,i)=>`<th${i?' class="r"':''}>${x}</th>`).join('')}</tr>${rows.map(r=>`<tr>${r.map((x,i)=>`<td${i?' class="r"':''}>${x??'–'}</td>`).join('')}</tr>`).join('')}</table></div>`:'';
+const isec=s=>`${Math.floor(s/60)}:${String(Math.round(s%60)).padStart(2,'0')}`;
+const ipct=v=>v==null?'–':(v>0?'+':'')+v+'%';
+function insightBody(a){ let o='';
+  const p=a.pauses; if(p&&p.count) o+=`<div class="sub">${p.count} pause${p.count>1?'s':''}, ${isec(p.seconds)} stopped (at ${p.at_min.map(m=>m+' min').join(', ')}).</div>`;
+  if(a.swim){ const w=a.swim;
+    o+=`<div>${esc(w.stroke)} · ${w.total_m} m · SWOLF ${w.swolf_avg} · ${w.strokes_avg} strokes a length${w.rate_avg?' · '+w.rate_avg+' strokes/min':''}</div>`
+      +`<div class="sub">${w.broke_down?`Stroke first broke down ${w.broke_down.at_m} m in (${w.broke_down.at_min} min): SWOLF ${w.broke_down.swolf} against ${w.baseline_swolf} at the start.`:'The stroke held to the end.'}${w.rest_drop_60!=null?` Heart rate fell ${w.rest_drop_60} in the first minute of a rest (wrist in water: rough).`:''}</div>`
+      +itab(['Set','Metres','SWOLF','Strokes','Pace /100 m','Change',''],w.sets.map(s=>[s.set,s.metres,`${s.swolf_first} → ${s.swolf_last}`,`${s.strokes_first} → ${s.strokes_last}`,`${isec(s.pace_first)} → ${isec(s.pace_last)}`,ipct(s.fade_pct),
+         s.kind+(s.step?` · length ${s.step.length_in_set}: +${s.step.jump} (${esc(s.step.what)})`:'')])); }
+  if(a.run){ const r=a.run, d=r.drift;
+    o+=`<div>${r.steps?r.steps.toLocaleString()+' steps · ':''}${r.watts??'–'} W · ${r.contact_ms??'–'} ms on the ground · ${r.vertical_ratio_pct??'–'}% bounce · ${r.step_length_m??'–'} m steps</div>`;
+    if(d) o+=`<div class="sub">Last third against the first: pace ${ipct(d.speed_pct)}, heart rate ${ipct(d.hr_pct)}, bounce ${ipct(d.vertical_ratio_pct)}, step length ${ipct(d.step_length_pct)}${d.contact_pct!=null?', ground contact '+ipct(d.contact_pct):''}. ${d.pace_matched?(d.form_changed.length?'At the same pace: '+d.form_changed.join(', ')+'.':'Same pace, form held.'):'The pace changed, so form is not judged.'}</div>`;
+    o+=itab(['Lap','Min','km','HR','W','Steps/min','Contact ms','Bounce %','Step m'],r.laps.map(l=>[l.lap,l.minutes,l.km,l.hr,l.watts,l.steps_min,l.contact_ms,l.vertical_ratio_pct,l.step_length_m]));
+    o+=itab(['From min','Pace /km','HR','W','Steps/min','Bounce %','Step m'],r.five_min.map(f=>[f.from_min,isec(f.pace_min_km*60),f.hr,f.watts,f.steps_min,f.vertical_ratio_pct,f.step_length_m])); }
+  if(a.ride){ const r=a.ride;
+    o+=`<div>${r.work_kj} kJ of work${r.cadence?' · '+r.cadence+' rpm':''}${r.np?' · '+r.np+' W normalized':''}${r.avg_hr?' · '+r.avg_hr+' bpm':''}</div>`;
+    const bits=[]; if(r.start_hr) bits.push(`Opening minutes: ${r.start_hr} bpm at ${r.start_watts} W${r.start_hr_diff!=null?` (${r.start_hr_diff>0?'+':''}${r.start_hr_diff} against your usual)`:''}.`);
+    if(r.recovery_60!=null) bits.push(`Heart rate fell ${r.recovery_60} in the minute after a hard effort (${r.efforts.length} effort${r.efforts.length>1?'s':''}).`);
+    if(r.drift_read) bits.push(r.drift_read); else if(r.decoupling_pct!=null) bits.push(`Drift ${r.decoupling_pct}% - too short or too uneven a ride to judge.`);
+    if(bits.length) o+=`<div class="sub">${bits.map(esc).join(' ')}</div>`; }
+  if(a.kcal) o+=`<div class="sub">${a.kcal} kcal${a.wrist_temp_c!=null?' · wrist '+a.wrist_temp_c+' °C':''}</div>`;
+  return o||'<div class="sub">Heart rate only.</div>'; }
+async function loadInsights(){ try{ if(!loadData) loadData=await (await fetch('/api/load')).json(); }catch(e){ return; }
+  const ins=loadData.insights; if(!ins||ins.error||!ins.activities){ $('insightlist').textContent='Nothing read yet - import the watch files.'; return; }
+  $('insightflags').innerHTML=ins.flags.map(f=>`<div class="iflag">${esc(f.text)}<i>${esc(f.ask)}</i></div>`).join('');
+  const tr=[], sl=ins.swim&&ins.swim.session_length, rd=ins.ride||{};
+  if(sl) tr.push(['SWIM · HOW LONG THE STROKE HOLDS',sl.read]);
+  if(rd.work_vs_legs) tr.push(['RIDE · WORK AGAINST NEXT-MORNING LEGS',rd.work_vs_legs.read]);
+  if(rd.leg_check) tr.push(['RIDE · DOES IT SHOW THE RUNNING LOAD',rd.leg_check.read]);
+  if(rd.recovery&&rd.recovery.latest!=null) tr.push(['RIDE · RECOVERY AFTER EFFORTS',`Latest: heart rate fell ${rd.recovery.latest} in a minute${rd.recovery.usual!=null?`; your usual is ${rd.recovery.usual}`:` (${rd.recovery.rides.length} rides so far; four set a usual)`}.`]);
+  if(rd.climbs&&rd.climbs.length){ const c=rd.climbs[rd.climbs.length-1], v=c.vs_last;
+    tr.push(['RIDE · LAST CLIMB',`${c.route} climb ${c.n}: ${isec(c.seconds)}, ${c.avg_w} W${c.avg_hr?', '+c.avg_hr+' bpm':''}${v?` - against ${v.date}: ${v.seconds>0?'+':''}${v.seconds} s, ${v.avg_w>0?'+':''}${v.avg_w} W${v.avg_hr!=null?', '+(v.avg_hr>0?'+':'')+v.avg_hr+' bpm':''}`:''}.`]); }
+  $('insighttrends').innerHTML=tr.map(([t,x])=>`<div class="itrend"><b>${t}</b>${esc(x)}</div>`).join('');
+  $('insightlist').innerHTML=ins.activities.map(a=>{ const k=a.swim&&a.swim.kind;
+    return `<details class="iact"><summary><div>${ISPORT[a.sport]||esc(a.sport)}${k&&k!=='held'?`<span class="tag ${k}">${k}</span>`:''}${a.pauses&&a.pauses.many?'<span class="tag">pauses</span>':''}</div><span>${new Date(a.date+'T12:00').toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'})} · ${a.minutes} min</span></summary><div class="body">${insightBody(a)}</div></details>`; }).join('')||'No activities yet.'; }
+loadInsights();
 
 // ── Timed workout: set the time, then drag the bars ──
 const DEFAULTS={warmup:{share:15,pct:50},ramp:{share:15,from:50,to:70},interval:{share:40,pct:80},rest:{share:20,pct:50},cooldown:{share:10,pct:45}};
@@ -576,6 +738,32 @@ let pT=0; function preview(){ clearTimeout(pT); pT=setTimeout(async()=>{
   $('smin').textContent=Math.round(s.minutes)+' min'; $('stss').textContent=s.tss; $('savg').textContent=s.avg_w+' W'; $('skcal').textContent=s.kcal; },150); }
 async function saveSplit(extra){ const r=await post('/api/coach/split/save',{name:$('wname').value,parts,...extra});
   $('msg').textContent=r.ok?(extra.ride?'Starting…':extra.plan?'Set as today\'s ride.':'Saved to your workouts.'):r.j.error; return r; }
+// The day's planned ride, loaded into the builder ready to go: a planned workout's own blocks, or - with no
+// intervals planned - warm-up, a ramp, one long interval at the middle of the day's focus watts, and a cool-down.
+function setTotal(T){ T=Math.round(T); if(![...$('total').options].some(o=>+o.value===T)) $('total').innerHTML+=`<option>${T}</option>`; $('total').value=T; }
+function loadPlanned(d,s){ s=s||(d.sessions||[]).find(x=>x.sport==='ride'); if(!s) return;
+  const when=new Date(d.date+'T12:00'), isToday=d.date===day?.date;
+  const w=s.workout&&fullWorkouts.find(x=>x.id===s.workout), f=isToday?day?.focus:null;
+  const mid=f?.watts?Math.round((f.watts[0]+f.watts[1])/2/ftp*100/5)*5:65;      // % of FTP at the middle of the focus band
+  if(w && w.steps?.length){
+    const n=w.steps.length;
+    parts=w.steps.map((st,i)=>({kind:i===0?'warmup':i===n-1?'cooldown':st.pct>=70?'interval':'rest',
+      label:i===0?'Warm-up':i===n-1?'Cool':'Block '+i, minutes:st.minutes, pct:st.pct}));
+    setTotal(parts.reduce((a,p)=>a+p.minutes,0));
+  } else {
+    const T=s.minutes||30;
+    setTotal(T);
+    parts=[{kind:'warmup',label:'Warm-up',minutes:T*0.15,pct:50},{kind:'ramp',label:'Ramp',minutes:T*0.10,from:50,to:mid},
+           {kind:'interval',label:'Main',minutes:T*0.65,pct:mid},{kind:'cooldown',label:'Cool',minutes:T*0.10,pct:45}];
+  }
+  sel=Math.min(sel,parts.length-1);
+  $('nint').value=Math.max(1,Math.min(8,parts.filter(p=>p.kind==='interval').length));   // the picker matches what's loaded
+  $('wname').value='Planned workout · '+when.toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'});
+  $('timedtitle').textContent=isToday?"TODAY'S RIDE · TIME TO GET IT IN GEAR":`${when.toLocaleDateString(undefined,{weekday:'long'}).toUpperCase()}'S RIDE · READY WHEN YOU ARE`;
+  $('timedhint').innerHTML=w?`Your planned workout, <b>${esc(w.name)}</b>, loaded and ready. Tweak anything, then <b>Ride now</b>.`
+    :`Your planned ${s.minutes}-minute ride, loaded and ready: no intervals today, so it's one long steady effort${f?.watts?` at ${Math.round(mid*ftp/100)} W (the middle of ${esc(f.name)})`:''}. Tweak anything, then <b>Ride now</b>.`;
+  draw(); }
+$('fromscratch').onclick=()=>{ $('wname').value='Timed workout'; $('timedtitle').textContent='BUILD A WORKOUT'; $('timedhint').textContent='A new interval workout from scratch. Save it, make it today\'s ride, or ride it now.'; build(); };
 $('saveit').onclick=()=>saveSplit({}); $('planit').onclick=async()=>{ await saveSplit({plan:true}); loadToday(); };
 $('rideit').onclick=async()=>{ const r=await saveSplit({ride:true}); if(r.ok) location.href='/course'; };   // a watts workout: the game, not the map
 addEventListener('resize',draw);
