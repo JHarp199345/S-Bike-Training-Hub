@@ -160,6 +160,11 @@
  .calendar-purpose .blockcalendar{min-width:690px}.calendar-purpose .blockday{min-height:100px}.calendar-purpose .blockday .session{white-space:normal;overflow:visible}
  .roadphase{padding:14px;margin-top:10px;border-radius:12px;border-left:3px solid var(--info);background:linear-gradient(110deg,var(--card),var(--deep));display:flex;align-items:flex-start;gap:12px}.roadphase .sporticon{width:34px;height:30px}.roadphase b{display:block;color:var(--text);margin-bottom:4px}
  @media(max-width:620px){.weekbanner{padding:16px;min-height:140px}.weekbanner h3{font-size:21px}.weekart img{width:50%}.weekbanner:after{background:linear-gradient(90deg,#0b151df2,#0b151dc9 65%,#0b151d88)}.planpurpose{padding:16px}.planpurpose h3{font-size:20px}.weekcontent{padding:10px}}
+
+ .weekhead{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin:24px 0 18px}
+ .weekhead h2{margin:0;flex:1 1 110px}.weekactions{display:flex;align-items:center;flex-wrap:wrap;gap:8px;max-width:100%}
+ .weekactions button{font-size:14px;padding:10px 12px;min-height:44px;white-space:normal}
+ @media(max-width:620px){.weekhead{display:block;margin-bottom:18px}.weekhead h2{margin-bottom:12px}.weekactions{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);width:100%}.weekactions button{min-width:0;font-size:13px;padding:10px 8px}}
 </style><link rel="stylesheet" href="/web/theme.css"><script src="/web/theme.js"></script></head><body><main>
 <h1>Coach</h1><div class="sub">Day by day: test, check in, then ride what today allows · <a href="/ride">Ride view</a> · <a href="/panel">Panel</a> · <a href="/fitness">Fitness</a> · <a href="/dashboard">Dashboard</a> · <a href="/welcome">Welcome</a></div>
 
@@ -230,7 +235,7 @@
 
 </section>
 <section data-tab="plan" role="tabpanel" hidden>
-<div class="weekhead"><h2>THIS WEEK</h2><button type="button" id="runprogressopen" data-training-icon-prefix="recovery">Running progression</button><button type="button" id="viewblock" data-training-icon-prefix="calendar" aria-haspopup="dialog" aria-controls="blockdialog" aria-label="View more: training calendar">View more</button></div>
+<div class="weekhead"><h2>THIS WEEK</h2><div class="weekactions"><button type="button" id="runprogressopen" data-training-icon-prefix="recovery">Running progression</button><button type="button" id="viewblock" data-training-icon-prefix="calendar" aria-haspopup="dialog" aria-controls="blockdialog" aria-label="View more: training calendar">View more</button></div></div>
 <div class="weekstrip" id="weekstrip"></div>
 <div class="card" id="sessionpreview" style="margin-top:10px"></div>
 <h2 id="timedtitle" hidden>TODAY'S RIDE · TIME TO GET IT IN GEAR</h2>
