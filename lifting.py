@@ -423,6 +423,10 @@ def steer(d, ctx=None, session_regions=None, today=None):
         ratio = max(ratio, 0.85); why.insert(0, f"{said} is easy")
     if session_regions and not legs:
         why.append("the legs aren't worked, so the running and leg limits don't count")
+    import bodymap
+    overlap=bodymap.overlap_advice(ctx.get("body_map") or {},"lift",set(session_regions) if session_regions else None)
+    if overlap:
+        ratio=max(ratio,.85);why.extend(overlap)
     off = learned_offset(d)
     share = _curve(ratio, off)
     mode = "restorative" if share >= 0.5 else "build" if share <= 0.15 else "mixed"

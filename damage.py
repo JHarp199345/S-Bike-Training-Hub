@@ -85,7 +85,7 @@ def walking_day(steps, pts_per_step, severity, before, fresh_steps=HABITUAL_STEP
             "points": counted * pts_per_step}
 
 
-def remodeling_response(dates, doses, usual_week=None, weight_kg=70.0, feet_reports=None, walking=None, block=None):
+def remodeling_response(dates, doses, usual_week=None, weight_kg=70.0, feet_reports=None, walking=None, block=None, reviews=None):
     """Provisional blocks: 5 days/block plateau, 3 days/block decline (to 20%), then a ~4-month remodeling tail.
     walking: {"steps": {date: steps walked outside runs}, "pts_per_step", "severity"} - daily walking adds blocks
     above the day's free steps; it extends the plateau (5 days/block) instead of restarting it.
@@ -169,12 +169,16 @@ def remodeling_response(dates, doses, usual_week=None, weight_kg=70.0, feet_repo
     rows,events=[],[]
     anchor_day,anchor_level,plateau,descent=0,0.0,0.0,1.0
     used=0
+    review_log=[]
+    review_dates={r["date"]:r for r in (reviews or []) if r.get("action") in ("begin_decline","restore_plateau") and r.get("date", "")<=dates[-1]}
+    review_origin=None
     day0=dt.date.fromisoformat(dates[0])
     for i,dose in enumerate(doses+[0.0]*PROJECT_DAYS):
         level=remaining(anchor_level,i-anchor_day,plateau,descent)
         if i < len(dates) and isinstance(reports.get(dates[i]), dict) and reports[dates[i]].get("hops") is not None:
             last_hops = reports[dates[i]]["hops"]
         if i<len(doses) and dose>0:
+            review_origin=None
             before=level
             raw=dose/reference
             multiplier=1+min(3,before if before<=1 else (before+1)/2)
@@ -231,8 +235,22 @@ def remodeling_response(dates, doses, usual_week=None, weight_kg=70.0, feet_repo
             walk_rows.append({"date": dates[i], **{k: v for k, v in wd.items() if k != "points"},
                               "raw_blocks": round(w * walking["pts_per_step"] / reference, 3),
                               "added_blocks": round(added, 3)})
+        review=review_dates.get((day0+dt.timedelta(days=i)).isoformat())
+        age=i-anchor_day
+        if review and review["action"]=="begin_decline" and i<len(doses) and dose==0 and plateau>0 and .60<=age/plateau<=1:
+            # A reviewed transition changes time, not the amount of carried load.
+            review_log.append({"date":review["date"],"action":"begin_decline","score":round(level,2),"protected_fraction":.60})
+            review_origin=(anchor_day,anchor_level,plateau,descent)
+            anchor_day,anchor_level,plateau,descent=i,level,0.0,max(1,3*level)
+        if review and review["action"]=="restore_plateau" and review_origin is not None:
+            j,original,p,decline=review_origin
+            original_remaining=remaining(original,i-j,p,decline)
+            restored=max(level,original_remaining)
+            review_log.append({"date":review["date"],"action":"restore_plateau","before":round(level,2),"score":round(restored,2)})
+            anchor_day,anchor_level,plateau,descent=i,restored,max(0,j+p-i),max(1,decline)
+            level=restored;review_origin=None
         age = i - anchor_day
-        phase = "none" if level <= 0 else "plateau" if age <= plateau else "decline" if age <= plateau + descent else "tail"
+        phase = "none" if level <= 0 else "plateau" if plateau>0 and age <= plateau else "decline" if age <= plateau + descent else "tail"
         rows.append({"date":(day0+dt.timedelta(days=i)).isoformat(),
                      "score":round(level,2),"dose":round(dose/reference,2),"phase":phase})
     current=rows[len(doses)-1]["score"]
@@ -249,6 +267,7 @@ def remodeling_response(dates, doses, usual_week=None, weight_kg=70.0, feet_repo
     cleared = 0 if clear(rows[len(doses)-1]) else next((i+1 for i,r in enumerate(projection) if clear(r)), None)
     return {"score":current,"history":rows[:len(doses)],"projection":projection,
             "plateau_days":round(plateau,1),"descent_days":round(descent,1),
+            "reviewed_transitions":review_log,
             "tail_days":TAIL_DAYS,
             "plateau_remaining_days":round(max(0,anchor_day+plateau-(len(doses)-1)),1),
             "below_threshold_in_days":below,"threshold_blocks":1.5,
@@ -319,14 +338,14 @@ def run(doses, base, p, adapt_gain=ADAPT_GAIN):
     return out
 
 
-def model(dates, doses, usual_week=None, weight_kg=70.0, feet_reports=None, run_doses=None, walking=None, block=None):
+def model(dates, doses, usual_week=None, weight_kg=70.0, feet_reports=None, run_doses=None, walking=None, block=None, reviews=None):
     """dates: consecutive ISO days; doses: impact points per day. Returns each tissue's backlog today,
     its history, and a no-more-running projection."""
     if not dates:
         return None
     doses = list(doses)
     remodeling = remodeling_response(dates, run_doses if run_doses is not None else doses, usual_week, weight_kg,
-                                     feet_reports, walking, block)
+                                     feet_reports, walking, block, reviews)
     event = event_response(dates, doses, usual_week, weight_kg, remodeling)
     base = base_capacity(usual_week, weight_kg)
     n = len(dates)

@@ -290,6 +290,8 @@ async def handle(bridge, method, path, body, host):
                 bridge.reload_workouts()
                 return 200, "application/json", b'{"ok":true}', {}
             if p.startswith("/api/workouts/start/") and method == b"POST":
+                rides=Path(bridge.csv_path).parent if getattr(bridge,"csv_path",None) else HERE/"rides"
+                await asyncio.get_running_loop().run_in_executor(None,capture_program_forecast,bridge,rides)
                 if not bridge.workout_start_id(p.rsplit("/", 1)[1]):
                     return 404, "application/json", b'{"error":"no such workout"}', {}
                 return 200, "application/json", b'{"ok":true}', {}
@@ -327,7 +329,8 @@ async def handle(bridge, method, path, body, host):
         try:
             req = json.loads(body or b"{}")
             info = loads.set_swim_activity(base, req.get("activity_id"), req.get("paddles"),
-                                           req.get("pull_buoy"), req.get("swim_rpe"))
+                                           req.get("pull_buoy"), req.get("swim_rpe"),
+                **{k: req[k] for k in ("fins", "snorkel", "fins_fraction", "snorkel_fraction", "fin_type", "kick_rpe", "fin_kick_factor") if k in req})
         except (ValueError, TypeError) as e:
             return 400, "application/json", json.dumps({"error": str(e)}).encode(), {}
         _load_cache["key"] = None
@@ -779,7 +782,7 @@ def lift_ctx(base, d, date):
         st = load_state(base)
         r = loads.readiness(st, (d["checkins"].get(date) or {})) if st.get("systems") else {}
         return {"headline": st.get("headline"), "verdict": r.get("verdict"),
-                "engine_level": ((r.get("systems") or {}).get("engine") or {}).get("level")}
+                "engine_level": ((r.get("systems") or {}).get("engine") or {}).get("level"), "body_map":st.get("body_map")}
     except Exception:
         return {}
 
@@ -943,6 +946,21 @@ async def import_activities(base, urls):
     return {"imported": done, "skipped": skipped}
 
 
+def capture_program_forecast(bridge, rides, d=None):
+    """Persist pre-work forecasts; recorded sessions prevent a retrospective baseline."""
+    import coach, training_block, recovery
+    d=d if d is not None else coach.load(coach.file_for(rides))
+    today=coach.today();done=done_by_day(rides.parent,d)
+    f=training_block.forecast(d,today,done,load_state(rides.parent),d["checkins"].get(today),bridge.workouts)
+    saved=recovery.save_forecasts(d,f,done)
+    if saved:
+        coach.save(d)
+        path=Path(d["_path"]);stat=path.stat()
+        if _load_cache["key"]:
+            _load_cache["key"]=tuple((str(path),stat.st_mtime_ns,stat.st_size) if isinstance(x,tuple) and x[0]==str(path) else x for x in _load_cache["key"])
+    return {"saved_dates":saved,"training_block":f}
+
+
 async def coach_api(bridge, method, path, p, body):
     """The Coach page and the hub command: check-ins, the diagnostic, today's plan, time-split workouts."""
     import coach
@@ -958,6 +976,20 @@ async def coach_api(bridge, method, path, p, body):
         date = req.get("date") or date
         if not __import__("re").fullmatch(r"\d{4}-\d{2}-\d{2}", date):
             return js({"error": "date is YYYY-MM-DD"}, 400)
+        if p == "/api/coach/forecast/save" and method == b"POST":
+            return js(capture_program_forecast(bridge,rides,d))
+        if p == "/api/coach/run-progression":
+            import recovery
+            rem=((load_state(rides.parent).get("systems") or {}).get("impact") or {}).get("tissue") or {}
+            rem=rem.get("remodeling") or {}
+            if method == b"POST":
+                if req.get("action")=="begin_decline":
+                    recovery.approve_decline(d,rem,coach.today(),req.get("note", ""))
+                else:
+                    recovery.record_check(d,req,coach.today())
+                coach.save(d);_load_cache["key"]=None
+                rem=((((load_state(rides.parent).get("systems") or {}).get("impact") or {}).get("tissue") or {}).get("remodeling") or {})
+            return js(recovery.status(d,rem,coach.today()))
         if p == "/api/coach/today":
             evaluate_skills(bridge, d, rides)
             lr = coach.last_ride(rides, d=d)
@@ -969,6 +1001,7 @@ async def coach_api(bridge, method, path, p, body):
             except Exception:
                 cleared = None
             cal = calibration_view(d, rides, cleared)
+            capture_program_forecast(bridge,rides,d)
             return js({**with_focus(with_systems(coach.day(d, date), rides.parent), bridge, d), "last_ride": lr,
                        "events": coach.upcoming(d, date, cleared), "week": coach.week(d, date, done_by_day(rides.parent, d)),
                        "calibration": cal,
@@ -994,6 +1027,8 @@ async def coach_api(bridge, method, path, p, body):
             except ValueError as e:
                 return js({"error": str(e)}, 400)
             c["verdict"], c["why"] = coach.verdict(d, date)
+            import recovery
+            recovery.observe_checkin(d,date,c)
             coach.save(d); _load_cache["key"] = None
             return js({"flag": f, **with_systems(coach.day(d, date), rides.parent)})
         if p == "/api/coach/checkin" and method == b"POST":
@@ -1003,6 +1038,7 @@ async def coach_api(bridge, method, path, p, body):
                 bridge.event(f"Check-in: {coach.VERDICTS[c['verdict']]} ({'; '.join(c['why'])})")
             return js(with_systems(coach.day(d, date), rides.parent))
         if p == "/api/coach/test/start" and method == b"POST":
+            capture_program_forecast(bridge,rides,d)
             bridge.coach_test_start()
             coach.record(d, date, {"test_at": __import__("datetime").datetime.now().isoformat(timespec="seconds"),
                                    "test_ride": Path(bridge.csv_path).stem})
@@ -1013,11 +1049,16 @@ async def coach_api(bridge, method, path, p, body):
             try:
                 coach.set_plan(d, date, req.get("verdict"), req.get("note"), req.get("workout"), req.get("focus"),
                                req.get("sport"), req.get("minutes"))
+                if req.get("sport")=="run" or any(x.get("sport")=="run" for x in req.get("sessions",[])):
+                    import training_block
+                    gate=training_block.running_gate(d,load_state(rides.parent),d["checkins"].get(coach.today()))
+                    if gate["status"]!="open_for_review":raise ValueError("Running stays unscheduled: "+"; ".join(gate["reasons"] or ["mechanical metrics and preparatory checks need review"]))
                 if "sessions" in req:
                     coach.set_sessions(d, date, req["sessions"])
             except (focus.BadFocus, ValueError, TypeError) as e:
                 return js({"error": str(e)}, 400)
             coach.save(d)
+            capture_program_forecast(bridge,rides,d)
             if hasattr(bridge, "refresh_focus"):
                 bridge.refresh_focus(force=True)            # a new focus reaches the bike right away
             return js(with_focus(with_systems(coach.day(d, date), rides.parent), bridge))
@@ -1036,6 +1077,7 @@ async def coach_api(bridge, method, path, p, body):
             except ValueError as e:
                 return js({"error": str(e)}, 400)
             coach.save(d)
+            capture_program_forecast(bridge,rides,d)
             if hasattr(bridge, "refresh_focus"):
                 bridge.refresh_focus(force=True)
             return js({"date": date, "plan": plan_})
@@ -1089,6 +1131,7 @@ async def coach_api(bridge, method, path, p, body):
             except (ValueError, TypeError) as e:
                 return js({"error": str(e)}, 400)
             coach.save(d)
+            capture_program_forecast(bridge,rides,d)
             if hasattr(bridge, "refresh_focus"):
                 bridge.refresh_focus(force=True)
             return js({"changed": ev, "skills": skills.summary(d)})
@@ -1108,13 +1151,18 @@ async def coach_api(bridge, method, path, p, body):
             return js(programming.programming(d, prof, sport, _dt.date.fromisoformat(date), rd, st.get("headline"), caps,
                                                swim_profile=(q.get("swim_profile") or [req.get("swim_profile")])[0], activities=st.get("activities")))
         if p == "/api/coach/session/add" and method == b"POST":
+            if req.get("sport")=="run":
+                import training_block
+                gate=training_block.running_gate(d,load_state(rides.parent),d["checkins"].get(coach.today()))
+                if gate["status"]!="open_for_review":raise ValueError("Running stays unscheduled: "+"; ".join(gate["reasons"] or ["metrics and preparatory checks need review"]))
             # add one session to a day from the Plan tab's + buttons (a plain list; the AI can refine it)
             p_ = d["plans"].get(date) or {}
             cur = list(p_.get("sessions") or ([{"sport": p_["sport"], "minutes": p_.get("minutes") or 0, "name": p_["sport"].title()}] if p_.get("sport") else []))
             cur.append({"sport": req.get("sport"), "minutes": int(req.get("minutes") or 30), "name": req.get("name") or str(req.get("sport")).title(),
-                        "steps": req.get("steps") or [], "note": req.get("note") or "", "swim_profile": req.get("swim_profile"), "swim_plan":req.get("swim_plan")})
+                        "steps": req.get("steps") or [], "note": req.get("note") or "", "swim_profile": req.get("swim_profile"), "swim_plan":req.get("swim_plan"), "bike_plan":req.get("bike_plan"), "cadence":req.get("cadence"), "focus":req.get("focus"), "workout":req.get("workout"), "lifts":req.get("lifts")})
             coach.set_sessions(d, date, cur)
             coach.save(d)
+            capture_program_forecast(bridge,rides,d)
             return js({"sessions": d["plans"][date]["sessions"]})
         if p == "/api/coach/weekly":
             # the Sunday check-in (weekly.py): GET what's due, POST the answers
@@ -1139,6 +1187,7 @@ async def coach_api(bridge, method, path, p, body):
                 except (ValueError, TypeError) as e:
                     return js({"error": str(e)}, 400)
                 coach.save(d)
+                capture_program_forecast(bridge,rides,d)
             return js(training_block.forecast(d, date, done_by_day(rides.parent, d), load_state(rides.parent), d["checkins"].get(date), bridge.workouts))
         if p.startswith("/api/coach/lifting"):
             # lifting and functional strength (lifting.py): plan, evaluate, check off, follow up, the rider's rules
@@ -1153,6 +1202,7 @@ async def coach_api(bridge, method, path, p, body):
                 pl = lifting.set_session(d, date, req.get("lifts"), req.get("name"), req.get("minutes"), req.get("index"),
                                          req.get("note"), draft=bool(req.get("draft")), override=req.get("override"))
                 coach.save(d)
+                capture_program_forecast(bridge,rides,d)
                 gym = [s_ for s_ in pl["sessions"] if s_.get("lifts")]
                 return js({"plan": pl, "evaluation": lifting.evaluate(d, gym[-1]["lifts"], ctx=ctx) if gym else None})
             if sub == "/evaluate":
@@ -1223,10 +1273,11 @@ async def coach_api(bridge, method, path, p, body):
             wid = workouts.save({"id": req.get("id"), "name": req.get("name") or "Timed workout",
                                  "note": req.get("note") or "", "blocks": blocks})
             bridge.reload_workouts()
-            if req.get("ride"):
-                bridge.workout_start_id(wid)
             if req.get("plan"):
                 coach.set_plan(d, date, workout=wid); coach.save(d)
+            capture_program_forecast(bridge,rides,d)
+            if req.get("ride"):
+                bridge.workout_start_id(wid)
             return js({"id": wid})
     except (ValueError, KeyError, TypeError, workouts.BadWorkout) as e:
         return js({"error": str(e)}, 400)

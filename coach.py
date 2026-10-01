@@ -95,6 +95,8 @@ def record(d, date, fields):
     if top and c.get("hr_after"):
         c["hrr"] = top - c["hr_after"]                 # heart-rate recovery: end of the push -> 60 s later
     c["verdict"], c["why"] = verdict(d, date)
+    import recovery
+    recovery.observe_checkin(d,date,c)
     return c
 
 
@@ -203,6 +205,31 @@ def set_sessions(d, date, sessions, _trusted=False):
                  "steps": [str(step)[:160] for step in steps],
                  "note": str(item.get("note") or "")[:300],
                  "workout": str(item.get("workout") or "")[:120] or None}
+        if item.get("focus"):
+            import focus
+            entry["focus"]=focus.check(item["focus"])
+        if item["sport"]=="ride" and item.get("bike_plan"):
+            snapshot=item["bike_plan"]
+            if not isinstance(snapshot,dict):raise ValueError("bike_plan must be an object")
+            power=snapshot.get("power_steps")
+            if not isinstance(power,list) or not 1<=len(power)<=200:raise ValueError("bike_plan needs 1–200 power steps")
+            checked=[]
+            for step in power:
+                if not isinstance(step,dict):raise ValueError("Power step must be an object")
+                minutes_=_num(step.get("minutes"),1/60,360)
+                if minutes_ is None:raise ValueError("Power step needs duration")
+                row={"minutes":minutes_}
+                for field,lo,hi in (("watts",0,1500),("pct",0,250),("rpm",21,200)):
+                    if step.get(field) is not None:row[field]=_num(step[field],lo,hi)
+                if ("watts" in row)==("pct" in row):raise ValueError("Power step needs exactly one of watts or pct")
+                checked.append(row)
+            if abs(sum(x["minutes"] for x in checked)-minutes)>.1:raise ValueError("Power steps must match planned duration")
+            entry["bike_plan"]={"power_steps":checked,"basis":str(snapshot.get("basis") or "Saved planned power stages")[:600]}
+        if item.get("cadence") is not None:
+            cadence=item["cadence"]
+            if not isinstance(cadence,list) or len(cadence)!=2 or not all(isinstance(v,(int,float)) and 20<v<=200 for v in cadence) or cadence[0]>cadence[1]:
+                raise ValueError("Cadence must be an ordered two-value rpm range")
+            entry["cadence"]=list(cadence)
         if item["sport"] == "swim" and item.get("swim_profile"):
             import programming
             if item["swim_profile"] not in programming.SWIM_PROFILE_IDS:

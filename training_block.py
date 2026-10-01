@@ -23,7 +23,7 @@ def sessions(plan):
         return plan["sessions"]
     return [{"sport": plan["sport"], "minutes": plan.get("minutes") or 0,
              "name": plan["sport"].title(), "steps": [], "note": plan.get("note") or "",
-             "workout":plan.get("workout"), "test":plan.get("test")}] if plan.get("sport") else []
+             "workout":plan.get("workout"), "test":plan.get("test"), "focus":plan.get("focus"), "cadence":plan.get("cadence"), "lifts":plan.get("lifts"), "bike_plan":plan.get("bike_plan")}] if plan.get("sport") else []
 
 
 def hard(session):
@@ -55,7 +55,15 @@ def running_gate(d, load=None, checkin=None):
         reasons.append("lower-leg response to hopping is unresolved" if response != "pulling" else "hopping still pulls")
     if readiness.get("verdict") == "rest" and not (blocks is not None and blocks > limit):
         reasons.extend(readiness.get("why") or ["running readiness says rest"])
-    return {"status": "hold" if reasons else "review" if blocks is None else "open_for_review",
+    progression=None
+    if d.get("run_progression"):
+        import recovery
+        progression=recovery.status(d,remodeling,(load.get("days") or [{"date":dt.date.today().isoformat()}])[-1]["date"])
+        reasons.extend(progression["run_reasons"])
+    # The athlete's mechanical lock is independent of a good hop report or tail exception.
+    if blocks is not None and blocks>=limit and not any("mechanical running load" in x for x in reasons):
+        reasons.append(f"mechanical running load {blocks:.2f} blocks must fall below {limit:g}")
+    return {"progression":progression,"status": "hold" if reasons else "review" if blocks is None else "open_for_review",
             "blocks": blocks, "limit": limit, "model_days": forecast_days,
             "hop_response": response, "reasons": reasons}
 
@@ -204,6 +212,23 @@ def swim_plan_forecast(d, today, load=None, done=None):
     return out
 
 
+def planned_bike_dose(session, steps, ftp):
+    """The same torque-squared leg formula, integrated over planned steady steps."""
+    import loads, workouts
+    cadence=session.get("cadence")
+    if not cadence and isinstance(session.get("focus"),dict):cadence=session["focus"].get("rpm")
+    cadence=cadence or [70,90]
+    rpm=sum(cadence)/len(cadence) if isinstance(cadence,(list,tuple)) else float(cadence)
+    if not 20<rpm<=200:raise ValueError("Planned cadence must be between 20 and 200 rpm")
+    points=0
+    for step in steps:
+        r=step.get("rpm") or rpm
+        if isinstance(r,(list,tuple)):r=sum(r)/len(r)
+        watts=step.get("watts") if step.get("watts") is not None else float(step.get("pct",0))*ftp/100
+        points+=float(step["minutes"])/60*12*(watts/(2*math.pi*r/60)/loads.T_REF)**2
+    return workouts.stats(steps,ftp)["tss"],points,rpm
+
+
 def projected_loads(d, today, dates, load=None, done=None, workouts=None):
     """Advance the saved program without changing measured history, conditioning rules or reported symptoms."""
     import loads, damage, lifting
@@ -229,26 +254,43 @@ def projected_loads(d, today, dates, load=None, done=None, workouts=None):
         if sport=="swim":
             doses["engine"]=(swim.get((date,index)) or {}).get("cardio_points")
             doses["muscle"]=mins*.05  # loads.score's existing swim-to-leg contribution
+        planned_steps=None
         if sport=="bike" and s.get("workout") in saved:
             w=saved[s["workout"]]; ftp=(load.get("profile") or {}).get("ftp")
             if ftp and w.get("steps"):
                 import workouts as workout_math
-                doses["engine"]=workout_math.stats(w["steps"],ftp)["tss"]
-                basis.append("Cardio dose from saved power steps and current FTP; actual ride may differ")
+                planned_steps=w["steps"]
+                doses["engine"],doses["muscle"],rpm=planned_bike_dose(s,planned_steps,ftp)
+                basis.append(f"Saved power steps and FTP; torque-based leg dose at assumed {rpm:g} rpm unless step cadence is saved; actual ride may differ")
+        if sport=="bike" and planned_steps is None and (s.get("bike_plan") or {}).get("power_steps"):
+            ftp=(load.get("profile") or {}).get("ftp")
+            if ftp:
+                planned_steps=s["bike_plan"]["power_steps"]
+                doses["engine"],doses["muscle"],rpm=planned_bike_dose(s,planned_steps,ftp)
+                basis.append((s["bike_plan"].get("basis") or "Saved power stages")+f"; cadence {rpm:g} rpm unless saved per step")
+        if sport=="bike" and planned_steps is None and s.get("focus"):
+            import focus
+            ftp=(load.get("profile") or {}).get("ftp")
+            if ftp:
+                f=focus.resolve(s["focus"],ftp)
+                if f.get("watts"):
+                    planned_steps=[{"minutes":mins,"watts":sum(f["watts"])/2}]
+                    doses["engine"],doses["muscle"],rpm=planned_bike_dose({**s,"cadence":s.get("cadence") or f["rpm"]},planned_steps,ftp)
+                    basis.append(f"Focus-range midpoint scenario; assumed {rpm:g} rpm, not a measured workout")
         test=s.get("test")
         if test or sport=="test":
             ftp=(load.get("profile") or {}).get("ftp")
             doses["muscle"]=rate("bike","muscle")*mins if rate("bike","muscle") is not None else None
             if ftp and test=="diagnostic":
                 import coach, workouts as workout_math
-                doses["engine"]=workout_math.stats(coach.TEST_STEPS,ftp)["tss"]
+                doses["engine"],doses["muscle"],_=planned_bike_dose(s,coach.TEST_STEPS,ftp)
                 basis.append("Saved six-minute diagnostic protocol and current FTP")
             elif ftp and test=="ftp" and mins>=14:
                 from ftptest import RampTest
                 import workouts as workout_math
                 ramp=RampTest(ftp,0); duration=max(4,mins-10)
                 steps=[{"minutes":5,"watts":ramp.warm_w}]+[{"minutes":min(1,duration-i),"watts":ramp.start_w+ramp.increment*i} for i in range(math.ceil(duration))]+[{"minutes":5,"watts":ramp.cool_w}]
-                doses["engine"]=workout_math.stats(steps,ftp)["tss"]
+                doses["engine"],doses["muscle"],_=planned_bike_dose(s,steps,ftp)
                 basis.append("FTP test scenario assumes the saved duration, current FTP and existing ramp protocol; actual stopping time is unknown")
         if sport=="gym":
             if s.get("lifts"):
@@ -259,9 +301,10 @@ def projected_loads(d, today, dates, load=None, done=None, workouts=None):
                     for x in ls:
                         pts,_=lifting.points(scratch,x)
                         for key,value in lifting.spread(x,pts).items(): regions[key]=regions.get(key,0)+value
-                    basis.append("Regional strength dose from saved exercises, sets, reps, weights and tempo")
-                except (ValueError,KeyError,TypeError): regions=None; basis.append("Regional lifting dose unavailable: exercises need scoring")
-            else: regions=None; basis.append("Regional lifting dose unavailable: no saved exercises")
+                    doses["muscle"]=sum(value for key,value in regions.items() if key in lifting.LEG_REGIONS)
+                    basis.append("Regional strength and leg dose from saved exercises, sets, reps, weights and tempo; upper-body work is not charged to legs")
+                except (ValueError,KeyError,TypeError): regions=None; doses["muscle"]=None; basis.append("Regional lifting dose unavailable: exercises need scoring")
+            else: regions=None; doses["muscle"]=None; basis.append("Leg and regional lifting dose unavailable: no saved exercises")
         return doses,regions,basis
     current={k:{v:(systems.get(k) or {}).get(v) for v in ("fitness","fatigue")} for k in loads.SYSTEMS}
     regional=copy.deepcopy((load.get("lifting") or {}).get("regions") or {})
@@ -271,7 +314,6 @@ def projected_loads(d, today, dates, load=None, done=None, workouts=None):
     no_short={x["date"]:x["score"] for x in short.get("projection",[])}
     run_before=remodel.get("score"); run_anchor=None; run_missing=False; new_runs=[]
     ref=remodel.get("reference_points")
-    phase=((d.get("training_block") or {}).get("focus") or "")
     try:
         import programming
         phase_id=programming.phase(d,today)["phase"]
@@ -284,6 +326,7 @@ def projected_loads(d, today, dates, load=None, done=None, workouts=None):
     # Retain rolling dose windows for the same aggregate mechanical utilization as loads.headline.
     rolling={k:[(x["date"],(x.get(k) or {}).get("load")) for x in load.get("days",[]) if x["date"]<=today.isoformat()] for k in ("impact","muscle")}
     combined_before=((load.get("headline") or {}).get("mechanical") or {}).get("ratio")
+    sport_rolling=[(a["date"],a.get("sport"),a.get("muscle")) for a in acts if a.get("date", "")<=today.isoformat()]
     day=today
     while day<=end:
         key=day.isoformat(); elapsed=(day-today).days; total={k:0.0 for k in loads.SYSTEMS}; region_dose={}; session_rows=[]
@@ -307,6 +350,7 @@ def projected_loads(d, today, dates, load=None, done=None, workouts=None):
             doses,regions,basis=estimate(s,key,index)
             session_rows.append({"name":s.get("name") or sp,"sport":sp,"completed":False,"doses":doses,
                                  "why":(s.get("swim_plan") or {}).get("why") or s.get("note") or "Planning rationale not recorded", "basis":basis})
+            sport_rolling.append((key,{"ride":"bike"}.get(sp,sp),doses["muscle"]))
             for k,v in doses.items(): total[k]=None if v is None or total[k] is None else total[k]+v
             if regions is None: regional_missing=True
             else:
@@ -387,14 +431,55 @@ def projected_loads(d, today, dates, load=None, done=None, workouts=None):
         combined=max(ratios) if all(v is not None for v in ratios) else None
         row("mechanical","Mechanical utilization","× limit",combined_before,combined,goal="down" if goal_run=="down" else "manage",method="Same maximum of impact, leg, running, swim and lifting utilization as the headline; unlike units stay separate",limit=1)
         combined_before=combined
+        import bodymap
+        regional_unknown=[]
+        def week_leg(sport):
+            values=[v for date,sp,v in sport_rolling if sp==sport and (day-dt.timedelta(days=6)).isoformat()<=date<=key]
+            if any(v is None for v in values):regional_unknown.append(sport);return 0
+            return sum(values)/(systems.get("muscle",{}).get("usual_week") or 1)
+        projected_regions=bodymap.build(run_value,swim_value,week_leg("bike"),week_leg("run"),
+            lift={r:v["value"] for r,v in regional.items() if v["value"] is not None}, swim_leg_ratio=week_leg("swim"))
+        if run_value is None:regional_unknown.append("running backlog")
+        if swim_value is None:regional_unknown.append("swim recovery")
+        if regional_missing:regional_unknown.append("lifting")
+        projected_regions["unavailable_sources"]=regional_unknown
+        advice=[note for session in session_rows if not session.get("completed")
+                for note in bodymap.overlap_advice(projected_regions,{"ride":"bike"}.get(session["sport"],session["sport"]))]
         alerts=[m["name"]+": forecast rises while the goal is recovery" for m in metrics if m["conflict"]]
+        alerts.extend(dict.fromkeys(advice))
+        for session in session_rows:
+            if not session.get("completed") and session.get("doses",{}).get("muscle") is None:
+                alerts.append(session["name"]+": leg forecast needs scored exercises or workout details; later leg estimates remain unavailable")
         if gate["status"]=="hold" and any(s["sport"]=="run" and not s.get("completed") for s in session_rows):alerts.append("Running is planned despite the current running hold; this scenario does not clear it")
         out={"date":key,"metrics":metrics,"metrics_by_key":{m["key"]:m for m in metrics},"sessions":session_rows,"alerts":alerts,
-             "outlook":"Recorded + remaining plan" if not elapsed else "Near-term estimate" if elapsed<=7 else "Conditional forecast" if elapsed<=21 else "Long-range scenario",
+             "regional_overlap":projected_regions,"outlook":"Recorded + remaining plan" if not elapsed else "Near-term estimate" if elapsed<=7 else "Conditional forecast" if elapsed<=21 else "Long-range scenario",
              "goal_basis":"Recovery / maintenance" if phase_id in ("taper","recovery") else "Build conditioning; manage fatigue; respect running hold" if gate["status"]=="hold" else "Build conditioning; manage accumulated loads",
              "assumptions":"Saved sessions completed in order; unchanged capacity and recovery rates; no future symptom reports, extra workouts or above-allowance walking. Unknown session doses keep affected later estimates unavailable."}
         by_date[key]=out;day+=dt.timedelta(days=1)
     return by_date
+
+
+def recorded_load_history(load, today):
+    """Recorded-model history only; never fill unavailable regional/aggregate history."""
+    load=load or {}
+    today=dt.date.fromisoformat(today) if isinstance(today,str) else today
+    tissue=((load.get("systems") or {}).get("impact") or {}).get("tissue") or {}
+    series={key:{r["date"]:r.get("score") for r in model.get("history",[])} for key,model in (
+        ("run_mechanical",tissue.get("remodeling") or {}),
+        ("run_recent",tissue.get("event") or {}),
+        ("swim_recovery",load.get("swim_recovery") or {}))}
+    days={r["date"]:r for r in load.get("days",[])}
+    dates=sorted(set(days).union(*(set(v) for v in series.values())))
+    out=[]
+    for date in dates:
+        if not (today-dt.timedelta(days=28)).isoformat()<=date<today.isoformat():continue
+        day=days.get(date,{})
+        values={key:(day.get(system) or {}).get(field) for key,system,field in (
+            ("cardio_fatigue","engine","fatigue"),("cardio_conditioning","engine","fitness"),
+            ("impact_fatigue","impact","fatigue"),("muscle_fatigue","muscle","fatigue"))}
+        values.update({key:v.get(date) for key,v in series.items()})
+        out.append({"date":date,"metrics":[{"key":key,"after":value} for key,value in values.items()]})
+    return out
 
 
 def forecast(d, today, done=None, load=None, checkin=None, workouts=None):
@@ -438,8 +523,11 @@ def forecast(d, today, done=None, load=None, checkin=None, workouts=None):
     gate = running_gate(d, load, checkin)
     if gate["status"] == "hold" and any(w["sports"]["run"]["planned"] for w in weeks):
         alerts.append("Running is scheduled while the mechanical or reported-response running gate is on hold; revise those sessions.")
-    return {"block": block, "weeks": weeks, "alerts": alerts, "running_gate": gate,
+    import recovery
+    remodel=((((load or {}).get("systems") or {}).get("impact") or {}).get("tissue") or {}).get("remodeling") or {}
+    return {"run_progression":recovery.status(d,remodel,today), "forecast_comparisons":recovery.comparisons(d,load or {},today) if d.get("load_forecasts") else [],"block": block, "weeks": weeks, "alerts": alerts, "running_gate": gate,
             "load_outlooks":list(projections.values()),
+            "load_history":recorded_load_history(load,today),
             "swim_outlooks":[{"date":date,"session_index":index,**v} for (date,index),v in swim_estimates.items()],
             "suggested_start": (monday(today) + dt.timedelta(days=7)).isoformat(),
             "meaning": "Exposure minutes weight named demanding sessions 1.8× for planning only. This is an uncalibrated proxy, not tissue damage or injury prediction."}

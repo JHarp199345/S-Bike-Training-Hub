@@ -591,14 +591,18 @@ def fill_run(t, paces, level):
 
 def fill_bike(t, ftp, level):
     scale = {"new": 0.7, "returning": 0.85, "regular": 1.0}.get(level, 0.85)
-    lines, mins = [], 0
+    lines, mins, power = [], 0, []
     for label, m, lo, hi, rpm in t["steps"]:
         mm = max(3, round(m * scale))
         w = f"{round(lo * ftp / 100)}-{round(hi * ftp / 100)} W" if ftp else f"{lo}-{hi}% FTP"
         lines.append(f"{label}: {mm} min, {w}, {rpm} rpm")
+        cadence=[float(x) for x in rpm.split("-")]
+        power.append({"minutes":mm,"pct":(lo+hi)/2,"rpm":sum(cadence)/len(cadence)})
         mins += mm
     return {"id": t["id"], "name": t["name"], "tier": t["tier"], "purpose": t["purpose"], "not_for": t["not_for"], "lines": lines,
-            "minutes": mins, "sources": [SOURCES["bike"], SOURCES["polarized"]]}
+            "minutes": mins, "bike_plan":{"power_steps":power,
+            "basis":"Template stage midpoint scenario; compressed interval descriptions need saved timed steps for exact planning"},
+            "sources": [SOURCES["bike"], SOURCES["polarized"]]}
 
 
 def snap(library, tier, ph, focus=None, tri=False, n=3):

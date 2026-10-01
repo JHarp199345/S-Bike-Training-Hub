@@ -303,11 +303,31 @@ def score(a, prof, k_hr):
     tr = trimp(a["records"], prof["hr_rest"], prof["hr_max"])
     ptss = power_tss(a["records"], prof["ftp"]) if a["sport"] == "bike" else None
     engine = ptss if ptss is not None else tr * k_hr
+    engine_from = "watts" if ptss is not None else "heart rate"
+    swim_kick = None
     css = prof.get("swim_css")
-    if a["sport"] == "swim" and css and a["distance_m"] >= 100 and a["minutes"] > 0:
+    fin_fraction = 0.0
+    if a["sport"] == "swim":
+        import swimload
+        fin_fraction = swimload.equipment(a)["fins_fraction"]
+    if a["sport"] == "swim" and fin_fraction:
+        # Count observed HR time, not merely record count: FIT sampling is irregular.
+        hr_times = sorted(r["t"] for r in a["records"] if r.get("hr") and prof["hr_rest"] <= r["hr"] <= prof["hr_max"])
+        observed = sum(min(10, max(0, t - prev)) for prev, t in zip(hr_times, hr_times[1:]))
+        coverage = observed / max(1, a["minutes"] * 60)
+        if coverage >= .5:
+            engine_from = "heart rate · fins (pace excluded)"
+        elif a.get("swim_rpe") or a.get("rpe"):
+            effort = a.get("swim_rpe") or a["rpe"]
+            engine = a["minutes"] / 60 * (float(effort) / 7) ** 2 * 100
+            engine_from = "effort proxy · fins (insufficient heart rate)"
+        else:
+            engine_from = "incomplete heart rate · fins (low confidence)"
+    elif a["sport"] == "swim" and css and a["distance_m"] >= 100 and a["minutes"] > 0:
         pace = a["minutes"] * 60 / (a["distance_m"] / 100)                # s per 100 m
         engine = a["minutes"] / 60 * (css / pace) ** 3 * 100                # swim TSS: hours x (CSS / pace)^3 x 100
         ptss = engine
+        engine_from = "swim pace vs CSS"
     impact = muscle = 0.0
     km = a["distance_m"] / 1000
     if a["sport"] in ("run", "walk"):
@@ -330,8 +350,9 @@ def score(a, prof, k_hr):
         rpe = a.get("rpe") or prof.get("gym_rpe") or GYM_RPE_DEFAULT
         muscle = a["minutes"] * rpe / 6 * 0.9
     elif a["sport"] == "swim":
-        muscle = a["minutes"] * 0.05
-    return {"engine": engine, "impact": impact, "muscle": muscle, "trimp": tr, "power_tss": ptss}
+        swim_kick = swimload.kick_dose(a)
+        muscle = swim_kick["points"]
+    return {"engine": engine, "impact": impact, "muscle": muscle, "trimp": tr, "power_tss": ptss, "engine_from": engine_from, "swim_kick": swim_kick}
 
 
 def calibrate_hr(acts, prof):
@@ -369,7 +390,7 @@ def walking_inputs(scored, daily_steps, prof):
             "step_force_lb": round(step_force(m, 1.3, 105) / damage.LBF)}
 
 
-def analyse(acts, prof, today=None, meta=None, feet_reports=None, daily_steps=None, lift_blocks=None, weekly=()):
+def analyse(acts, prof, today=None, meta=None, feet_reports=None, daily_steps=None, lift_blocks=None, weekly=(), run_reviews=None):
     today = today or dt.date.today()
     meta = meta or {}
     for a in acts:
@@ -393,8 +414,8 @@ def analyse(acts, prof, today=None, meta=None, feet_reports=None, daily_steps=No
                        "avg_hr": _avg_hr(a), "descent_m": round(a.get("descent_m") or 0),
                        **{x: round(s[x], 1) for x in SYSTEMS},
                        **({"swim_exposure": a.pop("_swim_exposure")} if "_swim_exposure" in a else {}),
-                       "engine_from": ("swim pace vs CSS" if a["sport"] == "swim" else "watts") if s["power_tss"] is not None
-                                      else "heart rate"})
+                       **({"swim_kick": s["swim_kick"]} if s["swim_kick"] is not None else {}),
+                       "engine_from": s["engine_from"]})
     if not scored:
         return {"activities": [], "days": [], "today": None}
     first = min(dt.date.fromisoformat(s["date"]) for s in scored)
@@ -457,7 +478,7 @@ def analyse(acts, prof, today=None, meta=None, feet_reports=None, daily_steps=No
     systems["impact"]["tissue"] = damage.model([r["date"] for r in days], [r["impact"]["load"] for r in days],
                                                   u_imp, prof["weight_kg"], feet_reports,
                                                   run_doses=[r["sports"].get("run", {}).get("impact", 0.0) for r in days],
-                                                  walking=walking, block=prof.get("block_points"))
+                                                  walking=walking, block=prof.get("block_points"), reviews=run_reviews)
     if systems["impact"]["tissue"]:
         systems["impact"]["tissue"]["walking"] = {k: v for k, v in walking.items() if k != "steps"}
     if systems["impact"]["tissue"]:
@@ -500,7 +521,8 @@ def analyse(acts, prof, today=None, meta=None, feet_reports=None, daily_steps=No
     import bodymap
     bike_leg = sports.get("bike", {}).get("muscle", 0) / max(systems["muscle"]["usual_week"], 1)
     run_leg = sports.get("run", {}).get("muscle", 0) / max(systems["muscle"]["usual_week"], 1)
-    regional = bodymap.build(remodeling, swim_recovery["score"], bike_leg, run_leg, lift_blocks)
+    swim_leg = sports.get("swim", {}).get("muscle", 0) / max(systems["muscle"]["usual_week"], 1)
+    regional = bodymap.build(remodeling, swim_recovery["score"], bike_leg, run_leg, lift_blocks, swim_leg_ratio=swim_leg)
     return {"activities": scored, "days": days, "systems": systems, "headline": headline,
             "swim_recovery": swim_recovery, "body_map": regional, "sports_last7": sports,
             "calibration": {"engine_points_per_trimp": round(k, 3), "from_rides": n_cal, "run_step": prof.get("_run_step")},
@@ -599,6 +621,7 @@ def readiness(state, checkin=None):
     # (bodymap.REGIONS), count like that sport's own blocks - 1 block easy, 1.5 rest
     import bodymap
     lift_regions = ((state.get("lifting") or {}).get("regions") or {})
+    shared_body=bodymap.from_state(state)
     def carry(sport):
         best = None
         for r, v in lift_regions.items():
@@ -609,7 +632,7 @@ def readiness(state, checkin=None):
         if not best or best[0] < 1:
             return None, None
         return ("rest" if best[0] >= 1.5 else "easy"), (f"lifting: {best[1].lower()} carrying {best[2]:.2f} blocks "
-                                                         f"(counts {round(100 * best[3])}% in this sport)")
+                                                         f"(participation weight {best[3]:.2f}; weighted indicator {best[0]:.2f})")
     for sport in ("bike", "run"):
         lv, why = carry(sport)
         if lv and sport == "bike":
@@ -618,6 +641,15 @@ def readiness(state, checkin=None):
         elif lv:
             run_level = max(run_level, lv, key=lambda v: order[v])
             run_why = run_why + [why]
+    for sport in ("bike", "run", "swim"):
+        notes=bodymap.overlap_advice(shared_body,sport)
+        if notes and sport=="bike":
+            worst=max(worst,"easy",key=lambda v:order[v]);limiting.extend(notes)
+        elif notes and sport=="run":
+            run_level=max(run_level,"easy",key=lambda v:order[v]);run_why.extend(notes)
+    progression=state.get("run_progression")
+    if progression and not progression.get("run_eligible"):
+        run_level="rest";run_why.extend(progression.get("run_reasons",[]))
     run_how = {
         "rest": "Skip running today. Recheck the recent response and how your feet feel tomorrow; use the bike or pool if comfortable.",
         "easy": "Keep it flat and short: try 1 minute of easy jogging, 2 minutes walking, for about 10 minutes. Stop if discomfort builds and check again tomorrow.",
@@ -638,6 +670,9 @@ def readiness(state, checkin=None):
     if lv:
         swim_level = max(swim_level, lv, key=lambda v: order[v])
         swim_why.append(why)
+    notes=bodymap.overlap_advice(shared_body,"swim")
+    if notes:
+        swim_level=max(swim_level,"easy",key=lambda v:order[v]);swim_why.extend(notes)
     shoulders = checkin.get("shoulders")
     if shoulders is not None and shoulders >= 6:
         swim_level = max(swim_level, "rest" if shoulders >= 8 else "easy", key=lambda v: order[v])
@@ -697,7 +732,7 @@ def set_phase(base, phase):
     return phase
 
 
-def set_swim_activity(base, activity_id, paddles=None, pull_buoy=None, swim_rpe=None):
+def set_swim_activity(base, activity_id, paddles=None, pull_buoy=None, swim_rpe=None, *, fins=None, snorkel=None, fins_fraction=None, snorkel_fraction=None, fin_type=None, kick_rpe=None, fin_kick_factor=None):
     """Record equipment and perceived effort for one imported swim."""
     base = Path(base)
     swims = {a["id"] for a in gather(base / "activities", base / "rides") if a["sport"] == "swim"}
@@ -709,6 +744,20 @@ def set_swim_activity(base, activity_id, paddles=None, pull_buoy=None, swim_rpe=
     except (OSError, ValueError):
         meta = {}
     entry = meta.setdefault(activity_id, {})
+    for name, value in (("fins", fins), ("snorkel", snorkel)):
+        if value is not None:
+            if not isinstance(value, bool):
+                raise ValueError(name + " must be true or false")
+            entry[name] = value
+    for name, value, lo, hi in (("fins_fraction", fins_fraction, 0, 1), ("snorkel_fraction", snorkel_fraction, 0, 1),
+                                ("kick_rpe", kick_rpe, 1, 10), ("fin_kick_factor", fin_kick_factor, 1, 2)):
+        if value is not None:
+            n = float(value)
+            if not math.isfinite(n) or not lo <= n <= hi:
+                raise ValueError(f"{name} must be between {lo} and {hi}")
+            entry[name] = n
+    if fin_type is not None:
+        entry["fin_type"] = str(fin_type)[:100]
     if paddles is not None:
         if not isinstance(paddles, bool):
             raise ValueError("paddles must be true or false")
@@ -801,7 +850,8 @@ def summary(base, today=None):
         weekly = set(_coach.load(base / "coach.json").get("weekly", {}))
     except Exception:
         weekly = set()
-    out = analyse(acts, prof, today, meta, feet_reports, load_steps(base), lift_blocks, weekly)
+    out = analyse(acts, prof, today, meta, feet_reports, load_steps(base), lift_blocks, weekly,
+                  (coach.load(base / "coach.json").get("run_progression") or {}).get("reviews", []))
     out["lifting"] = lifted
     out["aerobic"] = aero
     try:                                        # the rest of what the watch saw, cross-referenced (insights.py)
@@ -816,6 +866,8 @@ def summary(base, today=None):
     except Exception as e:
         out["transfer"] = {"error": str(e)}
     rem = ((out.get("systems") or {}).get("impact", {}).get("tissue") or {}).get("remodeling") or {}
+    import recovery
+    out["run_progression"]=recovery.status(coach.load(base / "coach.json"),rem,today)
     if est and not est["block"]["value"] and rem.get("reference_points"):
         est["block"].update(value=round(rem["reference_points"] * damage.STEPS_1000LB_PER_POINT), source="first runs",
                             confidence=0.3)

@@ -93,6 +93,14 @@ def main(argv=None):
     p = sub.add_parser("plan"); p.add_argument("--date"); p.add_argument("--verdict", choices=["go", "easy", "rest"])
     p.add_argument("--note"); p.add_argument("--workout")
     p.add_argument("--focus", help="cadence, grit, speed, recovery, off - or '' to clear")
+    sub.add_parser("run-progress")
+    p=sub.add_parser("run-check");p.add_argument("--date",required=True);p.add_argument("--kind",choices=["strength","balance","loading"],required=True)
+    p.add_argument("--name",required=True);p.add_argument("--symptoms",type=float,required=True)
+    for flag in ("controlled","gritted","after-ok"):
+        p.add_argument("--"+flag,action=argparse.BooleanOptionalAction,required=True)
+    p.add_argument("--followup-date");p.add_argument("--next-day-ok",action=argparse.BooleanOptionalAction);p.add_argument("--note")
+    p=sub.add_parser("run-review");p.add_argument("--begin-decline",action="store_true",required=True);p.add_argument("--note",required=True)
+    sub.add_parser("forecast-save")
     p = sub.add_parser("rides"); p.add_argument("--days", type=int, default=7)
     sub.add_parser("fitness"); sub.add_parser("milestones"); sub.add_parser("workouts"); sub.add_parser("diagnostic")
     sub.add_parser("load")
@@ -188,6 +196,15 @@ def main(argv=None):
         d = call("/api/coach/split/save", {"name": a.name or f"{T:.0f} min · {n}x intervals at {a.interval_pct}%",
                                            "parts": parts, "plan": a.plan, "ride": a.ride})
         show(d, j, f"saved as {d['id']}" + (" · set as today's ride" if a.plan else "") + (" · started" if a.ride else ""))
+    elif a.cmd in ("run-progress","run-check","run-review","forecast-save"):
+        if a.cmd=="run-progress":result=call("/api/coach/run-progression")
+        elif a.cmd=="forecast-save":result=call("/api/coach/forecast/save",{})
+        elif a.cmd=="run-review":result=call("/api/coach/run-progression",{"action":"begin_decline","note":a.note})
+        else:
+            result=call("/api/coach/run-progression",{"test_date":a.date,"kind":a.kind,"name":a.name,"symptoms":a.symptoms,
+                       "controlled":a.controlled,"gritted":a.gritted,"after_ok":a.after_ok,"followup_date":a.followup_date,
+                       "next_day_ok":a.next_day_ok,"note":a.note})
+        show(result,j,json.dumps(result,indent=2))
     elif a.cmd == "load":
         d = call("/api/load")
         if not d.get("systems"):
