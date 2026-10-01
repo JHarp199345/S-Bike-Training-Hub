@@ -25,6 +25,8 @@ def questions(d, sunday, done):
     import lifting
     days = [(sunday - dt.timedelta(days=i)).isoformat() for i in range(6, -1, -1)]
     sports = {x["sport"] for day in days for x in done.get(day, [])}
+    run_goal = any(e.get("kind") == "race" and e.get("sport") in ("run", "tri") and e.get("date", "") >= sunday.isoformat()
+                   for e in d.get("events", []))
     logs = [l for l in lifting.state(d)["logs"] if l["date"] in days]
     regs = {}
     for l in logs:
@@ -36,13 +38,16 @@ def questions(d, sunday, done):
         q.append({"key": "legs", "label": "Leg muscles after the week's riding", "scale": "1 fresh, 10 wrecked"})
     if "run" in sports:
         q.append({"key": "feet", "label": "Feet and bones after the week's running", "scale": "1 fine, 10 very sore"})
-        q.append({"key": "hops", "label": "Hop test", "scale": "pain-free single-leg hops, each leg"})
+        q.append({"key": "hops", "label": "Hop test, only if comfortable", "scale": "optional pain-free single-leg hops, each leg"})
+    elif run_goal:
+        q.append({"key": "feet", "label": "Feet and lower legs while running is paused", "scale": "1 fine, 10 very sore"})
     if "swim" in sports:
         q.append({"key": "shoulders", "label": "Shoulders after the week's swimming", "scale": "1 fine, 10 very sore"})
     for r in sorted(regs, key=regs.get, reverse=True)[:6]:
         q.append({"key": f"lift:{r}", "label": f"{names[r]} after the week's lifting", "scale": "1 fine, 10 very sore"})
     q.append({"key": "week", "label": "The week overall", "scale": "1 easy, 10 too much"})
-    return {"sunday": sunday.isoformat(), "week": [days[0], days[-1]], "sports": sorted(sports), "lift_sessions": len(logs),
+    return {"sunday": sunday.isoformat(), "week": [days[0], days[-1]], "sports": sorted(sports | ({"gym"} if logs else set())),
+            "run_goal": run_goal, "lift_sessions": len(logs),
             "questions": q}
 
 
@@ -75,6 +80,16 @@ def record(d, sunday, fields):
         out["lift"] = lift
     if fields.get("note"):
         out["note"] = str(fields["note"])[:1000]
+    progress = fields.get("progress") or {}
+    if not isinstance(progress, dict) or any(k not in ("bike", "run", "swim", "gym") or v not in ("better", "same", "worse")
+                                              for k, v in progress.items()):
+        raise ValueError("progress must name a sport and better, same or worse")
+    if progress:
+        out["progress"] = progress
+    if fields.get("run_response") is not None:
+        if fields["run_response"] not in ("resolved", "pulling", "not_tested"):
+            raise ValueError("run_response is resolved, pulling or not_tested")
+        out["run_response"] = fields["run_response"]
     if len(out) == 1:
         raise ValueError("answer at least one question")
     d.setdefault("weekly", {})[sunday] = out

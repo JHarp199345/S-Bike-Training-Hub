@@ -13,8 +13,11 @@ def main():
     s = W.flatten([{"type": "steady", "minutes": 10, "pct": 50}])
     check("a steady block is one step", s == [{"minutes": 10, "pct": 50}])
     r = W.flatten([{"type": "ramp", "minutes": 10, "from": 40, "to": 80}])
-    check(f"a 10-min ramp is twenty 30-s steps climbing 40->80% ({len(r)} steps, {r[0]['pct']}..{r[-1]['pct']})",
-          len(r) == 20 and r[0]["pct"] == 41 and r[-1]["pct"] == 79 and all(a["pct"] < b["pct"] for a, b in zip(r, r[1:])))
+    check("a ramp has three equal stages and finishes at its planned top",
+          len(r) == 3 and r[-1]["pct"] == 80 and all(a["pct"] < b["pct"] for a, b in zip(r, r[1:])))
+    three = W.flatten([{"type":"ramp", "minutes":3, "from":50, "to":65}])
+    check("at FTP 180: a 90–117 W ramp advances once a minute to 99, 108, 117 W",
+          [x['minutes'] for x in three]==[1,1,1] and [round(x['pct']*1.8) for x in three]==[99,108,117])
     iv = W.flatten([{"type": "intervals", "times": 5, "on": {"minutes": 3, "pct": 112}, "off": {"minutes": 3, "pct": 50}}])
     check(f"5x3 intervals: 5 on, 4 easy between ({len(iv)} steps)", len(iv) == 9 and [x["pct"] for x in iv[:3]] == [112, 50, 112])
     m = W.flatten([{"type": "steady", "minutes": 5, "pct": 60}, {"type": "steady", "minutes": 5, "pct": 60}])

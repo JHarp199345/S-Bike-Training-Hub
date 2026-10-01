@@ -200,8 +200,22 @@ def t_rate(a):
     return call("/api/coach/rate", {k: a[k] for k in ("ride", "rpe") if k in a})
 
 
+def t_programming(a):
+    q = f"/api/coach/programming?sport={a.get('sport', 'swim')}" + (f"&date={a['date']}" if a.get("date") else "")
+    if a.get("swim_profile"): q += "&swim_profile=" + a["swim_profile"]
+    return call(q)
+
+
+def t_swim_settings(a):
+    return call("/api/coach/programming/swim", {k: a[k] for k in ("mix", "drill_share", "follow_event", "profile_id") if k in a})
+
+
 def t_weekly(a):
-    return call("/api/coach/weekly", {k: a[k] for k in ("sunday", "legs", "feet", "hops_left", "hops_right", "shoulders", "lift", "week", "note") if k in a})
+    return call("/api/coach/weekly", {k: a[k] for k in ("sunday", "legs", "feet", "hops_left", "hops_right", "shoulders", "lift", "week", "note", "progress", "run_response") if k in a})
+
+
+def t_block(a):
+    return call("/api/coach/block", {k: v for k, v in {"weeks": a.get("weeks", 4), "start_date": a.get("start_date")}.items() if v is not None}) if a.get("start") else call("/api/coach/block")
 
 
 def t_lifting(a):
@@ -245,7 +259,11 @@ def t_set_skill(a):
 
 
 def t_event(a):
-    return call("/api/coach/event", {k: a[k] for k in ("date", "name", "kind", "sport", "note", "remove") if k in a})
+    body = {k: a[k] for k in ("date", "name", "kind", "sport", "note", "remove") if k in a}
+    det = {k: a[v] for k, v in (("type", "event_type"), ("distance", "distance"), ("strokes", "strokes")) if v in a}
+    if det:
+        body["detail"] = det
+    return call("/api/coach/event", body)
 
 
 def t_calibration(a):
@@ -321,21 +339,20 @@ TOOLS = [
        hr120=INT("HR at the end of the 120 W push", 40, 220), hr_after=INT("HR 60 s after the push", 30, 220),
        gut=STR("Their own call", enum=["go", "easy", "no"]), note=STR("Anything they said")), t_checkin),
     ("settle_journal_flag", "Settle a flag the journal raised (get_checkins shows each day's flags: bone, muscle, "
-     "illness, better). ONLY on the rider's say-so in chat - never decide it for them. confirm = it's real, count it "
-     "(bone/muscle read as 6/10 on their slider that day; illness makes heart & lungs easy); dismiss = it's fine; "
-     "reopen = undo.",
+     "illness, better). ONLY on their say-so in chat - never decide it for them. confirm = it's real, count it (bone/muscle "
+     "read as 6/10 on their slider that day; illness makes heart & lungs easy); dismiss = it's fine; reopen = undo.",
      S(date=DATE, id=STR("The flag id", enum=["bone", "muscle", "illness", "better"]),
-       action=STR("What the rider said", enum=["confirm", "dismiss", "reopen"])), t_flag),
-    ("set_plan", "Write today's plan onto the rider's Coach page: the verdict (go/easy/rest), your coaching note to them "
+       action=STR("What they said", enum=["confirm", "dismiss", "reopen"])), t_flag),
+    ("set_plan", "Write today's plan onto the Coach page: the verdict (go/easy/rest), your coaching note to them "
      "(plain, specific: what to ride, how it should feel, when to stop), and optionally the workout to ride "
-     "(workout_id from list_workouts or a create tool). They see it on their phone with a Ride button.",
-     S(date=DATE, verdict=STR("go, easy or rest", enum=["go", "easy", "rest"]), note=STR("Your note to the rider"),
+     "(workout_id from list_workouts or a create tool).",
+     S(date=DATE, verdict=STR("go, easy or rest", enum=["go", "easy", "rest"]), note=STR("Your note to them"),
        workout_id=STR("Workout to ride today (empty string clears it)"),
        sport=STR("The day's marker on the Coach page's week: ride, swim, run, walk, gym, test, rest, other "
                  "(swims can't go on the COROS calendar - this is where they live)",
                  enum=["ride", "swim", "run", "walk", "gym", "test", "rest", "other", ""]),
        minutes=INT("The time goal for the day's session", 0, 600),
-       sessions={"description": "Optional ordered sessions for this day, each {sport, minutes, name, steps: [set or interval descriptions], note, workout}. Replaces the day's sessions; use two or more for a double-session day. Check recovery before scheduling.",
+       sessions={"description": "Optional ordered sessions for this day, each {sport, minutes, name, steps: [set or interval descriptions], note, workout, swim_profile, swim_plan: {stroke_mix, work_mix, purpose, why} (swim sessions)}. Replaces the day's sessions; use two or more for a double-session day. Check recovery before scheduling.",
                  "type": "array", "items": {"type": "object"}},
        focus={"description": "What the ride is coaching for - a cadence range plus a watt range that auto-shift "
               "steers toward: 'cadence' (65-80 rpm, zone 2: builds the cadence habit), 'grit' (50-65 rpm, 76-90% FTP: "
@@ -353,7 +370,7 @@ TOOLS = [
     ("get_milestones", "Streaks (days, weeks on goal), lifetime totals, milestones earned and next up.", S(), t_milestones),
     ("get_status", "The bridge right now: bike connected, live watts/cadence/gear, ERG/workout running, FTP, "
      "personal bests (5 s / 1 / 5 / 20 min), this ride's calories and distance, recent events.", S(), t_status),
-    ("list_workouts", "The workouts with ids, notes, time/load/calories at the rider's FTP, and their blocks.", S(), t_workouts),
+    ("list_workouts", "His workouts with ids, notes, time/load/calories at his FTP, and their blocks.", S(), t_workouts),
     ("create_timed_workout", "Make a standard timed workout: warm-up 15%, ramp 15%, intervals 40% (split evenly), "
      "rests 20%, cool-down 10% of total_minutes. Intensities in % of FTP. Optionally make it today's ride.",
      S(total_minutes={"type": "number", "minimum": 10, "maximum": 180}, intervals=INT("Number of intervals", 1, 10),
@@ -368,18 +385,49 @@ TOOLS = [
     ("get_load", "Training load by body system across ALL sports (runs, swims, gym, rides): ENGINE (heart/lungs; "
      "watts on the bike, heart rate calibrated to watts elsewhere), IMPACT (feet/bones; running and walking x body "
      "weight), MUSCLE (leg force; pedal torque, gym effort, running). Each has fitness, fatigue, form, the "
-     "acute:chronic ratio and zone (0.8-1.3 sweet spot, >1.5 danger for impact/muscle), this week's used load vs "
-     "budget, and a weakest-link readiness verdict with what's limiting. Use this before set_plan.", S(), t_load),
+     "acute:chronic ratio and provisional zone, this week's used load versus the current estimated capacity, "
+     "and a weakest-link readiness verdict with what's limiting. These zones are planning heuristics, not "
+     "validated injury-risk thresholds. Use this before set_plan.", S(), t_load),
+    ("get_programming", "Programming a swim, bike or run session: the phase (counted back from the next race: base, "
+     "build, peak, taper, recovery), the rider's load state for that sport (fresh, moderate, heavy but ready, not ready), "
+     "the tier cap and the suggested tier (easy, moderate, hard, very hard), and the nearest templates from the "
+     "research-backed library, filled with the rider's paces (critical swim speed, FTP, a recent 5K) - each with what "
+     "it trains, what it doesn't, and sources. For swimming also the stroke mix for this block (four strokes out of "
+     "100, from the race or the rider's dials), eight reusable swim_profiles with eligibility reasons, selected profile, "
+     "main-set work ratios, equipment and weekly sequence context. Use swim_profile to preview another eligible module. "
+     "Profiles are provisional coaching defaults; respect blocked choices. Record swim_profile and the returned swim_plan "
+     "snapshot on planned swim sessions; adapt its why to the actual goal and projected load. When the sport isn't a good idea today it says why "
+     "and offers mobility or another sport. Use it before writing any swim, bike or run session; adapt the template, "
+     "don't invent one; keep the week's core sessions the same for 4-6 weeks and progress them. Lifting uses get_lifting.",
+     S(sport=STR("swim, bike or run", enum=["swim", "bike", "run"]), date=DATE,
+       swim_profile=STR("Swim profile to preview for this session; does not change saved settings", enum=["auto","balanced","event-technique","event-endurance","race-pace","speed-skills","maintenance","kick-emphasis","recovery"])), t_programming),
+    ("set_swim_settings", "The rider's swim dials: the stroke mix (free, back, breast, fly out of 100), the drill "
+     "share (15-30%), and whether the mix follows their race (follow_event, default true) or their dials.",
+     S(mix={"type": "object", "description": "{free, back, breast, fly} - normalised to 100",
+            "additionalProperties": {"type": "number", "minimum": 0}},
+       drill_share=INT("Percent of the session that is drill-then-swim", 15, 30), follow_event={"type": "boolean"},
+       profile_id=STR("Preferred reusable swim profile; auto chooses by phase, load, recent work and Sunday response", enum=["auto","balanced","event-technique","event-endurance","race-pace","speed-skills","maintenance","kick-emphasis","recovery"])), t_swim_settings),
     ("record_weekly_checkin", "The Sunday check-in (get_today shows 'weekly' when it's due - Sunday through Tuesday): a "
      "look back at the week, asking only about what it held. legs (after riding), feet and hops per leg (after running), "
      "shoulders (after swimming), each muscle group the week's lifting worked (lift: {region: 1-10}), and the week "
-     "overall (1 easy, 10 too much), with a note. It's the calibration anchor: the running, swim and lifting fits "
+     "overall (1 easy, 10 too much), comparable-session progress (better, same, worse) by sport, and, for a running goal, "
+     "whether the lower-leg pulling resolved, persisted or was not retested. During a mechanical plateau that report "
+     "can hold a running session but does not move the accumulated-load curve. "
+     "It's the calibration anchor: the running, swim and lifting fits "
      "weight it most.",
      S(sunday=STR("The Sunday (YYYY-MM-DD; default: the open one)"), legs=INT("1-10", 1, 10), feet=INT("1-10", 1, 10),
        hops_left=INT("Pain-free hops, left leg", 0, 100), hops_right=INT("Pain-free hops, right leg", 0, 100),
        shoulders=INT("1-10", 1, 10), week=INT("The week overall, 1 easy - 10 too much", 1, 10), note=STR("Their words"),
-       lift={"type": "object", "description": "{region: 1-10}", "additionalProperties": {"type": "integer", "minimum": 1, "maximum": 10}}),
+       lift={"type": "object", "description": "{region: 1-10}", "additionalProperties": {"type": "integer", "minimum": 1, "maximum": 10}},
+       progress={"type": "object", "description": "Compared with similar work this week: {bike|run|swim|gym: better|same|worse}",
+                 "additionalProperties": {"type": "string", "enum": ["better", "same", "worse"]}},
+       run_response=STR("Lower-leg pulling since last week, without provoking a hop just to answer", enum=["resolved", "pulling", "not_tested"])),
      t_weekly),
+    ("get_training_block", "Read the persistent four-to-six-week block, all scheduled sessions including two-a-days, "
+     "cross-sport demanding-session count, planned versus completed minutes and Sunday advance/repeat/hold/reduce reviews. "
+     "Set start=true to create a block from an already scheduled week; start_date may name a future Monday. Existing future plans are preserved. "
+     "Forecast minutes are planning proxies, not measured tissue damage or injury predictions.",
+     S(start={"type": "boolean"}, start_date=DATE, weeks=INT("Block duration when starting", 4, 6)), t_block),
     ("get_lifting", "Lifting and functional strength. Read before planning or scoring a gym session: the rider's RULES "
      "(never plan what a 'No ...' rule excludes; use favourites), the coaching GUIDANCE, the STEER (restorative or build, "
      "the suggested restorative share of the session and why, from the load the rider carries), sessions the rider built "
@@ -432,8 +480,8 @@ TOOLS = [
      "links for .fit files (e.g. from the COROS tool queryActivityFitFileDownloadUrls, one activity at a time).",
      S(urls={"type": "array", "items": {"type": "string"}, "description": "https links to .fit or .tcx files"}), t_import),
     ("set_capacity", "Tune a body system's usual week (engine, impact or muscle, in load points) from how the rider's "
-     "body actually responded - e.g. they handled a big engine week like easy work (raise engine), or their feet feel "
-     "overdone at a given impact week (lower impact so that week reads 'caution'). The zones, ratio and weekly budget then use it. "
+     "body actually responded - e.g. they handled 416 engine points like easy work (raise engine), or their feet feel "
+     "overdone at 79 impact (lower impact so 79 reads 'caution'). The zones, ratio and weekly budget then use it. "
      "Say why in the note. usual_week null clears it back to the model.",
      S(system=STR("engine, impact or muscle", enum=["engine", "impact", "muscle"]),
        usual_week={"type": ["number", "null"]}, note=STR("Why: what the rider reported")), t_capacity),
@@ -494,6 +542,10 @@ TOOLS = [
      "running cleared by then). Plan the days before each one around it.",
      S(date=DATE, name=STR("What it is"), kind=STR("test, race or goal", enum=["test", "race", "goal"]),
        sport=STR("bike, run, swim, tri or other", enum=["bike", "run", "swim", "tri", "other"]), note=STR("Anything else"),
+       event_type=STR("What kind of race (sets the programming)", enum=["triathlon", "swim_meet", "run_race", "lift_meet", "other"]),
+       distance=STR("Triathlon: sprint, olympic, 70.3, ironman; run race: km"),
+       strokes={"type": "array", "description": "Swim meet events", "items": {"type": "object", "properties": {
+           "stroke": {"type": "string", "enum": ["free", "back", "breast", "fly", "im"]}, "m": {"type": "integer"}}}},
        remove=STR("An event id to remove")), t_event),
     ("get_calibration", "The rider's capacities, each from tests and training with a confidence that fades after the "
      "last test: FTP (ramp test; 20-min bests between), heart rate at 90 W (morning diagnostic), big-gear 3 min (big-gear "
@@ -504,8 +556,8 @@ TOOLS = [
      "benchmark_run. Sets the day's marker, time, how-to note, and for big_gear the focus that runs it; the bike tests "
      "start from the Coach page's Ride it row. Keep the two days before an FTP or big-gear test easy.",
      S(test=STR("Which test", enum=["ftp", "diagnostic", "big_gear", "css", "benchmark_run"]), date=DATE), t_schedule_test),
-    ("schedule_test_week", "Plan a test week - it doubles as the recovery week."
-     " Easy, reduced sessions Mon-Wed so they peak on test day; swim CSS test Thu if due; morning "
+    ("schedule_test_week", "Plan a test week - the rider's way (from their high-school lifting program): it's also "
+     "the recovery week. Easy, reduced sessions Mon-Wed so they peak on test day; swim CSS test Thu if due; morning "
      "diagnostic Fri then rest; TEST DAY Sat (FTP ramp test, or the big-gear test - one leg test a day); Sun off; "
      "training resumes Monday. Every 6 weeks; no monday = the next one due. Overwrites that week's plan.",
      S(monday=DATE), t_test_week),
@@ -542,9 +594,9 @@ TOOLS = [
        capacity=STR("Capacity", enum=["ftp", "engine_hr90", "legs_3min", "swim_css", "block"]),
        value={"type": "number"}, kind=STR("test, manual or training", enum=["test", "manual", "training"]),
        date=DATE, note=STR("Where it came from")), t_record_test),
-    ("start_workout", "Start a workout on the bike NOW in ERG (only when the rider asks, e.g. they're on the bike).",
+    ("start_workout", "Start a workout on the bike NOW in ERG (only when he asks, e.g. he's on the bike).",
      S(workout_id=STR("Workout id")), t_start),
-    ("start_diagnostic", "Start the 6-minute morning diagnostic on the bike NOW (only when the rider asks and is on the bike).",
+    ("start_diagnostic", "Start the 6-minute morning diagnostic on the bike NOW (only when he asks and is on the bike).",
      S(), t_diagnostic),
 ]
 for name, _, schema, _ in TOOLS:
@@ -572,15 +624,17 @@ INSTRUCTIONS = ("A bike, run, and swim training companion (built on a Merach S29
                 "swim sessions with intervals or drills; consider both shared cardiovascular and sport-specific "
                 "recovery before adding a second session. Running impact and swim recovery blocks are provisional "
                 "planning estimates, not measured tissue damage or injury clearance. Reported pain and the athlete's "
-                "own 'not today' outrank scores. After an imported swim, ask about shoulder response, paddles or "
-                "buoy, and perceived effort, then record only what the athlete reports. get_insights holds what the "
-                "watch saw beyond the loads (stroke breakdown, run form, ride recovery, pauses): ask its flags as "
-                "questions, never as verdicts. "
-                "On Sundays (through Tuesday) ask the weekly check-in when get_today shows it due. "
-                "Gym sessions: read get_lifting first (the rider's rules, the coaching guidance, the steer, drafts waiting to be "
-                "scored), plan or score with plan_lift_session, check off with log_lift_session (ask why when they lifted "
-                "less), and ask the follow-up when it's due. If the rider says they have a plan, record it; if they ask "
-                "you to consult, lead with the load numbers and the steer. Their call wins.")
+                "own 'not today' outrank scores. After an imported swim, ask about shoulder response, paddles or buoy, "
+                "and perceived effort, then record only what the athlete reports. get_insights holds what the watch "
+                "saw beyond the loads (stroke breakdown, run form, ride recovery, pauses): ask its flags as questions, "
+                "never as verdicts. Before writing a swim, bike or run session, read get_programming and adapt its "
+                "nearest template. On Sundays (through Tuesday) ask the weekly check-in when get_today shows it due; "
+                "then read its training-block review and compare plan, completion, symptoms and later performance "
+                "before progressing. Gym sessions: read get_lifting first (the rider's rules, the coaching guidance, "
+                "the steer, drafts waiting to be scored), plan or score with plan_lift_session, check off with "
+                "log_lift_session (ask why when they lifted less), and ask the follow-up when it's due. If the rider "
+                "says they have a plan, record it; if they ask you to consult, lead with the load numbers and the steer. "
+                "Their call wins.")
 
 
 def handle(msg):
@@ -590,7 +644,7 @@ def handle(msg):
     if method == "initialize":
         pv = (msg.get("params") or {}).get("protocolVersion") or "2025-06-18"
         return {"protocolVersion": pv, "capabilities": {"tools": {"listChanged": False}},
-                "serverInfo": {"name": "s-bike-hub", "version": VERSION}, "instructions": INSTRUCTIONS}
+                "serverInfo": {"name": "s29-hub", "version": VERSION}, "instructions": INSTRUCTIONS}
     if method == "ping":
         return {}
     if method == "tools/list":

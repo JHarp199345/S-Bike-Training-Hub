@@ -1,68 +1,68 @@
-<!doctype html><html><head><meta charset="utf-8"><title>S-Bike Hub · Ride</title>
+<!doctype html><html><head><meta charset="utf-8"><title>S29 Hub · Ride</title>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0b0f14"><meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="var(--bg)"><meta name="mobile-web-app-capable" content="yes">
 <link rel="stylesheet" href="/lib/maplibre-gl.css">
 <style>
  :root{color-scheme:dark;--pad:10px;--btn:104px;--profh:76px}
  body.graph{--profh:128px}
- html,body{margin:0;height:100%;overflow:hidden;background:#0b0f14;color:#fff;
+ html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--text);
    font:15px/1.3 -apple-system,Roboto,"Helvetica Neue",sans-serif;-webkit-user-select:none;user-select:none;touch-action:manipulation}
  [hidden]{display:none!important}
  #map{position:absolute;inset:0}
- .glass{background:rgba(11,15,20,.8);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border-radius:12px}
+ .glass{background:var(--glass);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border-radius:12px}
  .hud{position:absolute;top:calc(var(--pad) + env(safe-area-inset-top));left:var(--pad);right:calc(var(--pad) + 58px);
    display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
  .t{padding:6px 4px;text-align:center}
  .t b{display:block;font-size:26px;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums}
- .t span{font-size:10px;letter-spacing:1px;color:#b7c1cd}
- #menu{position:absolute;top:calc(var(--pad) + env(safe-area-inset-top));right:var(--pad);width:50px;height:50px;border:0;color:#fff;font-size:24px}
+ .t span{font-size:10px;letter-spacing:1px;color:var(--text2)}
+ #menu{position:absolute;top:calc(var(--pad) + env(safe-area-inset-top));right:var(--pad);width:50px;height:50px;border:0;color:var(--text);font-size:24px}
  #banner{position:absolute;left:var(--pad);right:var(--pad);top:calc(var(--pad) + 128px + env(safe-area-inset-top));
    padding:9px 12px;text-align:center;font-weight:700}
- #banner.lost{background:rgba(127,29,29,.92)} #banner a{color:#93c5fd} #banner.behind{box-shadow:0 0 0 2px #fbbf24}
+ #banner.lost{background:var(--bad-bg)} #banner a{color:var(--info)} #banner.behind{box-shadow:0 0 0 2px var(--warn)}
  #ghost{position:absolute;right:var(--pad);padding:8px 14px;font-weight:800;font-size:17px;border-radius:12px}
- #ghost.ahead{background:rgba(20,83,45,.92)}#ghost.behind{background:rgba(127,29,29,.92)}#ghost.even{background:rgba(31,41,55,.92)}
+ #ghost.ahead{background:var(--good-bg)}#ghost.behind{background:var(--bad-bg)}#ghost.even{background:var(--control)}
  #prof{position:absolute;left:var(--pad);right:var(--pad);height:var(--profh)}
  #prof canvas{position:absolute;inset:0} #prof #lg{display:none} body.graph #prof #lg{display:block} body.graph #prof #pc{display:none}
- #swap{position:absolute;right:6px;top:6px;width:34px;height:30px;border:0;border-radius:8px;background:rgba(31,41,55,.9);color:#fff;font-size:16px;z-index:2}
+ #swap{position:absolute;right:6px;top:6px;width:34px;height:30px;border:0;border-radius:8px;background:var(--control);color:var(--text);font-size:16px;z-index:2}
  #cal{position:absolute;left:var(--pad);padding:8px 12px;font-weight:800;font-size:16px}
- #cal small{font-weight:600;color:#b7c1cd;font-size:12px}
- .fm{margin-top:5px;font-weight:600;font-size:11px;color:#b7c1cd;min-width:170px}
+ #cal small{font-weight:600;color:var(--text2);font-size:12px}
+ .fm{margin-top:5px;font-weight:600;font-size:11px;color:var(--text2);min-width:170px}
  .fm .fr{display:flex;align-items:center;gap:5px}.fm .fr span{font-size:10px}.fm .fr .bar{min-width:44px}
- .fm .bar{position:relative;flex:1;height:8px;border-radius:4px;background:#1f2937}
+ .fm .bar{position:relative;flex:1;height:8px;border-radius:4px;background:var(--control)}
  .fm .bar i{position:absolute;top:0;bottom:0;background:rgba(74,222,128,.35);border-radius:4px}
- .fm .bar em{position:absolute;top:-3px;width:14px;height:14px;margin-left:-7px;border-radius:50%;background:#4ade80;border:2px solid #0b0f14}
- .fm .bar em.out{background:#fbbf24}
- .fm .fh{color:#fbbf24;font-size:12px}
- #cal.drift{box-shadow:0 0 0 2px #fbbf24}
+ .fm .bar em{position:absolute;top:-3px;width:14px;height:14px;margin-left:-7px;border-radius:50%;background:var(--good);border:2px solid var(--bg)}
+ .fm .bar em.out{background:var(--warn)}
+ .fm .fh{color:var(--warn);font-size:12px}
+ #cal.drift{box-shadow:0 0 0 2px var(--warn)}
  #prof canvas{width:100%;height:100%}
  #cal{bottom:calc(var(--pad) * 3 + var(--btn) + var(--profh) + env(safe-area-inset-bottom))}
  .shift{position:absolute;left:var(--pad);right:var(--pad);bottom:calc(var(--pad) + env(safe-area-inset-bottom));
    display:grid;grid-template-columns:1fr 1fr;gap:10px;height:var(--btn)}
- .shift button{border:0;border-radius:18px;color:#fff;font-weight:800;font-size:54px;line-height:1;
-   background:rgba(37,99,235,.92);display:flex;flex-direction:column;align-items:center;justify-content:center;transition:transform .08s,filter .08s}
+ .shift button{border:0;border-radius:18px;color:var(--on-shift);font-weight:800;font-size:54px;line-height:1;
+   background:var(--shift-up);display:flex;flex-direction:column;align-items:center;justify-content:center;transition:transform .08s,filter .08s}
  .shift button small{font-size:12px;font-weight:700;letter-spacing:1.2px;opacity:.8;margin-top:2px}
- .shift button#dn{background:rgba(22,163,74,.92)}
+ .shift button#dn{background:var(--shift-dn)}
  .shift button.hit{transform:scale(.95);filter:brightness(1.35)}
  #prof{bottom:calc(var(--pad) * 2 + var(--btn) + env(safe-area-inset-bottom))}
  #ghost{bottom:calc(var(--pad) * 3 + var(--btn) + var(--profh) + env(safe-area-inset-bottom))}
  #pbflash{position:absolute;left:var(--pad);right:var(--pad);top:calc(var(--pad) + 128px + env(safe-area-inset-top));z-index:3;
-   background:rgba(66,32,6,.95);color:#fde68a;border:2px solid #eab308;border-radius:14px;padding:12px;text-align:center;font-size:19px;font-weight:800}
- #drawer .pbrow{display:flex;justify-content:space-between;padding:8px 2px;border-bottom:1px solid #1f2733;font-size:15px}
- #drawer .pbrow span{color:#8b98a8}
+   background:rgba(66,32,6,.95);color:var(--warn);border:2px solid var(--warn);border-radius:14px;padding:12px;text-align:center;font-size:19px;font-weight:800}
+ #drawer .pbrow{display:flex;justify-content:space-between;padding:8px 2px;border-bottom:1px solid var(--control);font-size:15px}
+ #drawer .pbrow span{color:var(--muted)}
  #gearflash{position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);font-size:92px;font-weight:900;
    text-shadow:0 4px 24px rgba(0,0,0,.6);opacity:0;transition:opacity .5s;pointer-events:none}
  #gearflash.show{opacity:1;transition:none}
- #drawer{position:absolute;top:0;right:0;bottom:0;width:min(340px,88vw);background:#0f141b;box-shadow:-8px 0 30px rgba(0,0,0,.5);
+ #drawer{position:absolute;top:0;right:0;bottom:0;width:min(340px,88vw);background:var(--deep);box-shadow:-8px 0 30px rgba(0,0,0,.5);
    padding:calc(16px + env(safe-area-inset-top)) 16px 16px;overflow:auto;box-sizing:border-box}
  #drawer h2{margin:0 0 12px;font-size:20px;display:flex;justify-content:space-between;align-items:center}
- #drawer h2 button{background:#1f2937;width:44px;height:44px;padding:0;margin:0}
- #drawer button{width:100%;padding:15px;border:0;border-radius:12px;font-size:17px;font-weight:700;color:#fff;background:#1f2937;margin:0 0 10px}
- #drawer button.on{background:#16a34a} #drawer button.warn{background:#7f1d1d}
+ #drawer h2 button{background:var(--control);width:44px;height:44px;padding:0;margin:0}
+ #drawer button{width:100%;padding:15px;border:0;border-radius:12px;font-size:17px;font-weight:700;color:var(--text);background:var(--control);margin:0 0 10px}
+ #drawer button.on{background:var(--good-fill)} #drawer button.warn{background:var(--bad-bg)}
  #drawer .row{display:grid;grid-template-columns:1fr 1.3fr 1fr;gap:8px;align-items:center;margin-bottom:10px}
  #drawer .row button{margin:0;font-size:24px;padding:10px}
  #drawer .row div{text-align:center;font-size:22px;font-weight:800}
- #drawer .sub{color:#8b98a8;font-size:13px;margin:-4px 0 12px}
- #drawer a{display:block;color:#93c5fd;padding:10px 0;font-weight:700;text-decoration:none}
+ #drawer .sub{color:var(--muted);font-size:13px;margin:-4px 0 12px}
+ #drawer a{display:block;color:var(--info);padding:10px 0;font-weight:700;text-decoration:none}
  #avatar{width:28px;height:28px}
  /* Landscape on the handlebars (phone, or any touch tablet): shift buttons become tall columns at each side. */
  @media (orientation:landscape) and (max-height:560px), (orientation:landscape) and (pointer:coarse){
@@ -103,19 +103,19 @@
     day's focus. */
  body.paged #prof{height:118px;border-radius:12px 12px 0 0}
  body.paged #cal{top:calc(var(--pad) + 118px + env(safe-area-inset-top));border-radius:0 0 12px 12px;
-   padding:7px 12px 9px;font-size:16px;border-top:1px solid rgba(255,255,255,.08)}
+   padding:7px 12px 9px;font-size:16px;border-top:1px solid var(--grid)}
  body.paged #cal .fm{margin-top:6px;min-width:0}
  body.paged #cal .fm .fr{gap:8px}body.paged #cal .fm .fr span{font-size:11px}
  body.paged #cal .fm .bar{height:9px;min-width:0}body.paged #cal .fm .bar em{width:16px;height:16px;margin-left:-8px;top:-4px}
  body.paged #cal .ftop{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
- body.paged #cal .fpct{font-size:12px;font-weight:700;color:#b7c1cd;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
- body.paged #cal.drift{box-shadow:0 0 0 2px #fbbf24}
+ body.paged #cal .fpct{font-size:12px;font-weight:700;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ body.paged #cal.drift{box-shadow:0 0 0 2px var(--warn)}
  body.paged #ghost{bottom:calc(var(--pad) * 2 + var(--btn) + env(safe-area-inset-bottom))}
  body.paged #banner,body.paged #pbflash{top:calc(var(--pad) + 196px + env(safe-area-inset-top))}
  #pgctl{position:absolute;top:calc(var(--pad) + 56px + env(safe-area-inset-top));right:var(--pad);width:50px;display:none;
-   flex-direction:column;align-items:center;gap:7px;padding:8px 0;border:0;color:#fff}
+   flex-direction:column;align-items:center;gap:7px;padding:8px 0;border:0;color:var(--text)}
  body.paged #pgctl{display:flex}
- #pgctl i{width:8px;height:8px;border-radius:50%;background:#4b5563}#pgctl i.on{background:#fff}
+ #pgctl i{width:8px;height:8px;border-radius:50%;background:var(--line)}#pgctl i.on{background:var(--text)}
  #pgctl b{font-size:16px;line-height:1}
  @media (orientation:landscape) and (max-height:560px){
   body.paged .hud,body.paged #cal,body.paged #prof{left:130px;right:188px}
@@ -135,11 +135,12 @@
  /* Phones: the shared cycling overlays (overlays.js) - the same ones the game view has - replace the two pages */
  body.paged.ovmode .hud,body.paged.ovmode #cal,body.paged.ovmode #prof,body.paged.ovmode #pgctl{display:none!important}
  body.paged.ovmode #banner,body.paged.ovmode #pbflash{top:calc(var(--pad) + 270px + env(safe-area-inset-top))}
- body{--ov-top:calc(var(--pad) + 60px);--ov-strip-top:calc(var(--pad) + 12px);--ov-strip-right:calc(var(--pad) + 120px)}   /* 🎮 and ☰ are 48px */
+ body{--ov-top:calc(var(--pad) + 60px);--ov-strip-top:calc(var(--pad) + 12px);--ov-strip-right:calc(var(--pad) + 180px)}
+ #fullscreenride{position:absolute;top:calc(var(--pad) + env(safe-area-inset-top));right:calc(var(--pad) + 116px);z-index:4;width:48px;height:48px;border:0;color:var(--text);font-size:26px;cursor:pointer}
  #gamebtn{position:absolute;top:calc(var(--pad) + env(safe-area-inset-top));right:calc(var(--pad) + 58px);z-index:4;width:48px;height:48px;
    display:flex;align-items:center;justify-content:center;font-size:22px;text-decoration:none;border-radius:14px}
- body{--ov-bg:rgba(11,15,20,.82);--ov-fg:#eef1f5;--ov-dim:#b7c1cd;--ov-ok:#4ade80;--ov-off:#fbbf24;--ov-accent:#2563eb}
-</style><link rel="stylesheet" href="/web/overlays.css?v=4"><script src="/web/overlays.js?v=5"></script></head><body>
+ body{--ov-bg:var(--glass);--ov-fg:var(--text);--ov-dim:var(--text2);--ov-ok:var(--good);--ov-off:var(--warn);--ov-accent:var(--accent)}
+</style><link rel="stylesheet" href="/web/overlays.css?v=4"><link rel="stylesheet" href="/web/theme.css"><script src="/web/theme.js"></script><script src="/web/overlays.js?v=6"></script></head><body>
 <div id="map"></div>
 <div class="hud pg">
  <div class="t glass"><b id="spd">–</b><span>KM/H</span></div><div class="t glass"><b id="w">–</b><span>WATTS</span></div>
@@ -147,6 +148,7 @@
  <div class="t glass"><b id="gear">–</b><span>GEAR</span></div><div class="t glass"><b id="left">–</b><span id="leftl">KM LEFT</span></div>
 </div>
 <button id="menu" class="glass" aria-label="Menu">☰</button><a id="gamebtn" class="glass" href="/course" aria-label="Game view">🎮</a>
+<button id="fullscreenride" class="glass" type="button" aria-label="Full screen" title="Full screen">⛶</button>
 <button id="pgctl" class="glass" aria-label="Pages: tap to lock or unlock this page"></button>
 <div id="banner" class="glass" hidden></div>
 <div id="ghost" hidden></div>
@@ -160,19 +162,19 @@
  <button id="auto">Auto-shift</button>
  <button id="climb">Climbing mode</button>
  <div class="sub" style="margin:6px 0 4px">Today's focus - what auto-shift steers toward</div>
- <select id="fpick" style="width:100%;padding:12px;border-radius:12px;background:#0b0f14;color:#eef1f5;border:1px solid #2a3441;font-size:16px;margin-bottom:4px"></select>
+ <select id="fpick" style="width:100%;padding:12px;border-radius:12px;background:var(--bg);color:var(--text);border:1px solid var(--line);font-size:16px;margin-bottom:4px"></select>
  <div class="sub" id="fbuilds" style="margin-bottom:10px"></div>
  <div class="sub" style="margin:6px 0 4px">How hard does this ride feel? (1 very easy - 10 all out)</div>
  <div id="rpebtns" style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:12px"></div>
  <div class="sub">Climbing mode: low cadence (30–45 rpm), heavy gears.</div>
- <div class="sub" style="margin:4px 0 6px;color:#b7c1cd;font-weight:700">ERG · hold watts</div>
+ <div class="sub" style="margin:4px 0 6px;color:var(--text2);font-weight:700">ERG · hold watts</div>
  <div class="row"><button id="ergdn">−</button><div id="ergw">–</div><button id="ergup">+</button></div>
  <button id="erg">Hold these watts</button>
  <div class="sub" id="ergstate"></div>
- <div class="sub" style="margin:4px 0 6px;color:#b7c1cd;font-weight:700">Workout</div>
- <select id="wpick" style="width:100%;padding:12px;border-radius:12px;background:#0b0f14;color:#eef1f5;border:1px solid #2a3441;font-size:16px;margin-bottom:8px"></select>
+ <div class="sub" style="margin:4px 0 6px;color:var(--text2);font-weight:700">Workout</div>
+ <select id="wpick" style="width:100%;padding:12px;border-radius:12px;background:var(--bg);color:var(--text);border:1px solid var(--line);font-size:16px;margin-bottom:8px"></select>
  <button id="wgo">▶ Start workout</button>
- <div class="sub" style="margin:4px 0 2px;color:#b7c1cd;font-weight:700">Personal bests</div>
+ <div class="sub" style="margin:4px 0 2px;color:var(--text2);font-weight:700">Personal bests</div>
  <div id="pblist" style="margin-bottom:14px"></div>
  <button id="fs">Full screen</button>
  <div class="sub" id="awake"></div>
@@ -190,9 +192,8 @@
 import * as maplibregl from '/lib/maplibre-gl.mjs';
 import {LiveGraph} from '/web/livegraph.js';
 const $=id=>document.getElementById(id);
-const map=new maplibregl.Map({container:'map',style:'/style.json',center:[0,20],zoom:2,pitch:62,maxPitch:75,
+const map=new maplibregl.Map({container:'map',style:'/style.json',center:[-118.536,34.201],zoom:15.5,pitch:62,maxPitch:75,
   interactive:false,attributionControl:false});  // credits are in the ☰ drawer, clear of the shift buttons
-fetch('/api/home').then(r=>r.json()).then(h=>{ if(!route) map.jumpTo({center:h.center,zoom:15}); });
 const av=document.createElement('div');
 av.innerHTML='<svg id="avatar" viewBox="0 0 26 26"><circle cx="13" cy="13" r="11" fill="#2563eb" stroke="#fff" stroke-width="3"/><path d="M13 5 L18 16 L13 13 L8 16 Z" fill="#fff"/></svg>';
 const marker=new maplibregl.Marker({element:av,rotationAlignment:'map',pitchAlignment:'map'});
@@ -235,11 +236,11 @@ function drawProfile(d){
   const X=m=>m/L*c.width, Y=e=>c.height-6*dpr-(e-lo)/(hi-lo)*(c.height-20*dpr);
   const outline=()=>{ g.beginPath(); pr.forEach(([m,e],i)=>i?g.lineTo(X(m),Y(e)):g.moveTo(X(m),Y(e))); g.lineTo(c.width,c.height); g.lineTo(0,c.height); g.closePath(); };
   outline(); g.fillStyle='rgba(249,115,22,.35)'; g.fill();
-  g.save(); g.beginPath(); g.rect(0,0,X(d),c.height); g.clip(); outline(); g.fillStyle='rgba(37,99,235,.6)'; g.fill(); g.restore();
+  g.save(); g.beginPath(); g.rect(0,0,X(d),c.height); g.clip(); outline(); g.fillStyle='var(--shift-up)'; g.fill(); g.restore();
   const eAt=m=>{ const k=Math.min(pr.length-1,Math.max(0,Math.round(m/100))); return pr[k]?.[1]??lo; };
   const dot=(m,col)=>{ g.beginPath(); g.arc(X(m),Y(eAt(m)),6*dpr,0,7); g.fillStyle=col; g.fill(); g.lineWidth=2*dpr; g.strokeStyle='#fff'; g.stroke(); };
-  if(ghostD!==null) dot(ghostD,'#9ca3af'); dot(d,'#2563eb');
-  g.fillStyle='#b7c1cd'; g.font=`${11*dpr}px -apple-system,Roboto`; g.fillText(`${Math.round(hi-5)} m`,6*dpr,13*dpr);
+  if(ghostD!==null) dot(ghostD,'var(--muted)'); dot(d,'var(--accent)');
+  g.fillStyle='var(--text2)'; g.font=`${11*dpr}px -apple-system,Roboto`; g.fillText(`${Math.round(hi-5)} m`,6*dpr,13*dpr);
 }
 let pbSeen=null;
 function showPB(pb){ const el=$('pbflash'); el.hidden=!pb; if(!pb) return; el.textContent=pb.text;
@@ -253,7 +254,7 @@ async function poll(){
   if(st.workout && !st.route && !st.test){ location.replace('/course'); return; }
   if(ovMounted && PHONE.matches) Overlays.update(st,{profile:route?.profile, name:route?.name, hint:st.focus?.hint});
   const r=st.route;
-  const wb=st.wbal, wtag=wb&&wb.pct<95?` <small style="color:${wb.pct<25?'#f87171':wb.pct<50?'#fbbf24':'#b7c1cd'}">· W′ ${Math.max(0,wb.pct)}%</small>`:'';
+  const wb=st.wbal, wtag=wb&&wb.pct<95?` <small style="color:${wb.pct<25?'var(--bad)':wb.pct<50?'var(--warn)':'var(--text2)'}">· W′ ${Math.max(0,wb.pct)}%</small>`:'';
   const fp=focusPct(st.focus), kc=`${st.kcal} <small>kcal${fp?'':` · ${st.kcal_min.toFixed(1)}/min`}</small>${wtag}`;
   $('cal').innerHTML=(fp?`<div class="ftop"><span>${kc}</span>${fp}</div>`:kc)+focusMonitor(st.focus);
   $('w').textContent=st.power; $('rpm').textContent=st.cadence; $('spd').textContent=st.speed.toFixed(1);
@@ -381,7 +382,7 @@ function syncDrawer(){ if(!st||$('drawer').hidden) return;
     $('wpick').innerHTML=`<optgroup label="Workouts">${st.workouts.map((n,i)=>`<option value="${i}">${n}</option>`).join('')}</optgroup>
       <optgroup label="Tests"><option value="t:ftp">FTP ramp test</option><option value="t:big_gear">Big-gear test (3 min at 50-60 rpm)</option></optgroup>`; }
   $('wgo').textContent=st.workout?'■ Stop workout':'▶ Start workout'; $('wgo').className=st.workout?'warn':'';
-  $('pblist').innerHTML=(st.bests||[]).map(b=>`<div class="pbrow"><b>${b.label}</b><span>${b.ride?'today '+b.ride+' W · ':''}best <b style="color:#eef1f5">${b.best||'–'}${b.best?' W':''}</b></span></div>`).join(''); }
+  $('pblist').innerHTML=(st.bests||[]).map(b=>`<div class="pbrow"><b>${b.label}</b><span>${b.ride?'today '+b.ride+' W · ':''}best <b style="color:var(--text)">${b.best||'–'}${b.best?' W':''}</b></span></div>`).join(''); }
 const post=async u=>{ await fetch(u,{method:'POST'}).catch(()=>{}); poll(); };
 $('auto').onclick=()=>post('/auto/'+(st?.auto?'off':'on'));
 $('climb').onclick=()=>post('/climb/'+(st?.climbing?'off':'on'));
@@ -394,26 +395,36 @@ $('wgo').onclick=async()=>{ const v=$('wpick').value;
   if(v==='t:big_gear'){ await fetch('/api/coach/test',{method:'POST',body:JSON.stringify({test:'big_gear'})}).catch(()=>{}); return poll(); }
   post('/workout/'+v); };
 $('end').onclick=async()=>{ if(!confirm('End this route?')) return; await post('/api/route/stop'); clearRoute(); $('drawer').hidden=true; };
-$('fs').onclick=()=>{ if(document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen?.({navigationUI:'hide'}).catch(()=>{}); };
+$('fs').onclick=$('fullscreenride').onclick=async()=>{keepAwake();$('drawer').hidden=true;
+  try{if(document.fullscreenElement||document.webkitFullscreenElement)await(document.exitFullscreen?.()||document.webkitExitFullscreen?.());
+    else if(document.documentElement.requestFullscreen)await document.documentElement.requestFullscreen({navigationUI:'hide'});
+    else if(document.documentElement.webkitRequestFullscreen)document.documentElement.webkitRequestFullscreen();
+    else $('awake').textContent='Full screen needs browser support; use its full screen or home-screen mode.';}
+  catch(e){$('awake').textContent='Full screen was blocked by the browser. Tap ⛶ to retry.';}};
+const fullscreenLabel=()=>{const on=!!(document.fullscreenElement||document.webkitFullscreenElement);$('fs').textContent=on?'Exit full screen':'Full screen';$('fullscreenride').setAttribute('aria-label',on?'Exit full screen':'Full screen');$('fullscreenride').title=on?'Exit full screen':'Full screen';map.resize();};
+document.addEventListener('fullscreenchange',fullscreenLabel);document.addEventListener('webkitfullscreenchange',fullscreenLabel);
 
 // ---- Keep the phone's screen on while riding. ----
 // The Wake Lock API needs a secure page (it works at 127.0.0.1, not over plain Wi-Fi);
 // otherwise a tiny silent looping video does the same job, as video players keep screens on.
-let lock=null, vid=null;
+let lock=null, vid=null, awakePending=false, awakeTimer=null;
 async function keepAwake(){
-  if(lock&&!lock.released) return;
-  try{ if(navigator.wakeLock){ lock=await navigator.wakeLock.request('screen'); $('awake').textContent='Screen stays on while this page is open.'; return; } }catch(e){}
+  if(document.visibilityState!=='visible'||awakePending||lock&&!lock.released) return;
+  awakePending=true;
+  try{ if(navigator.wakeLock){ lock=await navigator.wakeLock.request('screen'); $('awake').textContent='Screen stays on while this page is open.';
+    lock.addEventListener('release',()=>{lock=null;$('awake').textContent='Screen wake lock released. Tap Full screen to retry.';});return; } }catch(e){}finally{awakePending=false;}
   if(!vid){ const c=document.createElement('canvas'); c.width=c.height=2; const x=c.getContext('2d');
-    setInterval(()=>{ x.fillStyle=Date.now()%2000<1000?'#000':'#010101'; x.fillRect(0,0,2,2); },500);
+    if(!c.captureStream){$('awake').textContent='Keep the tablet display timeout extended while riding.';return;}
+    awakeTimer=setInterval(()=>{ x.fillStyle=Date.now()%2000<1000?'#000':'#010101'; x.fillRect(0,0,2,2); },500);
     vid=document.createElement('video'); vid.muted=true; vid.playsInline=true; vid.loop=true;
     vid.srcObject=c.captureStream?.(2)||null; vid.style.cssText='position:fixed;width:1px;height:1px;opacity:0;pointer-events:none';
     document.body.appendChild(vid); }
   if(!vid.paused) return;
-  vid.play().then(()=>$('awake').textContent='Screen kept on (video method).')
+  vid.play().then(()=>$('awake').textContent='Keep awake requested (compatibility mode).')
     .catch(()=>$('awake').textContent='If the screen dims, raise the display timeout in Android settings.');
 }
-document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible'&&lock){ lock=null; keepAwake(); } });
-addEventListener('pointerdown',keepAwake,{once:true});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')keepAwake();else{lock?.release();vid?.pause();}});
+addEventListener('pointerdown',keepAwake);addEventListener('pagehide',()=>{lock?.release();vid?.pause();clearInterval(awakeTimer);});keepAwake();
 
 // ---- Live graph: flips with the elevation profile (📈 / ⛰); on a free ride it's all there is. ----
 const graph=new LiveGraph($('lg'),{window:300,compact:true,show:{gear:true,grade:true}}).start();

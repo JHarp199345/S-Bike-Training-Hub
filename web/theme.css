@@ -1,0 +1,159 @@
+/* theme.css - every page's colours are named roles (var(--...)); a theme sets the roles.
+   Classic is the original look. The five animal/plant themes adapt Base16 schemes from
+   tinted-theming (MIT): Honeybee - Gruvbox Dark Hard (Dawid Kurek, morhetz); Rattlesnake -
+   Atelier Dune (Bram de Haan); Peacock - Deep Oceanic Next (spearkkk); Harpy eagle - Grayscale
+   Light (Alexandre Gavioli) with Gruvbox Light's accents; Cherry blossom - Rose Pine (Emilia
+   Dunfelt). Power-zone colours, map colours and brand colours stay fixed: they carry meaning.
+   Charts read the roles too (theme.js resolves var() for canvas). */
+
+:root{
+  --bg:#0b0f14; --card:#151b23; --deep:#0f141b; --control:#1f2937; --line:#2a3441;
+  --text:#eef1f5; --text2:#b7c1cd; --muted:#8b98a8;
+  --accent:#2563eb; --on-accent:#ffffff; --accent2:#9333ea; --on-accent2:#ffffff;
+  --good:#4ade80; --good-fill:#16a34a; --on-good:#ffffff; --good-bg:rgba(20,83,45,.92);
+  --warn:#fbbf24; --warn-bg:#78350f; --bad:#f87171; --bad-fill:#dc2626; --bad-bg:#7f1d1d; --info:#60a5fa;
+  --glass:rgba(11,15,20,.82); --grid:rgba(255,255,255,.07); --grid2:rgba(255,255,255,.3);
+  --shift-dn:rgba(22,163,74,.92); --shift-up:rgba(37,99,235,.92); --on-shift:#ffffff;
+  --bar:rgba(34,197,94,.35); --band:none; --band-h:0px;
+}
+
+/* 🐝 Honeybee - Gruvbox Dark Hard: black and gold, cream text; the comb along the top, honey in the bars. */
+:root[data-theme="honeybee"]{color-scheme:dark;
+  --bg:#1d2021; --card:#282523; --deep:#181a1b; --control:#3c3836; --line:#504945;
+  --text:#fbf1c7; --text2:#ebdbb2; --muted:#bdae93;
+  --accent:#fabd2f; --on-accent:#1d2021; --accent2:#fe8019; --on-accent2:#1d2021;
+  --good:#b8bb26; --good-fill:#98971a; --on-good:#1d2021; --good-bg:rgba(121,116,14,.9);
+  --warn:#fabd2f; --warn-bg:#6b4a0b; --bad:#fb4934; --bad-fill:#cc241d; --bad-bg:#6e1a13; --info:#83a598;
+  --glass:rgba(29,32,33,.88); --grid:rgba(251,241,199,.07); --grid2:rgba(251,241,199,.3);
+  --shift-dn:rgba(152,151,26,.95); --shift-up:rgba(250,189,47,.95); --on-shift:#1d2021;
+  --bar:linear-gradient(90deg,#d79921,#fabd2f 70%,#ffd97a);
+  --band-h:18px;
+  --band:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='18' viewBox='0 0 30 18'%3E%3Crect width='30' height='18' fill='%23141312'/%3E%3Cpath d='M8 1.5l7 4v7l-7 4-7-4v-7zM23 1.5l7 4v7l-7 4-7-4v-7z' fill='%23fabd2f' fill-opacity='.18' stroke='%23fabd2f' stroke-width='1.3'/%3E%3C/svg%3E");}
+
+/* 🐍 Rattlesnake - Atelier Dune: desert tan and dusk brown; the diamond chain along the top,
+   the black-and-white tail bands in the bars. */
+:root[data-theme="rattlesnake"]{color-scheme:dark;
+  --bg:#20201d; --card:#292824; --deep:#1b1b18; --control:#3a3833; --line:#4d4a40;
+  --text:#fefbec; --text2:#e8e4cf; --muted:#a6a28c;
+  --accent:#c9a45c; --on-accent:#20201d; --accent2:#b65611; --on-accent2:#fefbec;
+  --good:#60ac39; --good-fill:#4f8f2e; --on-good:#fefbec; --good-bg:rgba(79,143,46,.85);
+  --warn:#d4a92c; --warn-bg:#5e4a14; --bad:#d73737; --bad-fill:#b52d2d; --bad-bg:#5c1d1b; --info:#6684e1;
+  --glass:rgba(32,32,29,.88); --grid:rgba(254,251,236,.07); --grid2:rgba(254,251,236,.3);
+  --shift-dn:rgba(110,107,94,.95); --shift-up:rgba(182,86,17,.95); --on-shift:#fefbec;
+  --bar:repeating-linear-gradient(90deg,#fefbec 0 7px,#1b1b18 7px 12px);
+  --band-h:18px;
+  --band:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='26' height='18' viewBox='0 0 26 18'%3E%3Crect width='26' height='18' fill='%23b39468'/%3E%3Cpath d='M13 1.5L24.5 9 13 16.5 1.5 9z' fill='%234a3421' stroke='%23fefbec' stroke-width='1.4'/%3E%3Cpath d='M13 5.5L19 9 13 12.5 7 9z' fill='%23857150'/%3E%3C/svg%3E");}
+
+/* 🦚 Peacock - Deep Oceanic Next: deep teal, peacock teal, cobalt and bronze; feather eyes along
+   the top, feather-band colours in the bars. */
+:root[data-theme="peacock"]{color-scheme:dark;
+  --bg:#001c1f; --card:#002931; --deep:#00161a; --control:#003640; --line:#004852;
+  --text:#f2f7f9; --text2:#d4e1e8; --muted:#7fb5bd;
+  --accent:#4fb7ae; --on-accent:#001c1f; --accent2:#568ccf; --on-accent2:#f2f7f9;
+  --good:#63b784; --good-fill:#3e9463; --on-good:#f2f7f9; --good-bg:rgba(62,148,99,.85);
+  --warn:#f3b863; --warn-bg:#5a4418; --bad:#d3464d; --bad-fill:#b8363d; --bad-bg:#5b1a1f; --info:#568ccf;
+  --glass:rgba(0,28,31,.88); --grid:rgba(242,247,249,.07); --grid2:rgba(242,247,249,.3);
+  --shift-dn:rgba(79,183,174,.95); --shift-up:rgba(86,140,207,.95); --on-shift:#001c1f;
+  --bar:linear-gradient(90deg,#1e7a3c,#4fb7ae 45%,#568ccf 80%,#f3b863);
+  --band-h:22px;
+  --band:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='34' height='22' viewBox='0 0 34 22'%3E%3Crect width='34' height='22' fill='%23003640'/%3E%3Cellipse cx='17' cy='11' rx='14' ry='9.5' fill='%231e7a3c'/%3E%3Cellipse cx='17' cy='11' rx='10.5' ry='7.5' fill='%23c9a24a'/%3E%3Cellipse cx='17' cy='11' rx='7.5' ry='5.8' fill='%23568ccf'/%3E%3Cellipse cx='17' cy='11' rx='3.6' ry='3.4' fill='%2306163a'/%3E%3C/svg%3E");}
+
+/* 🦅 Harpy eagle - Grayscale Light with Gruvbox Light's accents: bone white, slate crest, black
+   chest band and talon yellow; barred feathers in the bars; beak-cut corners. */
+:root[data-theme="harpy_eagle"]{color-scheme:light;
+  --bg:#f3f3f1; --card:#ffffff; --deep:#e9e9e6; --control:#e3e3e3; --line:#b9b9b9;
+  --text:#101010; --text2:#353535; --muted:#5a5a5a;
+  --accent:#f2c230; --on-accent:#101010; --accent2:#464646; --on-accent2:#ffffff;
+  --good:#5f7a0e; --good-fill:#79740e; --on-good:#ffffff; --good-bg:rgba(121,116,14,.9);
+  --warn:#9a6310; --warn-bg:#f6e3b4; --bad:#9d0006; --bad-fill:#9d0006; --bad-bg:#f4c9c6; --info:#076678;
+  --glass:rgba(243,243,241,.9); --grid:rgba(16,16,16,.08); --grid2:rgba(16,16,16,.35);
+  --shift-dn:rgba(70,70,70,.95); --shift-up:rgba(242,194,48,.97); --on-shift:#101010;
+  --bar:repeating-linear-gradient(90deg,#101010 0 5px,#ffffff 5px 9px);
+  --band-h:20px;
+  --band:linear-gradient(#6a7179 0 9px,#101010 9px 20px);}
+:root[data-theme="harpy_eagle"] #drawer .shift-note,:root[data-theme="harpy_eagle"] .shift button#dn{color:#ffffff}
+
+/* 🌸 Cherry blossom - Rose Pine: plum-bark night and blossom pink; petals along the top, a pink
+   bloom in the bars. */
+:root[data-theme="cherry_blossom"]{color-scheme:dark;
+  --bg:#191724; --card:#1f1d2e; --deep:#16141f; --control:#26233a; --line:#3b3753;
+  --text:#e0def4; --text2:#cfcbe6; --muted:#908caa;
+  --accent:#ebbcba; --on-accent:#191724; --accent2:#eb6f92; --on-accent2:#191724;
+  --good:#9ccfd8; --good-fill:#31748f; --on-good:#e0def4; --good-bg:rgba(49,116,143,.85);
+  --warn:#f6c177; --warn-bg:#5a4520; --bad:#eb6f92; --bad-fill:#b4637a; --bad-bg:#56243a; --info:#c4a7e7;
+  --glass:rgba(25,23,36,.88); --grid:rgba(224,222,244,.07); --grid2:rgba(224,222,244,.3);
+  --shift-dn:rgba(49,116,143,.95); --shift-up:rgba(235,111,146,.95); --on-shift:#191724;
+  --bar:linear-gradient(90deg,#b4637a,#eb6f92 50%,#ebbcba);
+  --band-h:20px;
+  --band:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='20' viewBox='0 0 40 20'%3E%3Crect width='40' height='20' fill='%23241f2d'/%3E%3Cpath d='M0 14c8-3 14 2 22-1s12-6 18-4' stroke='%23524f67' stroke-width='1.6' fill='none'/%3E%3Cg fill='%23ebbcba'%3E%3Ccircle cx='12' cy='7' r='2.4'/%3E%3Ccircle cx='15.2' cy='9.3' r='2.4'/%3E%3Ccircle cx='14' cy='13' r='2.4'/%3E%3Ccircle cx='10' cy='13' r='2.4'/%3E%3Ccircle cx='8.8' cy='9.3' r='2.4'/%3E%3C/g%3E%3Ccircle cx='12' cy='10.4' r='1.5' fill='%23eb6f92'/%3E%3Ccircle cx='31' cy='6' r='1.8' fill='%23ebbcba' fill-opacity='.7'/%3E%3C/svg%3E");}
+
+/* ── the signature along the top of every page (in the top border, so nothing moves) ───────── */
+:root[data-theme] body:not(:has(#map)){border-top:var(--band-h) solid transparent;background-image:var(--band);
+  background-repeat:repeat-x;background-position:left top;background-origin:border-box;background-size:auto var(--band-h)}
+:root[data-theme] #drawer,:root[data-theme] #side{border-top:var(--band-h) solid transparent;background-image:var(--band);
+  background-repeat:repeat-x;background-origin:border-box;background-size:auto var(--band-h)}
+:root[data-theme="classic"] body,:root:not([data-theme]) body{border-top:0}
+
+
+/* ── inner tiles: each theme's own surface, edged in its colour, so the card body isn't the same dark in every theme ── */
+:root[data-theme="honeybee"]{--tile:#2f2716;--tile-edge:#fabd2f}
+:root[data-theme="rattlesnake"]{--tile:#2c2619;--tile-edge:#b65611}
+:root[data-theme="peacock"]{--tile:#003a40;--tile-edge:#4fb7ae}
+:root[data-theme="harpy_eagle"]{--tile:#f6f6f4;--tile-edge:#101010}
+:root[data-theme="cherry_blossom"]{--tile:#2a2338;--tile-edge:#eb6f92}
+:root[data-theme]:not([data-theme="classic"]) :is(.headline button,.impactnum,.sys){background:var(--tile);border:1px solid var(--line);border-left:4px solid var(--tile-edge)}
+:root[data-theme="harpy_eagle"] :is(.headline button,.impactnum,.sys){border-radius:3px 14px 3px 14px}
+:root[data-theme="cherry_blossom"] :is(.headline button,.impactnum,.sys){border-radius:16px}
+
+/* ── the theme carried down the page: section headings in its colour, each with the animal's mark ── */
+:root[data-theme="honeybee"]{--h2:#fabd2f;--mark:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M8 1l6 3.5v7L8 15l-6-3.5v-7z' fill='%23fabd2f'/%3E%3Cpath d='M8 4.5l3 1.8v3.4L8 11.5 5 9.7V6.3z' fill='%231d2021'/%3E%3C/svg%3E")}
+:root[data-theme="rattlesnake"]{--h2:#c9a45c;--mark:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M8 1l7 7-7 7-7-7z' fill='%234a3421' stroke='%23fefbec' stroke-width='1.5'/%3E%3Cpath d='M8 5l3 3-3 3-3-3z' fill='%23c9a45c'/%3E%3C/svg%3E")}
+:root[data-theme="peacock"]{--h2:#4fb7ae;--mark:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cellipse cx='8' cy='8' rx='7.5' ry='6.5' fill='%231e7a3c'/%3E%3Cellipse cx='8' cy='8' rx='5.5' ry='4.8' fill='%23c9a24a'/%3E%3Cellipse cx='8' cy='8' rx='3.8' ry='3.4' fill='%23568ccf'/%3E%3Ccircle cx='8' cy='8' r='1.8' fill='%2306163a'/%3E%3C/svg%3E")}
+:root[data-theme="harpy_eagle"]{--h2:#101010;--mark:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1 4h14L8 13z' fill='%23f2c230' stroke='%23101010' stroke-width='1.4' stroke-linejoin='round'/%3E%3C/svg%3E")}
+:root[data-theme="cherry_blossom"]{--h2:#ebbcba;--mark:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cg fill='%23ebbcba'%3E%3Ccircle cx='8' cy='3.6' r='3'/%3E%3Ccircle cx='12.2' cy='6.7' r='3'/%3E%3Ccircle cx='10.6' cy='11.6' r='3'/%3E%3Ccircle cx='5.4' cy='11.6' r='3'/%3E%3Ccircle cx='3.8' cy='6.7' r='3'/%3E%3C/g%3E%3Ccircle cx='8' cy='8' r='2' fill='%23eb6f92'/%3E%3C/svg%3E")}
+:root[data-theme]:not([data-theme="classic"]) h2{color:var(--h2)}
+:root[data-theme]:not([data-theme="classic"]) h2::before,
+:root[data-theme]:not([data-theme="classic"]) .card > .bar > b:first-child::before{content:"";display:inline-block;width:14px;height:14px;
+  margin-right:7px;vertical-align:-2px;background:var(--mark) no-repeat center/contain}
+
+/* ── bars fill with the theme's signature (honey, tail bands, feather colours, barring, bloom) ─ */
+:root[data-theme]:not([data-theme="classic"]) .budget i,
+:root[data-theme]:not([data-theme="classic"]) .fm .bar i{background:var(--bar);opacity:.85}
+
+/* ── text on coloured buttons ─────────────────────────────────────────────────────────────── */
+button.on,button.blue,.rpebtns button.on,.rng button.on{color:var(--on-accent)}
+button.go,#drawer button.on{color:var(--on-good)}
+button.purple,button.ride{color:var(--on-accent2)}
+
+/* ── the harpy eagle's beak-cut corners ───────────────────────────────────────────────────── */
+:root[data-theme="harpy_eagle"] .card,:root[data-theme="harpy_eagle"] .sys,:root[data-theme="harpy_eagle"] .sysc,
+:root[data-theme="harpy_eagle"] .t,:root[data-theme="harpy_eagle"] .k,:root[data-theme="harpy_eagle"] .climb,
+:root[data-theme="harpy_eagle"] .saved,:root[data-theme="harpy_eagle"] .idea{border-radius:3px 16px 3px 16px}
+:root[data-theme="harpy_eagle"] .card{border:1px solid var(--line)}
+:root[data-theme="harpy_eagle"] .glass{border:1px solid var(--line)}
+
+/* ── the picker: a row of swatches, only where a page asks for it ─────────────────────────── */
+.theme-picker{margin:14px 0 4px}
+/* the Appearance button: a small round swatch in the bottom corner; the themes open above it */
+.appearance-btn{position:fixed;right:14px;bottom:14px;z-index:1000;width:40px;height:40px;border-radius:50%;padding:0;
+  display:flex;align-items:center;justify-content:center;background:var(--card);border:1px solid var(--line);
+  box-shadow:0 4px 14px rgba(0,0,0,.35);cursor:pointer;color:var(--text);font:600 13px -apple-system,Roboto,sans-serif}
+.appearance-btn .ap-dot{width:20px;height:20px;border-radius:50%;
+  background:conic-gradient(var(--accent) 0 33%,var(--accent2) 0 66%,var(--good) 0);box-shadow:0 0 0 2px var(--card)}
+.appearance-btn.in-menu{position:static;width:auto;height:auto;border-radius:10px;padding:8px 12px;gap:8px;margin-top:12px;box-shadow:none}
+.appearance-pop{position:fixed;right:14px;bottom:62px;z-index:1000;width:min(330px,calc(100vw - 28px));margin:0;
+  background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;box-shadow:0 10px 30px rgba(0,0,0,.45)}
+.appearance-pop.in-menu{position:static;width:auto;box-shadow:none;margin-top:8px}
+.appearance-pop[hidden]{display:none}
+.theme-picker .tp-label{font-size:12px;color:var(--muted);margin-bottom:6px;letter-spacing:.5px}
+.theme-picker .tp-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:6px}
+.theme-picker button{all:unset;box-sizing:border-box;cursor:pointer;border:2px solid var(--line);border-radius:10px;
+  padding:6px;background:var(--deep);color:var(--text);font:600 12px/1.2 -apple-system,Roboto,sans-serif;text-align:center}
+.theme-picker button[aria-pressed="true"]{border-color:var(--accent)}
+.theme-picker .sw{display:block;height:26px;border-radius:6px;margin-bottom:5px}
+.sw-classic{background:linear-gradient(90deg,#0b0f14 50%,#2563eb 50%)}
+.sw-honeybee{background:linear-gradient(90deg,#1d2021 0 34%,#fabd2f 34% 67%,#fe8019 67%)}
+.sw-rattlesnake{background:repeating-linear-gradient(90deg,#b39468 0 10px,#4a3421 10px 16px,#fefbec 16px 18px)}
+.sw-peacock{background:linear-gradient(90deg,#1e7a3c,#4fb7ae,#568ccf,#f3b863)}
+.sw-harpy_eagle{background:linear-gradient(#6a7179 0 40%,#101010 40% 60%,#f3f3f1 60% 85%,#f2c230 85%)}
+.sw-cherry_blossom{background:linear-gradient(90deg,#191724 0 34%,#ebbcba 34% 67%,#eb6f92 67%)}

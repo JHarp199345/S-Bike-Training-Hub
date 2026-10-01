@@ -66,8 +66,8 @@ PAGE = """<!doctype html><html><head><meta charset="utf-8"><title>S-Bike Hub</ti
  .qrrow{display:flex;gap:16px;align-items:center;margin:8px 0}.qr{flex:none;width:180px;height:180px;background:#fff;border-radius:10px;overflow:hidden}
  .qr svg{width:100%;height:100%;display:block}
  @media (max-width:520px){.qrrow{flex-direction:column;align-items:flex-start}}
-</style></head><body>
-<h1>S-Bike Hub</h1><div class="sub" style="margin-bottom:6px"><a href="/ride" style="color:#60a5fa">🗺 Ride view</a> · <a href="/plan" style="color:#60a5fa">Plan a ride</a> · <a href="/fitness" style="color:#60a5fa">📈 Fitness</a> · <a href="/workouts" style="color:#60a5fa">🛠 Workouts</a> · <a href="/posts" style="color:#60a5fa">📣 Posts</a> · <a href="/milestones" style="color:#60a5fa">🎖 Streaks</a> · <a href="/coach" style="color:#60a5fa">🧭 Coach</a></div><div class="sub" id="sub">Starting…</div>
+</style><link rel="stylesheet" href="/web/theme.css"><script src="/web/theme.js"></script></head><body>
+<h1>S-Bike Hub</h1><div class="sub" style="margin-bottom:6px"><a href="/ride" style="color:var(--info)">🗺 Ride view</a> · <a href="/plan" style="color:var(--info)">Plan a ride</a> · <a href="/fitness" style="color:var(--info)">📈 Fitness</a> · <a href="/workouts" style="color:var(--info)">🛠 Workouts</a> · <a href="/posts" style="color:var(--info)">📣 Posts</a> · <a href="/milestones" style="color:var(--info)">🎖 Streaks</a> · <a href="/coach" style="color:var(--info)">🧭 Coach</a></div><div class="sub" id="sub">Starting…</div>
 <div class="dots">
  <div class="dot"><b>BIKE</b><span id="bike">–</span></div>
  <div class="dot"><b>WATCH</b><span id="watch">–</span></div>
@@ -265,6 +265,11 @@ async def serve(bridge, port=8729, lan=True):
                 done = sorted(report.RIDES.glob("ride_*_report.html"), key=lambda q: q.stat().st_mtime)
                 rep = done[-1] if done else None
             body = rep.read_bytes() if rep and rep.exists() else b"No ride report yet."
+            if b"<html" in body.lower() or b"<style" in body.lower():
+                # Reports generated before themes were added still follow the shared setting.
+                if b"/web/theme.css" not in body:
+                    body = body.replace(b"</style>", b'</style><link rel="stylesheet" href="/web/theme.css">'
+                                        b'<script src="/web/theme.js"></script>', 1)
             ctype = "text/html; charset=utf-8"
         elif path in (b"/ftp/start", b"/ftp/stop") and method == b"POST":
             bridge.ftp_test_start() if path.endswith(b"start") else bridge.ftp_test_stop()

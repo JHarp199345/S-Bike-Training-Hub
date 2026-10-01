@@ -22,6 +22,7 @@ through the hub command - or picked on the Coach page.
 coach.json (beside the rides folder, kept out of git) holds it all.
 """
 import datetime as dt
+import copy
 import json
 import statistics
 from pathlib import Path
@@ -202,6 +203,22 @@ def set_sessions(d, date, sessions, _trusted=False):
                  "steps": [str(step)[:160] for step in steps],
                  "note": str(item.get("note") or "")[:300],
                  "workout": str(item.get("workout") or "")[:120] or None}
+        if item["sport"] == "swim" and item.get("swim_profile"):
+            import programming
+            if item["swim_profile"] not in programming.SWIM_PROFILE_IDS:
+                raise ValueError("Unknown swim profile")
+            entry["swim_profile"] = item["swim_profile"]
+        if item["sport"] == "swim" and item.get("swim_plan"):
+            snap=item["swim_plan"]
+            if not isinstance(snap,dict): raise ValueError("swim_plan must be an object")
+            entry["swim_plan"]={k:str(snap[k])[:600] for k in ("why","purpose") if snap.get(k)}
+            for key,allowed in (("stroke_mix",("free","back","breast","fly")),("work_mix",("drill_swim","kick","pull","swim"))):
+                if key in snap:
+                    mix=snap[key]
+                    if not isinstance(mix,dict) or any(k not in allowed or not isinstance(v,(int,float)) or not 0<=v<=100 for k,v in mix.items()):
+                        raise ValueError("Invalid planned swim ratios")
+                    if not 99<=sum(mix.values())<=101: raise ValueError("Planned swim ratios must total 100")
+                    entry["swim_plan"][key]={k:float(mix.get(k,0)) for k in allowed}
         if item["sport"] == "gym" and item.get("lifts"):            # planned lifts (lifting.py): checked, and the rider's rules apply
             import lifting
             entry["lifts"] = item["lifts"] if _trusted else lifting.clean(d, item["lifts"])
@@ -221,7 +238,7 @@ def set_sessions(d, date, sessions, _trusted=False):
 EVENT_KINDS = ("test", "race", "goal")
 
 
-def add_event(d, date, name, kind="race", sport="bike", note=""):
+def add_event(d, date, name, kind="race", sport="bike", note="", detail=None):
     """A date to plan toward: an FTP test, a race, a goal. Returns it (with an id)."""
     import re
     if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(date)):
@@ -232,6 +249,15 @@ def add_event(d, date, name, kind="race", sport="bike", note=""):
         raise ValueError("sport is bike, run, swim, tri or other")
     ev = {"id": f"{date}-{re.sub(r'[^a-z0-9]+', '-', str(name).lower()).strip('-')[:30]}", "date": str(date),
           "name": str(name)[:80], "kind": kind, "sport": sport, "note": str(note or "")[:300]}
+    if detail:                                   # what the race is (programming.py plans backward from it)
+        import programming
+        det = {"type": detail.get("type") if detail.get("type") in programming.EVENT_TYPES else None}
+        if detail.get("distance"):
+            det["distance"] = str(detail["distance"])[:30]
+        if detail.get("strokes"):
+            det["strokes"] = [{"stroke": x.get("stroke"), "m": int(x.get("m") or 0)} for x in detail["strokes"][:12]
+                              if x.get("stroke") in ("free", "back", "breast", "fly", "im")]
+        ev["detail"] = {k: v for k, v in det.items() if v}
     d.setdefault("events", [])
     d["events"] = [e for e in d["events"] if e["id"] != ev["id"]] + [ev]
     return ev
@@ -343,6 +369,27 @@ def week(d, date, done=None):
         sessions = p.get("sessions") or ([{"sport": p.get("sport"), "minutes": p.get("minutes"),
                                           "name": p.get("sport", "").title(), "steps": [],
                                           "note": p.get("note") or "", "workout": p.get("workout")}] if p.get("sport") else [])
+        sessions = copy.deepcopy(sessions)
+        actual = copy.deepcopy((done or {}).get(k, []))
+        used = set()
+        gym_index = 0
+        for s in sessions:
+            if s.get("sport") == "gym":
+                log = next((l for l in (d.get("lifting") or {}).get("logs", [])
+                            if l.get("date") == k and l.get("session") == s.get("name")
+                            and (l.get("inputs") or {}).get("session_index") in (None, gym_index)), None)
+                gym_index += 1
+                if log:
+                    s["completion"] = {"minutes": log.get("minutes"), "lifting": log}
+                continue
+            want = {"ride": "bike"}.get(s.get("sport"), s.get("sport"))
+            matches = [(n, a) for n, a in enumerate(actual) if n not in used
+                       and {"ride": "bike"}.get(a.get("sport"), a.get("sport")) == want
+                       and a.get("minutes", 0) >= max(ATTEMPT_MIN, (s.get("minutes") or 0) * ATTEMPT_SHARE)]
+            if matches:
+                n, a = matches[0]
+                used.add(n)
+                s["completion"] = a
         out.append({"date": k, "sport": p.get("sport") or (sessions[0]["sport"] if sessions else None),
                     "minutes": p.get("minutes") or (sessions[0]["minutes"] if sessions else None),
                     "sessions": sessions, "note": p.get("note"),

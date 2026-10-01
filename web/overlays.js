@@ -73,9 +73,10 @@ const Overlays = (() => {
     return `<div class="ov-band"><u style="left:${p(lo)}%;width:${p(hi) - p(lo)}%"></u><em class="${ok === false ? 'off' : ok ? 'ok' : ''}" style="left:${p(v)}%"></em></div>`;
   }
   // a workout block's watt zones (erg.py): black / red / yellow / GREEN / yellow / red / black around the target
-  const WZ = [[0, .65, '#111'], [.65, .8, '#e53e3e'], [.8, .9, '#ecc94b'], [.9, 1.2, '#48bb78'], [1.2, 1.4, '#ecc94b'], [1.4, 1.6, '#e53e3e'], [1.6, 1.8, '#111']];
-  function zoneBar(v, target, zone) {
-    const p = x => Math.max(0, Math.min(100, 100 * x / 1.8));
+  function zoneBar(v, target, zone, easy) {
+    const gh=easy?5/3:1.2,yh=easy?1.8:1.4,rh=easy?2:1.6,top=rh+.2;
+    const WZ=[[0,.65,'#111'],[.65,.8,'#e53e3e'],[.8,1,'#ecc94b'],[1,gh,'#48bb78'],[gh,yh,'#ecc94b'],[yh,rh,'#e53e3e'],[rh,top,'#111']];
+    const p = x => Math.max(0, Math.min(100, 100 * x / top));
     const grad = WZ.map(([a, b, c]) => `${c} ${p(a)}% ${p(b)}%`).join(',');
     return `<div class="ov-band" style="background:linear-gradient(90deg,${grad});opacity:.95"><em class="${zone === 'green' || zone === 'yellow' ? 'ok' : 'off'}" style="left:${p(v / target)}%"></em></div>`;
   }
@@ -92,10 +93,11 @@ const Overlays = (() => {
     if (!root || !st) return;
     const f = st.focus || {}, wk = st.workout, rt = st.route;
     // workout blocks: the lit-road watts are the block's target, not the day's focus band
-    const wTarget = wk ? wk.watts : null, wLo = wk ? Math.round(wTarget * 0.9) : f.watts?.[0], wHi = wk ? Math.round(wTarget * 1.2) : f.watts?.[1];
-    const wOk = wk ? (st.power >= wTarget * 0.8 && st.power <= wTarget * 1.4) : f.watts_ok;   // green or yellow: on the road
+    const wTarget = wk ? wk.watts : null, wLo = wk ? (wk.power_band?.[0]??wTarget) : f.watts?.[0], wHi = wk ? (wk.power_band?.[1]??Math.round(wTarget * 1.4)) : f.watts?.[1];
+    const rpm=wk?.cadence_band||f.rpm, rpmOk=extra.effort?extra.effort.rpm_ok:(rpm?st.cadence>=rpm[0]&&st.cadence<=rpm[1]:f.rpm_ok);
+    const wOk=extra.effort?extra.effort.watts_ok:wk?(st.power>=wLo):f.watts_ok;
     strip.innerHTML = `<span class="${wOk === false ? 'off' : wOk ? 'ok' : ''}"><b>${st.power ?? '–'}</b> W</span>` +
-                      `<span class="${f.rpm_ok === false ? 'off' : f.rpm_ok ? 'ok' : ''}"><b>${st.cadence ?? '–'}</b> rpm</span>`;
+                      `<span class="${rpmOk === false ? 'off' : rpmOk ? 'ok' : ''}"><b>${st.cadence ?? '–'}</b> rpm</span>`;
     const doneM = rt ? rt.done_m : null, totalM = rt ? rt.total_m : extra.total_m;
     cards.ride.innerHTML = `<h4>RIDE</h4><div class="ov-grid">
       <div><b>${(st.speed ?? 0).toFixed(1)}</b><span>KM/H</span></div><div><b>${st.power ?? '–'}</b><span>WATTS</span></div>
@@ -104,9 +106,9 @@ const Overlays = (() => {
       <div><b>${rt ? ((rt.total_m - rt.done_m) / 1000).toFixed(1) : (st.distance ?? 0).toFixed(1)}</b><span>${rt ? 'KM LEFT' : 'KM'}</span></div></div>`;
     const pct = f.in_range?.both;
     cards.focus.innerHTML = `<h4>FOCUS · ${esc(wk ? 'BLOCK ' + wk.step + ' OF ' + wk.steps : (f.name || 'free ride').toUpperCase())}</h4>
-      <div class="ov-fr"><span>CADENCE</span><b>${st.cadence ?? '–'}</b><small>${f.rpm ? f.rpm[0] + '–' + f.rpm[1] : ''}</small></div>${bar(st.cadence, f.rpm?.[0], f.rpm?.[1], f.rpm_ok, 110)}
-      <div class="ov-fr"><span>WATTS</span><b>${st.power ?? '–'}</b><small>${wLo != null ? wLo + '–' + wHi + (wk ? ' green' : '') : 'no target'}</small></div>${wk ? zoneBar(st.power, wTarget, wk.zone) : bar(st.power, wLo, wHi, wOk)}
-      ${wk && wk.zone && wk.zone !== 'green' ? `<div class="ov-hint"><span>${wk.zone.toUpperCase()} ${wk.zone_for}s · ${wk.zone === 'yellow' ? 'still on the road; a gear after 2 min if it keeps you on it' : 'off the road; a gear after ' + ({red: '30 s', black: '8 s'})[wk.zone]}</span></div>` : ''}
+      <div class="ov-fr"><span>CADENCE</span><b>${st.cadence ?? '–'}</b><small>${rpm ? rpm[0] + '–' + rpm[1] : ''}</small></div>${bar(st.cadence, rpm?.[0], rpm?.[1], rpmOk, 110)}
+      <div class="ov-fr"><span>WATTS</span><b>${st.power ?? '–'}</b><small>${wLo != null ? (wk?wLo+'+ W · animal floor':wLo+'–'+wHi) : 'no target'}</small></div>${wk ? zoneBar(st.power, wTarget, wk.zone,wk.easy_block) : bar(st.power, wLo, wHi, wOk)}
+      ${wk && wk.zone && wk.zone !== 'green' ? `<div class="ov-hint"><span>Resistance ${wk.zone.toUpperCase()} · ${wk.zone_for}s · below the segment floor: correction after 15 s or sooner; above the control band: correction after ${({yellow:'2 min',red:'30 s',black:'8 s'})[wk.zone]}</span></div>` : ''}
       <div class="ov-hint">${esc(extra.hint ?? f.hint ?? '')}${pct != null ? `<span>${pct}% in range</span>` : ''}</div>`;
     avail.clear(); avail.add('ride'); avail.add('focus'); avail.add('graph');
     if (rt || extra.profile) {
@@ -127,7 +129,8 @@ const Overlays = (() => {
         <div class="ov-grid"><div><b>${wTarget}</b><span>TARGET W</span></div><div><b>${mmss(wk.step_left)}</b><span>THIS BLOCK</span></div>
         <div><b>${mmss(wk.left)}</b><span>TOTAL LEFT</span></div></div>
         <div class="ov-blocks">${blocks.map((b, i) => `<i class="${i + 1 === wk.step ? 'now' : i + 1 < wk.step ? 'done' : ''}" style="flex:${b[0]};height:${Math.max(18, Math.min(100, b[1] / (Math.max(...blocks.map(x => x[1])) || 1) * 100))}%"></i>`).join('')}</div>
-        <div class="ov-hint">${nxt ? `Next: ${nxt[1]} W for ${mmss(nxt[0])}` : 'Last block'}</div>`;
+        <div class="ov-hint">${nxt ? `Next: ${nxt[1]} W for ${mmss(nxt[0])}` : 'Last block'}</div>
+        ${wk.adjustment?`<div class="ov-hint">Adapted from ${wk.adjustment.anchor_watts} W sustained · ${wk.adjustment.scope} ×${wk.adjustment.scale}</div>`:''}`;
       if (wk.step !== last.step && last.step != null) jump('workout', 6); last.step = wk.step;
     } else last.step = null;
     if (extra.form) {
@@ -135,7 +138,8 @@ const Overlays = (() => {
       const fm = extra.form;
       cards.form.innerHTML = `<h4>FORM · ${esc(fm.name)}</h4><div class="ov-formbar"><i style="width:${fm.pct}%"></i></div>
         <div class="ov-row"><span>${fm.last ? 'FINAL FORM' : 'NEXT: ' + esc(fm.next)}</span><span><b>${mmss(fm.streak)}</b> streak</span></div>
-        <div class="ov-row"><span>Gates <b>${fm.cleared}/${fm.gates}</b></span><span>${fm.onroad ? 'on the lit road' : 'off the road'}</span></div>`;
+        <div class="ov-row"><span>Gates <b>${fm.cleared}/${fm.gates}</b></span><span>${fm.onroad ? 'on the lit road' : 'off the road'}</span></div>
+        ${extra.effort?.watts?`<div class="ov-hint">Earn animals: ${extra.effort.rpm?.join('–')||'planned'} rpm · ${extra.effort.watts[0]}${extra.effort.watts[1]==null?'+':'–'+extra.effort.watts[1]} W · 5 s average</div>`:''}`;
       if (fm.name !== last.form && last.form != null) jump('form', 5); last.form = fm.name;
     }
     paint();

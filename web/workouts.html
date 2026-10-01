@@ -1,39 +1,39 @@
-<!doctype html><html><head><meta charset="utf-8"><title>S-Bike Hub · Workouts</title>
+<!doctype html><html><head><meta charset="utf-8"><title>S29 Hub · Workouts</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
  :root{color-scheme:dark}
  [hidden]{display:none!important}
- body{margin:0;background:#0b0f14;color:#eef1f5;font:15px/1.4 -apple-system,Roboto,"Helvetica Neue",sans-serif}
+ body{margin:0;background:var(--bg);color:var(--text);font:15px/1.4 -apple-system,Roboto,"Helvetica Neue",sans-serif}
  main{max-width:1100px;margin:0 auto;padding:20px 16px 60px;display:grid;grid-template-columns:300px 1fr;gap:18px}
- header{grid-column:1/-1} h1{font-size:28px;margin:0} .sub{color:#8b98a8} a{color:#60a5fa}
- h2{font-size:14px;letter-spacing:1.2px;color:#8b98a8;margin:0 0 8px}
- .card{background:#151b23;border-radius:14px;padding:12px}
- button{background:#1f2937;color:#eef1f5;border:0;border-radius:10px;padding:9px 12px;font-size:14px;font-weight:700;cursor:pointer}
- button.go{background:#16a34a} button.blue{background:#2563eb} button.warn{background:#7f1d1d} button.purple{background:#9333ea}
+ header{grid-column:1/-1} h1{font-size:28px;margin:0} .sub{color:var(--muted)} a{color:var(--info)}
+ h2{font-size:14px;letter-spacing:1.2px;color:var(--muted);margin:0 0 8px}
+ .card{background:var(--card);border-radius:14px;padding:12px}
+ button{background:var(--control);color:var(--text);border:0;border-radius:10px;padding:9px 12px;font-size:14px;font-weight:700;cursor:pointer}
+ button.go{background:var(--good-fill)} button.blue{background:var(--accent)} button.warn{background:var(--bad-bg)} button.purple{background:var(--accent2)}
  button:disabled{opacity:.5;cursor:default}
- .w{background:#151b23;border-radius:12px;padding:10px;margin-bottom:8px;cursor:pointer;border:2px solid transparent}
- .w.sel{border-color:#2563eb} .w b{display:block} .w small{color:#8b98a8}
+ .w{background:var(--card);border-radius:12px;padding:10px;margin-bottom:8px;cursor:pointer;border:2px solid transparent}
+ .w.sel{border-color:var(--accent)} .w b{display:block} .w small{color:var(--muted)}
  .w canvas{width:100%;height:34px;display:block;margin-top:6px}
- input,select,textarea{background:#0b0f14;color:#eef1f5;border:1px solid #2a3441;border-radius:9px;padding:8px 9px;font-size:15px;font-family:inherit}
+ input,select,textarea{background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:9px;padding:8px 9px;font-size:15px;font-family:inherit}
  input.name{width:100%;box-sizing:border-box;font-size:20px;font-weight:700}
  textarea{width:100%;box-sizing:border-box;min-height:44px;margin-top:8px;resize:vertical}
- .blk{background:#0f141b;border:1px solid #1f2733;border-left:6px solid var(--c,#374151);border-radius:12px;padding:10px;margin:8px 0}
+ .blk{background:var(--deep);border:1px solid var(--control);border-left:6px solid var(--c,var(--line));border-radius:12px;padding:10px;margin:8px 0}
  .blk .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
  .blk .top b{font-size:14px;letter-spacing:.5px}
  .blk .tools button{padding:5px 9px;font-size:13px;margin-left:4px}
  .fields{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center}
- .f{display:flex;align-items:center;gap:6px;color:#b7c1cd;font-size:14px}
+ .f{display:flex;align-items:center;gap:6px;color:var(--text2);font-size:14px}
  .f input{width:74px}.f input.t{width:66px}
- .f em{font-style:normal;color:#8b98a8;font-size:12px;min-width:44px}
+ .f em{font-style:normal;color:var(--muted);font-size:12px;min-width:44px}
  .adds{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
  #chart{width:100%;height:170px;display:block}
  .tot{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:10px}
- .tot div{background:#0f141b;border-radius:10px;padding:8px;text-align:center}
- .tot b{display:block;font-size:20px}.tot span{font-size:11px;letter-spacing:1px;color:#8b98a8}
+ .tot div{background:var(--deep);border-radius:10px;padding:8px;text-align:center}
+ .tot b{display:block;font-size:20px}.tot span{font-size:11px;letter-spacing:1px;color:var(--muted)}
  .acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
- #msg{min-height:20px;margin-top:8px;color:#fbbf24}
+ #msg{min-height:20px;margin-top:8px;color:var(--warn)}
  @media (max-width:760px){ main{grid-template-columns:1fr} .tot{grid-template-columns:repeat(3,1fr)} }
-</style></head><body><main>
+</style><link rel="stylesheet" href="/web/theme.css"><script src="/web/theme.js"></script></head><body><main>
 <header><h1>Workout builder</h1><div class="sub">Everything is % of your FTP (<b id="ftp">–</b> W), so workouts grow with you ·
  <a href="/panel">Panel</a> · <a href="/ride">Ride view</a> · <a href="/fitness">Fitness</a></div></header>
 <section>
@@ -124,11 +124,11 @@ function draw(c,steps,axes){ const dpr=devicePixelRatio||1, w=c.clientWidth, h=c
   const g=c.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,w,h); if(!steps.length) return;
   const L=axes?34:0, B=axes?16:0, total=steps.reduce((a,s)=>a+s.minutes,0), top=Math.max(130,...steps.map(s=>s.pct))*1.05;
   const X=m=>L+m/total*(w-L), Y=p=>(h-B)-p/top*(h-B-4);
-  if(axes){ g.font='11px -apple-system,Roboto'; g.fillStyle='#8b98a8'; g.textAlign='right'; g.textBaseline='middle';
-    for(const p of [50,75,100]){ g.strokeStyle=p===100?'rgba(234,179,8,.5)':'rgba(255,255,255,.07)'; g.setLineDash(p===100?[4,4]:[]);
+  if(axes){ g.font='11px -apple-system,Roboto'; g.fillStyle='var(--muted)'; g.textAlign='right'; g.textBaseline='middle';
+    for(const p of [50,75,100]){ g.strokeStyle=p===100?'rgba(234,179,8,.5)':'var(--grid)'; g.setLineDash(p===100?[4,4]:[]);
       g.beginPath(); g.moveTo(L,Y(p)); g.lineTo(w,Y(p)); g.stroke(); g.setLineDash([]); g.fillText(p===100?'FTP':p+'%',L-4,Y(p)); } }
   let t=0; for(const s of steps){ g.fillStyle=zone(s.pct)[1]; g.fillRect(X(t),Y(s.pct),Math.max(1,X(t+s.minutes)-X(t)-0.5),(h-B)-Y(s.pct)); t+=s.minutes; }
-  if(axes){ g.fillStyle='#8b98a8'; g.textAlign='center'; const step=total>90?30:total>40?10:5;
+  if(axes){ g.fillStyle='var(--muted)'; g.textAlign='center'; const step=total>90?30:total>40?10:5;
     for(let m=0;m<=total;m+=step) g.fillText(m+'m',X(m),h-6); } }
 function mini(c,steps){ draw(c,steps,false); }
 

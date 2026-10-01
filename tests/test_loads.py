@@ -216,20 +216,25 @@ def main():
     recovered = damage.remodeling_response(days[:10], [100.0] + [0.0] * 9, 300)
     check("a later run starts from the remaining long-tail block rather than zero",
           0 < recovered["history"][8]["score"] < 1)
-    reports = {days[i]: 7 for i in (3, 4, 5)}
-    reported = damage.remodeling_response(days[:8], [100.0] + [0.0] * 7, 160, feet_reports=reports)
-    check("three high feet check-ins add half a day each to the provisional plateau",
-          reported["plateau_days"] == long_one["plateau_days"] + 1.5
+    early_reports = {days[i]: 7 for i in (3, 4, 5)}
+    early_reported = damage.remodeling_response(days[:12], [100.0] + [0.0] * 11, 160, feet_reports=early_reports)
+    check("feet reports during the plateau leave both plateau and decline unchanged",
+          early_reported["plateau_days"] == 5 and early_reported["descent_days"] == 3
+          and early_reported["checkins_used"] == 0)
+    reports = {days[i]: 7 for i in (6, 7, 8)}
+    reported = damage.remodeling_response(days[:12], [100.0] + [0.0] * 11, 160, feet_reports=reports)
+    check("high feet reports after the plateau lengthen the decline, not the plateau",
+          reported["plateau_days"] == 5 and reported["descent_days"] == 4.5
           and reported["checkins_used"] == 3)
-    reassuring = damage.remodeling_response(days[:8], [100.0] + [0.0] * 7, 160,
-                                             feet_reports={days[i]: 2 for i in (3, 4, 5)})
-    check("reassuring reports shorten the estimate by only half a day after three observations",
-          reassuring["plateau_days"] == long_one["plateau_days"] - 0.5)
-    leg_reports = {days[i]: {"feet": 3, "legs": 7} for i in (3, 4, 5)}
-    leg_heavy = damage.remodeling_response(days[:8], [100.0] + [0.0] * 7, 160,
+    reassuring = damage.remodeling_response(days[:12], [100.0] + [0.0] * 11, 160,
+                                             feet_reports={days[i]: 2 for i in (6, 7, 8)})
+    check("reassuring post-plateau reports shorten the decline by only half a day after three observations",
+          reassuring["plateau_days"] == 5 and reassuring["descent_days"] == 2.5)
+    leg_reports = {days[i]: {"feet": 3, "legs": 7} for i in (6, 7, 8)}
+    leg_heavy = damage.remodeling_response(days[:12], [100.0] + [0.0] * 11, 160,
                                             feet_reports=leg_reports)
-    check("heavy legs keep the plateau conservative despite fine feet",
-          leg_heavy["plateau_days"] == long_one["plateau_days"] + 1.5)
+    check("heavy legs after the plateau keep the decline conservative despite fine feet",
+          leg_heavy["plateau_days"] == 5 and leg_heavy["descent_days"] == 4.5)
     beyond_anchor = damage.remodeling_response(days[:6], [100.0] * 6, 300)
     check(f"timing keeps scaling past six blocks: {beyond_anchor['score']} blocks -> {beyond_anchor['plateau_days']} day plateau, "
           f"{beyond_anchor['descent_days']} day decline",
@@ -262,25 +267,26 @@ def main():
     check(f"13 blocks: flat 65 days ({th[65]['score']}), down to 20% by day 104 ({th[104]['score']}), tail still there at 5 months "
           f"({th[150]['score']}), gone after ~7 ({th[-1]['score']})",
           th[65]["score"] == 13 and abs(th[104]["score"] - 2.6) < 0.01 and 0 < th[150]["score"] < 1 and th[-1]["score"] == 0)
-    # reports judged against the phase: a 30-day plateau (three runs), beat-up reports early vs late
-    three = [100.0] * 3 + [0.0] * 40
-    base3 = damage.remodeling_response(days[:43], three, 160)
-    early = damage.remodeling_response(days[:43], three, 160, feet_reports={days[i]: 7 for i in (5, 6, 7)})
-    late = damage.remodeling_response(days[:43], three, 160, feet_reports={days[i]: 7 for i in (20, 21, 22)})
-    worse = damage.remodeling_response(days[:43], three, 160, feet_reports={days[5]: 6, days[6]: 7, days[7]: 8})
-    check(f"early in a {base3['plateau_days']}-day plateau, beat-up mornings are expected: neutral ({early['plateau_days']})",
-          early["plateau_days"] == base3["plateau_days"])
-    check(f"...the same mornings past halfway add time ({late['plateau_days']})", late["plateau_days"] == base3["plateau_days"] + 1.5)
-    check(f"...early but getting worse morning to morning counts ({worse['plateau_days']})", worse["plateau_days"] > base3["plateau_days"])
-    hop_late = damage.remodeling_response(days[:43], three, 160, feet_reports={days[i]: {"feet": 5, "legs": 5, "hops": 2} for i in (20, 21)})
-    hop_early = damage.remodeling_response(days[:43], three, 160, feet_reports={days[i]: {"feet": 5, "legs": 5, "hops": 2} for i in (5, 6)})
-    check(f"a poor hop test (2) is neutral early, adds time late ({hop_early['plateau_days']} / {hop_late['plateau_days']})",
-          hop_early["plateau_days"] == base3["plateau_days"] and hop_late["plateau_days"] == base3["plateau_days"] + 1)
-    check(f"the latest hop test is reported for clearance ({hop_late['hops']['last']} on {hop_late['hops']['date']}, fresh: {hop_late['hops']['fresh']})",
-          hop_late["hops"]["last"] == 2 and hop_late["hops"]["date"] == days[21] and not hop_late["hops"]["fresh"])
-    spaced = [100.0 if i in (0, 10, 20, 30, 40) else 0.0 for i in range(46)]
-    clean_reports = {days[i + age]: 2 for i in (0, 10, 20, 30, 40) for age in (2, 3)}
-    confirmed = damage.remodeling_response(days[:46], spaced, 160, feet_reports=clean_reports)
+    # A stacked 28-day mechanical plateau is insensitive even to reports after its halfway point.
+    three = [100.0] * 3 + [0.0] * 46
+    base3 = damage.remodeling_response(days[:49], three, 160)
+    early = damage.remodeling_response(days[:49], three, 160, feet_reports={days[i]: 7 for i in (5, 6, 7)})
+    halfway = damage.remodeling_response(days[:49], three, 160, feet_reports={days[i]: 7 for i in (20, 21, 22)})
+    post = damage.remodeling_response(days[:49], three, 160, feet_reports={days[i]: 7 for i in (31, 32, 33)})
+    check(f"reports anywhere in a {base3['plateau_days']}-day plateau leave its curve unchanged",
+          early["plateau_days"] == halfway["plateau_days"] == base3["plateau_days"]
+          and early["descent_days"] == halfway["descent_days"] == base3["descent_days"])
+    check("post-plateau reports lengthen the decline but not the plateau",
+          post["plateau_days"] == base3["plateau_days"] and post["descent_days"] == base3["descent_days"] + 1.5)
+    hop_post = damage.remodeling_response(days[:49], three, 160, feet_reports={days[i]: {"feet": 5, "legs": 5, "hops": 2} for i in (31, 32)})
+    hop_early = damage.remodeling_response(days[:49], three, 160, feet_reports={days[i]: {"feet": 5, "legs": 5, "hops": 2} for i in (5, 6)})
+    check("a poor hop test changes decline only after the plateau",
+          hop_early["descent_days"] == base3["descent_days"] and hop_post["descent_days"] == base3["descent_days"] + 1)
+    check(f"the latest hop test is reported for clearance ({hop_post['hops']['last']} on {hop_post['hops']['date']}, fresh: {hop_post['hops']['fresh']})",
+          hop_post["hops"]["last"] == 2 and hop_post["hops"]["date"] == days[32] and not hop_post["hops"]["fresh"])
+    spaced = [100.0 if i in (0, 10, 20, 30, 40) else 0.0 for i in range(52)]
+    clean_reports = {days[i + age]: 2 for i in (0, 10, 20, 30, 40) for age in (6, 7)}
+    confirmed = damage.remodeling_response(days[:52], spaced, 160, feet_reports=clean_reports)
     check("repeated recovered sessions over weeks can earn modest conditioning credit",
           confirmed["confirmed_recoveries"] == 5 and 0 < confirmed["conditioning_credit"] <= 0.1)
     ts = st["systems"]["impact"]["tissue"]
@@ -332,22 +338,26 @@ def main():
     capped = damage.remodeling_response(short, runs3[:21], walking=W(round(fresh_steps * 5), short))
     check(f"however much walking, the plateau left never exceeds 5 days per block carried ({capped['plateau_remaining_days']} days, "
           f"{capped['score']} blocks)", capped["plateau_remaining_days"] <= 5 * capped["score"] + 0.1)
-    # walking conditioning: steps walked and woken up fine from earn free steps; rough mornings lower the repair estimate
-    walker = {d: round(fresh_steps * 1.3) for d in wd[:40]}
-    good = {d: {"feet": 2, "legs": 2} for d in wd[1:41]}
-    rough = {d: {"feet": 7, "legs": 3} for d in wd[1:41]}
-    wk = damage.remodeling_response(wd[:40], runs3[:40], feet_reports=good, walking={"steps": walker, "pts_per_step": wpps, "severity": 0.094})
-    rk = damage.remodeling_response(wd[:40], runs3[:40], feet_reports=rough, walking={"steps": walker, "pts_per_step": wpps, "severity": 0.094})
+    # Walking reports alter the curve only once the run's plateau has ended.
+    walker = {d: round(fresh_steps * 1.3) for d in wd[10:35]}
+    good = {d: {"feet": 2, "legs": 2} for d in wd[11:36]}
+    rough = {d: {"feet": 7, "legs": 3} for d in wd[11:36]}
+    single_run = [block] + [0.0] * 59
+    wk = damage.remodeling_response(wd[:60], single_run, feet_reports=good, walking={"steps": walker, "pts_per_step": wpps, "severity": 0.094})
+    rk = damage.remodeling_response(wd[:60], single_run, feet_reports=rough, walking={"steps": walker, "pts_per_step": wpps, "severity": 0.094})
     check(f"a walker who keeps waking up fine earns free steps from walking ({wk['walking_free']['fresh_steps']} vs "
           f"{round(fresh_steps)} from running)", wk["walking_free"]["from"] == "walking" and wk["walking_free"]["fresh_steps"] > fresh_steps)
     check(f"rough mornings after days over the line lower the running-side estimate ({rk['walking_free']['repair_estimate']}) "
           f"and walking proves nothing", rk["walking_free"]["repair_estimate"] < 1 and rk["walking_free"]["from"] == "running")
     check(f"...so the same walking costs more for the rough-morning rider ({rk['score']} vs {wk['score']} blocks)", rk["score"] > wk["score"])
-    hopdrop = {wd[1]: {"feet": 2, "legs": 2, "hops": 10}, wd[2]: {"feet": 2, "legs": 2, "hops": 6}}
-    hd = damage.remodeling_response(wd[:4], runs3[:4], feet_reports=hopdrop,
-                                    walking={"steps": {wd[1]: round(fresh_steps * 1.5)}, "pts_per_step": wpps, "severity": 0.094})
+    early_hopdrop = {wd[1]: {"feet": 2, "legs": 2, "hops": 10}, wd[2]: {"feet": 2, "legs": 2, "hops": 6}}
+    early_hd = damage.remodeling_response(wd[:4], [block]+[0.0]*3, feet_reports=early_hopdrop,
+                                          walking={"steps": {wd[1]: round(fresh_steps * 1.5)}, "pts_per_step": wpps, "severity": 0.094})
+    hopdrop = {wd[10]: {"feet": 2, "legs": 2, "hops": 10}, wd[11]: {"feet": 2, "legs": 2, "hops": 6}}
+    hd = damage.remodeling_response(wd[:16], single_run[:16], feet_reports=hopdrop,
+                                    walking={"steps": {wd[10]: round(fresh_steps * 1.5)}, "pts_per_step": wpps, "severity": 0.094})
     check(f"a hop count that drops after a big walking day is a rough morning ({hd['walking_free']['repair_estimate']})",
-          hd["walking_free"]["repair_estimate"] < 1)
+          early_hd["walking_free"]["repair_estimate"] == 1 and hd["walking_free"]["repair_estimate"] < 1)
     # the steps file, and a run's steps are taken out of the day's count
     ts_ = pathlib.Path(tempfile.mkdtemp())
     loads.set_steps(ts_, {"2026-09-26": 12975}); loads.set_steps(ts_, {"2026-09-27": 4491})

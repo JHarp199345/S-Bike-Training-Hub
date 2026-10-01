@@ -1,4 +1,4 @@
-"""Coach: diagnostic verdicts against the rider's own baseline, the sliding bar chart keeps
+"""Coach: diagnostic verdicts against his own baseline, the sliding bar chart keeps
 the total and the others' ratios, time-split workouts with watt targets, and the
 hub command end to end against a real (scratch) server."""
 import sys, pathlib; sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
@@ -28,9 +28,9 @@ def main():
     c = coach.record(d, "2026-10-06", {"legs": 7, "gut": "go", "hr90": 100})
     check(f"HR 10 below normal with heavy legs -> rest (deep fatigue) ({c['why']})", c["verdict"] == "rest")
     c = coach.record(d, "2026-10-07", {"legs": 2, "gut": "no"})
-    check("the rider's own 'not today' is always respected -> rest", c["verdict"] == "rest")
+    check("his own 'not today' is always respected -> rest", c["verdict"] == "rest")
     c = coach.record(d, "2026-10-08", {"legs": 8, "gut": "go"})
-    check("legs 8/10 -> rest even if they want to go", c["verdict"] == "rest")
+    check("legs 8/10 -> rest even if he wants to go", c["verdict"] == "rest")
     c = coach.record(d, "2026-10-09", {"legs": 3, "gut": "go", "hr90": 111, "hr120": 126, "hr_after": 101})
     check(f"normal numbers, fresh legs -> go ({c['why']})", c["verdict"] == "go" and "everything looks normal" in c["why"])
     try:
@@ -167,8 +167,19 @@ def main():
     check(f"the hop test leg by leg: the worse leg is the number ({cj['hops']})", cj["hops"] == 2)
     cj = coach.record(dj, "2026-09-30", {"hops_right": 6})
     check(f"...update one leg and it re-takes the worse ({cj['hops']})", cj["hops"] == 4)
-    check("the journal is kept in the rider's words, trimmed", cj["journal"] == "calves tight, hamstrings worse")
+    check("the journal is kept in his words, trimmed", cj["journal"] == "calves tight, hamstrings worse")
     check("...and an empty one clears it", coach.record(dj, "2026-09-30", {"journal": " "})["journal"] is None)
+    dc = {"plans": {"2026-09-30": {"sessions": [
+        {"sport":"ride", "name":"Easy ride", "minutes":30},
+        {"sport":"gym", "name":"Strength", "minutes":45}]}},
+        "lifting":{"logs":[{"date":"2026-09-30", "session":"Strength", "minutes":45, "points_total":12}]}}
+    actual = {"2026-09-30":[{"sport":"bike", "minutes":30, "load":{"engine":20}}]}
+    sessions = coach.week(dc,"2026-09-30",actual)[2]["sessions"]
+    check("completed ride and logged strength each get their own summary", all(s.get("completion") for s in sessions)
+          and sessions[0]["completion"]["load"]["engine"] == 20 and sessions[1]["completion"]["lifting"]["points_total"] == 12)
+    check("completion rendering never changes the saved plan", not any(s.get("completion") for s in dc["plans"]["2026-09-30"]["sessions"]))
+    dc["plans"]["2026-09-30"]["sessions"].append({"sport":"ride", "name":"Second ride", "minutes":30})
+    check("one recorded ride cannot complete two planned rides", not coach.week(dc,"2026-09-30",actual)[2]["sessions"][2].get("completion"))
     print("ALL PASS" if ok else "SOME FAILED")
     return ok
 

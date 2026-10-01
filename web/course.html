@@ -1,4 +1,4 @@
-<!doctype html><html><head><meta charset="utf-8"><title>S-Bike Hub · Course</title>
+<!doctype html><html><head><meta charset="utf-8"><title>S29 Hub · Course</title>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#1a1030">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
@@ -58,7 +58,9 @@
  body[data-look="pixel"] .ov-card{border:2px solid #fff;border-radius:0;box-shadow:3px 3px 0 #000}
  body[data-look="pixel"] .ov,body[data-look="pixel"] .ov-card{font-size:9px}
  body[data-look="pixel"] .ov-grid b,body[data-look="pixel"] .ov-strip b{font-size:14px}
- body{--ov-top:54px;--ov-strip-top:14px;--ov-strip-right:112px}   /* the 🗺 and ☰ buttons are ~34px tall at the top right */
+ body{--ov-top:54px;--ov-strip-top:14px;--ov-strip-right:188px}
+ #mapbtn{right:100px}
+ #fullscreenride{position:fixed;right:144px;top:calc(10px + env(safe-area-inset-top));z-index:4;font:18px system-ui;background:#000a;color:#fff;border:1px solid #ffffff59;border-radius:10px;padding:5px 8px;cursor:pointer}
  #menubtn{z-index:4;position:fixed;right:12px;top:calc(10px + env(safe-area-inset-top));font:12px var(--px);background:#000a;color:#fff;border:2px solid #fff;padding:6px 8px;z-index:3}
  #pausebtn{position:fixed;right:56px;top:calc(10px + env(safe-area-inset-top));font:14px var(--px);background:#000a;color:#fff;border:2px solid #fff;padding:5px 8px;z-index:4;cursor:pointer}
  body[data-look="modern"] #pausebtn{border-radius:10px;border:1px solid rgba(255,255,255,.35);background:rgba(0,0,0,.3);font-size:16px}
@@ -75,12 +77,13 @@
  .start h1{font:18px/1.4 var(--px);margin:0;color:#ffd23f;text-shadow:3px 3px 0 #000}
  .start button{background:#2f855a;font-size:13px;padding:18px 22px}
  .start .sub{color:#c9b8ff;max-width:420px}
-</style><link rel="stylesheet" href="/web/overlays.css?v=4"></head><body>
+</style><link rel="stylesheet" href="/web/overlays.css?v=4"><link rel="stylesheet" href="/web/theme.css"><script src="/web/theme.js"></script></head><body>
 <canvas id="cv"></canvas>
 <div id="banner"></div>
 <div class="ctl"><button id="dn">− EASIER</button><button id="up">+ HARDER</button></div>
 <button id="menubtn" aria-label="Menu">☰</button><a id="mapbtn" href="/ride" aria-label="Map view">🗺</a><button id="pausebtn" type="button" aria-label="Pause the workout" hidden>⏸</button>
-<div id="menu" hidden><div class="looks"><button data-look-pick="modern">MODERN</button><button data-look-pick="pixel">8-BIT</button></div><button id="formsbtn">Forms…</button><button id="endbtn">End course</button><a href="/coach">Coach</a><a href="/ride">Ride view</a></div>
+<button id="fullscreenride" type="button" aria-label="Full screen" title="Full screen">⛶</button>
+<div id="menu" hidden><div class="looks"><button data-look-pick="modern">MODERN</button><button data-look-pick="pixel">8-BIT</button></div><button id="formsbtn">Forms…</button><div id="awake" class="sub2" role="status">Tap Full screen to focus and keep the screen awake.</div><button id="endbtn">End course</button><a href="/coach">Coach</a><a href="/ride">Ride view</a><div id="drawer" style="all:unset;display:block"></div></div>
 <div class="dlg" id="formsdlg" hidden><div class="dlgbox">
  <b>YOUR FORMS</b><div class="sub2">Time on the lit road evolves you, in this order. The rider on the bike always starts.</div>
  <ol id="formlist"></ol><div class="sub2">Add an animal</div><div class="addgrid" id="addgrid"></div>
@@ -168,6 +171,7 @@ function sprite(name,frame,x,y,scale){ const rows=SPR[name][frame];
 // ── state ──
 let st=null, course=null, courseId=null, shownD=0, lastD=0, lastT=performance.now(), speed=0, shownV=0, prevFrame=0;
 let game={onRoad:0, form:0, off:0, gates:{}, cleared:0, missed:0, streak:0};
+let effortSamples=[], effortKey=null, gameEffort=null;
 const KEY=()=>'course:'+courseId;
 function saveGame(){ try{ localStorage.setItem(KEY(),JSON.stringify(game)); }catch(e){} }
 function loadGame(){ try{ const j=JSON.parse(localStorage.getItem(KEY())||'null'); if(j) game=j; }catch(e){} }
@@ -187,7 +191,7 @@ function workoutCourse(wk){
     for(let x=0;x<len;x+=20){ profile.push([Math.round(d+x),+e.toFixed(1),g]); e+=g/100*Math.min(20,len-x); }
     d+=len; });
   profile.push([Math.round(d),+e.toFixed(1),0]);
-  return {id:'wk:'+wk.name+':'+wk.total, name:wk.name, length_m:Math.round(d), profile, parts, gates, form_minutes:5, workout:true};
+  return {id:'wk:'+wk.name+':'+wk.total, name:wk.name, length_m:Math.round(d), profile, parts, gates, form_minutes:5, workout:true, signature:JSON.stringify(wk.blocks)};
 }
 async function poll(){
   try{ const r=await fetch('/status'); if(r.status===401){ location.href='/pair'; return; } st=await r.json(); }catch(e){ return; }
@@ -195,6 +199,7 @@ async function poll(){
   if(wk){
     const id='wk:'+wk.name+':'+wk.total;
     if(courseId!==id){ course=workoutCourse(wk); courseId=id; game={onRoad:0,form:0,off:0,gates:{},cleared:0,missed:0,streak:0}; loadGame(); shownD=wk.elapsed*WK_SPEED; finished=false; }
+    else if(course.signature!==JSON.stringify(wk.blocks))course=workoutCourse(wk);
     $('resumebtn').hidden=true;
     $('start').hidden=true; $('mapbtn').hidden=true; $('endbtn').textContent='End workout';   // no route: nothing for a map to show
     $('pausebtn').hidden=false; $('pausebtn').textContent=wk.paused?'▶':'⏸'; $('pausebtn').classList.toggle('on',!!wk.paused);
@@ -226,10 +231,22 @@ async function poll(){
 
 // once a second: the lit road, the forms, the gates
 // on the lit road: cadence in range, and watts in range - the day's focus band, or near the block's target in a workout
-function onRoadNow(){ const f=st?.focus; if(!f || st.cadence<20) return false;
-  if(st.workout && course?.workout) return f.rpm_ok!==false && st.power>=st.workout.watts*0.8 && st.power<=st.workout.watts*1.4;   // green or yellow: yellow isn't penalized
-  return f.rpm_ok===true && (f.watts_ok===true || f.watts_ok==null); }
+function sampleEffort(){
+  const wk=course?.workout?st.workout:null, f=st.focus||{}, key=courseId+':'+(wk?.step||0), now=performance.now()/1000;
+  if(key!==effortKey){effortSamples=[];effortKey=key;}
+  const paused=!!(wk?.paused||wk?.auto_paused);
+  if(paused||st.cadence<20)effortSamples=[];
+  else effortSamples.push({t:now,rpm:st.cadence,watts:st.power});
+  effortSamples=effortSamples.filter(x=>now-x.t<5);
+  const mean=k=>effortSamples.length?effortSamples.reduce((n,x)=>n+x[k],0)/effortSamples.length:0;
+  const rpm=wk?.cadence_band||f.rpm, watts=wk?[wk.power_floor??wk.watts,null]:f.watts;
+  const avgRpm=mean('rpm'),avgWatts=mean('watts');
+  const rpm_ok=!!rpm&&avgRpm>=rpm[0]&&avgRpm<=rpm[1], watts_ok=!watts||(avgWatts>=watts[0]&&(watts[1]==null||avgWatts<=watts[1]));
+  gameEffort={rpm,watts,rpm_ok,watts_ok,avgRpm,avgWatts,paused,on:!paused&&st.cadence>=20&&rpm_ok&&watts_ok};
+}
+function onRoadNow(){return gameEffort?.on===true;}
 function step(dt){
+  sampleEffort(); if(gameEffort.paused)return;
   const fm=(course.form_minutes||5)*60, on=onRoadNow();
   if(on){ game.onRoad+=dt; game.off=0; game.streak+=dt; }
   else if(st.cadence>=20){ game.off+=dt; game.streak=0;
@@ -238,7 +255,7 @@ function step(dt){
   if(want>game.form){ game.form=want; banner('YOU EVOLVED!\n'+FORMNAME[FORMS[game.form]]+(game.form===LAST()?'\n🔥':''),3000); }
   for(const gt of course.gates||[]){ const k=gt.kind+gt.at_m, s=game.gates[k]||(game.gates[k]={held:0,state:'ahead'});
     if(s.state==='ahead' && lastD>=gt.at_m){ s.state='open'; s.age=0; banner((gt.kind==='spin'?'SPIN GATE\n':'PUSH GATE\n')+(gt.kind==='spin'?gt.target.rpm+'+ RPM':gt.target.watts+'+ W')+' · 10 S',2500); }
-    if(s.state==='open'){ s.age=(s.age||0)+dt; const met=gt.kind==='spin'?st.cadence>=gt.target.rpm:st.power>=gt.target.watts;
+    if(s.state==='open'){ s.age=(s.age||0)+dt; const met=st.workout?.easy_block&&course?.workout?onRoadNow():gt.kind==='spin'?gameEffort.avgRpm>=gt.target.rpm:gameEffort.avgWatts>=gt.target.watts;
       s.held=met?s.held+dt:Math.max(0,s.held-dt*0.5);
       if(s.held>=gt.secs){ s.state='cleared'; game.cleared++; game.onRoad+=30; banner('GATE CLEARED!\n+30 S'); }
       else if(s.age>30){ s.state='missed'; game.missed++; } } }          // 30 s to hold it for 10
@@ -298,7 +315,8 @@ const render={
   },
   hud(){ if(!course) return; const fm=(course.form_minutes||5)*60, form=game.form, last=form>=LAST();
     Overlays.update(st, {profile: course.profile, name: course.name, total_m: course.length_m, done_m: lastD,
-      hint: onRoadNow()?'On the lit road':(st.focus?.hint||''),
+      hint: onRoadNow()?'On the lit road':(st.workout&&course.workout?`Hold ${gameEffort?.rpm?.join('–')||'the planned'} rpm · ${gameEffort?.watts?.[0]}+ W for animals`:(st.focus?.hint||'')),
+      effort: gameEffort,
       form: {name: FORMNAME[FORMS[form]], next: last?'':FORMNAME[FORMS[form+1]], last, pct: last?100:Math.min(100,100*(game.onRoad-form*fm)/fm),
              streak: game.streak, cleared: game.cleared, gates: (course.gates||[]).length, onroad: onRoadNow()}});
     if(Object.values(game.gates).some(g=>g.state==='open')) Overlays.jump('focus',4); }
@@ -317,8 +335,34 @@ $('go').onclick=async()=>{ $('startmsg').textContent='Building your course…';
   const r=await fetch('/api/course/start',{method:'POST',body:'{}'}).catch(()=>null);
   if(!r||!r.ok){ $('startmsg').textContent='Could not start - is the bike connected?'; return; }
   finished=false; $('startmsg').textContent=''; poll(); };
-let wake=null; async function keepAwake(){ try{ wake=await navigator.wakeLock?.request('screen'); }catch(e){} }
-document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') keepAwake(); }); keepAwake();
+let wake=null, wakePending=false, wakeVideo=null, wakeTimer=null;
+async function keepAwake(){
+  if(document.visibilityState!=='visible'||wakePending||wake&&!wake.released)return;
+  wakePending=true;
+  try{if(navigator.wakeLock){wake=await navigator.wakeLock.request('screen');$('awake').textContent='Screen stays awake while this ride is visible.';
+    wake.addEventListener('release',()=>{wake=null;$('awake').textContent='Screen wake lock released. Tap Full screen to retry.';});return;}}
+  catch(e){} finally{wakePending=false;}
+  if(!wakeVideo){const c=document.createElement('canvas');c.width=c.height=2;const x=c.getContext('2d');
+    if(!c.captureStream){$('awake').textContent='Keep the tablet display timeout extended while riding.';return;}
+    wakeTimer=setInterval(()=>{x.fillStyle=Date.now()%2000<1000?'#000':'#010101';x.fillRect(0,0,2,2);},500);
+    wakeVideo=document.createElement('video');wakeVideo.muted=true;wakeVideo.playsInline=true;wakeVideo.srcObject=c.captureStream(2);
+    wakeVideo.style.cssText='position:fixed;width:1px;height:1px;opacity:.01;pointer-events:none';document.body.appendChild(wakeVideo);}
+  try{await wakeVideo.play();$('awake').textContent='Keep awake requested (compatibility mode).';}
+  catch(e){$('awake').textContent='Tap Full screen to retry keeping the screen awake.';}
+}
+async function toggleFullscreen(){
+  keepAwake();
+  try{if(document.fullscreenElement||document.webkitFullscreenElement){await(document.exitFullscreen?.()||document.webkitExitFullscreen?.());}
+    else if(document.documentElement.requestFullscreen)await document.documentElement.requestFullscreen({navigationUI:'hide'});
+    else if(document.documentElement.webkitRequestFullscreen)document.documentElement.webkitRequestFullscreen();
+    else $('awake').textContent='Full screen needs browser support; use its full screen or home-screen mode.';}
+  catch(e){$('awake').textContent='Full screen was blocked by the browser. Tap ⛶ to retry.';}
+}
+$('fullscreenride').onclick=e=>{e.stopPropagation();$('menu').hidden=true;toggleFullscreen();};
+const fullscreenLabel=()=>{const on=!!(document.fullscreenElement||document.webkitFullscreenElement);$('fullscreenride').setAttribute('aria-label',on?'Exit full screen':'Full screen');$('fullscreenride').title=on?'Exit full screen':'Full screen';};
+document.addEventListener('fullscreenchange',fullscreenLabel);document.addEventListener('webkitfullscreenchange',fullscreenLabel);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')keepAwake();else{wake?.release();wakeVideo?.pause();}});
+addEventListener('pointerdown',keepAwake);addEventListener('pagehide',()=>{wake?.release();wakeVideo?.pause();clearInterval(wakeTimer);});keepAwake();
 // ── the Forms editor ──
 let draft=[];
 const thumb=k=>`<i class="thumb" style="background-image:url('/web/sprites/${(ANIMALS[k].gaits.walk||ANIMALS[k].gaits.run).file}')"></i>`;
@@ -338,7 +382,7 @@ $('formssave').onclick=async()=>{ if(!draft.length){ $('formsmsg').textContent='
   const r=await fetch('/api/course/forms',{method:'POST',body:JSON.stringify({forms:draft})}).catch(()=>null);
   if(!r||!r.ok){ $('formsmsg').textContent='Could not save.'; return; }
   await loadAnimals(); if(course) render.hud(); $('formsdlg').hidden=true; };
-</script><script src="/web/course-modern.js?v=3"></script><script src="/web/overlays.js?v=5"></script>
+</script><script src="/web/course-modern.js?v=3"></script><script src="/web/overlays.js?v=6"></script>
 <script>document.querySelectorAll('[data-look-pick]').forEach(b=>b.onclick=e=>{ e.stopPropagation(); setLook(b.dataset.lookPick); }); setLook(LOOK);
 // start once everything above has loaded (the overlays come in after the page's own script)
 Overlays.mount(document.body);

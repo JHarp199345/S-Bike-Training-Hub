@@ -62,20 +62,20 @@ export class LiveGraph {
     for (const f of [0.5, 0.75, 1.0]) {
       const y = Yw(this.ftp * f);
       if (f !== 1 && taken.some(t => Math.abs(t - y) < 11)) continue;
-      g.strokeStyle = f === 1 ? 'rgba(234,179,8,.55)' : 'rgba(255,255,255,.08)';
+      g.strokeStyle = f === 1 ? 'rgba(234,179,8,.55)' : 'var(--grid)';
       g.setLineDash(f === 1 ? [4, 4] : []); g.beginPath(); g.moveTo(x0, y); g.lineTo(x1, y); g.stroke(); g.setLineDash([]);
-      g.fillStyle = f === 1 ? '#eab308' : '#8b98a8'; g.textAlign = 'right';
+      g.fillStyle = f === 1 ? 'var(--warn)' : 'var(--muted)'; g.textAlign = 'right';
       g.fillText(f === 1 ? 'FTP' : Math.round(this.ftp * f), x0 - 4, y);
     }
     if (this.watts) {                    // today's focus: the watt range, shaded (the cadence range is the dotted lines)
       const [lo, hi] = this.watts; g.fillStyle = 'rgba(74,222,128,.12)'; g.fillRect(x0, Yw(hi), x1 - x0, Yw(lo) - Yw(hi));
-      g.fillStyle = '#4ade80'; g.textAlign = 'right'; g.fillText(hi, x0 - 4, Yw(hi));
+      g.fillStyle = 'var(--good)'; g.textAlign = 'right'; g.fillText(hi, x0 - 4, Yw(hi));
       if (Yw(lo) - Yw(hi) >= 11) g.fillText(lo, x0 - 4, Yw(lo));     // a thin range on a small graph: just the top
     }
     if (this.show.cadence) {
       for (const r of this.band) { const y = Yr(r); g.strokeStyle = 'rgba(147,197,253,.25)'; g.setLineDash([2, 4]);
         g.beginPath(); g.moveTo(x0, y); g.lineTo(x1, y); g.stroke(); g.setLineDash([]);
-        g.fillStyle = '#93c5fd'; g.textAlign = 'left'; g.fillText(r, x1 + 4, y); }
+        g.fillStyle = 'var(--info)'; g.textAlign = 'left'; g.fillText(r, x1 + 4, y); }
     }
     // watts: one bar per second, coloured by zone
     const bw = Math.max(1, (x1 - x0) / this.window + 0.4);
@@ -89,31 +89,31 @@ export class LiveGraph {
     const line = (i, color, Y, width) => { g.strokeStyle = color; g.lineWidth = width; g.beginPath(); let on = false;
       for (const p of this.pts) { const x = X(p[0]); if (x < x0) continue; on ? g.lineTo(x, Y(p[i])) : g.moveTo(x, Y(p[i])); on = true; }
       g.stroke(); g.lineWidth = 1; };
-    if (this.show.speed) line(3, '#c084fc', v => y1 - Math.min(v, 60) / 60 * (y1 - y0), 1.5);
+    if (this.show.speed) line(3, 'var(--accent2)', v => y1 - Math.min(v, 60) / 60 * (y1 - y0), 1.5);
     if (this.show.cadence) line(2, '#ffffff', Yr, this.compact ? 1.6 : 2);
     // shifts: a tick with the new gear
     if (this.show.gear) { let prev = null;
       for (const p of this.pts) { if (prev !== null && p[5] !== prev) { const x = X(p[0]); if (x >= x0) {
-          const up = p[5] > prev; g.fillStyle = up ? '#60a5fa' : '#4ade80'; g.textAlign = 'center';
+          const up = p[5] > prev; g.fillStyle = up ? 'var(--info)' : 'var(--good)'; g.textAlign = 'center';
           g.fillRect(x - 1, y0, 2, 7); if (!this.compact || (x1 - x0) > 300) g.fillText((p[5] > 0 ? '+' : '') + p[5], x, y0 + 14); } }
         prev = p[5]; } }
     // time axis
-    g.fillStyle = '#8b98a8'; g.textAlign = 'center';
+    g.fillStyle = 'var(--muted)'; g.textAlign = 'center';
     const step = this.window >= 600 ? 120 : 60;
     for (let s = 0; s <= this.window; s += step) g.fillText(s ? `-${s / 60}m` : 'now', X(now - s), H - padB / 2);
-    if (!this.pts.length) { g.fillStyle = '#8b98a8'; g.textAlign = 'center'; g.fillText('Start pedalling - the graph fills in as you ride', (x0 + x1) / 2, (y0 + y1) / 2); }
+    if (!this.pts.length) { g.fillStyle = 'var(--muted)'; g.textAlign = 'center'; g.fillText('Start pedalling - the graph fills in as you ride', (x0 + x1) / 2, (y0 + y1) / 2); }
     // hover readout
     if (this.hover !== null && this.pts.length) {
       const t = now - (x1 - this.hover) / (x1 - x0) * this.window;
       let best = this.pts[0]; for (const p of this.pts) if (Math.abs(p[0] - t) < Math.abs(best[0] - t)) best = p;
-      const x = X(best[0]); g.strokeStyle = 'rgba(255,255,255,.6)'; g.beginPath(); g.moveTo(x, y0); g.lineTo(x, y1); g.stroke();
+      const x = X(best[0]); g.strokeStyle = 'var(--grid2)'; g.beginPath(); g.moveTo(x, y0); g.lineTo(x, y1); g.stroke();
       const z = zoneOf(best[1], this.ftp), ago = Math.round(now - best[0]);
       const txt = [`${best[1]} W · ${z.name}`, `${best[2]} rpm · ${best[3]} km/h`, `grade ${best[4] > 0 ? '+' : ''}${best[4]}% · gear ${best[5] > 0 ? '+' : ''}${best[5]}`, ago > 1 ? `${Math.floor(ago / 60)}:${String(ago % 60).padStart(2, '0')} ago` : 'now'];
       g.font = `${this.compact ? 11 : 12}px -apple-system,Roboto,sans-serif`;
       const bwid = Math.max(...txt.map(s => g.measureText(s).width)) + 16, bh = txt.length * 16 + 10;
       const bx = x + 10 + bwid > x1 ? x - 10 - bwid : x + 10;
-      g.fillStyle = 'rgba(11,15,20,.92)'; g.fillRect(bx, y0 + 4, bwid, bh);
-      g.fillStyle = '#eef1f5'; g.textAlign = 'left'; txt.forEach((s, i) => g.fillText(s, bx + 8, y0 + 17 + i * 16));
+      g.fillStyle = 'var(--glass)'; g.fillRect(bx, y0 + 4, bwid, bh);
+      g.fillStyle = 'var(--text)'; g.textAlign = 'left'; txt.forEach((s, i) => g.fillText(s, bx + 8, y0 + 17 + i * 16));
     }
   }
 }

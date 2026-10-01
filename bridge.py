@@ -344,7 +344,7 @@ class Bridge:
         self.session_out = None      # what the session asked for this second (cue, pace)
         self.session_gear = None     # the gear from before an effort shifted, to hand back
         self._applied = None         # the (rpm, watts) ranges last given to auto-shift by the session
-        self.erg = Erg()
+        self.erg = Erg(ftp=self.profile["ftp"])
         self.resume_file = RESUME
         try:
             self.resume = json.loads(RESUME.read_text())
@@ -450,7 +450,8 @@ class Bridge:
                       "started": self.route_started} if self.route_ride else None,
             "auto": self.auto.enabled, "climbing": self.auto.climbing and not self.auto.climb_auto,
             "erg": self.erg.target, "erg_source": self.erg.source,
-            "workout": {"name": w["name"], "steps": w["steps"], "elapsed": now - w["started"]} if w else None,
+            "workout": {"name": w["name"], "steps": w["steps"], "elapsed": w.get("active") or (now - w["started"]),
+                        "adaptive_state": self.erg.adaptive_state()} if w else None,
         })
 
     def restore(self, st):
@@ -464,7 +465,8 @@ class Bridge:
         w = st.get("workout")
         if w:
             self.erg.workout = {"name": w["name"], "steps": [tuple(x) for x in w["steps"]],
-                                "started": now - w["elapsed"]}
+                                "started": now - w["elapsed"], "active": w["elapsed"], "last": now,
+                                **w.get("adaptive_state", {})}
             self.erg.set(st.get("erg"), st.get("erg_source", ""), now)
             self.erg._advance_workout(now)     # land on the current step's watts right away
         elif st.get("erg"):
@@ -922,7 +924,8 @@ class Bridge:
             if active >= RESUME_AFTER and (not self.resume or abs(active - self.resume.get("active", -99)) >= 5
                                            or self.resume.get("name") != w["name"]):
                 self.resume = {"name": w["name"], "steps": [[d, watts] for d, watts in w["steps"]],
-                               "active": round(active, 1), "date": dt.date.today().isoformat(), "saved": round(time.time())}
+                               "active": round(active, 1), "date": dt.date.today().isoformat(), "saved": round(time.time()),
+                               "adaptive_state": self.erg.adaptive_state()}
                 self._write_resume()
         elif self._had_workout:
             self._had_workout = False
@@ -955,6 +958,7 @@ class Bridge:
         self.test = None
         self.erg.start_workout({"name": s["name"], "steps": [{"minutes": d / 60, "watts": w} for d, w in s["steps"]]}, now)
         self.erg.workout["active"] = float(s["active"])
+        self.erg.workout.update(s.get("adaptive_state", {}))
         self.erg._advance_workout(now)               # the right block's watts, straight away
         m, sec = divmod(int(s["active"]), 60)
         self.event(f"Workout resumed: {s['name']} at {m}:{sec:02d}")
@@ -984,7 +988,11 @@ class Bridge:
 
     def workout_start(self, index):
         if 0 <= index < len(self.workouts):
-            w = rider.workout_watts(self.workouts[index], self.profile["ftp"])
+            saved = self.workouts[index]
+            if saved.get("blocks"):
+                import workouts as workout_builder
+                saved = {**saved, "steps": workout_builder.flatten(saved["blocks"])}
+            w = rider.workout_watts(saved, self.profile["ftp"])
             self.test = None
             self.erg.start_workout(w, time.monotonic())
             self.event(f"Workout started: {w['name']} (at FTP {self.profile['ftp']} W)")
@@ -1418,10 +1426,13 @@ class Bridge:
                 if self.test:
                     self.ftp_test_tick(now, r.power, r.cadence)
                 if self.erg.on:
+                    self.erg.ftp = self.profile["ftp"]
+                    cur = r.resistance if r.resistance is not None and r.resistance > 0 else self.target_level
                     move = self.erg.update(r.power, r.cadence, now,
-                                           self.target_level if self.target_level is not None else r.resistance)
+                                           cur)
                     if move:
-                        cur = self.target_level if self.target_level is not None else r.resistance or 5
+                        cur = cur if cur is not None else 5
+                        self.level_sent = cur  # ramp from the bike's actual setting, not an old command
                         why = (f"ERG {self.erg.target} W: {int(r.power)} W at {int(r.cadence)} rpm, "
                                + ("easier" if move < 0 else "harder"))
                         self.set_level(cur + move, why)

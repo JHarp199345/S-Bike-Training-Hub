@@ -1,40 +1,40 @@
-<!doctype html><html><head><meta charset="utf-8"><title>S-Bike Hub · Welcome</title>
+<!doctype html><html><head><meta charset="utf-8"><title>S29 Hub · Welcome</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
  :root{color-scheme:dark}
  [hidden]{display:none!important}
- body{margin:0;background:#0b0f14;color:#eef1f5;font:16px/1.55 -apple-system,Roboto,"Helvetica Neue",sans-serif}
+ body{margin:0;background:var(--bg);color:var(--text);font:16px/1.55 -apple-system,Roboto,"Helvetica Neue",sans-serif}
  main{max-width:980px;margin:0 auto;padding:26px 16px 60px}
  h1{font-size:40px;line-height:1.1;margin:6px 0 10px;letter-spacing:-.5px}
- h2{font-size:13px;letter-spacing:1.8px;color:#8b98a8;margin:38px 0 10px}
+ h2{font-size:13px;letter-spacing:1.8px;color:var(--muted);margin:38px 0 10px}
  h3{margin:0 0 6px;font-size:18px}
- .sub{color:#8b98a8} a{color:#60a5fa}
- .lede{font-size:19px;color:#b7c1cd;max-width:760px}
- .card{background:#151b23;border-radius:16px;padding:18px;margin-bottom:12px;overflow-x:auto}
+ .sub{color:var(--muted)} a{color:var(--info)}
+ .lede{font-size:19px;color:var(--text2);max-width:760px}
+ .card{background:var(--card);border-radius:16px;padding:18px;margin-bottom:12px;overflow-x:auto}
  .sports{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:22px 0 8px}
  .sports img{width:100%;height:auto;display:block;border-radius:16px;background:#0f172a}
  .how{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
- .how .card{margin:0}.how .n{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;background:#2563eb;color:#fff;font-weight:800;margin-bottom:8px}
- .how p{margin:0;color:#b7c1cd;font-size:15px}
- table{width:100%;border-collapse:collapse;font-size:14px} th,td{text-align:left;padding:8px 6px;border-bottom:1px solid #2a3441;vertical-align:top} th{color:#8b98a8;font-weight:600}
+ .how .card{margin:0}.how .n{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--accent);color:#fff;font-weight:800;margin-bottom:8px}
+ .how p{margin:0;color:var(--text2);font-size:15px}
+ table{width:100%;border-collapse:collapse;font-size:14px} th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:top} th{color:var(--muted);font-weight:600}
  td:first-child{font-weight:600;white-space:nowrap}
- pre{background:#0f141b;border-radius:10px;padding:12px;overflow-x:auto;font-size:13px;white-space:pre-wrap;word-break:break-all}
+ pre{background:var(--deep);border-radius:10px;padding:12px;overflow-x:auto;font-size:13px;white-space:pre-wrap;word-break:break-all}
  .modes{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
- .modes .card{margin:0;border-left:4px solid #2563eb}
- .modes em{display:block;color:#b7c1cd;font-style:italic;margin:6px 0}
+ .modes .card{margin:0;border-left:4px solid var(--accent)}
+ .modes em{display:block;color:var(--text2);font-style:italic;margin:6px 0}
  form .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:14px}
- label{display:grid;gap:5px;color:#b7c1cd;font-size:14px}
- input,select,textarea{font:inherit;padding:10px;border-radius:10px;background:#0b0f14;color:#eef1f5;border:1px solid #2a3441;min-width:0}
+ label{display:grid;gap:5px;color:var(--text2);font-size:14px}
+ input,select,textarea{font:inherit;padding:10px;border-radius:10px;background:var(--bg);color:var(--text);border:1px solid var(--line);min-width:0}
  .seg{display:flex;gap:6px;flex-wrap:wrap}.seg button{flex:1;min-width:120px}
- button{font:inherit;font-weight:700;padding:11px 16px;border-radius:12px;border:1px solid #2a3441;background:#1f2937;color:#eef1f5;cursor:pointer}
- button.on{background:#2563eb;border-color:#2563eb;color:#fff}
- button.go{background:#2563eb;border-color:#2563eb;color:#fff;font-size:17px;padding:14px 22px}
- .sp{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid #2a3441}
+ button{font:inherit;font-weight:700;padding:11px 16px;border-radius:12px;border:1px solid var(--line);background:var(--control);color:var(--text);cursor:pointer}
+ button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+ button.go{background:var(--accent);border-color:var(--accent);color:#fff;font-size:17px;padding:14px 22px}
+ .sp{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
  .sp input[type=checkbox]{width:20px;height:20px}
  .done li{margin:4px 0}
- .fine{font-size:13px;color:#8b98a8}
+ .fine{font-size:13px;color:var(--muted)}
  @media(max-width:640px){h1{font-size:30px}.sports{grid-template-columns:repeat(2,1fr)}.lede{font-size:17px}}
-</style></head><body><main>
+</style><link rel="stylesheet" href="/web/theme.css"><script src="/web/theme.js"></script></head><body><main>
 
 <div class="sub">S-Bike Training Hub</div>
 <h1>Train every sport without breaking down.</h1>

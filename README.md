@@ -358,6 +358,30 @@ The thresholds (a 2-point SWOLF step, a 5% fade) are starting points to check ag
 
 A separate swim recovery estimate reads active pool lengths from the watch: `strokes × stroke factor × (length speed / 0.9 m/s)²`, adjusted for paddles, pull buoy and perceived effort. The stroke factors and gear multipliers are provisional tuning choices, not measured tendon forces. One provisional block starts at three times the median dose of the first three swims, then is **fitted continuously** to next-morning shoulder reports: a Bayesian fit over candidate block sizes, with the first-swims value as a log-normal prior, with an 80% interval that narrows as reports come in. The 1.5-block line is a planning convention, not an injury threshold. The Coach's body map (anatomy from [body-highlighter](https://www.npmjs.com/package/body-highlighter), MIT) shows where each sport's load lands; the colours are relative participation, not measured forces.
 
+### Reusable swim profiles
+
+Rules → Swim settings contains eight reusable profiles: **Balanced aerobic**, **Event technique**, **Event endurance**, **Race pace**, **Speed and skills**, **Other-stroke maintenance**, **Kick emphasis**, and **Easy recovery**. Automatic selection considers the nearest swim/triathlon event phase (or the overall goal when none exists), swimming readiness, recent completed swims, tagged sessions over the previous three days, and the latest Sunday swim-progress report within ten days. A stored preference is used only when eligible; blocked preferences fall back with an explanation. A rest verdict blocks all profiles. Heavy swimming allows only easy profiles; kick emphasis is unavailable when leg muscle readiness is easy/rest, or the leg muscle or accumulated running utilization ratio reaches 1.
+
+These are **provisional coaching defaults**. The exact stroke percentages, main-set work ratios, volume multipliers, three-day ordering window, and a 60-point cardio-load flag for a demanding recorded swim are planning heuristics, not validated physiological cutoffs. Each profile supplies a purpose, phases, intensity tier, compatible templates, stroke mix, main-set work shares, and equipment guidance. Main-set metres are allocated in 25 m increments across drill/swim pairs, kicking, pulling, and full-stroke work, retaining the template's efforts and rests. Shares describe distance, not force or muscle activation.
+
+`get_programming(sport="swim", swim_profile="event-technique", date="YYYY-MM-DD")` previews a module without changing preferences. `set_swim_settings(profile_id="auto")` stores automatic selection (or use any profile id). `/api/coach/programming?sport=swim` returns the catalog, eligibility reasons, selected profile, weekly sequence, and generated sets.
+
+### Saved swim rationale and future outlook
+
+Generated swim templates include a `swim_plan` snapshot with achieved stroke/work ratios, purpose, and a selection rationale. Pass this together with `swim_profile` when saving a session; the app's new-session picker does so. The calendar and selected swim show this saved information beside the sets.
+
+Future swim forecasts start from the fitted swim recovery model's recent and repeated exposure components. Estimated session dose uses the median exposure per minute from up to ten past recorded swims; when saved ratios exist, it is adjusted by the planned arm-stroke and drill/swim mix relative to observed stroke factors. Recovery decays using 1.5-day/14-day rates between dates, with an overlap multiplier on each new session.
+
+### Training blocks and mechanical gates
+
+A persistent 4-to-6 week coaching block (`get_training_block` MCP tool, `/api/coach/block`) tracks planned versus completed minutes, cross-sport demanding sessions, and Sunday review recommendations (`advance`, `repeat`, `hold`, `reduce`).
+
+Running has a dedicated gate in the block forecast: its accumulated mechanical score and 1.5-block line, plus the latest reported lower-leg response. A gate on hold prevents the block creator from repeating a week with runs and prevents a Sunday review from advancing running. The mechanical dose itself sets the accumulated curve's plateau. Feet, leg, and hop reports during that plateau affect the day-to-day run/rest decision **without moving the accumulated curve**. Only reports after the plateau adjust its decline duration.
+
+### Adaptive ERG workouts
+
+Workouts in ERG mode support adaptive target scaling and clear safety boundaries. A warm-up or ramp automatically sets a cadence band (55–110 rpm on ramps; 70–90 rpm during adaptive intervals), and a 20-second rolling median power anchor adjusts subsequent interval watts and recovery blocks proportionally, keeping planned easy programs within their 75% FTP ceiling. If the rider pauses or stops pedalling, the workout clock automatically pauses and preserves active pedalling time on crash recovery.
+
 ### Lifting and functional strength
 
 A gym session is a list of exercises: barbell lifts, medicine-ball throws, cable and band moves, holds and hangs. List them yourself on the Plan tab (name, sets × reps or time, weight, tempo), or ask your AI to build the session. The AI scores it: the kind of exercise, whether it's **restorative** or **build** work, and how each movement's strain is shared across the body.

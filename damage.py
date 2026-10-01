@@ -63,7 +63,7 @@ REPAIR_DOWN, REPAIR_UP = 0.93, 1.02   # a rough morning after a day over the lin
                                       # faster than a good one raises it
 REPAIR_RANGE = (0.5, 2.0)
 HOP_CLEAR = 10            # pain-free single-leg hops (the worse leg) needed, with the model's date, to run again
-HOP_POOR = 3              # this few is a poor hop test - "worse than expected" once past the first half of the plateau
+HOP_POOR = 3              # this few is a poor hop test; it changes the curve only after the plateau
 HOP_FRESH_DAYS = 3        # a hop test counts for clearance for this many days
 
 
@@ -106,11 +106,6 @@ def remodeling_response(dates, doses, usual_week=None, weight_kg=70.0, feet_repo
                     or (hops is not None and hops <= HOP_POOR))
         return value >= 6
 
-    def severity(value):
-        if isinstance(value, dict):
-            return max((value[k] for k in ("feet", "legs") if value.get(k) is not None), default=0)
-        return value
-
     def low_report(value):
         if isinstance(value, dict):
             return all(value.get(k) is not None and value[k] <= 3 for k in ("feet", "legs"))
@@ -119,8 +114,10 @@ def remodeling_response(dates, doses, usual_week=None, weight_kg=70.0, feet_repo
     impacts = [i for i, x in enumerate(doses) if x > 0]
     clean = []
     for i in impacts:
-        if i+4 < len(doses) and not any(doses[i+1:i+4]):
-            after = [reports[dates[j]] for j in range(i+2,i+5) if dates[j] in reports]
+        # Recovery reports cannot establish conditioning inside the five-day
+        # minimum plateau. Require observations after it, with no new run.
+        if i+8 < len(doses) and not any(doses[i+1:i+9]):
+            after = [reports[dates[j]] for j in range(i+6,i+9) if dates[j] in reports]
             if len(after) >= 2 and all(low_report(x) for x in after):
                 clean.append(i)
     credit = min(.3,.05*(len(clean)-3)) if len(clean)>=4 and clean[-1]-clean[0]>=28 else 0.0
@@ -131,20 +128,17 @@ def remodeling_response(dates, doses, usual_week=None, weight_kg=70.0, feet_repo
         reference = max(float(block), 1.0)
 
     def adjust(j,stop,plateau_len):
-        """Reports are judged against where you should be. Better than expected (feet and legs 3/10 or better)
-        always takes time off. Worse than expected (6/10+, or a poor hop test) adds time only past the first half
-        of the plateau - early on, beat up is expected - unless it's getting worse morning to morning."""
-        observations = [(k-j,reports[dates[k]]) for k in range(j+1,min(stop,len(dates)))
-                        if dates[k] in reports]
+        """Only reports after the mechanical plateau adjust the decline duration.
+
+        Reports during the plateau still inform the immediate training decision,
+        but cannot shorten or lengthen the accumulated-load curve.
+        """
+        observations = [reports[dates[k]] for k in range(j+1,min(stop,len(dates)))
+                        if dates[k] in reports and k-j > plateau_len]
         high = low = 0
-        prev = None
-        for age,x in observations:
-            if age>=2:
-                late = age >= plateau_len/2
-                worsening = prev is not None and severity(x) > severity(prev)
-                high += high_report(x) and (late or worsening)
-                low += low_report(x)
-            prev = x
+        for x in observations:
+            high += high_report(x)
+            low += low_report(x)
         return max(-2,min(10,.5*high-.5*max(0,low-2))),len(observations)
 
     def remaining(level,age,plateau,descent):
@@ -192,8 +186,8 @@ def remodeling_response(dates, doses, usual_week=None, weight_kg=70.0, feet_repo
             owed=max(0.0,anchor_day+plateau-i) if anchor_level>0 else 0.0
             adjustment,n=adjust(i,stop,owed+5*added)
             used+=n
-            plateau=max(1,owed+5*added+adjustment)
-            descent=max(1,3*level)
+            plateau=max(1,owed+5*added)
+            descent=max(1,3*level+adjustment)
             anchor_day,anchor_level=i,level
             events.append({"date":dates[i],"raw_blocks":round(raw,2),
                            "incoming_multiplier":round(multiplier,2),
@@ -213,7 +207,7 @@ def remodeling_response(dates, doses, usual_week=None, weight_kg=70.0, feet_repo
                          "from_running": round(from_run), "from_walking": round(from_walk) or None,
                          "repair_estimate": round(repair, 3), "proven_days": len(recent)}
             mo = morning(i)
-            if mo:
+            if mo and i-anchor_day > plateau:
                 frac = max(ALLOWANCE_FLOOR, 1 - level / ALLOWANCE_ZERO_AT)
                 if mo["good"] and w >= WALK_MIN_STEPS:
                     proven.append((i, w / frac))          # woke up fine: that walk, scaled to a fresh foot

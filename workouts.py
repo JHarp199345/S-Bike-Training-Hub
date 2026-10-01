@@ -4,7 +4,7 @@ A workout file (workouts/<id>.json) keeps what the builder edits, "blocks",
 and what the ERG engine runs, "steps" (a flat list of steady steps):
 
   {"type": "steady",    "minutes": 20, "pct": 61}
-  {"type": "ramp",      "minutes": 10, "from": 45, "to": 75}      -> 30-s steps
+  {"type": "ramp",      "minutes": 3, "from": 50, "to": 65}       -> three equal stages
   {"type": "intervals", "times": 5, "on":  {"minutes": 3, "pct": 92},
                                     "off": {"minutes": 3, "pct": 50}}
 
@@ -18,7 +18,7 @@ from pathlib import Path
 import live
 
 FOLDER = Path(__file__).resolve().parent / "workouts"
-RAMP_STEP = 30              # seconds per step of a ramp
+RAMP_STAGES = 3             # equal time; each stage advances a third of the planned rise
 MAX_MINUTES = 6 * 60
 
 
@@ -51,9 +51,9 @@ def flatten(blocks):
             mins = _num(b.get("minutes"), 0.5, 120, f"Block {i} time")
             a = _num(b.get("from"), 20, 250, f"Block {i} start")
             z = _num(b.get("to"), 20, 250, f"Block {i} end")
-            n = max(1, round(mins * 60 / RAMP_STEP))
+            n = RAMP_STAGES
             for k in range(n):
-                pct = a + (z - a) * (k + 0.5) / n               # the middle of each slice
+                pct = a + (z - a) * (k + 1) / n               # finish exactly at the interval's floor
                 steps.append({"minutes": mins / n, "pct": round(pct)})
         elif kind == "intervals":
             times = int(_num(b.get("times"), 1, 50, f"Block {i} repeats"))

@@ -129,11 +129,11 @@ def svg_chart(series, w=720, h=180):
     band = (f'<rect x="0" y="{h - 80 / 120 * (h - 10):.1f}" width="{w}" height="{10 / 120 * (h - 10):.1f}" '
             f'fill="#22c55e" opacity="0.12"/>')
     return (f'<svg viewBox="0 0 {w} {h}" width="100%" role="img" aria-label="Power and cadence over the ride">'
-            f'{band}{line([p for _, p, _ in series], pmax * 1.1, "#a855f7")}'
+            f'{band}{line([p for _, p, _ in series], pmax * 1.1, "var(--accent2)")}'
             f'{line([c for _, _, c in series], 120, "#38bdf8")}</svg>'
-            f'<div class="legend"><span style="color:#a855f7">■ watts (0–{pmax * 1.1:.0f})</span> '
+            f'<div class="legend"><span style="color:var(--accent2)">■ watts (0–{pmax * 1.1:.0f})</span> '
             f'<span style="color:#38bdf8">■ cadence (0–120 rpm)</span> '
-            f'<span style="color:#22c55e">■ 70–80 rpm band</span></div>')
+            f'<span style="color:var(--good)">■ 70–80 rpm band</span></div>')
 
 
 def update_gearing(all_rides):
@@ -185,11 +185,11 @@ def html(name, a, learned):
     erg = (f"<p>ERG: {a['erg_secs'] // 60} min held, off target by {a['erg_err'] * 100:.0f}% on average.</p>"
            if a["erg_err"] is not None else "")
     return f"""<!doctype html><meta charset="utf-8"><title>Ride {name}</title>
-<style>body{{background:#0b0f14;color:#eef1f5;font:15px/1.5 -apple-system,sans-serif;max-width:760px;margin:0 auto;padding:24px 16px}}
-h1{{margin:0}}.sub{{color:#8b98a8}}.grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:18px 0}}
-.k{{background:#151b23;border-radius:12px;padding:12px}}.k b{{display:block;font-size:26px}}.k span{{color:#8b98a8;font-size:13px}}
-table{{border-collapse:collapse;width:100%;margin:8px 0 18px}}td,th{{border-bottom:1px solid #1f2733;padding:6px;text-align:left}}
-th{{color:#8b98a8;font-weight:600}}.legend{{font-size:13px;color:#8b98a8;margin:4px 0 18px}}</style>
+<style>body{{background:var(--bg);color:var(--text);font:15px/1.5 -apple-system,sans-serif;max-width:760px;margin:0 auto;padding:24px 16px}}
+h1{{margin:0}}.sub{{color:var(--muted)}}.grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:18px 0}}
+.k{{background:var(--card);border-radius:12px;padding:12px}}.k b{{display:block;font-size:26px}}.k span{{color:var(--muted);font-size:13px}}
+table{{border-collapse:collapse;width:100%;margin:8px 0 18px}}td,th{{border-bottom:1px solid var(--control);padding:6px;text-align:left}}
+th{{color:var(--muted);font-weight:600}}.legend{{font-size:13px;color:var(--muted);margin:4px 0 18px}}</style><link rel="stylesheet" href="/web/theme.css"><script src="/web/theme.js"></script>
 <h1>Ride report</h1><div class="sub">{a['start']:%A %B %-d, %Y · %H:%M} · {name}</div>
 <div class="grid">
 <div class="k"><b>{a['minutes']:.0f} min</b><span>pedalling</span></div>

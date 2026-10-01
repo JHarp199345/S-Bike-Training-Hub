@@ -1,37 +1,37 @@
-<!doctype html><html><head><meta charset="utf-8"><title>S-Bike Hub · Fitness</title>
+<!doctype html><html><head><meta charset="utf-8"><title>S29 Hub · Fitness</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
  :root{color-scheme:dark}
  [hidden]{display:none!important}
- body{margin:0;background:#0b0f14;color:#eef1f5;font:15px/1.45 -apple-system,Roboto,"Helvetica Neue",sans-serif}
+ body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 -apple-system,Roboto,"Helvetica Neue",sans-serif}
  main{max-width:980px;margin:0 auto;padding:22px 16px 40px}
- h1{font-size:28px;margin:0}.sub{color:#8b98a8} a{color:#60a5fa}
+ h1{font-size:28px;margin:0}.sub{color:var(--muted)} a{color:var(--info)}
  .nums{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:18px 0 10px}
- .n{background:#151b23;border-radius:14px;padding:14px;text-align:center}
- .n b{display:block;font-size:34px;font-weight:800;line-height:1.1}.n span{font-size:12px;letter-spacing:1.4px;color:#8b98a8}
- .n small{display:block;color:#b7c1cd;font-size:12px;margin-top:4px}
- .ctl b{color:#60a5fa}.atl b{color:#f472b6}
- #advice{background:#151b23;border-radius:14px;padding:14px 16px;margin-bottom:14px;font-size:16px}
- .card{background:#151b23;border-radius:14px;padding:12px;margin-bottom:14px}
+ .n{background:var(--card);border-radius:14px;padding:14px;text-align:center}
+ .n b{display:block;font-size:34px;font-weight:800;line-height:1.1}.n span{font-size:12px;letter-spacing:1.4px;color:var(--muted)}
+ .n small{display:block;color:var(--text2);font-size:12px;margin-top:4px}
+ .ctl b{color:var(--info)}.atl b{color:#f472b6}
+ #advice{background:var(--card);border-radius:14px;padding:14px 16px;margin-bottom:14px;font-size:16px}
+ .card{background:var(--card);border-radius:14px;padding:12px;margin-bottom:14px}
  .bar{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin:0 4px 8px}
- .rng button{background:#1f2937;color:#eef1f5;border:0;border-radius:8px;padding:7px 11px;font-weight:600;cursor:pointer}
- .rng button.on{background:#2563eb}
+ .rng button{background:var(--control);color:var(--text);border:0;border-radius:8px;padding:7px 11px;font-weight:600;cursor:pointer}
+ .rng button.on{background:var(--accent)}
  canvas{width:100%;height:340px;display:block;touch-action:pan-y}
- .legend{font-size:13px;color:#b7c1cd;display:flex;gap:14px;flex-wrap:wrap}
+ .legend{font-size:13px;color:var(--text2);display:flex;gap:14px;flex-wrap:wrap}
  .legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px}
- table{width:100%;border-collapse:collapse;font-size:14px} th,td{text-align:left;padding:7px 6px;border-bottom:1px solid #1f2733}
- th{color:#8b98a8;font-weight:600} td.r,th.r{text-align:right}
- details{margin-top:6px} summary{cursor:pointer;color:#b7c1cd;font-weight:700}
- details p{color:#b7c1cd;margin:8px 0}
+ table{width:100%;border-collapse:collapse;font-size:14px} th,td{text-align:left;padding:7px 6px;border-bottom:1px solid var(--control)}
+ th{color:var(--muted);font-weight:600} td.r,th.r{text-align:right}
+ details{margin-top:6px} summary{cursor:pointer;color:var(--text2);font-weight:700}
+ details p{color:var(--text2);margin:8px 0}
  .sysgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
- .sysc{background:#0f141b;border-radius:12px;padding:12px}.sysc b{display:block;color:#b7c1cd;font-size:13px}
- .sysc .z{font-size:20px;font-weight:900;margin:2px 0}.sysc small{display:block;color:#8b98a8;font-size:12px}
- .budget{position:relative;height:12px;background:#1f2937;border-radius:6px;margin-top:8px;overflow:hidden}
+ .sysc{background:var(--deep);border-radius:12px;padding:12px}.sysc b{display:block;color:var(--text2);font-size:13px}
+ .sysc .z{font-size:20px;font-weight:900;margin:2px 0}.sysc small{display:block;color:var(--muted);font-size:12px}
+ .budget{position:relative;height:12px;background:var(--control);border-radius:6px;margin-top:8px;overflow:hidden}
  .budget i{position:absolute;top:0;bottom:0;background:rgba(34,197,94,.35)}.budget em{position:absolute;top:-2px;bottom:-2px;width:4px;background:#fff;border-radius:2px}
  @media (max-width:560px){.sysgrid{grid-template-columns:1fr}}
  @media (max-width:560px){.n b{font-size:26px} canvas{height:280px} .hide-s{display:none}}
  .card{overflow-x:auto} /* wide tables scroll inside their card on a phone, not the whole page */
-</style></head><body><main>
+</style><link rel="stylesheet" href="/web/theme.css"><script src="/web/theme.js"></script></head><body><main>
 <h1>Fitness &amp; form</h1>
 <div class="sub">From your watts, not heart rate · <a href="/panel">Panel</a> · <a href="/ride">Ride view</a> · <a href="/plan">Plan a ride</a></div>
 <div class="nums">
@@ -41,8 +41,8 @@
 </div>
 <div id="advice">…</div>
 <div class="card">
- <div class="bar"><div class="legend"><span><i style="background:#60a5fa"></i>Fitness</span><span><i style="background:#f472b6"></i>Fatigue</span>
-  <span><i style="background:#22c55e"></i>Form</span><span><i style="background:#f59e0b;border-radius:6px"></i>Ride load</span></div>
+ <div class="bar"><div class="legend"><span><i style="background:var(--info)"></i>Fitness</span><span><i style="background:#f472b6"></i>Fatigue</span>
+  <span><i style="background:var(--good)"></i>Form</span><span><i style="background:var(--warn);border-radius:6px"></i>Ride load</span></div>
   <div class="rng"><button data-d="42">6 wk</button><button data-d="90" class="on">3 mo</button><button data-d="365">1 yr</button><button data-d="0">All</button></div></div>
  <canvas id="c"></canvas>
  <div class="sub" style="font-size:12px;margin:6px 4px 0">Dashed: the next two weeks if you rest. Tap or hover a day for its numbers.</div>
@@ -86,15 +86,15 @@ const $=id=>document.getElementById(id); let data=null, range=90, hover=null;
 const fmt=d=>new Date(d+'T12:00').toLocaleDateString(undefined,{month:'short',day:'numeric'});
 async function load(){ data=await (await fetch('/api/fitness')).json(); show(); body(); }
 let bl=null;
-const SN={engine:['❤️ Heart & lungs','#ef4444'],impact:['🦶 Feet & bones','#f59e0b'],muscle:['🦵 Leg muscles','#a78bfa']};
-const ZC={'sweet spot':'#4ade80','room to build':'#60a5fa','caution':'#fbbf24','danger':'#f87171','balanced':'#9ca3af','fresh':'#4ade80',
-  'very fresh':'#60a5fa','training hard':'#fbbf24','very tired':'#f87171','building baseline':'#9ca3af'};
+const SN={engine:['❤️ Heart & lungs','var(--bad)'],impact:['🦶 Feet & bones','var(--warn)'],muscle:['🦵 Leg muscles','var(--accent2)']};
+const ZC={'sweet spot':'var(--good)','room to build':'var(--info)','caution':'var(--warn)','danger':'var(--bad)','balanced':'var(--muted)','fresh':'var(--good)',
+  'very fresh':'var(--info)','training hard':'var(--warn)','very tired':'var(--bad)','building baseline':'var(--muted)'};
 async function body(){ try{ bl=await (await fetch('/api/load')).json(); }catch(e){ return; }
   if(!bl.systems){ $('bodycard').hidden=true; return; } $('bodycard').hidden=false;
-  const r=bl.readiness, VC={go:'#4ade80',easy:'#fbbf24',rest:'#f87171'}; $('bverdict').innerHTML=r?`Bike: <b style="color:${VC[r.verdict]}">${r.verdict.toUpperCase()}</b>`+(r.limited_by.length?` (${r.limited_by.join(' and ')})`:'')
+  const r=bl.readiness, VC={go:'var(--good)',easy:'var(--warn)',rest:'var(--bad)'}; $('bverdict').innerHTML=r?`Bike: <b style="color:${VC[r.verdict]}">${r.verdict.toUpperCase()}</b>`+(r.limited_by.length?` (${r.limited_by.join(' and ')})`:'')
     +(r.running?` · Running: <b style="color:${VC[r.running.verdict]}">${r.running.verdict.toUpperCase()}</b>`:''):'';
   $('sysgrid').innerHTML=Object.entries(bl.systems).map(([k,v])=>{ const b=v.week_budget, top=b?Math.max(b[1]*1.4,v.week_used*1.05,1):1;
-    return `<div class="sysc"><b>${SN[k][0]}${v.tuned?` <span title="${(v.tuned_note||'').replace(/["<>]/g,'')}" style="color:#93c5fd;font-weight:700">· tuned to you</span>`:''}</b><div class="z" style="color:${ZC[v.zone]||'#fff'}">${v.zone}</div>
+    return `<div class="sysc"><b>${SN[k][0]}${v.tuned?` <span title="${(v.tuned_note||'').replace(/["<>]/g,'')}" style="color:var(--info);font-weight:700">· tuned to you</span>`:''}</b><div class="z" style="color:${ZC[v.zone]||'#fff'}">${v.zone}</div>
       <small>usual week ${v.usual_week}${v.tuned?' (model guessed '+v.model_usual_week+')':''}${v.acwr!=null?' · ratio '+v.acwr:''}</small>
       ${b?`<div class="budget"><i style="left:${b[0]/top*100}%;width:${(b[1]-b[0])/top*100}%"></i><em style="left:${Math.min(99,v.week_used/top*100)}%"></em></div>
       <small>this week ${Math.round(v.week_used)} · sweet spot ${b[0]}-${b[1]}</small>`:'<small>budget appears after two weeks of history</small>'}</div>`; }).join('');
@@ -102,7 +102,7 @@ async function body(){ try{ bl=await (await fetch('/api/load')).json(); }catch(e
     <td class="r">${Math.floor(v.minutes/60)?Math.floor(v.minutes/60)+'h ':''}${Math.round(v.minutes%60)}m</td><td class="r">${Math.round(v.engine)}</td><td class="r">${Math.round(v.impact)}</td><td class="r">${Math.round(v.muscle)}</td></tr>`).join('');
   sysdraw(); dmg(); aero(); xfer(); }
 function xfer(){ const T=bl.transfer; if(!T||!T.fitness){ $('xfercard').hidden=true; return; } $('xfercard').hidden=false;
-  const S=['swim','bike','run'], N={swim:'🏊 Swim',bike:'🚴 Bike',run:'🏃 Run'}, C={prior:'#9ca3af',learning:'#fbbf24',learned:'#4ade80'};
+  const S=['swim','bike','run'], N={swim:'🏊 Swim',bike:'🚴 Bike',run:'🏃 Run'}, C={prior:'var(--muted)',learning:'var(--warn)',learned:'var(--good)'};
   const cell=v=>v?`<b style="color:${C[v.status]}">${v.ratio.toFixed(2)}</b>${v.lo!=null?`<br><small class="sub">${v.lo.toFixed(1)}-${v.hi.toFixed(1)}</small>`:''}`:'';
   $('xfersum').textContent=`from ${T.markers.bike} rides, ${T.markers.swim} swims, ${T.markers.run} runs`;
   $('xfergrid').innerHTML=`<table><thead><tr><th>Builds →<br>from ↓</th>${S.map(s=>`<th class="r">${N[s]}</th>`).join('')}<th class="r">Tires legs</th></tr></thead><tbody>`
@@ -124,11 +124,11 @@ function aero(){ const A=bl.aerobic; if(!A||!A.rides.length){ $('aerocard').hidd
     vals.forEach((v,i)=>{ if(v==null) return; g.fillStyle=col; g.beginPath(); g.arc(x(i),Y(v),3.5,0,7); g.fill(); });
     g.fillStyle=col; g.font='11px -apple-system,Roboto,sans-serif'; g.textAlign=side==='l'?'right':'left';
     g.fillText(hi.toFixed(label==='bpm'?0:2),side==='l'?L-4:W-Rr+4,T+4); g.fillText(lo.toFixed(label==='bpm'?0:2),side==='l'?L-4:W-Rr+4,B); };
-  if(hrs.length) line(R.map(r=>r.hr_at_band),'#f87171',Math.min(...hrs)-5,Math.max(...hrs)+5,'bpm','l');
-  if(efs.length) line(R.map(r=>r.ef),'#4ade80',Math.min(...efs)-0.05,Math.max(...efs)+0.05,'ef','r');
-  g.fillStyle='#8b98a8'; g.textAlign='center'; R.forEach((r,i)=>g.fillText(fmt(r.date),x(i),H-4));
-  g.textAlign='left'; g.fillStyle='#f87171'; g.fillText('● HR at 100-120 W',L+4,T+2); g.fillStyle='#4ade80'; g.fillText('● watts per beat',L+130,T+2); }
-const TC={soft:'#f472b6',tendon:'#fbbf24',bone:'#e5e7eb'};
+  if(hrs.length) line(R.map(r=>r.hr_at_band),'var(--bad)',Math.min(...hrs)-5,Math.max(...hrs)+5,'bpm','l');
+  if(efs.length) line(R.map(r=>r.ef),'var(--good)',Math.min(...efs)-0.05,Math.max(...efs)+0.05,'ef','r');
+  g.fillStyle='var(--muted)'; g.textAlign='center'; R.forEach((r,i)=>g.fillText(fmt(r.date),x(i),H-4));
+  g.textAlign='left'; g.fillStyle='var(--bad)'; g.fillText('● HR at 100-120 W',L+4,T+2); g.fillStyle='var(--good)'; g.fillText('● watts per beat',L+130,T+2); }
+const TC={soft:'#f472b6',tendon:'var(--warn)',bone:'var(--text)'};
 function dmg(){ const d=bl.systems.impact&&bl.systems.impact.tissue; if(!d){ $('dmgcard').hidden=true; return; } $('dmgcard').hidden=false;
   $('dverdict').textContent='Coach has the current running recommendation';
   const k1=n=>n.toLocaleString();
@@ -147,28 +147,28 @@ function dmgdraw(){ const d=bl.systems.impact&&bl.systems.impact.tissue; if(!d) 
   const L=30, R=8, T=22, B=H-20, x=i=>L+i*(W-L-R)/Math.max(1,n-1);
   const top=Math.max(10,...rows.flatMap(r=>['soft','tendon','bone'].map(k=>r[k])))*1.08, Y=v=>B-Math.min(v,top)/top*(B-T);
   [[0,2,'rgba(96,165,250,.08)'],[2,4,'rgba(74,222,128,.09)'],[4,7,'rgba(251,191,36,.10)'],[7,top,'rgba(248,113,113,.08)']].forEach(([a,b,col])=>{ g.fillStyle=col; g.fillRect(L,Y(b),W-L-R,Y(a)-Y(b)); });
-  g.font='11px -apple-system,Roboto,sans-serif'; g.fillStyle='#8b98a8'; g.textAlign='right';
+  g.font='11px -apple-system,Roboto,sans-serif'; g.fillStyle='var(--muted)'; g.textAlign='right';
   const step=top>60?20:top>30?10:top>15?5:2; for(let v=0;v<=top;v+=step) g.fillText(v+'d',L-4,Y(v)+4);
-  g.strokeStyle='rgba(255,255,255,.35)'; g.setLineDash([3,3]); g.beginPath(); g.moveTo(x(past-1),T); g.lineTo(x(past-1),B); g.stroke(); g.setLineDash([]);
+  g.strokeStyle='var(--grid2)'; g.setLineDash([3,3]); g.beginPath(); g.moveTo(x(past-1),T); g.lineTo(x(past-1),B); g.stroke(); g.setLineDash([]);
   g.textAlign='left'; g.fillText('today · if you don\'t run →',x(past-1)+5,T+10);
   for(const k of ['bone','tendon','soft']){ for(const f of [false,true]){ g.beginPath(); let st=false;
     rows.forEach((r,i)=>{ if(f?i<past-1:i>past-1) return; st?g.lineTo(x(i),Y(r[k])):g.moveTo(x(i),Y(r[k])); st=true; });
     g.strokeStyle=TC[k]; g.lineWidth=2; g.setLineDash(f?[5,4]:[]); g.stroke(); g.setLineDash([]); } }
-  g.textAlign='center'; g.fillStyle='#8b98a8'; const every=Math.ceil(n/8); rows.forEach((r,i)=>{ if(i%every===0) g.fillText(fmt(r.date),x(i),H-4); });
-  g.textAlign='left'; let lx=L+4; for(const k of ['soft','tendon','bone']){ g.fillStyle=TC[k]; g.fillRect(lx,T-16,10,10); g.fillStyle='#b7c1cd'; const nm=d.tissues[k].name; g.fillText(nm,lx+14,T-7); lx+=g.measureText(nm).width+30; } }
+  g.textAlign='center'; g.fillStyle='var(--muted)'; const every=Math.ceil(n/8); rows.forEach((r,i)=>{ if(i%every===0) g.fillText(fmt(r.date),x(i),H-4); });
+  g.textAlign='left'; let lx=L+4; for(const k of ['soft','tendon','bone']){ g.fillStyle=TC[k]; g.fillRect(lx,T-16,10,10); g.fillStyle='var(--text2)'; const nm=d.tissues[k].name; g.fillText(nm,lx+14,T-7); lx+=g.measureText(nm).width+30; } }
 function sysdraw(){ if(!bl||!bl.days) return; const c=$('sc'), dpr=devicePixelRatio||1, W=c.clientWidth, H=c.clientHeight; c.width=W*dpr; c.height=H*dpr;
   const g=c.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,W,H);
   const days=bl.days.slice(-28), L=10, R=10, T=10, B=H-20, x=i=>L+i*(W-L-R)/Math.max(1,days.length-1);
   const top=Math.max(10,...days.flatMap(d=>['engine','impact','muscle'].flatMap(k=>[d[k].fatigue,d[k].fitness])))*1.1, Y=v=>B-v/top*(B-T);
   for(const k of ['impact','muscle','engine']){ for(const key of ['fitness','fatigue']){ g.beginPath(); days.forEach((d,i)=>i?g.lineTo(x(i),Y(d[k][key])):g.moveTo(x(i),Y(d[k][key])));
     g.strokeStyle=SN[k][1]; g.lineWidth=key==='fatigue'?2.2:1.6; g.setLineDash(key==='fitness'?[5,4]:[]); g.stroke(); g.setLineDash([]); } }
-  g.fillStyle='#8b98a8'; g.font='11px -apple-system,Roboto,sans-serif'; g.textAlign='center';
+  g.fillStyle='var(--muted)'; g.font='11px -apple-system,Roboto,sans-serif'; g.textAlign='center';
   const every=Math.ceil(days.length/7); days.forEach((d,i)=>{ if(i%every===0) g.fillText(new Date(d.date+'T12:00').toLocaleDateString(undefined,{month:'short',day:'numeric'}),x(i),H-4); });
-  g.textAlign='left'; let lx=L; for(const k of ['engine','impact','muscle']){ g.fillStyle=SN[k][1]; g.fillRect(lx,T,10,10); g.fillStyle='#b7c1cd'; const nm={engine:'Heart & lungs',impact:'Feet & bones',muscle:'Leg muscles'}[k]; g.fillText(nm,lx+14,T+9); lx+=g.measureText(nm).width+34; } }
+  g.textAlign='left'; let lx=L; for(const k of ['engine','impact','muscle']){ g.fillStyle=SN[k][1]; g.fillRect(lx,T,10,10); g.fillStyle='var(--text2)'; const nm={engine:'Heart & lungs',impact:'Feet & bones',muscle:'Leg muscles'}[k]; g.fillText(nm,lx+14,T+9); lx+=g.measureText(nm).width+34; } }
 function show(){
   const t=data.today; $('ftp').textContent=data.ftp+' W, '+data.ftp_source;
   if(t){ $('ctl').textContent=Math.round(t.ctl); $('atl').textContent=Math.round(t.atl); $('tsb').textContent=(t.tsb>0?'+':'')+Math.round(t.tsb);
-    $('tsb').style.color=t.tsb< -30?'#ef4444':t.tsb< -10?'#f59e0b':t.tsb<=5?'#9ca3af':'#22c55e'; }
+    $('tsb').style.color=t.tsb< -30?'var(--bad)':t.tsb< -10?'var(--warn)':t.tsb<=5?'var(--muted)':'var(--good)'; }
   $('advice').textContent=data.advice;
   $('week').textContent=`Last 7 days: ${data.week.rides} rides · ${data.week.hours} h · load ${data.week.tss}`;
   $('rides').innerHTML=data.rides.map(r=>`<tr><td>${fmt(r.date)} <span class="sub">${r.start}</span></td><td class="r">${Math.floor(r.minutes/60)?Math.floor(r.minutes/60)+'h ':''}${Math.round(r.minutes%60)}m</td>
@@ -178,7 +178,7 @@ function show(){
 function draw(){
   const c=$('c'), dpr=devicePixelRatio||1, W=c.clientWidth, H=c.clientHeight; c.width=W*dpr; c.height=H*dpr;
   const g=c.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,W,H);
-  let days=data.days; if(!days.length){ g.fillStyle='#8b98a8'; g.textAlign='center'; g.fillText('Your first ride starts the chart.',W/2,H/2); return; }
+  let days=data.days; if(!days.length){ g.fillStyle='var(--muted)'; g.textAlign='center'; g.fillText('Your first ride starts the chart.',W/2,H/2); return; }
   if(range){ const past=days.filter(d=>!d.future); const cut=past.length>range?past[past.length-range].date:days[0].date; days=days.filter(d=>d.date>=cut); }
   const L=36, R=36, T=10, split=Math.round(H*0.66), B=H-22;
   const x=i=>L+(i+0.5)*(W-L-R)/days.length, bw=Math.max(2,(W-L-R)/days.length*0.7);
@@ -187,30 +187,30 @@ function draw(){
   const fmax=Math.max(15,...days.map(d=>Math.abs(d.tsb))), Yf=v=>(split+B)/2+14-v/fmax*((B-split)/2-8);
   g.font='11px -apple-system,Roboto,sans-serif'; g.textBaseline='middle';
   // grid + axes
-  for(let k=0;k<=4;k++){ const v=top/4*k, y=Y(v); g.strokeStyle='rgba(255,255,255,.06)'; g.beginPath(); g.moveTo(L,y); g.lineTo(W-R,y); g.stroke();
-    g.fillStyle='#8b98a8'; g.textAlign='right'; g.fillText(Math.round(v),L-6,y); g.textAlign='left'; g.fillText(Math.round(tssTop/4*k),W-R+6,Yt(tssTop/4*k)); }
-  const now=days.findIndex(d=>d.future); if(now>0){ g.fillStyle='rgba(255,255,255,.04)'; g.fillRect(x(now)-bw,T,W-R-x(now)+bw,B-T);
-    g.fillStyle='#8b98a8'; g.textAlign='center'; g.fillText('if you rest →',(x(now)+W-R)/2,T+8); }
+  for(let k=0;k<=4;k++){ const v=top/4*k, y=Y(v); g.strokeStyle='var(--grid)'; g.beginPath(); g.moveTo(L,y); g.lineTo(W-R,y); g.stroke();
+    g.fillStyle='var(--muted)'; g.textAlign='right'; g.fillText(Math.round(v),L-6,y); g.textAlign='left'; g.fillText(Math.round(tssTop/4*k),W-R+6,Yt(tssTop/4*k)); }
+  const now=days.findIndex(d=>d.future); if(now>0){ g.fillStyle='var(--grid)'; g.fillRect(x(now)-bw,T,W-R-x(now)+bw,B-T);
+    g.fillStyle='var(--muted)'; g.textAlign='center'; g.fillText('if you rest →',(x(now)+W-R)/2,T+8); }
   // form bars: red very tired, amber training, grey balanced, green fresh
-  g.strokeStyle='rgba(255,255,255,.15)'; g.beginPath(); g.moveTo(L,Yf(0)); g.lineTo(W-R,Yf(0)); g.stroke();
-  days.forEach((d,i)=>{ const v=d.tsb; g.fillStyle=v< -30?'#ef4444':v< -10?'#f59e0b':v<=5?'#6b7280':'#22c55e'; if(d.future) g.globalAlpha=.45;
+  g.strokeStyle='var(--grid2)'; g.beginPath(); g.moveTo(L,Yf(0)); g.lineTo(W-R,Yf(0)); g.stroke();
+  days.forEach((d,i)=>{ const v=d.tsb; g.fillStyle=v< -30?'var(--bad)':v< -10?'var(--warn)':v<=5?'var(--muted)':'var(--good)'; if(d.future) g.globalAlpha=.45;
     g.fillRect(x(i)-bw/2,Math.min(Yf(0),Yf(v)),bw,Math.max(1,Math.abs(Yf(v)-Yf(0)))); g.globalAlpha=1; });
-  g.fillStyle='#8b98a8'; g.textAlign='right'; g.fillText('form',L-6,Yf(0));
+  g.fillStyle='var(--muted)'; g.textAlign='right'; g.fillText('form',L-6,Yf(0));
   // fitness area, fatigue line, both dashed ahead
   const path=(key,col,fill)=>{ for(const fut of [false,true]){ g.beginPath(); let started=false, first=0;
       days.forEach((d,i)=>{ if(d.future!==fut && !(fut && i===now-1)) return; if(!started){ g.moveTo(x(i),Y(d[key])); started=true; first=i; } else g.lineTo(x(i),Y(d[key])); });
       if(!started) continue; g.setLineDash(fut?[5,5]:[]); g.strokeStyle=col; g.lineWidth=2.2; g.stroke(); g.setLineDash([]);
       if(fill&&!fut){ const last=now>0?now-1:days.length-1; g.lineTo(x(last),split); g.lineTo(x(first),split); g.closePath(); g.fillStyle=fill; g.fill(); } } g.lineWidth=1; };
-  path('ctl','#60a5fa','rgba(96,165,250,.18)'); path('atl','#f472b6',null);
-  days.forEach((d,i)=>{ if(!d.tss) return; g.beginPath(); g.arc(x(i),Yt(d.tss),3.5,0,7); g.fillStyle='#f59e0b'; g.fill(); });
+  path('ctl','var(--info)','rgba(96,165,250,.18)'); path('atl','#f472b6',null);
+  days.forEach((d,i)=>{ if(!d.tss) return; g.beginPath(); g.arc(x(i),Yt(d.tss),3.5,0,7); g.fillStyle='var(--warn)'; g.fill(); });
   // dates
-  g.fillStyle='#8b98a8'; g.textAlign='center'; const every=Math.ceil(days.length/7);
+  g.fillStyle='var(--muted)'; g.textAlign='center'; const every=Math.ceil(days.length/7);
   days.forEach((d,i)=>{ if(i%every===0) g.fillText(fmt(d.date),x(i),H-8); });
   if(hover!==null){ const i=Math.max(0,Math.min(days.length-1,Math.floor((hover-L)/((W-L-R)/days.length)))), d=days[i];
-    g.strokeStyle='rgba(255,255,255,.5)'; g.beginPath(); g.moveTo(x(i),T); g.lineTo(x(i),B); g.stroke();
+    g.strokeStyle='var(--grid2)'; g.beginPath(); g.moveTo(x(i),T); g.lineTo(x(i),B); g.stroke();
     const lines=[fmt(d.date)+(d.future?' (if you rest)':''),`fitness ${d.ctl} · fatigue ${d.atl}`,`form ${d.tsb>0?'+':''}${d.tsb}`,d.tss?`ride load ${d.tss}`:'no ride'];
     g.font='12px -apple-system,Roboto,sans-serif'; const bw2=Math.max(...lines.map(s=>g.measureText(s).width))+16, bx=x(i)+10+bw2>W-R?x(i)-10-bw2:x(i)+10;
-    g.fillStyle='rgba(11,15,20,.94)'; g.fillRect(bx,T+4,bw2,lines.length*17+10); g.fillStyle='#eef1f5'; g.textAlign='left';
+    g.fillStyle='var(--glass)'; g.fillRect(bx,T+4,bw2,lines.length*17+10); g.fillStyle='var(--text)'; g.textAlign='left';
     lines.forEach((s,k)=>g.fillText(s,bx+8,T+17+k*17)); }
 }
 const at=e=>{ const r=$('c').getBoundingClientRect(); hover=(e.touches?e.touches[0].clientX:e.clientX)-r.left; draw(); };

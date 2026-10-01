@@ -42,7 +42,7 @@ async def main():
         check(f"  step {w} W: holding {avg:.0f} W", abs(avg - w) / w < 0.1)
     log = ride([(240, 140)], tired=lambda t: 0 if t < 60 else min(40, (t - 60) * 0.5))
     cads = [c for *_, c, p in log[-40:]]
-    check(f"tiring rider at 140 W: ERG backs off instead of grinding them to a stop (cadence ends {cads[-1]:.0f} rpm)", min(cads) >= 45)
+    check(f"tiring rider at 140 W: ERG backs off instead of grinding him to a stop (cadence ends {cads[-1]:.0f} rpm)", min(cads) >= 45)
     check("no level ever outside 1-16", all(1 <= l <= 16 for _, _, l, _, _ in log))
 
     # 2. Inside the bridge.
@@ -112,11 +112,11 @@ async def main():
             m = e.update(watts, 80, float(s))
             if m: moves.append((s, m))
         return moves
-    check("green (90-120% of target): never shifts - 175 W on a 150 W block for 5 min", ride(175, 300) == [])
+    check("green (100-120% of target): never shifts - 175 W on a 150 W block for 5 min", ride(175, 300) == [])
     yl = ride(125, 200)
-    check(f"yellow under (83%): one harder gear after 2 minutes, not before ({yl})", yl and yl[0][1] == 1 and 120 <= yl[0][0] <= 135)
+    check(f"yellow under (83%): harder gear after a sustained 15-second shortfall ({yl})", yl and yl[0][1] == 1 and 15 <= yl[0][0] <= 20)
     rd = ride(110, 60)
-    check(f"red (73%): after 30 seconds ({rd[:1]})", rd and 28 <= rd[0][0] <= 40)
+    check(f"red under (73%): correction after 15 seconds ({rd[:1]})", rd and 15 <= rd[0][0] <= 20)
     bk = ride(270, 30)
     check(f"black over (180%): an easier gear after ~8 s ({bk[:1]})", bk and bk[0][1] == -1 and bk[0][0] <= 16)
     # look before shifting: at a high level one gear is a big jump - never shift the rider off the road
@@ -140,6 +140,53 @@ async def main():
     e = ZErg(); e.set(150, "workout 'Z'", 0.0)
     bog = [s for s in range(1, 40) if e.update(150, 45, float(s))]
     check(f"legs bogging down (45 rpm) still gets an easier gear within seconds ({bog[:1]})", bog and bog[0] <= 16)
+    e = ZErg(); e.set(90, "workout 'floor'", 0)
+    moves = [(s, m) for s in range(1, 120) if (m := e.update(70 if (s // 8) % 2 else 76, 75, float(s), 2))]
+    check(f"70–76 W fluctuations cannot cancel the 90 W floor upshift ({moves[:1]})",
+          moves and moves[0][1] == 1 and moves[0][0] <= 20)
+    check("85 W is below the 90 W floor and earns a harder gear", bool(ride_at(85, 2, 30, target=90)))
+    for watts in (100, 110, 120):
+        check(f"easy 90 W floor: {watts} W is accepted without downshifting", ride_at(watts, 3, 180, target=90) == [])
+    e = ZErg(); e.set(90, "workout 'floor'", 0); e.GEAR = (.1, .4)
+    moves = [(s, m) for s in range(1, 30) if (m := e.update(70, 75, float(s), 1))]
+    check("a gear reaching 126 W wins over remaining at 70 W below a 90 W floor", moves and moves[0][1] == 1)
+
+    e = ZErg(); e.set(80, "workout 'cooldown'", 0)
+    for t in range(1, 18): e.update(70, 77, t, 2)
+    before = len(e.samples)
+    m = e.update(96, 77, 18, 3)
+    check("manual shift to successful gear clears stale low readings and holds", before > 3 and m == 0 and len(e.samples) == 1)
+    check("successful cooldown gear never triggers the logged harder shift", all(e.update(96, 77, t, 3) == 0 for t in range(19, 90)))
+    e = ZErg(); e.set(115, "workout 'hold'", 0)
+    moves = [e.update(113 if 20 <= t < 40 else 118, 80, t, 4) for t in range(1, 100)]
+    check("temporary two-watt dip recovers without changing gear", not any(moves))
+    e = ZErg(); e.set(90, "workout 'easiest'", 0)
+    e.level_rates = {2:70/80, 3:110/80, 4:140/80}
+    moves = [(t,m) for t in range(1, 70) if (m := e.update(140,80,t,4))]
+    check("settled excess selects a measured easier gear that still meets goal", moves and moves[0][1] == -1)
+    e = ZErg(); e.set(90, "workout 'easiest'", 0)
+    e.level_rates = {2:70/80, 3:110/80}
+    check("holds easiest successful gear when the next lower gear misses goal", all(e.update(110,80,t,3) == 0 for t in range(1,180)))
+
+    adaptive = {"name": "Linked workout", "blocks": [{"type": "steady", "label": "Warm-up", "minutes":1}, {"type": "ramp", "minutes":1}],
+                "steps": [{"minutes": 1, "watts": 90}, {"minutes": .5, "watts": 100},
+                          {"minutes": .5, "watts": 110}, {"minutes": 1, "watts": 117},
+                          {"minutes": 1, "watts": 81}]}
+    e = ZErg(); e.start_workout(adaptive, 1)
+    for s in range(2, 62): e.update(120 if s < 57 else 300, 75, float(s), 3)
+    check("warm-up scaling is bounded to keep an easy peak at 75% FTP (135 W), ignoring a late spike",
+          e.workout["steps"][3][1] == 135 and e.target == 115 and e.workout["scale"] == 135 / 117)
+    check("ramp loosens cadence to 55–110 rpm while retaining its changing power floor",
+          e.workout_status(62)["cadence_band"] == [55,110] and e.workout_status(62)["power_floor"] == 115)
+    # A completed interval rebases cooldown from its actual sustained effort.
+    e.workout["active"] = 179; e.workout["last"] = 200; e.workout["segment_index"] = 3; e.target = 156
+    e.segment_samples.clear(); e.segment_samples.extend((t, 170, 75) for t in range(170, 201))
+    e.update(170, 75, 201, 3)
+    check("170 W interval finish scales the planned cooldown proportionally", e.target == round(81 * 170 / 117))
+    saved = e.adaptive_state()
+    e2 = ZErg(); e2.start_workout({"name": adaptive["name"], "steps": [{"minutes": d/60, "watts": p} for d, p in e.workout["steps"]]}, 300)
+    e2.workout.update(saved); e2.workout["active"] = e.workout["active"]; e2._advance_workout(300)
+    check("resume retains the adapted targets and immutable planned targets", e2.target == e.target and e2.workout["planned_steps"] == e.workout["planned_steps"])
     print("ALL PASS" if ok else "SOME FAILED"); return ok
 
 

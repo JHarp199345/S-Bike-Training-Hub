@@ -33,7 +33,7 @@ import ideas
 HERE = Path(__file__).resolve().parent
 MAPS = Path(__import__("os").environ.get("S_BIKE_MAPS") or HERE / "maps")     # made by setup.sh
 WEB = HERE / "web"
-TYPES = {".mjs": "text/javascript", ".js": "text/javascript", ".css": "text/css", ".png": "image/png", ".jpg": "image/jpeg",
+TYPES = {".mjs": "text/javascript", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg",
          ".html": "text/html; charset=utf-8", ".json": "application/json", ".map": "application/json"}
 
 _maps = None
@@ -200,9 +200,20 @@ async def handle(bridge, method, path, body, host):
             return 200, "application/json", json.dumps(out).encode(), {}
         return 200, "application/json", json.dumps({"profile": onboarding.current(base), "first_run": onboarding.first_run(base),
                                                     "folder": str(HERE), "no_bike": bool(getattr(getattr(bridge, "args", None), "no_bike", False))}).encode(), {}
+    if p == "/api/theme":
+        import themes
+        if method == b"POST":
+            try:
+                name = json.loads(body).get("theme")
+                themes.set_theme(name)
+            except (ValueError, TypeError, AttributeError):
+                return 400, "application/json", b'{"error":"Choose a listed theme"}', {}
+        elif method != b"GET":
+            return 405, "application/json", b'{"error":"Method not allowed"}', {}
+        return 200, "application/json", json.dumps({"theme": themes.current(), "options": themes.OPTIONS}).encode(), {}
     if p in ("/ride", "/plan", "/fitness", "/workouts", "/milestones", "/coach", "/course", "/dashboard", "/welcome"):
         return 200, TYPES[".html"], (WEB / f"{p[1:]}.html").read_bytes(), {}
-    if p.startswith("/web/") and p.endswith((".js", ".css", ".png", ".json")):
+    if p.startswith("/web/") and p.endswith((".js", ".css", ".svg", ".png", ".jpg", ".json")):
         f = (WEB / p[5:]).resolve()
         if f.parent not in (WEB.resolve(), (WEB / "sprites").resolve(), (WEB / "vendor").resolve(), (WEB / "sports").resolve()) or not f.exists():
             return 404, "text/plain", b"not found", {}
@@ -850,6 +861,14 @@ def done_by_day(base, d=None):
     for day in out:
         for x in out[day]:
             x["minutes"] = round(x["minutes"])
+            matching = [a for a in st.get("activities", []) if a["date"] == day and a["sport"] == x["sport"]]
+            # Only aggregate a day's recordings when there is one session of this sport.
+            # Multiple sessions keep their own activity's dose.
+            peers = [v for v in out[day] if v["sport"] == x["sport"]]
+            if len(peers) > 1:
+                matching = [matching[peers.index(x)]] if peers.index(x) < len(matching) else []
+            x["load"] = {k: round(sum(a.get(k) or 0 for a in matching), 1) for k in ("engine", "impact", "muscle")}
+            x["km"] = round(sum(a.get("km") or 0 for a in matching), 2)
     return out
 
 
@@ -956,7 +975,9 @@ async def coach_api(bridge, method, path, p, body):
                        "rpe_words": coach.RPE_WORDS, "test_steps": coach.TEST_STEPS, "ftp": bridge.profile["ftp"],
                        "verdicts": coach.VERDICTS, "workouts": [{"id": w.get("id"), "name": w["name"]} for w in bridge.workouts],
                        "lifting": lifting_today(d, date, rides.parent),
-                       "weekly": weekly_due(d, date, rides.parent)})
+                       "weekly": weekly_due(d, date, rides.parent),
+                       "training_block": __import__("training_block").forecast(
+                           d, date, done_by_day(rides.parent, d), load_state(rides.parent), d["checkins"].get(date), bridge.workouts)})
         if p == "/api/coach/history":
             days = int((q.get("days") or ["30"])[0])
             since = (__import__("datetime").date.fromisoformat(date) - __import__("datetime").timedelta(days=days)).isoformat()
@@ -1055,7 +1076,7 @@ async def coach_api(bridge, method, path, p, body):
                 return js({"removed": gone, "events": coach.upcoming(d)})
             try:
                 ev = coach.add_event(d, req.get("date"), req.get("name") or "Event", req.get("kind", "race"),
-                                     req.get("sport", "bike"), req.get("note"))
+                                     req.get("sport", "bike"), req.get("note"), req.get("detail"))
             except ValueError as e:
                 return js({"error": str(e)}, 400)
             coach.save(d)
@@ -1071,15 +1092,54 @@ async def coach_api(bridge, method, path, p, body):
             if hasattr(bridge, "refresh_focus"):
                 bridge.refresh_focus(force=True)
             return js({"changed": ev, "skills": skills.summary(d)})
+        if p.startswith("/api/coach/programming"):
+            # swim, bike and run templates and guidance for today's load (programming.py)
+            import programming, rider, loads, datetime as _dt
+            if p.endswith("/swim") and method == b"POST":
+                s_ = programming.set_swim(d, req.get("mix"), req.get("drill_share"), req.get("follow_event"), req.get("profile_id"))
+                coach.save(d)
+                return js({"swim": s_})
+            sport = (q.get("sport") or [req.get("sport") or "swim"])[0]
+            st = load_state(rides.parent)
+            rd = loads.readiness(st, d["checkins"].get(date) or {})
+            est = st.get("calibration_estimates") or {}
+            caps = {"swim_css": (est.get("swim_css") or {}).get("value"), "ftp": (est.get("ftp") or {}).get("value")}
+            prof = rider.load(rides.parent / "profile.json")
+            return js(programming.programming(d, prof, sport, _dt.date.fromisoformat(date), rd, st.get("headline"), caps,
+                                               swim_profile=(q.get("swim_profile") or [req.get("swim_profile")])[0], activities=st.get("activities")))
+        if p == "/api/coach/session/add" and method == b"POST":
+            # add one session to a day from the Plan tab's + buttons (a plain list; the AI can refine it)
+            p_ = d["plans"].get(date) or {}
+            cur = list(p_.get("sessions") or ([{"sport": p_["sport"], "minutes": p_.get("minutes") or 0, "name": p_["sport"].title()}] if p_.get("sport") else []))
+            cur.append({"sport": req.get("sport"), "minutes": int(req.get("minutes") or 30), "name": req.get("name") or str(req.get("sport")).title(),
+                        "steps": req.get("steps") or [], "note": req.get("note") or "", "swim_profile": req.get("swim_profile"), "swim_plan":req.get("swim_plan")})
+            coach.set_sessions(d, date, cur)
+            coach.save(d)
+            return js({"sessions": d["plans"][date]["sessions"]})
         if p == "/api/coach/weekly":
             # the Sunday check-in (weekly.py): GET what's due, POST the answers
             import weekly
             if method == b"POST":
+                import training_block
                 sun = req.get("sunday") or (weekly.sunday_for(__import__("datetime").date.fromisoformat(date)) or __import__("datetime").date.fromisoformat(date)).isoformat()
                 out = weekly.record(d, sun, req)
                 coach.save(d)
-                return js({"weekly": out, "sunday": sun})
+                _load_cache["key"] = None
+                gate = training_block.running_gate(d, load_state(rides.parent), d["checkins"].get(sun))
+                decision = training_block.review(d, sun, done_by_day(rides.parent, d), gate)
+                coach.save(d)
+                return js({"weekly": out, "sunday": sun, "decision": decision})
             return js({"due": weekly_due(d, date, rides.parent), "answered": d.get("weekly", {})})
+        if p == "/api/coach/block":
+            import training_block
+            if method == b"POST":
+                try:
+                    gate = training_block.running_gate(d, load_state(rides.parent), d["checkins"].get(date))
+                    training_block.create(d, date, req.get("weeks", 4), req.get("start_date"), gate)
+                except (ValueError, TypeError) as e:
+                    return js({"error": str(e)}, 400)
+                coach.save(d)
+            return js(training_block.forecast(d, date, done_by_day(rides.parent, d), load_state(rides.parent), d["checkins"].get(date), bridge.workouts))
         if p.startswith("/api/coach/lifting"):
             # lifting and functional strength (lifting.py): plan, evaluate, check off, follow up, the rider's rules
             import lifting

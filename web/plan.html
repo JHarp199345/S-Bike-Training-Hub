@@ -1,58 +1,58 @@
-<!doctype html><html><head><meta charset="utf-8"><title>S-Bike Hub · Plan a ride</title>
+<!doctype html><html><head><meta charset="utf-8"><title>S29 Hub · Plan a ride</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="stylesheet" href="/lib/maplibre-gl.css">
 <style>
  :root{color-scheme:dark}
  [hidden]{display:none!important}
- html,body{margin:0;height:100%;background:#0b0f14;color:#eef1f5;font:15px/1.4 -apple-system,"Helvetica Neue",sans-serif}
+ html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:15px/1.4 -apple-system,"Helvetica Neue",sans-serif}
  #map{position:absolute;inset:0}
- #side{position:absolute;top:12px;left:12px;bottom:12px;width:340px;max-width:calc(100% - 24px);background:rgba(11,15,20,.92);
+ #side{position:absolute;top:12px;left:12px;bottom:12px;width:340px;max-width:calc(100% - 24px);background:var(--glass);
        border-radius:16px;padding:16px;overflow:auto;box-shadow:0 8px 30px rgba(0,0,0,.4)}
- h1{font-size:22px;margin:0 0 2px} .sub{color:#8b98a8;font-size:13px}
+ h1{font-size:22px;margin:0 0 2px} .sub{color:var(--muted);font-size:13px}
  .tabs{display:flex;gap:6px;margin:14px 0 10px}.tabs button{flex:1}
- button{background:#1f2937;color:#eef1f5;border:0;border-radius:10px;padding:10px 12px;font-size:15px;font-weight:600;cursor:pointer}
- button.on{background:#2563eb} button.go{background:#16a34a;width:100%;margin-top:8px} button.ride{background:#9333ea}
+ button{background:var(--control);color:var(--text);border:0;border-radius:10px;padding:10px 12px;font-size:15px;font-weight:600;cursor:pointer}
+ button.on{background:var(--accent)} button.go{background:var(--good-fill);width:100%;margin-top:8px} button.ride{background:var(--accent2)}
  button:disabled{opacity:.5;cursor:default}
- label{display:block;margin:10px 0 4px;color:#b7c1cd;font-size:13px}
- input[type=range]{width:100%} input[type=text]{width:100%;box-sizing:border-box;background:#0b0f14;color:#eef1f5;border:1px solid #2a3441;border-radius:10px;padding:9px}
+ label{display:block;margin:10px 0 4px;color:var(--text2);font-size:13px}
+ input[type=range]{width:100%} input[type=text]{width:100%;box-sizing:border-box;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:9px}
  .row{display:flex;gap:6px}.row button{flex:1}
- .card{background:#151b23;border-radius:12px;padding:10px;margin:8px 0;border-left:6px solid var(--c);cursor:pointer}
+ .card{background:var(--card);border-radius:12px;padding:10px;margin:8px 0;border-left:6px solid var(--c);cursor:pointer}
  .card.sel{outline:2px solid var(--c)} .card b{font-size:16px}
  .kind{display:inline-block;border-radius:6px;padding:1px 7px;font-size:12px;font-weight:700;margin-left:6px}
- .easy{background:#14532d}.mixed{background:#78350f}.hilly{background:#7f1d1d}
+ .easy{background:#14532d}.mixed{background:var(--warn-bg)}.hilly{background:var(--bad-bg)}
  canvas{width:100%;height:46px;display:block;margin-top:6px}
- #msg{margin-top:8px;color:#fbbf24;font-size:13px;min-height:18px}
+ #msg{margin-top:8px;color:var(--warn);font-size:13px;min-height:18px}
  .region{position:absolute;top:12px;right:12px;display:flex;gap:6px}
- h2{font-size:15px;margin:18px 0 6px;color:#b7c1cd}
- .saved{display:flex;align-items:center;gap:8px;background:#151b23;border-radius:10px;padding:8px 10px;margin:6px 0}
- .saved div{flex:1;min-width:0}.saved small{color:#8b98a8}
- a{color:#60a5fa}
+ h2{font-size:15px;margin:18px 0 6px;color:var(--text2)}
+ .saved{display:flex;align-items:center;gap:8px;background:var(--card);border-radius:10px;padding:8px 10px;margin:6px 0}
+ .saved div{flex:1;min-width:0}.saved small{color:var(--muted)}
+ a{color:var(--info)}
  #grab{display:none}
  .search{position:relative;margin-top:12px}
  .search input{font-size:16px;padding:11px 12px}
- #hits{position:absolute;left:0;right:0;top:100%;background:#151b23;border-radius:0 0 12px 12px;z-index:5;
+ #hits{position:absolute;left:0;right:0;top:100%;background:var(--card);border-radius:0 0 12px 12px;z-index:5;
        box-shadow:0 10px 24px rgba(0,0,0,.5);max-height:320px;overflow:auto}
- #hits div{padding:10px 12px;cursor:pointer;border-top:1px solid #1f2733}#hits div:hover,#hits div.on{background:#1f2937}
- #hits small{color:#8b98a8;display:block;font-size:12px}
- .pts{font-size:13px;color:#cfd6df;margin:8px 0 0}.pts b{color:#4ade80}.pts b.e{color:#f87171}
- .idea{background:#151b23;border-radius:10px;padding:9px 11px;margin:6px 0;cursor:pointer}
- .idea:hover{background:#1f2937} .idea small{color:#8b98a8;display:block}
- .chk{display:flex;align-items:center;gap:8px;color:#eef1f5;font-size:14px;margin-top:12px;cursor:pointer}
+ #hits div{padding:10px 12px;cursor:pointer;border-top:1px solid var(--control)}#hits div:hover,#hits div.on{background:var(--control)}
+ #hits small{color:var(--muted);display:block;font-size:12px}
+ .pts{font-size:13px;color:var(--text2);margin:8px 0 0}.pts b{color:var(--good)}.pts b.e{color:var(--bad)}
+ .idea{background:var(--card);border-radius:10px;padding:9px 11px;margin:6px 0;cursor:pointer}
+ .idea:hover{background:var(--control)} .idea small{color:var(--muted);display:block}
+ .chk{display:flex;align-items:center;gap:8px;color:var(--text);font-size:14px;margin-top:12px;cursor:pointer}
  .chk input{width:18px;height:18px}
  .idtabs{display:flex;gap:6px;margin-bottom:4px}
- .fit{font-size:12px;color:#cfd6df;margin-top:4px}.fit b{color:#4ade80}.fit b.meh{color:#fbbf24}
- .climb{background:#151b23;border-radius:10px;padding:8px 10px;margin:6px 0;font-size:13px}
+ .fit{font-size:12px;color:var(--text2);margin-top:4px}.fit b{color:var(--good)}.fit b.meh{color:var(--warn)}
+ .climb{background:var(--card);border-radius:10px;padding:8px 10px;margin:6px 0;font-size:13px}
  .climb .row{align-items:center;margin-top:6px;gap:6px}.climb input[type=text],.climb input[type=number]{width:64px;padding:5px;font-size:14px}
- .climb label{display:inline-flex;align-items:center;gap:5px;margin:0;color:#eef1f5;font-size:13px}.idtabs button{flex:1;padding:7px;font-size:13px}
+ .climb label{display:inline-flex;align-items:center;gap:5px;margin:0;color:var(--text);font-size:13px}.idtabs button{flex:1;padding:7px;font-size:13px}
  @media (max-width:700px){
   #side{top:auto;left:0;right:0;bottom:0;width:auto;max-width:none;max-height:55%;border-radius:16px 16px 0 0;padding:6px 14px 14px}
   #side.min{max-height:118px;overflow:hidden}
-  #grab{display:block;width:44px;height:5px;border-radius:3px;background:#4b5563;margin:4px auto 8px;cursor:pointer}
+  #grab{display:block;width:44px;height:5px;border-radius:3px;background:var(--line);margin:4px auto 8px;cursor:pointer}
   .region{top:8px;right:8px} .maplibregl-ctrl-bottom-right{bottom:auto;top:52px}
  }
-</style></head><body>
+</style><link rel="stylesheet" href="/web/theme.css"><script src="/web/theme.js"></script></head><body>
 <div id="map"></div>
-<div class="region" id="regions"><button id="sethome" title="Open the planner here from now on">📍 Home view</button></div>
+<div class="region"><button id="ca">California</button><button id="fr">France</button></div>
 <div id="side">
  <div id="grab" title="Show / hide"></div>
  <h1>Plan a ride</h1><div class="sub">Real roads and hills, planned on this Mac. <a href="/ride">Ride view</a> · <a href="/panel">Panel</a></div>
@@ -84,7 +84,7 @@
   <div id="climblist"></div>
   <button id="sesssave" class="go">Use for today's ride</button><div id="sessmsg" class="sub"></div></div>
  <h2>Ideas · famous rides</h2>
- <div class="idtabs" id="idtabs"></div>
+ <div class="idtabs"><button data-reg="California" class="on">California</button><button data-reg="France">France</button></div>
  <div id="ideas"></div>
  <h2>Your routes</h2><div id="saved" class="sub">None yet.</div>
  <label>Import a GPX file (Strava, Komoot, RideWithGPS…)</label><input id="gpx" type="file" accept=".gpx,application/gpx+xml">
@@ -93,16 +93,11 @@
 import * as maplibregl from '/lib/maplibre-gl.mjs';
 const $=id=>document.getElementById(id);
 const COLORS=['#f97316','#22d3ee','#a855f7','#facc15'];
-const map=new maplibregl.Map({container:'map', style:'/style.json', center:[0,20], zoom:2, maxPitch:75,attributionControl:{compact:true}});
-fetch('/api/home').then(r=>r.json()).then(h=>map.jumpTo({center:h.center,zoom:h.zoom}));
+const map=new maplibregl.Map({container:'map', style:'/style.json', center:[-118.536,34.201], zoom:11, maxPitch:75,attributionControl:{compact:true}});
 map.on('load',()=>document.querySelector('.maplibregl-ctrl-attrib')?.classList.remove('maplibregl-compact-show'));
 map.addControl(new maplibregl.NavigationControl({visualizePitch:true}),'bottom-right');
-// Region buttons come from regions.json (what setup.sh downloaded); 📍 saves the current view as home.
-fetch('/api/regions').then(r=>r.json()).then(regs=>{ regs.forEach(g=>{ const b=document.createElement('button'); b.textContent=g.name;
-  b.onclick=()=>{ map.flyTo({center:g.center,zoom:g.zoom}); document.querySelector(`[data-reg="${g.name}"]`)?.click(); };
-  $('regions').insertBefore(b,$('sethome')); }); });
-$('sethome').onclick=async()=>{ const c=map.getCenter(); await fetch('/api/home',{method:'POST',body:JSON.stringify({lon:c.lng,lat:c.lat,zoom:map.getZoom()})});
-  $('sethome').textContent='📍 Saved'; setTimeout(()=>$('sethome').textContent='📍 Home view',1500); };
+$('ca').onclick=()=>{ map.flyTo({center:[-118.536,34.201],zoom:10}); document.querySelector('[data-reg=California]').click(); };
+$('fr').onclick=()=>{ map.flyTo({center:[1.9,46.6],zoom:5.5}); document.querySelector('[data-reg=France]').click(); };
 
 let mode='ab', want='', start=null, end=null, cands=[], sel=null;
 const mk=c=>new maplibregl.Marker({color:c});
@@ -165,17 +160,13 @@ function go(h){ if(!h) return; $('hits').hidden=true; $('q').value=h.name; $('q'
   map.flyTo({center:[h.lon,h.lat],zoom:z,padding:pad(),speed:1.6});
   if(narrow()) $('side').classList.add('min'); }
 // ---- Ideas: famous rides, planned with one tap. ----
-let ideas=[], region=null;
-async function loadIdeas(){ ideas=await (await fetch('/api/ideas')).json();
-  const regs=[...new Set(ideas.map(d=>d.region))]; region=regs[0];
-  $('idtabs').innerHTML=regs.map((g,i)=>`<button data-reg="${g}" class="${i?'':'on'}">${g}</button>`).join('');
-  document.querySelectorAll('[data-reg]').forEach(b=>b.onclick=()=>{ region=b.dataset.reg;
-    document.querySelectorAll('[data-reg]').forEach(x=>x.classList.toggle('on',x===b)); showIdeas(); });
-  showIdeas(); }
+let ideas=[], region='California';
+async function loadIdeas(){ ideas=await (await fetch('/api/ideas')).json(); showIdeas(); }
 function showIdeas(){ $('ideas').innerHTML=ideas.map((d,i)=>d.region!==region?'':
    `<div class="idea" data-i="${i}"><b>${d.name}</b><small>${d.blurb}</small></div>`).join('');
   $('ideas').querySelectorAll('[data-i]').forEach(el=>el.onclick=()=>useIdea(ideas[+el.dataset.i])); }
-
+document.querySelectorAll('[data-reg]').forEach(b=>b.onclick=()=>{ region=b.dataset.reg;
+  document.querySelectorAll('[data-reg]').forEach(x=>x.classList.toggle('on',x===b)); showIdeas(); });
 function useIdea(d){
   if(d.kind==='loop'){ setMode('loop'); $('loopback').checked=true; $('km').value=d.km; $('kmv').textContent=d.km; setStart(d.start); }
   else { setMode('ab'); setStart(d.start); setEnd(d.end); }

@@ -21,13 +21,13 @@ and muscle points are scaled to be comparable (a 5 km run at 70 kg ~ 40 impact).
 Each system then gets fitness (chronic, slow average) and fatigue (acute, fast
 average) and their ratio - the acute:chronic workload ratio (ACWR):
 
-  under 0.8  room to build     0.8-1.3  the sweet spot (builds you)
-  1.3-1.5    caution           over 1.5 danger zone - where injuries cluster
+  under 0.8  room to build     0.8-1.3  near the chosen reference
+  1.3-1.5    caution           over 1.5 higher than the chosen reference
 
 The engine uses Banister's fitness (42-day) and fatigue (7-day) and is judged
 by form, since the heart adapts fast. Impact and muscle use the standard
-injury-risk ratio (Williams' EWMA: last ~7 days vs last ~28), which is what the
-0.8-1.3 / 1.5 zones come from; soreness reports calibrate them over time. Readiness is
+workload ratio (EWMA: last ~7 days vs last ~28). The 0.8-1.3 / 1.5 zones are
+provisional coaching thresholds, not validated injury probabilities; soreness reports calibrate them over time. Readiness is
 weakest-link: the worst system decides the day. The weekly budget per system
 is 0.8-1.3 x its usual week, so it builds without outrunning recovery.
 
