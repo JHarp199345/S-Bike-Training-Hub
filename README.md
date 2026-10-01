@@ -462,3 +462,121 @@ Built by JHarp199345 with [Claude](https://claude.com) as co-author. The running
 ## License
 
 [MIT](LICENSE).
+
+
+## Latest coaching and recovery updates
+
+### Shared muscles, specific doses, and prospective forecasts
+
+The Coach calendar groups projected metrics into four-card graph pages. Blue is cardio,
+purple muscle/strength, teal swimming, orange running. Recorded model history is solid;
+future projections are dashed. Units and scales remain separate. Missing doses propagate
+as unavailable rather than fabricated zeros.
+
+* Saved cycling power steps use the existing torque-squared leg formula as well as power TSS.
+  Save `cadence: [70,90]` on a session, or an `rpm` on each power step. Without it, the
+  forecast explicitly assumes 80 rpm; this is not observed cadence. `bike_plan.power_steps`
+  supports duration plus watts or percent FTP and optional rpm. Structured template stages
+  use stated range midpoints and disclose compressed interval uncertainty. A focus-only ride
+  uses its range midpoint. Legacy duration-only rides still use the recent sport median.
+* Scored planned lifts use their actual sets, repetitions, hold duration, weight, tempo,
+  and regional shares. Only leg-region points enter the leg system. An unspecified gym
+  session no longer inherits a generic gym leg rate: score its exercises to restore forecasts.
+* The heat map preserves its strongest-source shading but exposes all activity contributions,
+  shared sources and an overlap indicator. Participation weights and the indicator are
+  provisional scheduling aids, not measured force percentages or an additive damage score.
+  Shared relevant-region exposure can steer work toward easy/restorative recommendations;
+  it does not alter the underlying running, swimming or lifting dose multipliers.
+* Pre-workout forecast revisions are saved in `coach.json` under `load_forecasts` when Coach
+  reads the plan, when plans are updated, and before timed bike workouts start. The first
+  baseline is retained; recent distinct revisions are retained up to twelve per day.
+  Days with recorded work do not acquire retrospective pre-workout baselines. Actual-versus-
+  planned comparisons use the last saved prospective revision and recorded model values;
+  missing historical regional metrics remain unavailable and today is labelled in progress.
+  Saving a baseline does not claim that its workout was completed.
+
+`POST /api/coach/forecast/save` explicitly freezes available forecasts. `hub forecast-save`
+exposes the same action to the assisted journaling workflow.
+
+### Tentative running progression
+
+`recovery.py` includes the originating athlete's conservative example policy; it is not medical
+clearance or a research-validated waiting period. The first 60% of the accumulated plateau
+is protected. Passing a test never changes the curve automatically. After 60%, an explicit
+review may begin decline only after comfortable strength and balance checks on at least two
+distinct recent days, with zero reported symptoms, controlled movement, no gritting through,
+and comfortable afterward and dated next-day responses. A future or same-day "next-day"
+response is rejected. The transition preserves all carried blocks and leaves running locked.
+
+A reported setback after tentative early decline restores the unshortened plateau/curve
+where relevant. This is a reversal of calibration, recorded separately from the workout dose;
+it is not invented extra force. Ordinary check-ins retain their existing rule: they inform
+recommendations immediately, and adjust the accumulated decline only after the plateau.
+Walking allowances, running overlap, conditioning credits, and the long tail are preserved.
+
+Running additionally requires load below 1.5 blocks, the personal minimum of 50 days since
+the most recent run, and repeated successful strength, balance and loading checks after the
+latest setback. Eligibility opens a plan review; it does not automatically schedule a run.
+A good hop/feeling report cannot bypass the mechanical lock. Preparatory exercises are logged
+as workouts as well as checks; a hold or Nordic exercise is not automatically gentle or healing.
+
+The **Running progression** dialog beside This Week records and updates checks, dated follow-ups,
+and explicit early-decline reviews. `GET/POST /api/coach/run-progression`, `hub run-progress`,
+`hub run-check --help`, and `hub run-review --begin-decline --note ...` expose the same workflow.
+The existing swim stroke-exposure model and its separate recovery curve are preserved.
+
+Research guiding the architecture (not validating the numerical constants):
+[Recovery consensus](https://pubmed.ncbi.nlm.nih.gov/29345524/),
+[subjective monitoring review](https://pmc.ncbi.nlm.nih.gov/articles/PMC4789708/),
+[non-local fatigue review](https://pubmed.ncbi.nlm.nih.gov/33818751/),
+[swim volume and shoulder pain review](https://pubmed.ncbi.nlm.nih.gov/31935141/),
+[return-to-sport consensus](https://pubmed.ncbi.nlm.nih.gov/27226389/).
+
+### Fins and snorkels in recorded swims
+
+`POST /api/load/swim-activity` accepts `fins`, `snorkel`, equipment fractions (0–1;
+whole session when omitted), `fin_type`, optional `kick_rpe`, and `fin_kick_factor`.
+The equipment context is preserved in activity exposure and kick-dose details.
+For any fin-assisted session, cardio uses the existing calibrated HR/TRIMP model
+when at least half the session has plausible observed HR time. Pace vs unassisted
+CSS is excluded. With insufficient HR, reported effort supplies an explicitly
+provisional hours × (RPE/7)^2 × 100 fallback; no report means incomplete HR with a
+low-confidence label. HR calibration is still based on cycling, not a measured
+swimming threshold; these remain estimates.
+
+On the fin-assisted fraction, shoulder exposure uses arm stroke count and stroke
+style without a speed-squared multiplier, because propulsion from fins cannot be
+attributed to shoulder force. This is a relative exposure proxy with lower certainty,
+not a measured reduction in tendon load. Unassisted calculations are preserved.
+The separate swim recovery curve continues to use this arm-exposure estimate.
+
+Fin kicking adds to the shared leg-muscle system (never running impact): active
+watch-length minutes × 0.05 × clamp(kick RPE or swim RPE / 5, 0.5, 2) × fin factor,
+weighted by the fin-assisted fraction. Zero-stroke active kick drills are included;
+rests are excluded when length timing exists. The unassisted fraction retains its
+previous session-minutes × 0.05 dose. The default **1.25 fin factor is a conservative
+planning assumption**, adjustable between 1 and 2, not a published coefficient for
+Arena fins. Snorkel use is recorded without an unsupported force multiplier.
+Swimming leg exposure appears as `swim_kick` on the regional map, separately from
+arm-based swimming exposure; qualitative regional coefficients remain provisional.
+Check-ins may later justify deliberate calibration, but do not automatically change
+the fin factor or shorten the protected running plateau.
+
+Research motivating equipment separation (not the numerical planning factor):
+[front-crawl fins/paddles experiment](https://doi.org/10.3389/fphys.2023.1174090),
+[fin swimming economy](https://pubmed.ncbi.nlm.nih.gov/12151372/).
+
+
+### Coordinated Coach icons
+
+The calendar and Coach panels now share colorful sport and feature icons: stationary
+cycling, swimming, running, strength, rest, completion, tests, cardio, mechanical
+load, projections, conditioning, goals and weekly adaptation. Icons keep their text
+labels; decorative artwork does not replace accessible names.
+See [the icon map and design prompt](docs/icon-design.md).
+
+The running progression preset retains a 50-day personal minimum wait and a
+60% protected plateau. These are the original athlete's conservative preferences,
+not universal recovery requirements. The minimum is read from
+`run_progression.minimum_run_days` in the local `coach.json`; the model and
+preparatory checks remain separate gates.

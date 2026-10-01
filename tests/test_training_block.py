@@ -82,6 +82,22 @@ def main():
     assert ("2026-10-01",0) not in B.swim_plan_forecast(forecast_plan,"2026-10-01",load,completed)
     clean={"plans":{}};coach.set_sessions(clean,"2026-10-01",forecast_plan["plans"]["2026-10-01"]["sessions"])
     assert clean["plans"]["2026-10-01"]["sessions"][0]["swim_plan"]["why"]=="Maintain aerobic work"
+    # Solid history comes only from recorded model values, never from forecasts.
+    recorded={"days":[{"date":"2026-09-29","engine":{"fatigue":37.5,"fitness":17.2},
+                       "impact":{"fatigue":14},"muscle":{"fatigue":11.2}},
+                      {"date":"2026-09-30","engine":{"fatigue":99}},
+                      {"date":"2026-10-01","engine":{"fatigue":123}}],
+              "systems":{"impact":{"tissue":{"remodeling":{"history":[{"date":"2026-09-29","score":13.25}],
+                                                                  "projection":[{"date":"2026-10-01","score":10}]}}}},
+              "swim_recovery":{"history":[{"date":"2026-09-29","score":.53}]}}
+    snapshot=copy.deepcopy(recorded)
+    hist=B.recorded_load_history(recorded,"2026-09-30")
+    assert len(hist)==1 and hist[0]["date"]=="2026-09-29"
+    metrics={m["key"]:m["after"] for m in hist[0]["metrics"]}
+    assert metrics["cardio_fatigue"]==37.5 and metrics["run_mechanical"]==13.25
+    assert metrics["swim_recovery"]==.53 and "strength" not in metrics
+    assert recorded==snapshot and B.recorded_load_history({},"2026-09-30")==[]
+    assert B.forecast({"plans":{},"checkins":{}},"2026-09-30")["load_history"]==[]
     print("training block PASS\nALL PASS")
 
 

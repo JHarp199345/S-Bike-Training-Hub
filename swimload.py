@@ -19,6 +19,38 @@ HISTORY_FRACTION = 0.10
 THRESHOLD = 1.5
 
 
+# Conservative planning prior, not an experimentally measured Arena multiplier.
+FIN_KICK_FACTOR = 1.25
+
+
+def equipment(a):
+    def fraction(name):
+        return max(0.0, min(1.0, float(a.get(name + "_fraction", 1.0)))) if a.get(name) else 0.0
+    return {"fins": bool(a.get("fins")), "snorkel": bool(a.get("snorkel")),
+            "fins_fraction": fraction("fins"), "snorkel_fraction": fraction("snorkel"),
+            "fin_type": a.get("fin_type") or ("short training fins" if a.get("fins") else None)}
+
+
+def kick_dose(a):
+    """Time/effort proxy; includes kick drills with zero recorded arm strokes."""
+    gear = equipment(a)
+    lengths = [x for x in a.get("swim_lengths", []) if x.get("length_type") == 1]
+    seconds = sum(max(0, x.get("total_timer_time") or 0) for x in lengths)
+    active = min(a.get("minutes", 0), seconds / 60) if seconds > 0 else a.get("minutes", 0)
+    effort = a.get("kick_rpe") or a.get("swim_rpe") or a.get("rpe")
+    intensity = max(0.5, min(2.0, float(effort) / 5)) if effort else 1.0
+    factor = max(1.0, min(2.0, float(a.get("fin_kick_factor", FIN_KICK_FACTOR))))
+    # Preserve the previous unassisted dose; replace only the fin-assisted portion.
+    fraction = gear["fins_fraction"]
+    unassisted = a.get("minutes", 0) * .05 * (1 - fraction)
+    fin_points = active * .05 * intensity * factor * fraction
+    return {"points": round(unassisted + fin_points, 4), "active_minutes": round(active, 2),
+            "active_time_from": "watch active lengths" if seconds > 0 else "session duration fallback",
+            "effort": effort, "effort_from": "kick report" if a.get("kick_rpe") else "session effort proxy",
+            "fin_factor": factor if fraction else 1.0, "equipment": gear,
+            "provisional": True, "note": "Fin factor is a configurable planning prior, not measured muscle force; no running impact added."}
+
+
 def dose(a):
     """Return a relative pull-exposure dose with evidence about its inputs."""
     if a.get("sport") != "swim":
@@ -26,6 +58,8 @@ def dose(a):
     lengths = [x for x in a.get("swim_lengths", []) if x.get("length_type") == 1]
     active = [x for x in lengths if (x.get("total_strokes") or 0) > 0]
     pool = a.get("pool_length_m") or 0
+    equip = equipment(a)
+    fin_fraction = equip["fins_fraction"]
     gear = 1.0
     # Gear is recorded per activity by the coach/assistant; effects depend on technique.
     if a.get("paddles"):
@@ -44,7 +78,10 @@ def dose(a):
             v = x.get("avg_speed") or (pool / max(x.get("total_timer_time") or 0, 1))
             # Hydrodynamic resistance rises roughly with speed squared.  This
             # remains a force proxy: hand force is not shoulder-tendon force.
-            units += n * STROKE_FACTOR[stroke] * max(0.25, min(2.5, (v / 0.9) ** 2))
+            speed_factor = max(0.25, min(2.5, (v / 0.9) ** 2))
+            # Fin-assisted velocity cannot isolate arm effort: use stroke exposure there.
+            speed_factor = (1 - fin_fraction) * speed_factor + fin_fraction
+            units += n * STROKE_FACTOR[stroke] * speed_factor
             total_strokes += n
             by_stroke[stroke] = by_stroke.get(stroke, 0) + n
         method = "watch pool lengths"
@@ -53,13 +90,16 @@ def dose(a):
         cadence = a.get("swim_cadence") or 20
         total_strokes = round(max(0, a.get("minutes", 0)) * cadence)
         v = a.get("distance_m", 0) / max(a.get("minutes", 0) * 60, 1)
-        units = total_strokes * max(0.25, min(2.5, (v / 0.9) ** 2))
+        speed_factor = max(0.25, min(2.5, (v / 0.9) ** 2))
+        units = total_strokes * ((1 - fin_fraction) * speed_factor + fin_fraction)
         by_stroke = {"unknown": total_strokes}
         method = "session cadence" if a.get("swim_cadence") else "estimated cadence"
     return {"units": round(units * gear * effort_factor, 1), "strokes": total_strokes,
             "by_stroke": by_stroke, "method": method,
             "paddles": bool(a.get("paddles")), "pull_buoy": bool(a.get("pull_buoy")),
-            "effort": effort}
+            "effort": effort, "equipment": equip,
+            "speed_basis": "stroke exposure on fin-assisted portion" if fin_fraction else "speed-squared proxy",
+            "provisional": True}
 
 
 # ── the block, fitted: every swim and the next morning's shoulders refine what one block is for this swimmer ──

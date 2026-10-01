@@ -1378,7 +1378,8 @@ class Bridge:
             self.event(f"Resistance range: {lo:g} to {hi:g} (step {step:g})")
 
     async def run_server(self):
-        s = BlessServer(name=self.args.broadcast, loop=self.loop)
+        import bluetooth_startup
+        s = await bluetooth_startup.construct(lambda: BlessServer(name=self.args.broadcast, loop=self.loop))
         s.read_request_func = self.on_read
         s.write_request_func = self.on_write
         R, W, N, I = Prop.read, Prop.write, Prop.notify, Prop.indicate
@@ -1542,7 +1543,13 @@ async def main():
     if args.no_bike:
         log.info("No-bike mode: coach, training load, lifting and the dashboard - Bluetooth stays off")
     else:
-        await b.run_server()
+        try:
+            await asyncio.wait_for(b.run_server(), timeout=25)
+        except Exception as exc:
+            args.no_bike = True
+            log.error("Bluetooth startup unavailable (%s); Hub remains available in no-bike mode. "
+                      "Check Bluetooth and app permission, then restart from the desktop launcher.",
+                      type(exc).__name__ + ": " + str(exc))
     if b.resumed and not args.no_bike:
         b.restore(b.resumed)
     elif args.ui:
