@@ -96,7 +96,7 @@ def propose(d,fields,today,gate):
     event_target=target.isoformat() if fields.get('target') else None
     return {'goal':goal,'sport':sport,'outcome':outcome,'start':start.isoformat(),'target':event_target,'end':macro_end.isoformat(),'horizon_days':span,
             'hours':hours,'budget_mode':budget_mode,'long_term_goal':long_term_goal,'focus':focus,'entry':entry,'assessment':assessment,'priorities':priorities,'schedule_options':options,'changes':changed,'phases':phases,'weeks':macro_weeks(phases,start,macro_end,focus,sport,restricted,hours,d.get('plans'),options),'running_hold':restricted,
-            'notice':'Phase dates are planning checkpoints, not clearance dates. Running restrictions remain in force across every phase. Sunday reviews can revise the remaining program. '+('Starting training time is reviewed weekly and may grow when forecasts, responses and availability support it.' if budget_mode=='starting_budget' else 'Available time is a ceiling, not a prescribed workload.')}
+            'notice':'Phase dates are planning checkpoints, not clearance dates. Running restrictions remain in force across every phase. Sunday reviews can revise the remaining program. '+('Starting training time is reviewed weekly and may grow when forecasts, responses and availability support it.' if budget_mode=='starting_budget' else 'Available time is the most a week will use: the program starts well below it and builds toward it for the peak, as reviews and forecasts allow.')}
 
 def date_start(phase):
     return P.date(phase.get('start'))
@@ -167,6 +167,13 @@ def review_changes(d,phases,start,end):
     return {'apply_from':start.isoformat(),'phase_changes':changes,'removed_phases':old[len(phases):], 'retained_workout_days':retained,'conflicts':conflicts,'workout_policy':'Existing detailed workouts remain saved. Review conflicts before training; this applies phase intent and tentative placement only.'}
 
 
+def sessions_for(stage,hours):
+    """Sessions a week by stage: about one per 40 available minutes at the peak (2-6), fewer before and after."""
+    cap=max(2,min(6,round(hours*60/40)))
+    return {'assessment':min(4,cap),'recovery':max(2,cap-3),'base':max(2,cap-2),'build':max(2,cap-1),'peak':cap,
+            'specific':max(2,cap-1),'taper':max(2,cap-2)}.get(stage,max(2,cap-1))
+
+
 def macro_weeks(phases,start,target,focus,sport,restricted,hours,plans=None,options=None):
     """Tentative sport slots only. No sets, minutes, target power, or load clearance."""
     options=validate_options(options or {})
@@ -203,9 +210,11 @@ def macro_weeks(phases,start,target,focus,sport,restricted,hours,plans=None,opti
                         'purpose':'Running held — no run prescribed' if blocked else slot['purpose'],'conditional':True,'source':'phase template'})
                 continue
             stage=phase.get('stage',phase['kind'])
-            # Capacity to attend is not evidence of physiological capacity.
-            count=min(5,max(2,int(hours)))
-            if stage in ('recovery','taper','assessment'):count=min(count,3)
+            # Capacity to attend is not evidence of physiological capacity: sessions grow with the phase,
+            # from a few in the foundation to the most the available time supports at the peak.
+            count=sessions_for(stage,hours)
+            if stage=='build' and (P.date(phase['end'])-cursor).days<=14:
+                count=sessions_for('peak',hours)     # the last development weeks carry the most sessions: peak volume
             available=[s for s in P.SPORTS if phase.get('modes',{}).get(s)!='pause' and (s!='run' or not restricted)]
             if not available:
                 slots.append({'date':day.isoformat(),'sport':'rest','purpose':'Rest / paused sports','conditional':False});continue
@@ -225,12 +234,12 @@ def macro_weeks(phases,start,target,focus,sport,restricted,hours,plans=None,opti
                     if alternative is None:
                         slots.append({'date':day.isoformat(),'sport':'rest','purpose':'Separate running exposures; review tolerance','conditional':True});continue
                     session=alternative
-                slots.append({'date':day.isoformat(),'sport':session,'purpose':'Assessment / familiarization' if stage=='assessment' else phase['label'],'conditional':True,'source':'suggested'})
+                slots.append({'date':day.isoformat(),'sport':session,'purpose':'Assessment / familiarization' if stage=='assessment' else phase['label'],'conditional':True,'source':'suggested','stage':stage})
                 previous_sport=session
                 if options['allow_doubles'] and hours>=6 and stage in ('build','specific') and len(available)>1 and active_days.index(offset)==len(active_days)-1:
                     second=next((s for s in rank if s!=session and s!='run'),None)
                     if second:slots.append({'date':day.isoformat(),'sport':second,'purpose':'Optional second session — confirm full-program load and spacing','conditional':True,'source':'suggested'})
-            else:slots.append({'date':day.isoformat(),'sport':'rest','purpose':'Rest / open day','conditional':False})
+            else:slots.append({'date':day.isoformat(),'sport':'rest','purpose':'Rest / open day','conditional':False,'stage':stage})
         result.append({'start':cursor.isoformat(),'end':end.isoformat(),'slots':slots,'running':'On hold — no running slots prescribed' if restricted else 'Recheck readiness before prescribing running','phase':next((copy.deepcopy(p) for p in phases if p['start']<=cursor.isoformat()<p['end']),None),'status':'Proposed placement; detailed dose requires review'})
         cursor=end
     return result

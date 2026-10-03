@@ -56,4 +56,38 @@ class StarterTests(unittest.TestCase):
   w=S.workout('gym',30,2,'moderate','new','barbell',{}, {'BB bench press':anchor})
   bench=next(x for x in w['lifts'] if x['name']=='BB bench press')
   self.assertEqual(bench['weight'],75);self.assertTrue(bench['regions'])
+ def test_program_shape_builds_to_peaks_then_tapers(self):
+  import datetime as dt
+  f={'start':'2026-10-05','target':'2026-12-27','sport':'tri','hours':4,'goal':'First sprint triathlon','assessment':'week','starter_level':'moderate',
+     'priorities':{'ride':'improve','swim':'improve','run':'improve','gym':'maintain'}}
+  p=B.propose({'plans':{}},f,'2026-10-05',{'status':'open_for_review'});r=S.build({'plans':{}},p,today='2026-10-05')
+  for c in r['candidates']:
+   j=c['journey'];share=[w['share_of_available'] for w in j]
+   self.assertTrue(all(w['minutes']<=240 for w in j))
+   self.assertEqual(j[0]['shape'],'test');self.assertLessEqual(share[0],.45)
+   self.assertLess(share[1],.6)
+   pv=[w for w in j if w['shape']=='peak_volume'];pp=[w for w in j if w['shape']=='peak_performance']
+   self.assertTrue(pv and pp)
+   self.assertGreaterEqual(max(w['share_of_available'] for w in pv),.75)
+   self.assertLess(pv[-1]['start'],pp[0]['start'])
+   self.assertEqual(j[-1]['shape'],'race');self.assertLessEqual(share[-1],.45)
+   self.assertLess(max(w['share_of_available'] for w in j if w['shape']=='taper'),max(w['share_of_available'] for w in pv))
+   # no consecutive building week more than ~12% bigger than the last
+   b=[w['minutes'] for w in j if w['shape'] in ('build','peak_volume')];self.assertTrue(all(y<=x*1.2+5 for x,y in zip(b,b[1:])))
+  plans=r['plans'];names=lambda a,b_:[s['name'] for d,pl in plans.items() if a<=d<b_ for s in pl['sessions']]
+  wk=lambda w:(j[w-1]['start'],(dt.date.fromisoformat(j[w-1]['start'])+dt.timedelta(7)).isoformat())
+  j=next(c for c in r['candidates'] if c['level']=='moderate')['journey']
+  first=names(*wk(1));self.assertTrue(any('FTP test' in n for n in first) and any('Swim test' in n for n in first))
+  peak=[n for w in j if w['shape']=='peak_performance' for n in names(*wk(w['week']))]
+  self.assertTrue(any('Race-pace' in n for n in peak) and any('Brick run' in n for n in peak))
+  pvn=max(len(names(*wk(w['week']))) for w in j if w['shape']=='peak_volume')
+  self.assertGreater(pvn,len(names(*wk(2))))
+  self.assertIn('Race day',plans['2026-12-27']['sessions'][0]['name'])
+  self.assertNotIn('2026-12-26',plans)                       # rest the day before the race
+ def test_conservative_level_stays_well_under_time(self):
+  f={'start':'2026-10-05','horizon_days':84,'sport':'general','hours':6,'starter_level':'easy','priorities':{'ride':'improve','swim':'maintain','gym':'maintain','run':'pause'}}
+  p=B.propose({'plans':{}},f,'2026-10-05',{'status':'hold'});r=S.build({'plans':{}},p,today='2026-10-05')
+  easy=next(c for c in r['candidates'] if c['level']=='easy')
+  self.assertTrue(all(w['share_of_available']<=.81 for w in easy['journey']))
+  self.assertLessEqual(easy['journey'][0]['share_of_available'],.5)
 if __name__=='__main__':unittest.main()
