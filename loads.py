@@ -236,7 +236,7 @@ def step_force(mass_kg, v, spm):
 
 def automatic_run_learning(prof, reviews=None):
     """Protected/legacy recovery keeps its reviewed block size; ordinary training may learn."""
-    return (prof.get('return_to_run') is False and not prof.get('_protected_run_recovery') and not reviews)
+    return (prof.get('return_to_run') is False and not prof.get('_protected_run_recovery') and not prof.get('_reviewed_run_reference') and not reviews)
 
 
 def run_evidence(scored, prof):
@@ -875,6 +875,10 @@ def summary(base, today=None):
         weekly = set(_coach.load(base / "coach.json").get("weekly", {}))
     except Exception:
         weekly = set()
+    reviewed = next((x for x in reversed(coach.load(base / 'coach.json').get('capacity_adjustments', [])) if x['target']=='running_block' and x['date']<=(today or dt.date.today()).isoformat()), None)
+    if reviewed:
+        prof['block_points'] = reviewed['reference']
+        prof['_reviewed_run_reference'] = True
     prof['_protected_run_recovery'] = bool(coach.load(base / 'coach.json').get('run_progression'))
     out = analyse(acts, prof, today, meta, feet_reports, load_steps(base), lift_blocks, weekly,
                   (coach.load(base / "coach.json").get("run_progression") or {}).get("reviews", []))

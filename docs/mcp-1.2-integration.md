@@ -1,6 +1,6 @@
 # App + MCP 1.3 integration
 
-Version **1.4.0** exposes 63 tools through the same local APIs used by the browser. [Download the bundle](https://github.com/JHarp199345/S-Bike-Training-Hub/releases/download/mcp-v1.4.0/s-bike-hub-mcp-1.4.0.mcpb). See the [README installation instructions](../README.md#install-the-claude-desktop-extension).
+Version **1.5.0** exposes 66 tools through the same local APIs used by the browser. [Download the bundle](https://github.com/JHarp199345/S-Bike-Training-Hub/releases/download/mcp-v1.5.0/s-bike-hub-mcp-1.5.0.mcpb). See the [README installation instructions](../README.md#install-the-claude-desktop-extension).
 
 ## Planning workflow
 
@@ -25,3 +25,5 @@ Build with `sh mcpb/build.sh`. Bundles are release assets, ignored by Git; `serv
 The Hub stores athlete data locally. Context supplied to external AI is governed by that provider's policies; remote cloud sessions cannot reach a Mac's localhost directly.
 
 MCP 1.4 also provides guided bike setup and recent-week/missed-session tools. The exact-draft workflow is retained. See [bike setup](bike-setup.md) and [capability review](mcp-capability-review.md).
+
+MCP 1.5 adds `get_coaching_review`, `preview_coaching_change` and `apply_coaching_change`. See [forecast/capacity review](coaching-review.md). Install the matching updated app; the new endpoints are not available on older servers.

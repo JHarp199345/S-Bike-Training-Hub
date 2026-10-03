@@ -917,8 +917,14 @@ def calibration_view(d, rides, running_cleared_in=None):
         rem = ((st.get("systems") or {}).get("impact", {}).get("tissue") or {}).get("remodeling") or {}
         for day, plan_ in d.get("plans", {}).items():
             if plan_.get("test") == "benchmark_run" and day in acts and rem.get("reference_points"):
-                if calibration.block_test(d, day, acts[day], d.get("checkins", {}), rem["reference_points"]):
-                    coach.save(d); _load_cache["key"] = None
+                # Grade on a copy: a benchmark proposes capacity; it never grants it on a read.
+                proposed = __import__('copy').deepcopy(d)
+                result = calibration.block_test(proposed, day, acts[day], d.get("checkins", {}), rem["reference_points"])
+                if result:
+                    result = __import__('copy').deepcopy(result)
+                    if result.get('result')=='grew': result['result']='review_candidate'
+                    d.setdefault('benchmarks', {}).setdefault('runs', {})[day] = result
+                    coach.save(d)
         bench = calibration.benchmark_expectation(d, coach.today(), rem["reference_points"]) if rem.get("reference_points") else None
         return {"capacities": est, "due": calibration.due(est, running_cleared=(running_cleared_in == 0)), "benchmark": bench,
                 "benchmarks": dict(sorted(((d.get("benchmarks") or {}).get("runs") or {}).items())[-5:]),
@@ -1059,6 +1065,22 @@ async def coach_api(bridge, method, path, p, body):
             since = (__import__("datetime").date.fromisoformat(date) - __import__("datetime").timedelta(days=days)).isoformat()
             return js({"checkins": {k: v for k, v in d["checkins"].items() if since <= k <= date},
                        "plans": {k: v for k, v in d["plans"].items() if since <= k <= date}})
+        if p == '/api/coach/coaching-review':
+            import coaching_review, program_drafts
+            state=load_state(rides.parent);done=done_by_day(rides.parent,d)
+            if method==b'GET':
+                return js({'outlook':coaching_review.outlook(d,state,done,bridge.workouts,coach.today(),int((q.get('days') or ['14'])[0])),
+                           'capacity':coaching_review.capacity_candidates(d,state,coach.today()),
+                           'recent_reviews':d.get('capacity_adjustments',[])[-12:]})
+            revision=program_drafts.revision(d,rides.parent,bridge.profile,bridge.workouts,coach.today())
+            try:
+                if req.get('action')=='preview':return js(coaching_review.preview(d,state,done,bridge.workouts,coach.today(),rides.parent,revision,req))
+                if req.get('action')=='apply':
+                    result=coaching_review.apply(d,rides.parent,revision,coach.today(),req.get('draft_id'),req.get('approved'))
+                    _load_cache['key']=None
+                    return js(result)
+                raise ValueError('Action is preview or apply')
+            except program_drafts.Conflict as e:return js({'error':str(e),'code':'draft_conflict'},409)
         if p == "/api/coach/recent-weeks":
             import training_block as TB
             n = max(1, min(12, int((q.get("weeks") or ["4"])[0])))
@@ -1080,7 +1102,7 @@ async def coach_api(bridge, method, path, p, body):
                             "hard_sessions": w["hard_sessions"],
                             "missed": [{"date": x["date"], "index": k, "session": s.get("name") or s.get("sport"), "minutes": s.get("minutes"),
                                         "reason": s.get("missed_reason")} for x in w["days"] for k, s in enumerate(x["workouts"]) if s.get("missed")]})
-            return js({"weeks": out, "goal": {k: goal.get(k) for k in ("goal", "sport", "target", "hours", "start")} if goal else None,
+            return js({"coaching_review": {"outlook": __import__('coaching_review').outlook(d,load_state(rides.parent),done,bridge.workouts,coach.today()), "capacity": __import__('coaching_review').capacity_candidates(d,load_state(rides.parent),coach.today())}, "weeks": out, "goal": {k: goal.get(k) for k in ("goal", "sport", "target", "hours", "start")} if goal else None,
                        "note": "Planned vs done per week against the athlete's available time; missed sessions with their reasons."})
         if p == "/api/coach/missed" and method == b"GET":
             start = (q.get("start") or [(__import__("datetime").date.fromisoformat(coach.today()) - __import__("datetime").timedelta(days=84)).isoformat()])[0]
@@ -1264,7 +1286,16 @@ async def coach_api(bridge, method, path, p, body):
         if p == "/api/coach/test" and method == b"POST":
             import calibration
             try:
+                if req.get('test')=='benchmark_run':
+                    import training_block as TB
+                    gate=TB.running_gate(d,load_state(rides.parent),d.get('checkins',{}).get(coach.today()))
+                    if gate['status']!='open_for_review':raise ValueError('A benchmark cannot be scheduled through the current running hold')
                 plan_ = calibration.schedule(d, date, req.get("test"))
+                if req.get('test')=='benchmark_run':
+                    if date<coach.today():raise ValueError('Schedule a future benchmark, not a past one')
+                    projection=TB.projected_loads(d,coach.today(),[date],load_state(rides.parent),done_by_day(rides.parent,d),bridge.workouts).get(date) or {}
+                    reading=next((m for m in projection.get('metrics',[]) if m['key']=='run_mechanical'),{})
+                    if reading.get('after') is None or reading['after']>=1.5:raise ValueError('Benchmark forecast is unknown or exceeds the running planning limit; review its dose and spacing first')
             except ValueError as e:
                 return js({"error": str(e)}, 400)
             coach.save(d)

@@ -1,4 +1,5 @@
 """Run the actual installable MCP archive against an isolated Hub, without site packages."""
+import datetime as dt
 import asyncio, hashlib, json, os, pathlib, sys, tempfile, zipfile
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -46,7 +47,7 @@ async def main():
     return out
    try:
     await rpc(1,'initialize',{'protocolVersion':'2025-06-18','capabilities':{},'clientInfo':{'name':'installation-test','version':'1'}})
-    assert len((await rpc(2,'tools/list',{}))['tools'])==63
+    assert len((await rpc(2,'tools/list',{}))['tools'])==66
     await tool(3,'get_program')
     before=(base/'coach.json').read_bytes()
     preview=await tool(4,'preview_program',{'fields':fields}); assert len(preview['starter']['candidates'])==3
@@ -60,9 +61,16 @@ async def main():
     cal=await tool(11,'get_training_calendar',{'days':7});assert len(cal['calendar'])==7
     evidence=await tool(12,'explain_training_reading',{'metric':'cardio_conditioning'});assert '42' in evidence['formula']
     await tool(13,'get_adaptation_review')
+    outlook=await tool(14,'get_coaching_review',{'days':14});assert outlook['outlook']['days']==14
+    future=(dt.date.fromisoformat(coach.today())+dt.timedelta(days=2)).isoformat()
+    reviewed=await tool(15,'preview_coaching_change',{'kind':'calendar','changes':[{'date':future,'sessions':[]}],'note':'Synthetic reviewed rest replacement'})
+    assert not reviewed['violations']
+    await tool(16,'apply_coaching_change',{'draft_id':reviewed['draft_id'],'approved':True})
+    assert not coach.load(base/'coach.json')['plans'][future]['sessions']
+
     proc.stdin.close(); await asyncio.wait_for(proc.wait(),5); assert proc.returncode==0,(await proc.stderr.read()).decode()
    finally:
     if proc.returncode is None: proc.kill(); await proc.wait()
     server.close(); await server.wait_closed()
- print('PASS installable bundle: stock runtime, 63 tools, read/preview/apply/check-in/progress; isolated athlete data')
+ print('PASS installable bundle: stock runtime, 66 tools, read/preview/apply/check-in/progress; isolated athlete data')
 if __name__=='__main__': asyncio.run(main())

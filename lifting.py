@@ -640,6 +640,10 @@ def model(d, today=None):
         obs = [(f["date"], v, REPORT_SD) for ld, f in s["followups"].items() for rr, v in f["regions"].items() if rr == r and f["date"] <= today.isoformat()]
         obs += [(sun, w["lift"][r], WEEKLY_SD) for sun, w in (d.get("weekly") or {}).items()     # the Sunday check-in: the anchor
                 if r in (w.get("lift") or {}) and sun <= today.isoformat() and sun >= logs[0]["date"]]
+        reviewed = next((x for x in reversed(d.get('capacity_adjustments', [])) if x['target']=='lift_'+r and x['date']<=today.isoformat()), None)
+        if reviewed:
+            initial = reviewed['reference']
+            obs = [x for x in obs if x[0]>reviewed['date']]
         ref, interval = initial, None
         if obs:
             logw = []
@@ -659,7 +663,7 @@ def model(d, today=None):
         blocks = hist[today.isoformat()]
         clear = 0 if blocks < 1.0 else math.ceil(math.log(1.0 / blocks) / math.log(2 ** (-1 / HALF_LIFE_DAYS)))
         out[r] = {"name": regions()[r], "blocks": round(blocks, 2), "reference": round(ref, 1), "reference_interval": interval,
-                  "reference_from": f"fitted to {len(obs)} follow-up{'s' if len(obs) != 1 else ''}" if obs else "first sessions · provisional",
+                  "reference_from": "reviewed capacity + follow-ups" if reviewed else f"fitted to {len(obs)} follow-up{'s' if len(obs) != 1 else ''}" if obs else "first sessions · provisional",
                   "follow_ups_used": len(obs), "under_one_block_in_days": clear,
                   "leg": r in LEG_REGIONS}
     return {"regions": out, "threshold_blocks": THRESHOLD, "sessions": len(logs),
