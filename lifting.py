@@ -85,8 +85,12 @@ def key(name):
     return re.sub(r"[^a-z0-9]+", " ", str(name).lower()).strip()
 
 
+JOINED = re.compile(r"\b(pull|chin|push|sit|step|pike)(ups?|downs?)\b")    # "pullups" reads like "pull ups"
+
+
 def _stems(text):
-    return [w[:-1] if len(w) > 3 and w.endswith("s") else w for w in key(text).split()]
+    words = JOINED.sub(r"\1 \2", key(text)).split()
+    return [w[:-1] if len(w) >= 3 and w.endswith("s") and not w.endswith("ss") else w for w in words]
 
 
 def state(d):
