@@ -265,7 +265,7 @@ def main():
                 elif sp == "swim":
                     a.swim(day, s, at)
                 elif sp == "gym":
-                    api("/api/coach/lifting/log", {"date": day.isoformat(), "session_index": 0, "rpe": 6, "wellness": 7}, ok=(200, 400))
+                    api("/api/coach/lifting/log", {"date": day.isoformat(), "session_index": 0, "rpe": 6, "wellness": 7})
                 week_done += s["minutes"]
                 hard_today += s.get("tier") in ("moderate", "hard")
                 at += dt.timedelta(minutes=s["minutes"] + 5)
