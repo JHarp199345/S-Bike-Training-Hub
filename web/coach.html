@@ -176,6 +176,7 @@
  .missrow{margin-top:8px;padding:8px 10px;border-radius:10px;background:#ef44441a;border:1px solid #ef444455}
  .missrow .why{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}.missrow .why button{padding:5px 10px;font-size:12px;border-radius:999px}
  .missrow .why button.on{background:#ef4444;border-color:#ef4444;color:#fff}
+ .program-calendar-days button.race-day{background:linear-gradient(135deg,#f5b84a,#e0663a)!important;color:#1a0f05;font-size:20px;box-shadow:0 0 0 2px #ffd28a,0 0 14px #f5a54a88}
  .program-calendar-days button.missed-day{position:relative}
  .program-calendar-days button.missed-day::after{content:'✕';position:absolute;inset:0;display:grid;place-items:center;color:#ef4444;font-size:22px;font-weight:900;pointer-events:none;text-shadow:0 1px 2px #0008}
 </style><link rel="stylesheet" href="/web/theme.css"><script src="/web/theme.js"></script><script src="/web/art-fit.js"></script></head><body><main>
@@ -1213,7 +1214,7 @@ async function openProgramCalendar(){
  let missed={};try{missed=(await fetch('/api/coach/missed?start='+phases[0].start+'&end='+(day?.date||'')).then(r=>r.json())).missed||{};}catch(e){}
  let cursor=new Date(phases[0].start+'T12:00'),end=new Date(phases.at(-1).end+'T12:00'),html='';cursor.setDate(1);
  while(cursor<end){const month=new Date(cursor),name=month.toLocaleDateString(undefined,{month:'long',year:'numeric'});let cells=Array.from({length:(month.getDay()+6)%7},()=>'<span></span>').join(''),first=null;
-  for(let d=new Date(month);d.getMonth()===month.getMonth();d.setDate(d.getDate()+1)){const date=d.toLocaleDateString('en-CA'),p=phases.find(p=>p.start<=date&&date<p.end);if(p&&!first)first=date;cells+=`<button type="button" data-calendar-date="${date}" ${p?'':'disabled'} title="${esc((missed[date]?'Missed: '+missed[date].map(x=>x.name).join(', ')+' · ':'')+(p?.label||'Outside program'))}" class="phase-${esc(p?.color||'blue')} ${date===day?.date?'current-day':''}${missed[date]?' missed-day':''}">${d.getDate()}</button>`;}
+  for(let d=new Date(month);d.getMonth()===month.getMonth();d.setDate(d.getDate()+1)){const date=d.toLocaleDateString('en-CA'),race=date===programState?.goal?.target,p=phases.find(p=>p.start<=date&&date<p.end)||(race?phases.at(-1):null);if(p&&!first)first=date;cells+=`<button type="button" data-calendar-date="${date}" ${p?'':'disabled'} title="${esc(race?'Race day: '+(programState.goal.goal||'your event'):(missed[date]?'Missed: '+missed[date].map(x=>x.name).join(', ')+' · ':'')+(p?.label||'Outside program'))}" class="phase-${esc(p?.color||'blue')} ${date===day?.date?'current-day':''}${missed[date]?' missed-day':''}${race?' race-day':''}">${race?'🏁':d.getDate()}</button>`;}
   html+=`<section class="program-calendar-month"><button type="button" class="program-month-title" data-calendar-month="${first||''}">${esc(name)}</button><div class="program-calendar-days">${['M','T','W','T','F','S','S'].map(x=>'<small>'+x+'</small>').join('')}${cells}</div></section>`;cursor.setMonth(cursor.getMonth()+1);
  }
  $('programcalendarbody').innerHTML=html;$('programcalendarbody').querySelectorAll('[data-calendar-date],[data-calendar-month]').forEach(b=>b.onclick=()=>navigateProgramDate(b.dataset.calendarDate||b.dataset.calendarMonth));
