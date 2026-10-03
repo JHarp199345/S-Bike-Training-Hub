@@ -13,7 +13,7 @@
  button:disabled{opacity:.45}
  .verdict{font-size:30px;font-weight:900}.v-go{color:var(--good)}.v-easy{color:var(--warn)}.v-rest{color:var(--bad)}
  .why{color:var(--text2);margin-top:4px}
- .tabs{position:sticky;top:0;z-index:5;display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin:14px 0 4px;padding:4px;
+ .tabs{position:sticky;top:0;z-index:5;display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin:14px 0 4px;padding:4px;
    background:var(--card);border:1px solid var(--line);border-radius:14px}
  .tabs button{padding:10px 0;font-size:15px;background:transparent;color:var(--text2)}
  .tabs button[aria-selected="true"]{background:var(--accent);color:var(--on-accent)}
@@ -165,17 +165,18 @@
  .weekhead h2{margin:0;flex:1 1 110px}.weekactions{display:flex;align-items:center;flex-wrap:wrap;gap:8px;max-width:100%}
  .weekactions button{font-size:14px;padding:10px 12px;min-height:44px;white-space:normal}
  @media(max-width:620px){.weekhead{display:block;margin-bottom:18px}.weekhead h2{margin-bottom:12px}.weekactions{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);width:100%}.weekactions button{min-width:0;font-size:13px;padding:10px 8px}}
-</style><link rel="stylesheet" href="/web/theme.css"><script src="/web/theme.js"></script></head><body><main>
-<h1>Coach</h1><div class="sub">Day by day: test, check in, then ride what today allows · <a href="/ride">Ride view</a> · <a href="/panel">Panel</a> · <a href="/fitness">Fitness</a> · <a href="/dashboard">Dashboard</a> · <a href="/welcome">Welcome</a></div>
+</style><link rel="stylesheet" href="/web/theme.css"><script src="/web/theme.js"></script><script src="/web/art-fit.js"></script></head><body><main>
+<header class="hubtopbar"><div class="hubbrand"><svg viewBox="0 0 40 32" aria-hidden="true"><path d="M1 30 17 3l10 17 5-8 8 18Z" fill="#19cbd0"/><path d="m8 30 13-19 12 19Z" fill="#359cff"/></svg><span>S-Bike Training Hub</span></div><div class="sub hubutilities">Day by day: test, check in, then train what today allows · <a href="/ride">Ride view</a> · <a href="/panel">Panel</a> · <a href="/welcome">Welcome</a></div>
 
 <nav class="tabs" role="tablist" aria-label="Coach sections">
- <button role="tab" data-tab="today">Today</button><button role="tab" data-tab="plan">Plan</button><button role="tab" data-tab="progress">Progress</button><button role="tab" data-tab="rules">Rules</button>
-</nav>
+ <button role="tab" data-tab="today">Today</button><button role="tab" data-tab="plan">Plan</button><button role="tab" data-tab="fitness">Fitness Dashboard</button><button role="tab" data-tab="progress">Progress</button><button role="tab" data-tab="rules">Rules</button>
+</nav></header>
 <div id="resumebar" hidden><button class="purple" id="resumego"></button><button id="resumedrop" aria-label="Forget this unfinished workout">✕</button></div>
 <section data-tab="today" role="tabpanel">
 <h2>TODAY</h2>
-<div class="card" id="todaycard">
+<div class="card" id="todaycard"><button type="button" id="loadwarning" class="load-warning" aria-label="Training load warning" hidden>⚠ <span id="loadwarningcount"></span></button>
  <div class="verdict" id="verdict">No check-in yet</div><div class="why" id="why">Start with the 6-minute diagnostic below, or just check in.</div>
+<details id="checkinpanel" class="checkin-panel"><summary id="checkinsummary">Check-in &amp; journal</summary><div id="journalhome"><div class="row"><button type="button" id="cinew">New check-in</button><button type="button" id="albumopen">Open journal album</button></div><div id="journalrecent"></div></div>
  <div class="checkedin" id="checkedin" hidden><span id="cilist"></span> <button type="button" id="ciedit">Edit</button><div class="cijournal" id="cijournal" hidden></div><div class="cinote" id="cinote" hidden></div></div>
  <div id="flags"></div>
  <div id="feel" class="cform" hidden>
@@ -194,17 +195,7 @@
   <div class="row" style="margin-top:12px"><button class="blue" id="send">Save check-in</button><button id="cicancel" hidden>Cancel</button></div>
   <div id="cimsg"></div>
  </div>
- <div class="headline" id="headline" hidden>
-  <button id="cardiobtn"><small><span data-training-icon="cardio"></span> CARDIO LOAD · tap for history</small><b id="cardionum">–</b><small id="cardiosub"></small></button>
-  <button id="mechanicalbtn"><small><span data-training-icon="mechanical"></span> MECHANICAL LOAD vs LIMIT · tap for body map</small><b id="mechanicalnum">–</b><small id="mechanicalsub"></small></button>
- </div>
- <div class="balance" id="balance" hidden><span id="balancegrade"></span><label>Training phase <select id="phase"><option value="run_durability">Run durability</option><option value="aerobic_base">Aerobic base</option><option value="bike_performance">Bike performance</option></select></label></div>
- <div class="systems" id="systems" hidden></div>
- <div class="impactnums" id="impactnums" hidden>
-  <button class="impactnum" id="recentbtn"><small>RECENT RUN RESPONSE · tap for graph</small><b id="recentnum">–</b><small>separate five-day exertion response</small></button>
-  <button class="impactnum" id="backlogbtn"><small>ACCUMULATED RUNNING LOAD · tap for graph</small><b id="backlognum">–</b><small>provisional impact blocks · limit 1.5</small></button>
- </div>
- <div class="why" id="runhow" hidden></div>
+ </details><div id="cisavestatus" role="status" class="sub"></div>
  <div class="row" style="margin-top:10px;gap:8px;flex-wrap:wrap"><span class="sub">Ride focus:</span>
   <select id="focuspick" style="max-width:100%;min-width:0;flex:1 1 180px;padding:8px;border-radius:10px;background:var(--bg);color:var(--text);border:1px solid var(--line)"></select>
   <span class="sub" id="focusbuilds"></span></div>
@@ -215,14 +206,15 @@
  <div class="row" style="margin-top:10px" id="courserow" hidden><span class="sub">No route planned:</span> <button class="purple" id="plancourse">🎮 Ride today's course</button></div>
  <div id="completedtoday" hidden style="margin-top:12px"></div>
 </div>
+<h2>TODAY’S WORKOUTS</h2><div id="todayworkouts"></div>
 <h2 id="weeklytitle" data-training-icon-prefix="adapt" hidden>SUNDAY CHECK-IN · YOUR WEEK</h2>
 <div class="card" id="weeklycard" hidden></div>
 <h2 id="liftfollowtitle" hidden>LIFT FOLLOW-UP</h2>
 <div class="card" id="liftfollow" hidden></div>
 <h2 id="liftlogtitle" hidden>TODAY'S LIFTS · CHECK OFF</h2>
 <div class="card" id="liftlog" hidden></div>
-<h2>MORNING DIAGNOSTIC · 6 MIN · OPTIONAL</h2>
-<div class="card">
+<h2 id="diagnostictitle">MORNING DIAGNOSTIC · 6 MIN · OPTIONAL</h2>
+<div class="card" id="diagnosticcard">
  <div class="sub">Same watts every day, so your body's answer is the only thing that changes. Fan on, before coffee if you can. Keep your watch recording.</div>
  <div class="steps" id="tsteps"><div>2 min · 60 W<br>settle</div><div>2 min · 90 W<br>key number</div><div>1 min · 120 W<br>push</div><div>1 min · easy<br>recovery</div></div>
  <div id="trun" hidden><div class="big" id="tclock">0:00</div><div class="sub" style="text-align:center" id="tstep"></div></div>
@@ -235,9 +227,44 @@
 
 </section>
 <section data-tab="plan" role="tabpanel" hidden>
-<div class="weekhead"><h2>THIS WEEK</h2><div class="weekactions"><button type="button" id="runprogressopen" data-training-icon-prefix="recovery">Running progression</button><button type="button" id="viewblock" data-training-icon-prefix="calendar" aria-haspopup="dialog" aria-controls="blockdialog" aria-label="View more: training calendar">View more</button></div></div>
-<div class="weekstrip" id="weekstrip"></div>
-<div class="card" id="sessionpreview" style="margin-top:10px"></div>
+<div class="programhero"><div class="sub">YOUR TRAINING PROGRAM</div><h1>Your road to race day</h1><p>Set your goal. Review your program. Adjust as you go.</p><div class="program-goal-strip"><div id="programbannervalues"></div><button type="button" class="blue" id="programopen">Set up / preview program →</button></div></div>
+<div id="programoverview" class="card"><p class="sub">Choose an event or target date to preview your complete program. Your weekly workouts stay below.</p></div>
+<dialog id="programdialog" class="programdialog program-workspace" aria-labelledby="programbuildertitle">
+<div class="weekhead"><h2 id="programbuildertitle">PROGRAM WORKSPACE</h2><button type="button" id="programclose" aria-label="Close program builder">✕</button></div>
+<p class="sub">Build a draft here. Your active program stays unchanged until you review and apply it.</p>
+<div class="program-start-actions"><button id="programrevise" type="button">Revise current program</button><button id="programsuggest" type="button">Suggest a new program</button><button id="programblank" type="button">Start blank</button></div>
+<div class="lgrid">
+<label>Training path<select id="programpath"><option value="event">Event or peak</option><option value="ongoing">Ongoing development</option></select></label>
+<label>Goal<input id="programgoal" class="lfield" placeholder="Event or training goal"></label>
+<label id="programtargetlabel">Event / peak date<input id="programtarget" type="date" class="lfield"></label>
+<label>Apply changes from<input id="programstart" type="date" class="lfield"></label>
+<label>Planning horizon · days<input id="programhorizon" class="lfield" type="number" min="1" max="366" value="84"></label>
+<label>Goal sport<select id="programsport"><option value="run">Running</option><option value="ride">Cycling</option><option value="swim">Swimming</option><option value="gym">Strength / physique</option><option value="tri">Triathlon</option><option value="general">General fitness</option></select></label>
+<label>Desired outcome<input id="programoutcome" class="lfield" value="Build sustainable fitness"></label>
+<label>Hours available / week<input id="programhours" class="lfield" type="number" min="0.5" max="40" step="0.5" value="4"></label>
+<label>Supporting emphasis<select id="programfocus"><option value="balanced">Balanced development</option><option value="ride">Cycling</option><option value="swim">Swimming</option><option value="gym">Strength / physique</option><option value="run">Running</option></select></label>
+<label>Duration adjustments<select id="programduration"><option value="fixed">Keep the end date · redistribute unlocked days</option><option value="flexible">Flexible end date · extend or shorten the program</option></select></label>
+</div>
+<h3>Sport priorities</h3><p class="sub">Select any combination. Priority weights guide placement, not equivalent physiological loads.</p><div id="programpriorities" class="program-priorities"></div>
+<details class="program-preferences"><summary>Weekly placement & starting details</summary>
+<div class="lgrid"><label>Preferred first sport<select id="programfirst"><option value="auto">Planner chooses</option><option value="ride">Cycling</option><option value="swim">Swimming</option><option value="gym">Strength / physique</option><option value="run">Running</option></select></label>
+<label>Opening assessment<select id="programassessment"><option value="week">Assessment week</option><option value="existing">Use existing baseline data</option></select></label>
+<label>Starting approach<select id="programentry"><option value="auto">Use current readiness</option><option value="foundation">Establish foundation</option><option value="build">Ready to develop</option><option value="recovery">Recovery first</option></select></label>
+<label class="program-check"><input id="programdoubles" type="checkbox">Allow proposed second sessions when appropriate</label></div>
+<fieldset><legend>Available training days</legend><div id="programavailable" class="program-days"></div></fieldset>
+<fieldset><legend>Preferred rest days</legend><div id="programrest" class="program-days"></div></fieldset>
+<p class="sub">All placement remains tentative until workout doses and projected loads are reviewed. Running holds take precedence.</p>
+</details>
+<details class="program-starter-settings"><summary>Basic starter workouts & load comparison</summary><p class="sub">Fill empty dates with simple, editable workouts for up to 12 weeks. A shorter horizon gets fewer weeks; extra macro weeks stay open. Saved workouts remain in place.</p><div class="lgrid"><label><span><input id="programstarter" type="checkbox">Include starter workouts</span></label><label>Proposed workload<select id="programstarterlevel"><option value="easy">Easy</option><option value="moderate">Moderate</option><option value="higher">Higher</option></select></label><label>Strength equipment<select id="programstarterequipment"><option value="basic">Bodyweight + resistance band</option><option value="barbell">Barbell basics</option></select></label></div><details><summary>Strength calibration · enter recent sets instead of a max test</summary><p class="sub">For barbell starters, enter a comfortable recent set for each lift, or report the results of a calibration session first. Prefer 6–10 reps with 2–3 reps left; accepted range 3–15. Total weight includes the bar. No true max attempt is needed.</p><label>Weight units<select id="programanchorunit"><option value="lb">lb</option><option value="kg">kg</option></select></label><div id="programanchors"></div></details><label class="program-check"><input id="programneutral" type="checkbox" checked>Use explicit neutral forecast defaults where personal readings are missing</label><p class="sub">These are provisional scenario assumptions, not proven population averages. Recorded data takes precedence.</p><p class="sub">Review compares all three load scenarios. Forecast defaults are disclosed; missing working weights remain unknown. Higher is not a recommendation.</p></details>
+<div class="program-phase-heading"><h3>Draft phases</h3><label>Blank phase count <input id="programcount" type="number" min="1" max="24" value="4"></label><button type="button" id="programcreate">Create evenly spaced phases</button><button type="button" id="programadd">＋ Add phase</button><button type="button" id="programclear">Clear draft</button></div>
+<div id="programphasecards" class="program-phase-cards"></div>
+<div class="program-review-actions"><button type="button" class="blue" id="programpreview">Review draft</button><button type="button" id="programaccept" disabled>Apply reviewed changes</button><span id="programmessage" class="sub" role="status" aria-live="polite"></span></div>
+<div id="programdraft"></div></dialog>
+<dialog id="phaseeditdialog" class="programdialog"><div class="weekhead"><h2>EDIT PHASE</h2><button id="phaseeditclose" type="button" aria-label="Close phase editor">✕</button></div><div id="phaseeditorhost"></div></dialog>
+
+<div id="phaseweekparking" hidden><div class="weekhead" id="weektools"><div class="weekactions"><button type="button" id="runprogressopen" data-training-icon-prefix="recovery">Running progression</button><button type="button" id="viewblock" data-training-icon-prefix="calendar" aria-haspopup="dialog" aria-controls="blockdialog" aria-label="View more: training calendar">View more</button></div></div>
+<div class="weekstrip" id="weekstrip"></div></div>
+<div id="daydeck"></div><div class="card" id="sessionpreview" style="margin-top:10px"></div>
 <h2 id="timedtitle" hidden>TODAY'S RIDE · TIME TO GET IT IN GEAR</h2>
 <div class="card" id="timedcard" hidden>
  <div class="row" style="justify-content:space-between;align-items:flex-start;margin-bottom:10px"><div class="sub" id="timedhint" style="flex:1">Your planned ride, loaded and ready.</div>
@@ -269,22 +296,38 @@
   <button id="evadd">Add</button></div></div>
 
 </section>
-<section data-tab="progress" role="tabpanel" hidden>
+<section data-tab="fitness" class="fitness-dashboard-surface" role="tabpanel" hidden><h2>FITNESS DASHBOARD · CURRENT STATE</h2><div class="fitness-controls"><h2>TRAINING LOAD &amp; READINESS</h2><div class="card"> <div id="readinessdetails">
+ <div class="headline" id="headline" hidden>
+  <button id="cardiobtn"><small><span data-training-icon="cardio"></span> CARDIO LOAD · tap for history</small><b id="cardionum">–</b><small id="cardiosub"></small></button>
+  <button id="mechanicalbtn"><small><span data-training-icon="mechanical"></span> MECHANICAL LOAD vs LIMIT · tap for body map</small><b id="mechanicalnum">–</b><small id="mechanicalsub"></small></button>
+ </div>
+ <div class="balance" id="balance" hidden><span id="balancegrade"></span><label>Training phase <select id="phase"><option value="run_durability">Run durability</option><option value="aerobic_base">Aerobic base</option><option value="bike_performance">Bike performance</option></select></label></div>
+ <div class="systems" id="systems" hidden></div>
+ </div>
+ <div class="why" id="runhow" hidden></div>
+</div>
 <h2 data-training-icon-prefix="conditioning">CALIBRATION</h2>
 <div class="card" id="calcard"><div class="sub" style="margin-bottom:6px">What you can do, from tests and training. A test anchors each number; training nudges it between tests; confidence fades until the next test. Tests go on the calendar - no buttons.</div>
  <div id="callist"></div></div>
 
-<h2>PROGRESSIONS</h2>
-<div class="card" id="skillcard"><div class="sub" style="margin-bottom:6px">Each skill is a ladder. Two good sessions earn the next step; two poor ones drop one; on a day you're not recovered you ride a step down without losing your place.</div>
- <div id="skilllist"></div></div>
-
+<h2>RUNNING RECOVERY</h2><div class="card"> <div class="impactnums" id="impactnums" hidden>
+  <button class="impactnum" id="recentbtn"><small>RECENT RUN RESPONSE · tap for graph</small><b id="recentnum">–</b><small>separate five-day exertion response</small></button>
+  <button class="impactnum" id="backlogbtn"><small>ACCUMULATED RUNNING LOAD · tap for graph</small><b id="backlognum">–</b><small>provisional impact blocks · limit 1.5</small></button>
+ </div>
+</div>
 <h2 data-training-icon-prefix="watch">WHAT THE WATCH SAW</h2>
 <div class="card" id="insightcard"><div class="sub" style="margin-bottom:6px">The rest of what your watch records, read across the hub: how the stroke held up, run form, recovery on the bike, pauses. It flags and asks - it never scores, and it changes no load number.</div>
  <div id="insightflags"></div><div id="insighttrends"></div><div id="insightlist" class="sub">Reading the watch files…</div></div>
 
+</div><iframe id="fitnessframe" title="All-sport Fitness Dashboard" src="/dashboard?embedded=1" scrolling="no" loading="lazy" style="display:block;width:100%;border:0;min-height:900px;overflow:hidden"></iframe></section><section data-tab="progress" role="tabpanel" hidden>
+<div class="card progress-art-hero" id="progresshero"><div class="eyebrow">YOUR TRAINING STORY</div><h2>Progress, one session at a time</h2><p class="sub">See what is improving, what is declining, and where more evidence is needed.</p><button type="button" onclick="openArtLibrary()">Artwork library</button></div>
+<h2>IS TRAINING WORKING?</h2><div id="progress-evidence" class="card" aria-live="polite">Comparing recorded training responses…</div><h2>PROGRESSIONS</h2>
+<div class="card" id="skillcard"><div class="sub" style="margin-bottom:6px">Each skill is a ladder. Two good sessions earn the next step; two poor ones drop one; on a day you're not recovered you ride a step down without losing your place.</div>
+ <div id="skilllist"></div></div>
+
 <h2>JOURNAL</h2>
 <div class="card"><div class="sub" style="margin-bottom:6px">What you wrote with each check-in. Kept as a record - not part of any score yet.</div>
- <div id="journallist" class="sub">No entries yet.</div></div>
+ <button type="button" id="progressalbum">Open journal album</button><div id="journallist" class="sub">No entries yet.</div></div>
 </section>
 <section data-tab="rules" role="tabpanel" hidden>
 <h2>YOUR RULES</h2>
@@ -292,6 +335,18 @@
  <div id="rulelist"></div>
  <div class="row" style="margin-top:10px"><input class="lfield" id="ruletext" style="flex:1;min-width:0" maxlength="200" placeholder="e.g. No deadlifts · Favorite lift: incline dumbbell press · Nothing heavy overhead"><button class="blue" id="ruleadd">Add</button></div>
  <div id="rulemsg" class="sub"></div></div>
+</section>
+<section data-tab="rules" role="tabpanel" hidden id="phaseprofiles-wrap">
+<h2>PROGRAM SETTINGS</h2><div class="card"><p class="sub">Set the overall goal in the program builder, then edit individual phases from the Plan timeline.</p><button type="button" id="rulesprogramopen" class="blue">Open program builder</button><button type="button" id="rulesphaseopen">Advanced phase editor</button></div><div id="phaseeditorpanel" hidden><h2>PHASE DETAILS</h2>
+<div class="card"><p class="sub">Choose what improves and what maintains. The planner blends these goals with upcoming events and recovery limits. Blending is part of normal planning.</p>
+<div class="lgrid"><label>Phase name<input id="phaselabel" class="lfield" placeholder="Automatic name"></label><label>Purpose<input id="phasepurpose" class="lfield" placeholder="What this phase is for"></label></div><div class="lgrid" style="margin-top:12px"><label>Phase profile<select id="phaseprofile"><option value="balanced">Balanced development</option><option value="ride">Cycling emphasis</option><option value="swim">Swimming emphasis</option><option value="gym">Strength / physique emphasis</option><option value="run">Running emphasis</option><option value="recovery">Recovery</option></select></label>
+<label>Phase type<select id="phasekind"><option value="base">Foundation</option><option value="build">Build</option><option value="recovery">Recovery / consolidation</option><option value="taper">Event taper</option></select></label>
+<label>Starts<input type="date" id="phasestart"></label><label>Days<input type="number" id="phaseweeks" min="1" max="84" value="28"></label></div>
+<div id="phasemodes" class="lgrid" style="margin-top:12px"></div>
+<details style="margin-top:12px"><summary>Advanced · adjust priority weights</summary><p class="sub">Optional relative priorities, not percentages of load or training time. Normal profiles already blend automatically. Recovery restrictions still win.</p><div class="lgrid" id="phaseweights"></div></details>
+<div class="row" style="margin-top:12px"><button type="button" id="phasepreview">Preview blend</button><button type="button" class="blue" id="phasesave">Save phase focus</button><button type="button" id="phasenext">Plan next phase</button><span class="sub" id="phasemessage" role="status"></span></div>
+<p class="sub">Saving guides future workout suggestions and response-based progression. Existing scheduled sessions stay intact; planning gaps are shown below.</p>
+<div id="phaseblendview" style="margin-top:12px"></div><details style="margin-top:12px"><summary>Planned phases &amp; research basis</summary><div id="phasetimeline"></div><div id="phasesources" class="sub"></div></details></div></div>
 </section>
 <section data-tab="rules" role="tabpanel" hidden id="swimset-wrap">
 <h2>SWIM SETTINGS</h2>
@@ -307,6 +362,8 @@
  <div class="row"><button class="blue" id="swsave">Save planning preferences</button><span class="sub" id="swmsg"></span></div>
  </details></div>
 </section>
+<dialog id="phaseweeksdialog" class="programdialog" aria-labelledby="phaseweekstitle"><div class="weekhead"><h2 id="phaseweekstitle">Weeks in this phase</h2><button type="button" id="phaseweeksclose" aria-label="Close phase weeks">✕</button></div><p id="phaseweeksdates" class="sub"></p><div id="phaseweeksbody"></div><div class="weekactions"><button type="button" id="phaseweeksmore">View more · full program</button></div></dialog>
+<dialog id="programcalendardialog" class="programdialog" aria-labelledby="programcalendartitle"><div class="weekhead"><h2 id="programcalendartitle">Full training program</h2><button type="button" id="programcalendarclose" aria-label="Close full program calendar">✕</button></div><p class="sub">Days are colored by phase. Select a day to see its week and workouts, or a month to open its first covered phase.</p><div id="programcalendarbody" class="program-month-grid"></div><div class="weekactions" style="margin-top:18px"><button type="button" id="programcalendarloads">Detailed workouts &amp; projected loads</button></div></dialog>
 <dialog id="blockdialog" aria-labelledby="blocktitle"><div class="row" style="justify-content:space-between"><b id="blocktitle" data-training-icon-prefix="calendar">Training calendar</b><button type="button" id="blockclose" aria-label="Close training calendar">✕</button></div>
  <div id="blockcard" style="margin-top:12px">Loading training calendar…</div>
 </dialog>
@@ -345,11 +402,15 @@
 </dialog>
 
 </main>
+<dialog id="journalalbum" class="programdialog"><div class="weekhead"><h2>YOUR JOURNAL</h2><button type="button" id="albumclose" aria-label="Close journal album">✕</button></div><p class="sub">Your reports and the training context saved with them.</p><div class="album-layout"><nav id="albummonths" aria-label="Journal months"></nav><div id="albumentries"></div></div></dialog>
+<dialog id="artlibrarydialog" class="programdialog"><div class="weekhead"><h2>ARTWORK LIBRARY</h2><div class="artlibrary-actions"><button type="button" id="artadd" aria-label="Upload photos" title="Add your photos">＋</button><button type="button" id="artclose" aria-label="Close artwork library">✕</button></div></div><p class="sub">Relevant artwork rotates on opening the page and stays steady during use. Uploaded photos stay on this computer.</p><div class="card" id="artupload" hidden><label>Use these photos for <select id="artcategory"><option value="recovery">Rest & recovery</option><option value="cycling">Cycling & diagnostics</option><option value="swimming">Swimming</option><option value="strength">Strength</option><option value="running">Running</option><option value="preparation">Preparation & goals</option></select></label><p><label>Subject position <select id="artfocal"><option value="75,50">Right</option><option value="50,50">Center</option><option value="25,50">Left</option><option value="50,25">Upper center</option><option value="50,75">Lower center</option></select></label></p><p><label>Choose photos <input id="artfiles" type="file" accept="image/jpeg,image/png" multiple></label></p><button type="button" id="artuploadsave">Add to rotation</button><p id="artuploadstatus" role="status"></p></div><div id="artgallery" class="artgallery"></div></dialog>
+<dialog id="loadwarningdialog" class="programdialog"><div class="weekhead"><h2>TRAINING LOAD ALERT</h2><button type="button" id="loadwarningclose" aria-label="Close load warning">✕</button></div><div id="loadwarningreadings"></div><button type="button" class="blue" id="loadwarningprogress">View Fitness Dashboard →</button></dialog>
 <script>
 const $=id=>document.getElementById(id);
 const esc=t=>String(t).replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
 const ZONES=[[55,'#6b7280'],[75,'#3b82f6'],[90,'#22c55e'],[105,'#eab308'],[120,'#f97316'],[999,'#ef4444']];
 let ftp=180, gut=null, day=null, plan=null, workouts=[], editing=false;
+let checkinInitialized=false, checkinSaving=false, checkinRequest=null;
 let shoulderTouched=false, fullWorkouts=[];      // saved workouts with their steps, for "what you'll ride"
 const colour=pct=>ZONES.find(z=>pct<z[0])[1];
 const mmss=m=>{ const s=Math.round(m*60); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
@@ -360,17 +421,20 @@ async function loadToday(){ const [r,workoutData]=await Promise.all([fetch('/api
   const c=r.checkin||{}, v=c.verdict, p=r.plan||{};
   const shown=p.verdict||r.verdict||v;
   $('verdict').className='verdict'+(shown?' v-'+shown:''); $('verdict').textContent=shown?r.verdicts[shown]:'No check-in yet';
-  $('why').textContent=v?(c.why||[]).join(' · '):(p.verdict?'':'Start with the 6-minute diagnostic below, or just check in.');
+  $('why').textContent=v?(p.verdict&&p.verdict!==c.verdict?`Today’s plan calls for ${p.verdict}. ${p.note||''}`:(c.why||[]).join(' · ')):(p.verdict?'':'Start with the 6-minute diagnostic below, or just check in.');
   const hopTxt=c.hops_left!=null||c.hops_right!=null?`L <b>${c.hops_left??'–'}</b> · R <b>${c.hops_right??'–'}</b>`:(c.hops!=null?`<b>${c.hops}</b>`:null);
   const ci=[['Legs',c.legs,'/10'],['Feet & bones',c.feet,'/10'],['Shoulders',c.shoulders,'/10'],['Breathing',c.breathing,'/10'],
     ['Sleep',c.sleep,'/10'],['HR at 90 W',c.hr90,' bpm']].filter(x=>x[1]!=null).map(([k,v,u])=>`${k} <b>${v}</b>${u}`);
   if(hopTxt) ci.splice(2,0,'Hops '+hopTxt);
-  const checked=ci.length>0;
+  const checked=Object.keys(c).length>0;
   $('checkedin').hidden=!checked;
   $('cilist').innerHTML='✓ This morning: '+ci.join(' · ');
   $('cijournal').hidden=!c.journal; $('cijournal').textContent=c.journal||'';
   $('cinote').hidden=!c.note; $('cinote').textContent=c.note||'';
   if(!editing){ $('feel').hidden=checked; $('cicancel').hidden=true; }
+  $('checkinsummary').textContent=checked?'✓ Check-in saved · open journal':'Check-in & journal';
+  $('journalhome').hidden=!checked;
+  if(!checkinInitialized){$('checkinpanel').open=!checked;checkinInitialized=true;}
   renderFlags(c.flags||[], r.date);
   if(c.hr90) $('why').textContent+=` · HR at 90 W ${c.hr90}`+(c.hrr!=null?`, recovered ${c.hrr} bpm`:'')+(r.baseline?` (normal ${Math.round(r.baseline.hr90)})`:'');
   sysline(r);
@@ -378,7 +442,7 @@ async function loadToday(){ const [r,workoutData]=await Promise.all([fetch('/api
   rpeLine(r); liftToday(r.lifting); weeklyToday(r.weekly);
   morningLine(r.morning);
   for(const d of r.week||[]) for(const [i,s] of (d.sessions||[]).entries()) s.swim_outlook=r.training_block?.swim_outlooks?.find(x=>x.date===d.date&&x.session_index===i);
-  weekStrip(r.week, r.date);
+  if(activePhaseWeek?.refresh)activePhaseWeek.refresh();else weekStrip(r.week, r.date);if(!programPreviewData)currentBlockDetail();renderProgramBanner();
   loadForecastData=r.training_block?.load_outlooks||[];
   loadRecordedData=r.training_block?.load_history||[];
   loadComparisons=r.training_block?.forecast_comparisons||[];
@@ -387,7 +451,7 @@ async function loadToday(){ const [r,workoutData]=await Promise.all([fetch('/api
   eventList(r.events, r.calibration);
   calList(r.calibration);
   headline(r.headline);
-  loadImpact(r);
+  loadImpact(r);renderLoadWarning(r);programArtReady.then(()=>renderTodayArt(r));
   $('plannote').hidden=!p.note; $('plannote').textContent=p.note?'Coach: '+p.note:'';
   const w=p.workout&&workouts.find(x=>x.id===p.workout);
   const T={ftp:'FTP ramp test',big_gear:'Big-gear test',diagnostic:'Morning diagnostic'}[p.test];
@@ -397,7 +461,8 @@ async function loadToday(){ const [r,workoutData]=await Promise.all([fetch('/api
   $('completedtoday').hidden=!finished.length; $('completedtoday').innerHTML=finished.map(completedHtml).join('');
   if(todaySessions.some(s=>s.sport==='ride'&&s.completion)&&!todaySessions.some(s=>s.sport==='ride'&&!s.completion)) $('courserow').hidden=$('planrow').hidden=true;
   if(c.legs){ $('legs').value=c.legs; $('legsv').textContent=c.legs; } if(c.feet){ $('feet').value=c.feet; $('feetv').textContent=c.feet; } if(c.shoulders){$('shoulders').value=c.shoulders;$('shouldersv').textContent=c.shoulders;shoulderTouched=true;} $('hopsl').value=c.hops_left??''; $('hopsr').value=c.hops_right??'';
-  if(!editing) $('journal').value=c.journal||''; if(c.gut) document.querySelectorAll('[data-gut]').forEach(x=>x.classList.toggle('on',x.dataset.gut===c.gut)); gut=c.gut||gut; if(c.breathing){ $('breath').value=c.breathing; $('breathv').textContent=c.breathing; }
+  if(!editing){$('journal').value=c.journal||'';try{const draft=localStorage.getItem(draftKey());if(draft!=null&&draft!==$('journal').value){$('journal').value=draft;editing=true;$('feel').hidden=false;$('journalhome').hidden=true;$('checkinpanel').open=true;}}catch(e){}} if(c.gut) document.querySelectorAll('[data-gut]').forEach(x=>x.classList.toggle('on',x.dataset.gut===c.gut)); gut=c.gut||gut; if(c.breathing){ $('breath').value=c.breathing; $('breathv').textContent=c.breathing; }
+  renderTodayWorkouts(r,todaySessions);
   if(c.sleep){ $('sleep').value=c.sleep; $('sleepv').textContent=c.sleep; } if(c.hr90) $('hr90').value=c.hr90; if(c.hr120) $('hr120').value=c.hr120; if(c.hr_after) $('hrafter').value=c.hr_after; }
 // The shared body systems, with separate running and swimming recovery verdicts.
 function sysline(r){ const el=$('systems'); if(!r.systems){ el.hidden=true; return; } el.hidden=false;
@@ -461,7 +526,7 @@ document.querySelectorAll('[data-training-icon]').forEach(el=>el.innerHTML=sport
 document.querySelectorAll('[data-training-icon-prefix]').forEach(el=>{el.classList.add('ui-icon-label');el.insertAdjacentHTML('afterbegin',sportIcon(el.dataset.trainingIconPrefix));});
 function weekStrip(wk,today){ if(!wk) return; const box=$('weekstrip');
   box.innerHTML=wk.map((d,i)=>{ const did=d.done.filter(x=>x.minutes>=5);
-    return `<div class="wd${d.date===today?' today':''}" data-i="${i}"><div class="dn">${new Date(d.date+'T12:00').toLocaleDateString(undefined,{weekday:'short'})}</div>
+    return `<div role="button" tabindex="0" aria-label="${esc(d.date)} workouts" class="wd${d.date===today?' today':''}" data-i="${i}"><div class="dn">${new Date(d.date+'T12:00').toLocaleDateString(undefined,{weekday:'short'})} ${new Date(d.date+'T12:00').getDate()}</div>
       <b>${d.sessions?.length?d.sessions.map((s,n)=>`<span class="wds" data-s="${n}" title="${esc(s.name||s.sport)}">${s.completion?COMPLETE_ICON:ICON[s.sport]||ICON.other}</span>`).join(' '):d.sport?ICON[d.sport]||'•':d.verdict==='rest'?ICON.rest:'·'}</b>${d.sessions?.length?d.sessions.map(s=>s.sport==='rest'?'rest':s.minutes?s.minutes+' min':'').filter(Boolean).join(' + ')||'&nbsp;':d.minutes?`${d.minutes} min`:d.sport==='rest'?'rest':'&nbsp;'}
       ${day?.training_block?.load_outlooks?.some(x=>x.date===d.date)?`<button type="button" class="loadpeek" data-load-date="${esc(d.date)}">Projected loads</button>`:''}
       ${did.length?`<div class="did">✓ ${did.map(x=>`${ICON[x.sport]||x.sport} ${x.minutes}`).join(' ')}</div>`:''}</div>`; }).join('')
@@ -479,21 +544,40 @@ function weekStrip(wk,today){ if(!wk) return; const box=$('weekstrip');
   // workout show below - a ride loaded in the builder, a swim's sets, a run's warm-up, drills and build-ups.
   const showSessions=(i,si)=>{const d=wk[i], sessions=d.sessions||[]; si=Math.min(si??0, Math.max(0,sessions.length-1));
     const cur=sessions[si]; box.querySelectorAll('.wd').forEach((e,k)=>e.querySelectorAll('.wds').forEach((x,n)=>x.classList.toggle('on',k===i&&n===si&&sessions.length>1)));
+    const deck=$('daydeck');deck.querySelectorAll('details').forEach((e,n)=>e.open=n===si);const host=deck.querySelector(`[data-session-body="${si}"]`);if(host)['sessionpreview','timedtitle','timedcard','othertitle','othercard','lifttitle','liftcard','addtitle','addcard'].forEach(id=>host.appendChild($(id)));
     const completed=cur?.completion, ride=cur?.sport==='ride'&&!completed; $('timedtitle').hidden=!ride; $('timedcard').hidden=!ride; if(ride)loadPlanned(d,cur);
+    if(ride&&d.date===day?.date)mountTodayRide();
     sessionCard(d,completed?null:cur); liftCard(d,completed?null:cur,si);
     if(completed){ $('othertitle').hidden=$('othercard').hidden=false; $('othertitle').textContent='COMPLETED WORKOUT'; $('othercard').innerHTML=completedHtml(cur); }
     $('sessionpreview').innerHTML=cur
-    ?`<div><b>${ICON[cur.sport]||'•'} ${esc(cur.name||cur.sport)}${cur.sport==='rest'?'':` · ${cur.minutes} min`}</b>${sessions.length>1?`<span class="sub"> · session ${si+1} of ${sessions.length} - tap the other icon above to switch</span>`:''}${cur.note?`<div class="sub">${esc(cur.note)}</div>`:''}${cur.sport==='ride'?rideHow(cur):''}${!['ride','swim','run'].includes(cur.sport)&&cur.steps?.length?`<ol class="sub" style="margin:6px 0 0 18px;padding:0">${cur.steps.map(x=>`<li>${esc(x)}</li>`).join('')}</ol>`:''}</div>`
+    ?`<div><b>${ICON[cur.sport]||'•'} ${esc(cur.name||cur.sport)}${cur.sport==='rest'?'':` · ${cur.minutes} min`}</b>${sessions.length>1?`<span class="sub"> · session ${si+1} of ${sessions.length} - open another session card below to switch</span>`:''}${cur.note?`<div class="sub">${esc(cur.note)}</div>`:''}${cur.sport==='ride'?(d.date===day?.date?'<p class="sub">The full ride graph and controls are in Today’s workout card.</p>':rideHow(cur)):''}${!['ride','swim','run'].includes(cur.sport)&&cur.steps?.length?`<ol class="sub" style="margin:6px 0 0 18px;padding:0">${cur.steps.map(x=>`<li>${esc(x)}</li>`).join('')}</ol>`:''}</div>`
     :'<div class="sub">Nothing planned this day.</div>';
-    if(completed) $('sessionpreview').innerHTML=`<b>${COMPLETE_ICON} ${esc(cur.name||cur.sport)} · completed</b>${sessions.length>1?`<div class="sub">Session ${si+1} of ${sessions.length} · tap another icon above to switch</div>`:''}`;
+    if(completed) $('sessionpreview').innerHTML=`<b>${COMPLETE_ICON} ${esc(cur.name||cur.sport)} · completed</b>${sessions.length>1?`<div class="sub">Session ${si+1} of ${sessions.length} · open another session card to switch</div>`:''}`;
+    if(completed && cur && cur.sport!=='rest') {
+      const saved=day?.training_feedback?.[d.date+':'+si];
+      $('sessionpreview').insertAdjacentHTML('beforeend',`<div class="note"><b>Did this session meet its purpose?</b><div class="row" style="margin-top:8px;gap:6px"><label>Discomfort <select id="effortlocation"><option value="">None reported</option><option value="achilles">Achilles</option><option value="calf_belly">Middle of calf</option><option value="below_knee">Below knee</option><option value="behind_knee">Behind knee</option><option value="hamstring">Hamstring</option><option value="shoulder">Shoulder</option><option value="lower_back">Lower back</option></select></label><select id="effortside" aria-label="Side"><option value="unspecified">Side unspecified</option><option value="left">Left</option><option value="right">Right</option><option value="both">Both</option></select><label>Discomfort 0–10 <input id="effortseverity" type="number" min="0" max="10" value="0" style="width:60px"></label></div><label class="sub"><input id="efforthr" type="checkbox"> Heart-rate response felt unusual</label><div class="row" style="margin-top:8px;gap:6px"><button type="button" data-effort="too_easy">Too easy</button><button type="button" data-effort="as_intended">As intended</button><button type="button" data-effort="too_hard">Too hard</button></div><p class="sub" id="effortresult">${esc(saved?.assessment?.why||'Your report is interpreted against the session purpose, training phase, upcoming events and recovery—not effort alone.')}</p></div>`);
+      const priorSymptom=saved?.symptoms?.find(x=>x.severity>0);
+      if(priorSymptom){$('effortlocation').value=priorSymptom.location;$('effortside').value=priorSymptom.side;$('effortseverity').value=priorSymptom.severity;}
+      $('efforthr').checked=!!saved?.heart_rate_issue;
+      $('sessionpreview').querySelectorAll('[data-effort]').forEach(b=>b.onclick=async()=>{
+        const location=$('effortlocation').value;const severity=+$('effortseverity').value;
+        if(location && severity===0){$('effortresult').textContent='Rate the discomfort above zero, or select None reported.';return;}
+        const r=await post('/api/coach/session-report',{date:d.date,session_index:si,effort:b.dataset.effort,heart_rate_issue:$('efforthr').checked,symptoms:location?[{location,side:$('effortside').value,severity}]:[]});
+        $('effortresult').textContent=r.ok?r.j.assessment.why:r.j.error;
+        if(r.ok){day.training_feedback=day.training_feedback||{};day.training_feedback[d.date+':'+si]=r.j;}
+      });
+    }
+    if(ride&&d.date===day?.date){$('sessionpreview').insertAdjacentHTML('beforeend','<button type="button" id="todayrideopen">Open today’s ride controls →</button>');$('todayrideopen').onclick=()=>{showTab('today');$('timedcard').scrollIntoView({behavior:'smooth',block:'start'});};}
     const missing=[['gym',ICON.gym+' Strength'],['swim',ICON.swim+' Swim'],['ride',ICON.ride+' Bike'],['run',ICON.run+' Run']].filter(([k])=>!sessions.some(x=>x.sport===k));
     if(missing.length) $('sessionpreview').insertAdjacentHTML('beforeend',`<div class="row" style="margin-top:10px;gap:6px">${missing.map(([k,n])=>`<button type="button" class="addsp" data-sp="${k}">+ ${n}</button>`).join('')}</div>`);
     $('sessionpreview').querySelectorAll('.addsp').forEach(b=>b.onclick=()=>{ const k=b.dataset.sp;
       if(k==='gym'){ $('addcard').hidden=$('addtitle').hidden=true; liftCard(d,{sport:'gym',name:'Strength',lifts:[]},null,true); $('liftcard').scrollIntoView({behavior:'smooth'}); }
       else addSession(d,k==='ride'?'bike':k); });};
-  box.querySelectorAll('.wd').forEach(e=>e.onclick=ev=>{ const s=ev.target.closest('.wds'); show(+e.dataset.i); showSessions(+e.dataset.i, s?+s.dataset.s:null); });
+  const renderDeck=i=>{const d=wk[i];['sessionpreview','timedtitle','timedcard','othertitle','othercard','lifttitle','liftcard','addtitle','addcard'].forEach(id=>$('daydeck').before($(id)));$('daydeck').innerHTML=(d.sessions||[]).map((s,n)=>`<details class="daysession"><summary><span>${s.completion?COMPLETE_ICON:ICON[s.sport]||ICON.other} ${esc(s.name||s.sport)}</span><span>${s.minutes||0} min · ${s.completion?'Completed':'Planned'}</span></summary><div data-session-body="${n}"></div></details>`).join('');$('daydeck').querySelectorAll('summary').forEach((e,n)=>e.onclick=ev=>{ev.preventDefault();const detail=e.parentElement;if(detail.open){detail.open=false;return;}showSessions(i,n);});};
+  box.querySelectorAll('.wd').forEach(e=>e.onclick=ev=>{ const s=ev.target.closest('.wds'); show(+e.dataset.i);renderDeck(+e.dataset.i); showSessions(+e.dataset.i, s?+s.dataset.s:null); });
+  box.querySelectorAll('.wd').forEach(e=>e.onkeydown=ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();e.click();}});
   box.querySelectorAll('[data-load-date]').forEach(b=>b.onclick=e=>{e.stopPropagation();openLoadForecast(b.dataset.loadDate);});
-  const selected=Math.max(0,wk.findIndex(d=>d.date===today));show(selected);showSessions(selected); }
+  const selected=Math.max(0,wk.findIndex(d=>d.date===today));show(selected);renderDeck(selected);showSessions(selected); }
 let loadForecastData=[],loadRecordedData=[],loadComparisons=[];
 const loadArrow={up:'↑',down:'↓',steady:'→',manage:'↔',unknown:'—'};
 let loadForecastDate='',loadForecastPage=0,loadForecastWindow=0;
@@ -541,7 +625,7 @@ function renderLoadForecast(){const date=loadForecastDate,f=loadForecastData.fin
  ${(()=>{const c=loadComparisons.find(x=>x.date===date);return c?`<details style="margin-top:10px"><summary>Actual vs. saved plan · ${esc(c.status)}</summary><p class="sub">Forecast saved ${esc(c.saved_at)}. Higher is not automatically better.</p><div class="loadstats">${c.metrics.filter(m=>page.keys.includes(m.key)).map(m=>`<div><small>${esc(m.name)}</small>Recorded ${num(m.actual,m.unit)}<br>Planned ${num(m.expected,m.unit)}<br>Difference ${num(m.difference,m.unit)}</div>`).join('')}</div></details>`:'<p class="sub">Actual vs. planned appears when a pre-workout baseline and recorded results are both available.</p>';})()}
  <details style="margin-top:10px"><summary>Shared muscles on this day</summary><p class="sub">Separate source contributions; overlap informs workout selection, not a new biological multiplier.${f.regional_overlap?.unavailable_sources?.length?' Missing sources: '+esc(f.regional_overlap.unavailable_sources.join(', ')):''}</p>${Object.values(f.regional_overlap?.regions||{}).filter(r=>r.shared).map(r=>`<p class="sub"><b>${esc(r.name)}</b>: ${Object.entries(r.contributions).filter(([,v])=>v>=.1).map(([s,v])=>esc(s)+' '+v.toFixed(2)+'×').join(' + ')}</p>`).join('')||'<p class="sub">No shared exposure identified from available inputs.</p>'}</details>
  <details style="margin-top:10px"><summary>Workout rationale & forecast notes</summary>${f.alerts.map(x=>`<p style="color:var(--warn)">${esc(x)}</p>`).join('')}
- <h3>${sportIcon('goal')} Why this day?</h3>${f.sessions.length?f.sessions.map(s=>`<details style="margin:8px 0"><summary>${ICON[s.sport]||'•'} ${esc(s.name)}${s.completed?' · already recorded':''}</summary><p class="sub">${esc(s.why)}</p>${s.doses?`<p class="sub">Session dose: cardio ${num(s.doses.engine,'pts')} · impact ${num(s.doses.impact,'pts')} · muscle ${num(s.doses.muscle,'pts')}</p>`:''}<p class="sub">${(s.basis||[]).map(esc).join(' · ')}</p></details>`).join(''):'<p class="sub">No scheduled training: earlier work carries forward through recovery.</p>'}
+ <h3>${sportIcon('goal')} Why this day?</h3>${f.sessions.length?f.sessions.map(s=>`<details style="margin:8px 0"><summary>${ICON[s.sport]||'•'} ${esc(s.name)}${s.completed?' · already recorded':''}</summary><p class="sub">${esc(s.why)}</p>${s.phase_role?`<p class="sub">Phase role: ${esc(s.phase_role)} · ${(s.phase_why||[]).map(esc).join(' · ')}</p>`:''}${s.doses?`<p class="sub">Session dose: cardio ${num(s.doses.engine,'pts')} · impact ${num(s.doses.impact,'pts')} · muscle ${num(s.doses.muscle,'pts')}</p>`:''}<p class="sub">${(s.basis||[]).map(esc).join(' · ')}</p></details>`).join(''):'<p class="sub">No scheduled training: earlier work carries forward through recovery.</p>'}
  <p class="sub">${esc(f.assumptions)} Conditioning is a load-based estimate. Forecasts update with actual training and check-ins. Actual-versus-planned comparisons use a separately saved pre-workout baseline, never a forecast recalculated after the workout. Starting load is the previous day's level, or today's recorded level before remaining training.</p></details></div>`;
  $('saveforecast').onclick=async()=>{const r=await post('/api/coach/forecast/save',{});$('saveforecastnote').textContent=r.ok?`Saved ${r.j.saved_dates.length} dates. Already recorded work is never saved as a pre-workout baseline.`:r.j.error||'Could not save';};
  $('loadforecastbody').querySelectorAll('[data-load-window]').forEach(b=>b.onclick=()=>{loadForecastWindow=Number(b.dataset.loadWindow);renderLoadForecast();});
@@ -573,27 +657,31 @@ function renderBlock(F){ const box=$('blockcard'); if(!F){box.textContent='Train
     if(sports.has('gym'))purposes.push(['gym','Strength & control']);
     if(sports.has('run'))purposes.push(['run','Run training']);
     if(sports.has('rest')||sessions.length<w.days.length)purposes.push(['rest','Recovery & review']);
+    const periodPhase=phaseData?.phases?.find(p=>p.start<=w.start&&p.end>w.start)||{kind:G.status==='hold'?'recovery':'base',color:G.status==='hold'?'teal':'blue'};
     const focus=w.focus||B.focus||'Follow the saved sessions and review the response each Sunday.';
     const dates=[w.start,w.end].map(d=>new Date(d+'T12:00').toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})).join(' – ');
-    return `<section class="planweek" aria-labelledby="planweek-${i}"><header class="weekbanner"><div class="weekart" aria-hidden="true">${artwork.map(name=>`<img src="/web/sports/sport-${name}.jpg" alt="" loading="lazy">`).join('')}</div><div><div class="eyebrow">${G.status==='hold'?'Running recovery · aerobic maintenance':'Training block'}</div><h3 id="planweek-${i}">Week ${i+1}</h3><div class="weekdates">${esc(dates)}</div><p class="weekfocus">${esc(focus)}</p><div class="purposechips">${purposes.map(([icon,label])=>`<span class="purposechip">${sportIcon(icon)} ${esc(label)}</span>`).join('')}</div></div></header>
-      <div class="weekcontent"><div class="weekstats"><span><strong>${w.total_minutes} min</strong> planned · <strong>${w.done_minutes} min</strong> completed</span>${w.projected_end?`<button type="button" class="loadpeek" data-load-date="${esc(w.projected_end.date)}">${sportIcon('recovery')} Week-end loads</button>`:''}</div>
+    return `<section class="planweek" aria-labelledby="planweek-${i}"><header class="weekbanner phase-${esc(periodPhase.color||'blue')}"><div class="weekart phasephoto" aria-hidden="true"><img src="${esc(artFile(phasePhoto(periodPhase)))}" style="${artPosition(phasePhoto(periodPhase))}" alt="" loading="lazy"></div><div><div class="eyebrow">${G.status==='hold'?'Running recovery · aerobic maintenance':'Training block'}</div><h3 id="planweek-${i}">Week ${i+1}</h3><div class="weekdates">${esc(dates)}</div><p class="weekfocus">${esc(focus)}</p><div class="purposechips">${purposes.map(([icon,label])=>`<span class="purposechip">${sportIcon(icon)} ${esc(label)}</span>`).join('')}</div></div></header>
+      <div class="weekcontent">${w.phase_blend?.sports?`<p class="sub">Phase roles: ${Object.values(w.phase_blend.sports).filter(x=>x.roles.length).map(x=>`${esc(x.name)} — ${x.roles.map(esc).join(" / ")}`).join(" · ")}</p>`:""}<div class="weekstats"><span><strong>${w.total_minutes} min</strong> planned · <strong>${w.done_minutes} min</strong> completed</span>${w.projected_end?`<button type="button" class="loadpeek" data-load-date="${esc(w.projected_end.date)}">${sportIcon('recovery')} Week-end loads</button>`:''}</div>
       <div class="blockscroll"><div class="blockcalendar">${weekdayHeader}${w.days.map(d=>`<div class="blockcell"><button type="button" class="blockday${d.date===day?.date?' today':''}" data-date="${esc(d.date)}" aria-label="${esc(d.date+': '+(d.workouts?.length?d.workouts.map(s=>s.name||s.sport).join(', '):'open day'))}"><span class="date">${new Date(d.date+'T12:00').toLocaleDateString(undefined,{month:'short',day:'numeric'})}</span>${d.workouts?.length?d.workouts.map(s=>`<span class="session">${ICON[s.sport]||'•'} ${esc(s.name||s.sport)}${s.minutes?` · ${s.minutes}m`:''}</span>`).join(''):'<span class="session">Open day</span>'}${d.done_minutes?`<span class="session" style="color:var(--good)">✓ ${d.done_minutes} min done</span>`:''}</button>${d.projected_loads?`<button type="button" class="loadpeek" data-load-date="${esc(d.date)}">Projected loads</button>`:''}</div>`).join('')}</div></div>
       ${w.projected_end?`<details class="weekdose"><summary>Remaining training dose · estimates</summary><p>Cardio ${w.projected_dose.engine??'—'} pts · impact ${w.projected_dose.impact??'—'} pts · muscle ${w.projected_dose.muscle??'—'} pts</p></details>`:''}</div></section>`;
   }).join('');
-  box.innerHTML=`<section class="planpurpose"><div class="eyebrow">Purpose of this block</div><h3>${G.status==='hold'?'Recover running load. Maintain aerobic fitness.':'Train toward your next goal.'}</h3><p>${esc(B.focus||B.objective||'Follow the plan, then review and adapt.')}</p></section><b>${B.weeks}-week block · ${esc(B.status)} · from ${esc(B.start)}</b>${B.goal?`<div class="sub">Goal: ${esc(B.goal.name)} · ${esc(B.goal.date)}${B.objective?` · ${esc(B.objective)}`:''}</div>`:''}${B.focus?`<div class="sub">This block: ${esc(B.focus)}</div>`:''}${G.status==='hold'?`<div class="note" style="border-left-color:var(--bad)"><b>Running: HOLD</b> · ${G.blocks!=null?`mechanical load ${(+G.blocks).toFixed(2)} / ${G.limit} blocks`:''}${G.model_days!=null?` · model projects about ${G.model_days} days to its running line`:''}<div class="sub">${(G.reasons||[]).map(esc).join(' · ')}. Reports during the plateau affect today's decision; they change the curve only after the plateau.</div></div>`:''}${B.return_to_run?`<div class="sub">Running review: ${esc(B.return_to_run)}</div>`:''}<div class="sub">${esc(F.meaning)}</div>`+
+  box.innerHTML=`<section class="planpurpose"><div class="eyebrow">Purpose of this block</div><h3>${G.status==='hold'?'Recover running load. Maintain aerobic fitness.':'Train toward your next goal.'}</h3><p>${esc(B.focus||B.objective||'Follow the plan, then review and adapt.')}</p></section><b>${B.weeks}-week block · ${esc(B.status)} · from ${esc(B.start)}</b>${B.goal?`<div class="sub">Goal: ${esc(B.goal.name)} · ${esc(B.goal.date)}${B.objective?` · ${esc(B.objective)}`:''}</div>`:''}${B.focus?`<div class="sub">This block: ${esc(B.focus)}</div>`:''}${B.progression?.enabled?`<div class="note"><b>Response-led progression</b><p class="sub">${esc(B.progression.meaning)} Future times remain the baseline until qualifying feedback and a later recovery report support a change.</p>${Object.values(B.progression.applied||{}).map(x=>`<div class="sub">${esc(x.next_start)}: ${esc(x.status)} · ${(x.why||[]).map(esc).join(' · ')}</div>`).join('')}</div>`:''}${G.status==='hold'?`<div class="note" style="border-left-color:var(--bad)"><b>Running: HOLD</b> · ${G.blocks!=null?`mechanical load ${(+G.blocks).toFixed(2)} / ${G.limit} blocks`:''}${G.model_days!=null?` · model projects about ${G.model_days} days to its running line`:''}<div class="sub">${(G.reasons||[]).map(esc).join(' · ')}. Reports during the plateau affect today's decision; they change the curve only after the plateau.</div></div>`:''}${B.return_to_run?`<div class="sub">Running review: ${esc(B.return_to_run)}</div>`:''}<div class="sub">${esc(F.meaning)}</div>`+
+    `${(F.progression_symptoms||[]).length?`<div class="note"><b>Localized discomfort awaiting review</b>${F.progression_symptoms.map(x=>`<p class="sub">${esc(x.date)} · ${esc(x.location.replaceAll('_',' '))} · ${esc(x.side)} · ${x.severity}/10. Affected work is held pending review.</p><button type="button" data-resolve-report="${esc(x.report_key)}">Report these symptoms resolved</button>`).join('')}</div>`:''}${(F.progression_decisions||[]).slice(-4).map(x=>`<div class="note"><b>${esc(x.date)} · ${esc(x.selected)} ${esc(x.sport)}</b><p class="sub">${esc(x.why)}</p><details><summary>Alternatives and projected effects</summary>${x.candidates.map(c=>`<p class="sub">${esc(c.action)}: ${c.eligible?'eligible':c.reasons.map(esc).join(' · ')} · week-end cardio change ${c.end_delta.cardio_fatigue??'unknown'}, leg change ${c.end_delta.muscle_fatigue??'unknown'}, swim change ${c.end_delta.swim_recovery??'unknown'}</p>`).join('')}</details></div>`).join('')}`+
     `<div class="calendar-purpose">${calendar}</div><div class="blockdetail" id="blockdetail" aria-live="polite"></div>`+
     `<details style="margin-top:12px"><summary>Weekly totals</summary><div style="overflow-x:auto"><table class="srctab"><thead><tr><th>Week</th><th>Planned</th><th>Completed</th><th>Exposure</th><th>Demanding</th></tr></thead><tbody>${F.weeks.map((w,i)=>`<tr><td>${i+1} · ${esc(w.start)}</td><td>${w.total_minutes} min</td><td>${w.done_minutes} min</td><td>${w.exposure_minutes}</td><td>${w.hard_sessions}</td></tr>`).join('')}</tbody></table></div></details>`+
-    (reviews.length?`<div class="sub" style="margin-top:8px"><b>Last Sunday: ${esc(reviews[0].decision)}</b> · ${esc(reviews[0].why)} ${Object.entries(reviews[0].by_sport||{}).map(([sport,decision])=>`${esc(sport)}: ${esc(decision)}`).join(' · ')}. Adjust next week with your coach.</div>`:'')+
+    (reviews.length?`<div class="sub" style="margin-top:8px"><b>Last Sunday: ${esc(reviews[0].decision)}</b> · ${esc(reviews[0].why)} ${Object.entries(reviews[0].by_sport||{}).map(([sport,decision])=>`${esc(sport)}: ${esc(decision)}`).join(' · ')}. ${B.progression?.enabled?'The Sunday review applies bounded aerobic changes; see response-led progression above.':'Adjust next week with your coach.'}</div>`:'')+
     (B.roadmap?.length?`<details style="margin-top:10px"><summary>Road to race day · later phases are conditional</summary>${B.roadmap.map(x=>`<div class="roadphase">${sportIcon('goal')}<div><b>${esc(x.focus)}</b><div class="sub">${esc(x.start)}–${esc(x.end)} · conditional phase</div></div></div>`).join('')}</details>`:'')+
     F.alerts.map(a=>`<div class="sub" style="color:var(--warn)">${esc(a)}</div>`).join('');
   const showDate=date=>{const d=allDays.find(x=>x.date===date);if(!d)return;
     const cell=Array.from(box.querySelectorAll('.blockday')).find(el=>el.dataset.date===date);if(cell)cell.closest('.weekcontent').appendChild($('blockdetail'));
-    box.querySelectorAll('.blockday').forEach(el=>{const on=el.dataset.date===date;el.classList.toggle('sel',on);el.setAttribute('aria-pressed',on?'true':'false');});
+    box.querySelectorAll('[data-resolve-report]').forEach(b=>b.onclick=async()=>{if(!confirm('Confirm the symptoms in this report have resolved. This does not clear the running mechanical-load gate.'))return;const r=await post('/api/coach/progression',{action:'resolve_symptom',report_key:b.dataset.resolveReport,resolved:true});if(r.ok){b.disabled=true;b.textContent='Resolution recorded';}else alert(r.j.error);});
+  box.querySelectorAll('.blockday').forEach(el=>{const on=el.dataset.date===date;el.classList.toggle('sel',on);el.setAttribute('aria-pressed',on?'true':'false');});
     $('blockdetail').innerHTML=`<b>${new Date(d.date+'T12:00').toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'})}</b>${d.workouts?.length?d.workouts.map(s=>`<div style="margin-top:8px">${ICON[s.sport]||'•'} <b>${esc(s.name||s.sport)}</b>${s.minutes?` · ${s.minutes} min`:''}${s.swim_outlook?swimOutlookHtml(s.swim_outlook):''}${s.steps?.length?`<details><summary>Workout sets</summary><ol class="sub">${s.steps.map(x=>`<li>${esc(x)}</li>`).join('')}</ol></details>`:''}</div>`).join(''):'<div class="sub">Open day · no workout scheduled.</div>'}${d.done_minutes?`<div class="sub" style="color:var(--good)">${d.done_minutes} min completed</div>`:''}`;};
+  box.querySelectorAll('[data-resolve-report]').forEach(b=>b.onclick=async()=>{if(!confirm('Confirm the symptoms in this report have resolved. This does not clear the running mechanical-load gate.'))return;const r=await post('/api/coach/progression',{action:'resolve_symptom',report_key:b.dataset.resolveReport,resolved:true});if(r.ok){b.disabled=true;b.textContent='Resolution recorded';}else alert(r.j.error);});
   box.querySelectorAll('.blockday').forEach(el=>el.onclick=()=>showDate(el.dataset.date));
   box.querySelectorAll('[data-load-date]').forEach(b=>b.onclick=()=>openLoadForecast(b.dataset.loadDate));
   if(selected)showDate(selected.date); }
-$('viewblock').onclick=()=>{if(!$('blockdialog').open)$('blockdialog').showModal();};
+$('viewblock').onclick=()=>openProgramCalendar();
 $('blockclose').onclick=()=>$('blockdialog').close();
 // A swim or run session's workout, shown like the ride's: its own sets if the plan has them, otherwise a standard
 // shape for the time (swim paces from CSS; a run's warm-up, dynamic stretches, easy running and build-ups).
@@ -835,6 +923,14 @@ $('sysdialog').onclick=e=>{ if(e.target===$('sysdialog')) $('sysdialog').close()
 addEventListener('resize',()=>{ const t=$('systitle').textContent; const k=Object.keys(SYS).find(x=>SYS[x].name===t); if(k) sysDraw(k); });
 
 
+function renderLoadWarning(r){const rd=r.systems||{},h=r.headline||{},alerts=[];
+ for(const [k,v] of Object.entries(rd.systems||{}))if(v.level==='easy'||v.level==='rest')alerts.push({name:({engine:'Cardio',impact:'Mechanical / impact',muscle:'Leg muscles'}[k]||k),why:v.why||[]});
+ for(const [k,name] of [['running','Running'],['swimming','Swimming']])if(rd[k]?.verdict==='rest'||rd[k]?.verdict==='easy')alerts.push({name,why:rd[k].why||[]});
+ $('loadwarning').hidden=!alerts.length;$('loadwarningcount').textContent=alerts.length;
+ $('loadwarningreadings').innerHTML=`<p class="sub">Current model readings and existing readiness rules.</p><div class="album-snapshot"><div><small>Cardio · last 7 days</small><b>${esc(h.cardio?.last7??'—')} points</b></div><div><small>Mechanical utilization</small><b>${esc(h.mechanical?.ratio??'—')} × limit</b></div><div><small>Running mechanical</small><b>${esc(h.mechanical?.remodeling_blocks??'—')} blocks</b></div></div>${alerts.map(a=>`<div class="album-entry"><b>${esc(a.name)}</b><ul>${a.why.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>`).join('')}`;
+}
+$('loadwarning').onclick=()=>$('loadwarningdialog').showModal();$('loadwarningclose').onclick=()=>$('loadwarningdialog').close();$('loadwarningprogress').onclick=()=>{$('loadwarningdialog').close();showTab('fitness');window.scrollTo({top:0});};
+
 // ── Diagnostic ──
 let tStart=null, tTimer=null;
 $('tstart').onclick=async()=>{ const r=await post('/api/coach/test/start'); if(!r.ok){ $('tmsg').textContent=r.j.error; return; }
@@ -847,17 +943,39 @@ function tick(){ const s=(Date.now()-tStart)/1000; $('tclock').textContent=mmss(
   if(s>=292&&s<330&&$('ask120').hidden){ $('ask120').hidden=false; navigator.vibrate?.([200,100,200]); }
   if(s>=355&&$('askrec').hidden){ $('askrec').hidden=false; navigator.vibrate?.([200,100,200]); }
   if(s>=365){ clearInterval(tTimer); $('tstep').textContent='Done. Fill in how it felt and save.'; $('tstart').disabled=false; $('feel').scrollIntoView({behavior:'smooth',block:'center'}); } }
-$('ciedit').onclick=()=>{ editing=true; $('feel').hidden=false; $('cicancel').hidden=false; };
-$('cicancel').onclick=()=>{ editing=false; $('feel').hidden=true; $('cicancel').hidden=true; $('cimsg').textContent=''; };
+$('ciedit').onclick=()=>{ editing=true;$('journalhome').hidden=true; $('feel').hidden=false; $('cicancel').hidden=false; };
+$('cicancel').onclick=()=>{ editing=false;$('journalhome').hidden=false; $('feel').hidden=true; $('cicancel').hidden=true; $('cimsg').textContent=''; };
 for(const [id,v] of [['legs','legsv'],['feet','feetv'],['shoulders','shouldersv'],['breath','breathv'],['sleep','sleepv']]) $(id).oninput=()=>{if(id==='shoulders')shoulderTouched=true;$(v).textContent=$(id).value};
 document.querySelectorAll('[data-gut]').forEach(b=>b.onclick=()=>{ gut=b.dataset.gut; document.querySelectorAll('[data-gut]').forEach(x=>x.classList.toggle('on',x===b)); });
-$('send').onclick=async()=>{ const body={legs:+$('legs').value,feet:+$('feet').value,breathing:+$('breath').value,sleep:+$('sleep').value,gut};
+$('feel').addEventListener('input',()=>{editing=true;checkinRequest=null;});
+const draftKey=()=>`bikebridge-checkin-${day?.date||new Date().toLocaleDateString('en-CA')}`;
+$('journal').addEventListener('input',()=>{try{localStorage.setItem(draftKey(),$('journal').value);}catch(e){}});
+$('cinew').onclick=()=>{editing=true;checkinRequest=null;$('feel').hidden=false;$('cicancel').hidden=false;$('journalhome').hidden=true;};
+$('send').onclick=async()=>{
+  if(checkinSaving)return;
+  const body={date:day?.date,legs:+$('legs').value,feet:+$('feet').value,breathing:+$('breath').value,sleep:+$('sleep').value,gut};
   if(shoulderTouched)body.shoulders=+$('shoulders').value;
-  if($('hopsl').value!=='') body.hops_left=+$('hopsl').value; if($('hopsr').value!=='') body.hops_right=+$('hopsr').value;
+  if($('hopsl').value!=='')body.hops_left=+$('hopsl').value;if($('hopsr').value!=='')body.hops_right=+$('hopsr').value;
   body.journal=$('journal').value.trim();
-  if($('hr90').value) body.hr90=+$('hr90').value; if($('hr120').value) body.hr120=+$('hr120').value; if($('hrafter').value) body.hr_after=+$('hrafter').value;
-  const r=await post('/api/coach/checkin',body); if(!r.ok){ $('cimsg').textContent=r.j.error; return; }
-  $('cimsg').textContent=''; editing=false; await loadToday(); loadJournal(); $('todaycard').scrollIntoView({behavior:'smooth'}); };
+  if($('hr90').value)body.hr90=+$('hr90').value;if($('hr120').value)body.hr120=+$('hr120').value;if($('hrafter').value)body.hr_after=+$('hrafter').value;
+  checkinRequest=checkinRequest||crypto.randomUUID();body.request_id=checkinRequest;body.defer_refresh=true;
+  checkinSaving=true;$('send').disabled=true;$('send').textContent='Saving…';$('cimsg').textContent='Saving your check-in locally…';
+  try{
+    const r=await post('/api/coach/checkin',body);
+    if(!r.ok)throw new Error(r.j.error||'The check-in could not be saved.');
+    editing=false;checkinRequest=null;$('feel').hidden=true;$('journalhome').hidden=false;$('checkinpanel').open=false;
+    $('checkinsummary').textContent='✓ Check-in saved · open journal';$('cimsg').textContent=r.j.warning||'';$('cisavestatus').textContent=r.j.warning||'Your check-in is saved locally.';
+    try{localStorage.removeItem(draftKey());}catch(e){}
+    await loadJournal();
+    $('cisavestatus').textContent='Your check-in is saved locally. Refreshing training readings…';
+    post('/api/coach/checkin/refresh',{date:body.date,request_id:r.j.journal_entry?.request_id}).then(async r=>{
+      if(!r.ok)throw new Error('Refresh failed');
+      $('cisavestatus').textContent=r.j.warning||'Your check-in and training readings are saved.';
+      await loadJournal();await loadToday();
+    }).catch(()=>{$('cisavestatus').textContent='Your check-in is saved. Refresh the page to retry the training readings.';});
+  }catch(e){$('cimsg').textContent=e.message||'Could not confirm the save. Your text is still here; retry when connected.';$('checkinpanel').open=true;}
+  finally{checkinSaving=false;$('send').disabled=false;$('send').textContent='Save check-in';}
+};
 
 // ── journal flags: the journal never scores; it asks. Only a flag you confirm counts (like moving its slider).
 const FLAGNAME={bone:'feet & bones',muscle:'leg muscles',illness:'heart & lungs',better:'better than the sliders'};
@@ -870,22 +988,52 @@ function renderFlags(fl,date){ $('flags').innerHTML=fl.map(f=>f.status==='open'
     const r=await post('/api/coach/flag?date='+date,{id:b.dataset.flag,action:b.dataset.act}); if(r.ok) loadToday(); }); }
 
 // ── tabs: Today (every morning), Plan (the week), Progress (where you stand). Remembered; #plan etc. links work.
-const TABS=['today','plan','progress','rules'];
+window.addEventListener('message',e=>{if(e.origin===location.origin&&e.source===$('fitnessframe').contentWindow&&e.data?.type==='fitness-height')$('fitnessframe').style.height=Math.max(900,Math.min(20000,e.data.height))+'px';});
+const TABS=['today','plan','fitness','progress','rules'];
 function showTab(t){ if(!TABS.includes(t)) t='today';
   document.querySelectorAll('section[data-tab]').forEach(x=>x.hidden=x.dataset.tab!==t);
   document.querySelectorAll('.tabs [data-tab]').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===t)));
   try{ localStorage.setItem('coachTab',t); }catch(e){}
-  history.replaceState(null,'','#'+t); window.dispatchEvent(new Event('resize')); }
+  history.replaceState(null,'','#'+t); if(t==='today')mountTodayRide(); if(day)renderTodayArt(day); window.dispatchEvent(new Event('resize')); }
 document.querySelectorAll('.tabs [data-tab]').forEach(b=>b.onclick=()=>{ showTab(b.dataset.tab); window.scrollTo({top:0}); });
 let firstTab=location.hash.slice(1); if(!TABS.includes(firstTab)){ try{ firstTab=localStorage.getItem('coachTab'); }catch(e){} }
 showTab(firstTab||'today');
 
-// ── the journal: what was written with each check-in, newest first
-async function loadJournal(){ try{ const h=await (await fetch('/api/coach/history?days=365')).json();
-  const rows=Object.entries(h.checkins||{}).filter(([,c])=>c.journal).sort().reverse();
-  $('journallist').innerHTML=rows.length?rows.map(([d,c])=>`<div class="jentry"><b>${new Date(d+'T12:00').toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric',year:'numeric'})}</b><div>${esc(c.journal)}</div></div>`).join(''):'No entries yet.';
-  }catch(e){} }
+// ── Journal album: all months, immutable save-time context, legacy entries clearly marked.
+let albumData={entries:[],months:[]},albumMonth=null;
+const entryDate=e=>new Date(e.date+'T12:00').toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric',year:'numeric'});
+function entryHtml(e){const c=e.checkin||{},s=e.snapshot,h=s?.readings?.headline,forecast=s?.forecast?.forecast;
+ const ratings=['legs','feet','shoulders','breathing','sleep'].filter(k=>c[k]!=null).map(k=>`${k}: ${c[k]}/10`).join(' · ');
+ const workouts=s?.planned_workouts?.sessions||(s?.planned_workouts?.sport?[s.planned_workouts]:[]);
+ return `<article class="album-entry"><div class="weekhead"><b>${esc(entryDate(e))}</b><small>${e.saved_at?esc(new Date(e.saved_at).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'})):'Earlier check-in'}</small></div><p class="sub">${esc(ratings)}${c.gut?' · '+esc(c.gut):''}</p><p class="journal-words">${esc(c.journal||c.note||'Ratings recorded without a written note.')}</p><details><summary>Day’s readings, planned work & goals</summary>${s?`<p class="sub">Snapshot saved ${esc(new Date(s.captured_at).toLocaleString())}. Model estimates, not measured tissue damage.</p><div class="album-snapshot">${h?`<div><small>Cardio · last 7 days</small><b>${esc(h.cardio?.last7??'Not available')} points</b></div><div><small>Running mechanical</small><b>${esc(h.mechanical?.remodeling_blocks??'Not available')} blocks</b></div><div><small>Swim recovery</small><b>${esc(h.mechanical?.swim_blocks??'Not available')} blocks</b></div>`:'<p class="sub">Readings were unavailable when this entry was saved.</p>'}</div><h3>Planned work</h3>${workouts.length?`<ul>${workouts.map(w=>`<li>${esc(w.name||w.sport)} · ${w.minutes||0} min${w.note?' — '+esc(w.note):''}</li>`).join('')}</ul>`:'<p class="sub">No workout was planned.</p>'}<h3>Goals & phase</h3><p>${esc(s.program_goal?.goal||'No saved program goal')} · ${esc(s.phase?.label||'No saved phase')}</p><p class="sub">${esc(s.program_goal?.outcome||'')} ${esc(s.phase?.purpose||'')}</p>${forecast?.metrics?.length?`<details><summary>Anticipated loads · saved forecast</summary><p class="sub">Forecast captured ${esc(s.forecast.saved_at)}.</p><div class="album-forecast">${forecast.metrics.map(m=>`<div>${esc(m.name)}<b>${esc(m.before??'—')} → ${esc(m.after??'—')} ${esc(m.unit)}</b></div>`).join('')}</div></details>`:''}`:'<p class="sub">This entry predates saved snapshots. Historical readings and goals have not been reconstructed.</p>'}</details></article>`;
+}
+function renderAlbum(){const entries=albumData.entries.filter(e=>!albumMonth||e.date.startsWith(albumMonth));$('albummonths').innerHTML=`<button type="button" data-month="" class="${!albumMonth?'blue':''}">Recent entries</button>`+albumData.months.map(m=>`<button type="button" data-month="${esc(m.month)}" class="${albumMonth===m.month?'blue':''}">${new Date(m.month+'-01T12:00').toLocaleDateString(undefined,{month:'long',year:'numeric'})} · ${m.count}</button>`).join('');$('albumentries').innerHTML=(albumMonth?entries:entries.slice(0,12)).map(entryHtml).join('')||'<p>No entries yet.</p>';$('albummonths').querySelectorAll('[data-month]').forEach(b=>b.onclick=()=>{albumMonth=b.dataset.month||null;renderAlbum();});}
+async function loadJournal(){try{const res=await fetch('/api/coach/journal');if(!res.ok)throw Error('Journal could not load');albumData=await res.json();const recent=albumData.entries.slice(0,3);$('journalrecent').innerHTML=recent.map(entryHtml).join('')||'<p class="sub">No entries yet.</p>';$('journallist').innerHTML=recent.map(entryHtml).join('')||'No entries yet.';renderAlbum();}catch(e){$('journalrecent').textContent='The journal could not load. Try reopening it.';}}
+async function openAlbum(){await loadJournal();$('journalalbum').showModal();}
+$('albumopen').onclick=$('progressalbum').onclick=openAlbum;$('albumclose').onclick=()=>$('journalalbum').close();
+$('checkinpanel').addEventListener('toggle',()=>{if($('checkinpanel').open&&!editing)loadJournal();});
 loadJournal();
+
+// Keep the complete active ride editor together with today's session.
+function mountTodayRide(){
+ const d=day?.week?.find(x=>x.date===day.date),i=d?.sessions?.findIndex(s=>s.sport==='ride'&&!s.completion);
+ if(i==null||i<0)return;
+ const host=$('todayworkouts').querySelector(`[data-today-session="${i}"]`);if(!host)return;
+ if($('timedcard').parentElement===host){requestAnimationFrame(draw);return;}
+ ['timedtitle','timedcard'].forEach(id=>{host.appendChild($(id));$(id).hidden=false;});
+ loadPlanned(d,d.sessions[i]);
+ if((d.test||day?.plan?.test)==='diagnostic') ['diagnostictitle','diagnosticcard'].forEach(id=>host.appendChild($(id)));
+ requestAnimationFrame(draw);
+}
+function renderTodayWorkouts(r,sessions){
+ ['planrow','courserow','liftlogtitle','liftlog','timedtitle','timedcard','diagnostictitle','diagnosticcard'].forEach(id=>$('todayworkouts').before($(id)));
+ $('todayworkouts').innerHTML=sessions.length?sessions.map((s,i)=>`<details class="daysession" ${i===0?'open':''}><summary><span>${s.completion?COMPLETE_ICON:ICON[s.sport]||ICON.other} ${esc(s.name||s.sport)}</span><span>${s.minutes||0} min · ${s.completion?'Completed':'Planned'}</span></summary><div class="today-session" data-today-session="${i}">${s.completion?completedHtml(s):`<p>${esc(s.note||'')}</p>${s.steps?.length?`<ol>${s.steps.map(x=>`<li>${esc(x)}</li>`).join('')}</ol>`:''}${s.sport==='ride'?'':`<button type="button" data-open-today="${i}">Open workout in Plan</button>`}`}</div></details>`).join(''):'<div class="card"><p>No workouts scheduled today.</p></div>';
+ sessions.forEach((s,i)=>{const host=$('todayworkouts').querySelector(`[data-today-session="${i}"]`);if(s.sport==='ride'&&!s.completion)['planrow','courserow'].forEach(id=>host.appendChild($(id)));if(s.sport==='gym')['liftlogtitle','liftlog'].forEach(id=>host.appendChild($(id)));});
+ $('completedtoday').hidden=true;
+ mountTodayRide();
+ programArtReady.then(()=>renderTodayArt(r));
+ $('todayworkouts').querySelectorAll('[data-open-today]').forEach(b=>b.onclick=()=>{showTab('plan');$('weekstrip').querySelector(`[aria-label="${r.date} workouts"] .wds[data-s="${b.dataset.openToday}"]`)?.click();$('daydeck').scrollIntoView({behavior:'smooth',block:'start'});});
+}
 
 // ── an unfinished workout from today: pick it up where it stopped (Ride now still starts over)
 async function loadResume(){ let st; try{ st=await (await fetch('/status')).json(); }catch(e){ return; }
@@ -895,6 +1043,173 @@ async function loadResume(){ let st; try{ st=await (await fetch('/status')).json
 $('resumego').onclick=async()=>{ const r=await post('/api/workout/resume',{}); if(r.ok) location.href='/course'; else loadResume(); };
 $('resumedrop').onclick=async()=>{ if(confirm('Forget this unfinished workout?')){ await post('/api/workout/resume/discard',{}); loadResume(); } };
 loadResume(); setInterval(loadResume,15000);
+
+// Phase-level emphasis is ordinary planning; advanced controls override weights only.
+const phaseSports={ride:'Cycling',swim:'Swimming',gym:'Strength / physique',run:'Running'};
+let phaseData=null;
+$('phasemodes').innerHTML=Object.entries(phaseSports).map(([s,n])=>`<label>${n}<select id="phasemode-${s}"><option value="improve">Improve</option><option value="maintain">Maintain</option><option value="pause">Pause</option></select></label>`).join('');
+$('phaseweights').innerHTML=Object.entries(phaseSports).map(([s,n])=>`<label>${n}<input type="number" id="phaseweight-${s}" min="0.1" max="100" step="0.1" placeholder="Automatic"></label>`).join('');
+function phasePreset(){const profile=$('phaseprofile').value;Object.keys(phaseSports).forEach(s=>{$('phasemode-'+s).value=profile==='balanced'||profile===s?'improve':'maintain';$('phaseweight-'+s).value='';});if(profile==='recovery')$('phasekind').value='recovery';}
+$('phaseprofile').onchange=phasePreset;
+function phaseEdit(p){$('phaselabel').value=p.label||'';$('phasepurpose').value=p.purpose||'';$('phaseprofile').value=p.profile;$('phasekind').value=p.kind;$('phasestart').value=p.start;$('phaseweeks').value=p.days||Math.round(p.weeks*7);Object.keys(phaseSports).forEach(s=>{$('phasemode-'+s).value=p.modes[s];$('phaseweight-'+s).value=p.weights?.[s]??'';});}
+function phaseBlendHtml(r){if(!r.enabled)return '<p class="sub">No phase focus saved for this date. Existing planning remains active.</p>';return `<h3>${esc(r.profile.label)} · ${esc(r.blend_name)}</h3><p class="sub">${esc(r.profile.start)}–${esc(r.profile.end)} (end exclusive) · ${esc(r.meaning)}</p><div style="overflow-x:auto"><table class="srctab"><thead><tr><th>Sport</th><th>Planning role</th><th>Priority share</th><th>Why</th></tr></thead><tbody>${Object.values(r.sports).map(x=>`<tr><td>${esc(x.name)}</td><td>${esc(x.role)}</td><td>${x.priority_share}%</td><td>${x.why.map(esc).join(' · ')}</td></tr>`).join('')}</tbody></table></div>`;}
+async function loadPhaseProfiles(when){try{const r=await (await fetch('/api/coach/phase-profiles'+(when?'?date='+encodeURIComponent(when):''))).json();if(r.error){$('phasemessage').textContent=r.error;return;}phaseData=r;
+ $('phaseblendview').innerHTML=phaseBlendHtml(r.current)+`<details style="margin-top:10px"><summary>Actual planned time &amp; gaps · next four weeks</summary><p class="sub">This is saved training time, separate from priority weights. Future roles use current restrictions; readiness is checked again when planning sessions.</p>${r.weeks.map(w=>`<div class="note"><b>Week of ${esc(w.start)} · ${w.total_minutes} min</b><p class="sub">${Object.values(w.sports).map(x=>`${esc(x.name)}: ${x.minutes} min (${x.time_share}%) · ${x.sessions} sessions`).join(' · ')}</p>${w.alerts.map(a=>`<p class="sub" style="color:var(--warn)">${esc(a)}</p>`).join('')}${w.phase_changes.length?`<p class="sub">Phase changes: ${w.phase_changes.map(esc).join(', ')}</p>`:''}</div>`).join('')}</details>`;
+ $('phasetimeline').innerHTML=r.phases.length?r.phases.map(p=>`<button type="button" data-phase-edit="${esc(p.id)}" style="display:block;width:100%;text-align:left;margin:6px 0">${esc(p.start)} · ${esc(p.label)} · ${p.weeks} weeks · edit</button>`).join(''):'<p class="sub">Save successive dated phases to rotate emphasis.</p>';
+ $('phasetimeline').querySelectorAll('[data-phase-edit]').forEach(b=>b.onclick=()=>{const p=r.phases.find(p=>p.id===b.dataset.phaseEdit);phaseEdit(p);loadPhaseProfiles(p.start);});
+ $('phasesources').innerHTML='<p>Research informs maintenance and training structure. Exact blend weights are provisional coaching choices; they are not validated optimal four-sport percentages.</p>'+r.sources.map(x=>`<p><a href="${esc(x.url)}" target="_blank" rel="noopener noreferrer">${esc(x.title)}</a></p>`).join('');
+ if(!$('phasestart').value){const p=r.current.profile||r.phases.find(p=>p.start>=(day?.date||new Date().toLocaleDateString('en-CA')));if(p)phaseEdit(p);else{$('phasestart').value=day?.date||new Date().toLocaleDateString('en-CA');phasePreset();}}
+ }catch(e){$('phasemessage').textContent='Phase settings could not load. Restart the Hub after updating.';}}
+async function submitPhase(action){const weights={};Object.keys(phaseSports).forEach(s=>{if($('phaseweight-'+s).value!=='')weights[s]=Number($('phaseweight-'+s).value);});const r=await post('/api/coach/phase-profiles',{action,label:$('phaselabel').value,purpose:$('phasepurpose').value,profile:$('phaseprofile').value,kind:$('phasekind').value,start:$('phasestart').value,days:Number($('phaseweeks').value),modes:Object.fromEntries(Object.keys(phaseSports).map(s=>[s,$('phasemode-'+s).value])),weights});$('phasemessage').textContent=r.ok?(action==='preview'?'Preview only — not saved.':'Phase focus saved. Existing workouts retained; suggestions and future progression use the blend.'):r.j.error;if(r.ok){if(action==='preview')$('phaseblendview').innerHTML=phaseBlendHtml(r.j.current);else {await loadPhaseProfiles($('phasestart').value);await loadProgram();}}}
+$('phasesave').onclick=()=>submitPhase('save');$('phasepreview').onclick=()=>submitPhase('preview');
+$('phasenext').onclick=()=>{const start=$('phasestart').value;if(!start)return;const next=new Date(start+'T12:00');next.setDate(next.getDate()+Number($('phaseweeks').value));$('phasestart').value=next.toLocaleDateString('en-CA');$('phasemessage').textContent='Choose the next emphasis and goals, preview, then save. The preceding phase stays in the timeline.';};
+loadPhaseProfiles();
+
+['programdialog','phaseeditdialog'].forEach(id=>document.body.appendChild($(id)));
+let programDraft=null,programPreviewData=null,programState=null,programArt=[],programArtPicks={};
+const programArtReady=fetch('/api/coach/artwork').then(r=>r.json()).then(r=>programArt=r.assets||[]).catch(()=>[]);
+
+function macroHtml(weeks){return weeks?.length?`<details><summary>Weekly sport placement · ${weeks.length} weeks</summary><p class="sub">Tentative slots for review, not prescribed workouts. Doses, drills and targets are built separately. Existing scheduled workouts take precedence until deliberately revised.</p>${weeks.map(w=>`<div class="macro-week phase-${esc(w.phase?.color||'blue')}"><div class="period-banner"><span class="phasephoto"><img src="${esc(artFile(phasePhoto(w.phase)))}" style="${artPosition(phasePhoto(w.phase))}" alt="" loading="lazy"></span><div><b>Week of ${esc(w.start)}</b><p>${esc(w.phase?.label||'Program review')}</p></div></div><div class="macro-slots">${w.slots.map(s=>`<span class="macro-slot">${new Date(s.date+'T12:00').toLocaleDateString(undefined,{weekday:'short'})} · ${ICON[s.sport]||ICON.other} ${esc(s.sport==='ride'?'Cycling':s.sport==='gym'?'Strength':s.sport)}<small style="display:block">${esc(s.purpose)}</small></span>`).join('')}</div><small class="sub">${esc(w.running)}</small></div>`).join('')}</details>`:'';}
+
+function artPosition(id){const f=programArt.find(a=>a.id===id)?.focal||[65,50];return `object-position:${f[0]}% ${f[1]}%`;}
+function artFile(id){return programArt.find(a=>a.id===id)?.file||`/web/sports/phase-${id}.jpg`;}
+function phasePhoto(p,scope='card'){const stage=p?.stage||p?.kind||'build',defaultPhoto=({assessment:'foundation',recovery:'recovery-stretch',base:'foundation',build:'development',specific:'lifting',taper:'final-preparation'}[stage]||'development');const key=(p?.id||p?.start||stage)+':'+stage+':'+scope;const eligible=programArt.filter(a=>a.style==='photorealistic'&&(scope!=='detail'||!a.layouts?.includes('wide-guidance'))&&(a.phases.includes(stage)||(scope==='detail'&&/foundation/i.test(p?.label||'')&&a.phases.includes('base'))));if(!programArtPicks[key])programArtPicks[key]=eligible.length?eligible[Math.floor(Math.random()*eligible.length)].id:({assessment:'foundation',recovery:'recovery-stretch',base:'foundation',build:'development',specific:'lifting',taper:'final-preparation'}[stage]||'development');return programArtPicks[key];}
+function renderTodayArt(r){
+ if(!r)return;
+ const pick=async(el,subjects,key)=>{
+   if(!el)return;
+   const candidates=programArt.filter(a=>a.style==='photorealistic'&&a.subjects.some(x=>subjects.includes(x)));
+   key='today:'+r.date+':'+key;
+   const token={};el._artToken=token;
+   const width=el.clientWidth||900,height=el.scrollHeight||240;
+   const match=await ArtFit.choose(candidates,width,height,programArtPicks[key]);
+   if(el._artToken!==token)return;
+   if(!match){el.classList.remove('today-art');el.dataset.artFit='No suitable background';return;}
+   const art=match.asset;programArtPicks[key]=art.id;
+   el.dataset.artFit=String(match.score);el.dataset.artSubject=String(match.subjectKept);
+   el.classList.add('today-art');el.style.setProperty('--today-art',`url("${art.file}")`);el.style.setProperty('--art-x',(art.focal?.[0]??75)+'%');el.style.setProperty('--art-y',(art.focal?.[1]??50)+'%');
+ };
+
+ const rest=(r.plan?.verdict||r.verdict||r.checkin?.verdict)==='rest';
+ pick($('todaycard'),rest?['sleeping','stretching']:['preparation','cycling'],'guidance-'+(rest?'rest':'train'));
+ ['timedcard','diagnosticcard'].forEach(id=>{$(id).classList.remove('today-art');$(id).style.removeProperty('--today-art');});
+ const diagnosticInRide=$('diagnosticcard').closest('[data-today-session]');
+ if(!diagnosticInRide)pick($('diagnosticcard'),['cycling'],'diagnostic');
+ pick($('progresshero'),['cycling','swimming','lifting','preparation'],'progress');
+ const sessions=r.week?.find(d=>d.date===r.date)?.sessions||[];
+ sessions.forEach((s,i)=>pick($('todayworkouts').querySelector(`[data-today-session="${i}"]`),({ride:['cycling'],swim:['swimming'],gym:['lifting'],run:['running'],rest:['sleeping']})[s.sport]||['preparation'],'session-'+i));
+}
+document.addEventListener('toggle',e=>{if(e.target.closest?.('#todayworkouts')&&day)renderTodayArt(day)},true);
+let artResizeTimer;window.addEventListener('resize',()=>{clearTimeout(artResizeTimer);artResizeTimer=setTimeout(()=>{if(day)renderTodayArt(day)},200)});
+function artLibraryHtml(){return `<button type="button" onclick="openArtLibrary()">Artwork library · ${programArt.length} images</button>`;}
+function openArtLibrary(){
+ $('artuploadstatus').textContent='Backgrounds are screened for layout fit (70 minimum) and subject retention. Position the subject accurately for your photos.';
+ $('artgallery').innerHTML=programArt.map(a=>`<figure><img src="${esc(a.file)}" alt="${esc(a.title)}" loading="lazy"><figcaption>${esc(a.title)}<small data-fit-hint="${esc(a.id)}">Checking suitable panels…</small><small>${a.subjects.map(esc).join(' · ')}${a.source==='local-upload'?' · Your photo · layout screened':''}</small></figcaption></figure>`).join('');
+ if(!$('artlibrarydialog').open)$('artlibrarydialog').showModal();
+ programArt.forEach(async a=>{const im=await ArtFit.image(a),targets=[['Today guidance',($('todaycard').clientWidth||1100),($('todaycard').scrollHeight||350)],['Workout card',1100,1200],['Phase artwork',420,400]];const matches=targets.map(([name,w,h])=>({name,...ArtFit.assess(a,im,w,h)})).filter(x=>x.eligible);const label=$('artgallery').querySelector(`[data-fit-hint="${a.id}"]`);if(label)label.textContent=matches.length?'Suggested: '+matches.map(x=>x.name+' ('+x.score+'/100)').join(' · '):'Keep in library · no suggested background at these sizes';});
+}
+
+$('artclose').onclick=()=>$('artlibrarydialog').close();$('artadd').onclick=()=>{$('artupload').hidden=false;$('artfiles').click();};
+$('artuploadsave').onclick=async()=>{
+ const files=[...$('artfiles').files];if(!files.length){$('artuploadstatus').textContent='Choose one or more photos first.';return;}
+ $('artuploadsave').disabled=true;
+ try{
+  for(const file of files){
+   $('artuploadstatus').textContent='Adding '+file.name+'…';
+   if(!['image/jpeg','image/png'].includes(file.type)||file.size>6000000)throw new Error('Choose JPEG or PNG photos smaller than 6 MB.');
+   const image=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(file);});
+   const r=await post('/api/coach/artwork',{title:file.name.replace(/\.[^.]+$/,''),category:$('artcategory').value,focal:$('artfocal').value.split(',').map(Number),image});
+   if(!r.ok)throw new Error(r.j.error||'Could not save this photo');programArt=r.j.assets;
+  }
+  $('artuploadstatus').textContent='Added to your local artwork library and rotation.';$('artfiles').value='';programArtPicks={};openArtLibrary();renderTodayArt(day);if(programState)renderProgramOverview(programState);
+ }catch(e){$('artuploadstatus').textContent=e.message||'The upload could not be saved.';}
+ finally{$('artuploadsave').disabled=false;}
+};
+
+function phaseTiles(phases){return `<div class="phasetrack">${phases.map((p,i)=>`<button type="button" class="phasecard phase-${esc(p.color||({recovery:'teal',base:'blue',build:'purple',taper:'gold'}[p.kind]||'blue'))}" data-program-phase="${i}"><small>${esc(p.start)} → ${esc(p.end)}</small><h3>${esc(p.label)}</h3><span class="phasephoto"><img src="${esc(artFile(phasePhoto(p)))}" style="${artPosition(phasePhoto(p))}" alt="Inspirational artwork for ${esc(p.label)}"></span><p>${esc(p.purpose||'Review training response and adjust the emphasis.')}</p><span>${p.days||Math.round(p.weeks*7)} days · View phase →</span></button>`).join('')}</div>`;}
+function detailHtml(p,draft){return `<div class="phase-detail phase-${esc(p.color||({recovery:'teal',base:'blue',build:'purple',taper:'gold'}[p.kind]||'blue'))}"><div class="phase-detail-art phasephoto" style="--phase-photo:url('${esc(artFile(phasePhoto(p,'detail')))}')"><img src="${esc(artFile(phasePhoto(p,'detail')))}" style="${artPosition(phasePhoto(p,'detail'))}" alt="Inspirational artwork for ${esc(p.label)}"></div><div class="phase-detail-info"><div class="phase-detail-summary"><div class="sub">${draft?'PROPOSED PHASE':p.synthetic?'EXISTING TRAINING BLOCK':''}</div><h2>${esc(p.label)}</h2><b>Purpose</b><p>${esc(p.purpose||'Review training response and progress the eligible priorities.')}</p><div class="sub">${esc(p.start)} → ${esc(p.end)} · ${p.days||Math.round(p.weeks*7)} days</div><h3>Focus</h3><div class="chips">${Object.entries(p.modes||{}).filter(([,m])=>m!=='pause').map(([k,m])=>`<span class="chip">${ICON[k]||''} ${esc(phaseSports[k]||k)} · ${esc(m)}</span>`).join('')}</div>${programState?.running_hold?'<p class="phasehold">Running remains on hold · load and readiness restrictions apply</p>':''}${p.review_criteria?.length?`<details class="phase-review"><summary>Review before progressing</summary><ul>${p.review_criteria.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></details>`:''}<button type="button" class="blue" data-detail-edit ${draft?'disabled':''}>Edit phase</button>${draft?'<p class="sub">Accept the program before saving individual phase changes.</p>':''}</div></div></div>`;}
+
+function renderMacroMonths(){
+ let host=$('macro-months');if(!host){host=document.createElement('div');host.id='macro-months';$('blockcard').before(host);}
+ const phases=programState?.phases||[];if(!phases.length)return;
+ const start=new Date(phases[0].start+'T12:00'),last=new Date(phases[phases.length-1].end+'T12:00');let html='';
+ for(let month=new Date(start.getFullYear(),start.getMonth(),1,12);month<last;month.setMonth(month.getMonth()+1)){
+  let cells=Array.from({length:(month.getDay()+6)%7},()=>'<span></span>').join('');
+  for(let date=new Date(month);date.getMonth()===month.getMonth();date.setDate(date.getDate()+1)){const iso=date.toLocaleDateString('en-CA'),p=phases.find(x=>x.start<=iso&&x.end>iso);cells+=`<button type="button" data-macro-date="${iso}" class="phase-${esc(p?.color||'blue')} ${iso===day?.date?'current-day':''}" ${p?'':'disabled'}><b>${date.getDate()}</b><small>${esc(p?.label||'')}</small></button>`;}
+  html+=`<details open><summary>${month.toLocaleDateString(undefined,{month:'long',year:'numeric'})}</summary><div class="phase-month-days">${cells}</div></details>`;
+ }
+ host.innerHTML='<h2>FULL PROGRAM · BY MONTH</h2>'+html;
+ host.querySelectorAll('[data-macro-date]').forEach(b=>b.onclick=()=>{const p=phases.find(x=>x.start<=b.dataset.macroDate&&x.end>b.dataset.macroDate);if(p){showPhaseDetail($('programoverview'),{...p,focus_date:b.dataset.macroDate},false);$('blockdialog').close();showTab('plan');$('programoverview').scrollIntoView({behavior:'smooth'});}});
+}
+
+let activePhaseWeek=null;
+function parkPhaseWeek(){const parking=$('phaseweekparking');['weekstrip','weektools'].forEach(id=>{const node=$(id);if(node)parking.appendChild(node)});}
+function roman(n){const values=[[1000,'M'],[900,'CM'],[500,'D'],[400,'CD'],[100,'C'],[90,'XC'],[50,'L'],[40,'XL'],[10,'X'],[9,'IX'],[5,'V'],[4,'IV'],[1,'I']];let out='';for(const [v,c] of values)while(n>=v){out+=c;n-=v}return out;}
+function renderPhaseWeeks(detail,p){
+ const start=new Date(p.start+'T12:00'),end=new Date(p.end+'T12:00'),today=day?.date||new Date().toLocaleDateString('en-CA');
+ const dates=[];for(let d=new Date(start);d<end;d.setDate(d.getDate()+1))dates.push(d.toLocaleDateString('en-CA'));
+ const weeks=[];for(let i=0;i<dates.length;i+=7)weeks.push(dates.slice(i,i+7));
+ let index=Math.max(0,weeks.findIndex(w=>w.includes(p.focus_date||today)));const current=weeks.findIndex(w=>w.includes(today));
+ const host=document.createElement('div');host.className='phase-week-browser';detail.querySelector('.phase-detail-info').appendChild(host);
+ const isMain=detail.closest('#programoverview')!=null;
+ const weekButton=(w,i)=>`<button type="button" data-phase-week="${i}" aria-pressed="${i===index}"><span class="week-current-marker">${i===current?'›':''}</span>Week ${i+1}<small>${w[0]} · ${w.length} days</small></button>`;
+ const show=async()=>{
+  if(isMain)parkPhaseWeek();
+  const w=weeks[index]||[],partCount=Math.ceil(weeks.length/4),partSize=Math.ceil(weeks.length/partCount);
+  host.innerHTML=`<div class="weekhead"><h3>Week ${index+1} · ${w.length} days</h3></div><div class="phase-selected-week"></div><div class="phase-week-tools"><button type="button" data-phase-weeks-open>Weeks in this phase</button></div>`;
+  host.querySelector('[data-phase-weeks-open]').onclick=()=>openPhaseWeeks(p,weeks,index);
+  host.querySelectorAll('[data-phase-week]').forEach(b=>b.onclick=()=>{index=Number(b.dataset.phaseWeek);show()});
+  if(!isMain){host.querySelector('.phase-selected-week').innerHTML='<div class="phase-days">'+w.map(date=>`<button type="button"><small>${new Date(date+'T12:00').toLocaleDateString(undefined,{weekday:'short'})}</small><b>${new Date(date+'T12:00').getDate()}</b></button>`).join('')+'</div>';return;}
+  host.querySelector('.phase-selected-week').appendChild($('weekstrip'));host.querySelector('.phase-week-tools').appendChild($('weektools'));
+  activePhaseWeek={dates:w,host,refresh:show};const token=activePhaseWeek;
+  const known=(day?.week||[]).filter(d=>w.includes(d.date));
+  let rows=known;
+  if(known.length<w.length){try{const replies=await Promise.all([...new Set([w[0],w[w.length-1]])].map(date=>fetch('/api/coach/week?date='+date).then(r=>r.json())));rows=[...known,...replies.flatMap(x=>x.week||[])];}catch(e){}}
+  if(activePhaseWeek!==token||!host.isConnected)return;
+  const days=w.map(date=>rows.find(d=>d.date===date)||{date,done:[],sessions:[],note:'Detailed workouts not scheduled yet.',sport:null});
+  weekStrip(days,p.focus_date&&w.includes(p.focus_date)?p.focus_date:w.includes(today)?today:w[0]);
+ };
+ show();
+}
+
+function navigateProgramDate(date){
+ const p=programState?.phases?.find(x=>x.start<=date&&date<x.end);if(!p)return;
+ ['phaseweeksdialog','programcalendardialog','blockdialog'].forEach(id=>{if($(id).open)$(id).close()});
+ showTab('plan');showPhaseDetail($('programoverview'),{...p,focus_date:date},false);$('programoverview').scrollIntoView({behavior:'smooth'});
+}
+function openPhaseWeeks(p,weeks,index){
+ $('phaseweekstitle').textContent=p.label;$('phaseweeksdates').textContent=p.start+' → '+p.end+' · '+(p.days||weeks.flat().length)+' days (end date exclusive)';
+ const partSize=weeks.length>5?Math.ceil(weeks.length/Math.ceil(weeks.length/4)):weeks.length;
+ $('phaseweeksbody').innerHTML=weeks.map((w,i)=>`${weeks.length>5&&i%partSize===0?'<h3>Part '+roman(Math.floor(i/partSize)+1)+'</h3>':''}<details class="phase-window-week" ${i===index?'open':''}><summary>${w.includes(day?.date)?'› ':''}Week ${i+1} · ${w[0]} – ${w.at(-1)} · ${w.length} days</summary><div class="phase-window-daystrip">${w.map(date=>`<button type="button" data-window-date="${date}" class="${date===day?.date?'current-day':''}"><small>${new Date(date+'T12:00').toLocaleDateString(undefined,{weekday:'short'})}</small><b>${new Date(date+'T12:00').getDate()}</b><span data-date-workout="${date}">View workouts</span></button>`).join('')}</div></details>`).join('');
+ $('phaseweeksbody').querySelectorAll('[data-window-date]').forEach(b=>b.onclick=()=>navigateProgramDate(b.dataset.windowDate));
+ const fill=async(details)=>{if(!details.open||details.dataset.loaded)return;details.dataset.loaded='1';const buttons=[...details.querySelectorAll('[data-window-date]')],dates=buttons.map(b=>b.dataset.windowDate);
+  try{const replies=await Promise.all([...new Set([dates[0],dates.at(-1)])].map(date=>fetch('/api/coach/week?date='+date).then(r=>r.json())));const rows=replies.flatMap(r=>r.week||[]);buttons.forEach(b=>{const r=rows.find(x=>x.date===b.dataset.windowDate);b.querySelector('span').textContent=r?.sessions?.length?r.sessions.map(x=>(x.name||x.sport)+' · '+(x.minutes||0)+' min').join(' + '):'Open day';});}catch(e){details.dataset.loaded='';}
+ };
+ $('phaseweeksbody').querySelectorAll('details').forEach(el=>{el.addEventListener('toggle',()=>fill(el));fill(el)});
+ if(!$('phaseweeksdialog').open)$('phaseweeksdialog').showModal();
+}
+function openProgramCalendar(){
+ const phases=programState?.phases||[];if(!phases.length)return;
+ let cursor=new Date(phases[0].start+'T12:00'),end=new Date(phases.at(-1).end+'T12:00'),html='';cursor.setDate(1);
+ while(cursor<end){const month=new Date(cursor),name=month.toLocaleDateString(undefined,{month:'long',year:'numeric'});let cells=Array.from({length:(month.getDay()+6)%7},()=>'<span></span>').join(''),first=null;
+  for(let d=new Date(month);d.getMonth()===month.getMonth();d.setDate(d.getDate()+1)){const date=d.toLocaleDateString('en-CA'),p=phases.find(p=>p.start<=date&&date<p.end);if(p&&!first)first=date;cells+=`<button type="button" data-calendar-date="${date}" ${p?'':'disabled'} title="${esc(p?.label||'Outside program')}" class="phase-${esc(p?.color||'blue')} ${date===day?.date?'current-day':''}">${d.getDate()}</button>`;}
+  html+=`<section class="program-calendar-month"><button type="button" class="program-month-title" data-calendar-month="${first||''}">${esc(name)}</button><div class="program-calendar-days">${['M','T','W','T','F','S','S'].map(x=>'<small>'+x+'</small>').join('')}${cells}</div></section>`;cursor.setMonth(cursor.getMonth()+1);
+ }
+ $('programcalendarbody').innerHTML=html;$('programcalendarbody').querySelectorAll('[data-calendar-date],[data-calendar-month]').forEach(b=>b.onclick=()=>navigateProgramDate(b.dataset.calendarDate||b.dataset.calendarMonth));
+ if(!$('programcalendardialog').open)$('programcalendardialog').showModal();
+}
+$('phaseweeksclose').onclick=()=>$('phaseweeksdialog').close();$('phaseweeksmore').onclick=openProgramCalendar;$('programcalendarclose').onclick=()=>$('programcalendardialog').close();$('programcalendarloads').onclick=()=>{$('programcalendardialog').close();if($('phaseweeksdialog').open)$('phaseweeksdialog').close();$('blockdialog').showModal();};
+
+function showPhaseDetail(box,p,draft){let detail=box.querySelector('.selected-phase-detail');if(!detail){detail=document.createElement('div');detail.className='selected-phase-detail';box.querySelector('.phasetrack')?.after(detail);if(!detail.parentElement)box.appendChild(detail);}if(detail.closest('#programoverview'))parkPhaseWeek();detail.innerHTML=detailHtml(p,draft);renderPhaseWeeks(detail,p);detail.querySelector('[data-detail-edit]').onclick=()=>openPhaseEditor(p);box.querySelectorAll('[data-program-phase]').forEach(b=>b.classList.toggle('selected',Number(b.dataset.programPhase)===(box._phases||[]).findIndex(x=>x.id===p.id)));}
+function bindPhaseTiles(box,phases,draft){box._phases=phases;box.querySelectorAll('[data-program-phase]').forEach(b=>b.onclick=()=>showPhaseDetail(box,phases[Number(b.dataset.programPhase)],draft));if(phases.length){const date=day?.date||new Date().toLocaleDateString('en-CA');showPhaseDetail(box,phases.find(p=>p.start<=date&&p.end>date)||phases.find(p=>p.start>date)||phases[0],draft);}}
+function currentBlockDetail(){if(programPreviewData||programState?.phases?.length)return;const b=day?.training_block?.block;if(!b)return;const start=b.start,end=new Date(start+'T12:00');end.setDate(end.getDate()+7*b.weeks);const p={id:start,start,end:end.toLocaleDateString('en-CA'),days:b.weeks*7,weeks:b.weeks,kind:programState?.running_hold?'recovery':'base',profile:programState?.running_hold?'recovery':'balanced',color:programState?.running_hold?'teal':'blue',label:programState?.running_hold?'Recovery & foundation':'Foundation',purpose:b.focus,modes:{ride:'maintain',swim:'maintain',gym:'maintain',run:'pause'},weights:{},synthetic:true};showPhaseDetail($('programoverview'),p,false);}
+
+function openPhaseEditor(p){if(p)phaseEdit(p);$('phaseeditorpanel').hidden=false;$('phaseeditorhost').appendChild($('phaseeditorpanel'));$('phaseeditdialog').showModal();}
+$('phaseeditclose').onclick=()=>{$('phaseeditdialog').close();$('phaseprofiles-wrap').appendChild($('phaseeditorpanel'));$('phaseeditorpanel').hidden=true;};
+function renderProgramBanner(){if($('programopen'))$('programopen').textContent=programState?.phases?.length?'Revise / preview program →':'Set up / preview program →';const goal=programPreviewData||programState?.goal,b=day?.training_block?.block,ev=(programState?.events||[]).filter(e=>e.kind==='race'&&e.date>=(day?.date||'')).sort((a,b)=>a.date.localeCompare(b.date))[0];const name=goal?.goal||b?.goal?.name||ev?.name||'Choose your goal',target=goal?.target||b?.goal?.date||ev?.date;const modes=(programPreviewData?.phases||programState?.phases||[]).find(p=>p.kind==='build')?.modes;const priorities=modes?Object.entries(modes).filter(([k,m])=>m!=='pause'&&k!==goal?.sport).map(([k,m])=>`<span class="priority-${esc(k)}">${ICON[k]||''} ${m==='improve'?'Build':'Maintain'} ${esc(phaseSports[k]||k)}</span>`).join(''):'<span>Choose supporting priorities</span>';$('programbannervalues').innerHTML=`<div><small>◎ Goal</small><b>${esc(name)}</b></div><div><small>▦ Event / target date</small><b>${target?esc(new Date(target+'T12:00').toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})):'Choose a date'}</b></div><div><small>♜ Outcome</small><b>${esc(goal?.outcome||'Set desired outcome')}</b></div><div><small>◷ ${goal?.budget_mode==='starting_budget'?'Starting training budget':'Available time'}</small><b>${goal?.hours?esc(goal.hours)+' hours / week':'Set availability'}</b></div><div class="banner-priorities"><small>Supporting priorities</small><div>${priorities}</div></div>`;}
+function renderProgramOverview(data,draft=false){parkPhaseWeek();const goal=data.goal,phases=data.phases||[];$('programoverview').innerHTML=`<div class="weekhead"><h2>${draft?'YOUR PROPOSED PROGRAM':goal?'YOUR PROGRAM':'YOUR TRAINING BLOCK'}</h2><span class="program-status">${goal?Math.ceil((new Date(goal.end||goal.target||phases.at(-1)?.end)-new Date(goal.start))/604800000)+' weeks · ':''}${draft?'Draft — not saved':goal?'Saved program':'Existing plan'}</span></div>${phases.length?phaseTiles(phases):'<p class="sub">Preview the complete timeline through your target date. Your existing weekly workouts remain below.</p>'}${macroHtml(data.weeks)}<p class="sub">${esc(goal?.notice||'Future phases are provisional. Workouts and recovery restrictions remain authoritative.')}</p>${draft?'<button type="button" class="blue" id="acceptfromplan">Accept proposed program</button>':''}${artLibraryHtml()}`;bindPhaseTiles($('programoverview'),phases,draft);if(draft)$('acceptfromplan').onclick=()=>$('programaccept').click();else currentBlockDetail();renderProgramBanner();}
+async function loadProgram(){await programArtReady;const r=await fetch('/api/coach/program-builder');if(!r.ok)return;programState=await r.json();renderProgramOverview(programState);}
+loadProgram();
 
 // ── lifting (lifting.py): the builder under a gym day, the check-off and the follow-up on Today
 let LIFT={unit:'lb',regions:{},exclusions:[],library:[]}, liftEdit=null, liftSaved=null;
@@ -920,7 +1235,7 @@ async function addSession(d,sport,swimProfile){ const box=$('addcard'), ttl=$('a
     $('addanyway').onclick=()=>add(sport[0].toUpperCase()+sport.slice(1),30,[],'Added against the hub\'s advice: '+P.message);
     box.scrollIntoView({behavior:'smooth'}); return; }
   let i=0; const show=()=>{ const t=P.templates[i];
-    box.innerHTML=`<div class="sub">${esc(P.phase.why)} · phase: <b>${esc(P.phase.phase)}</b> · load: <b>${esc(P.load_state.replace('_',' '))}</b> → up to <b>${esc(TIER[P.tier_cap])}</b>, suggested <b>${esc(TIER[P.suggested_tier])}</b></div>
+    box.innerHTML=phaseBlendHtml(P.phase_blend||{enabled:false})+`<div class="sub">${esc(P.phase.why)} · phase: <b>${esc(P.phase.phase)}</b> · load: <b>${esc(P.load_state.replace('_',' '))}</b> → up to <b>${esc(TIER[P.tier_cap])}</b>, suggested <b>${esc(TIER[P.suggested_tier])}</b></div>
      ${P.swim?`<div class="sub" style="margin-top:4px">Stroke mix: ${Object.entries(P.swim.mix).filter(([,v])=>v).map(([k,v])=>`${k} ${v}%`).join(' · ')} (${esc(P.swim.source)}) · drills ${P.swim.drill_share}%</div>`:''}
      ${P.swim_profiles?`<details style="margin-top:10px"><summary>Advanced · choose a different session profile</summary><label class="sub" style="display:block;margin-top:8px">Session profile <select id="addswprofile">${P.swim_profiles.map(p=>`<option value="${esc(p.id)}" ${p.id===P.swim_profile.selected?'selected':''} ${p.eligible?'':'disabled'}>${esc(p.name)}${p.eligible?'':' · unavailable'}</option>`).join('')}</select></label><div class="sub">Applies to this new session only.</div></details><div class="sub">${P.swim_profile.fallback?'Requested profile is unavailable; using an eligible alternative. ':''}${esc(t.profile_name||'')} · ${Object.entries(t.work_mix||{}).map(([k,v])=>`${esc(k)} ${v}%`).join(' · ')}</div>`:''}
      <h3 style="margin:12px 0 2px">${esc(t.name)} <span class="rtag">${esc(TIER[t.tier])}</span></h3><div class="sub">${esc(t.purpose)} · not for: ${esc(t.not_for)} · about ${t.minutes} min${t.metres?` · ${t.metres} m`:''}</div>
@@ -1115,6 +1430,8 @@ async function loadInsights(){ try{ if(!loadData) loadData=await (await fetch('/
   $('insightlist').innerHTML=ins.activities.map(a=>{ const k=a.swim&&a.swim.kind;
     return `<details class="iact"><summary><div>${ISPORT[a.sport]||esc(a.sport)}${k&&k!=='held'?`<span class="tag ${k}">${k}</span>`:''}${a.pauses&&a.pauses.many?'<span class="tag">pauses</span>':''}</div><span>${new Date(a.date+'T12:00').toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'})} · ${a.minutes} min</span></summary><div class="body">${insightBody(a)}</div></details>`; }).join('')||'No activities yet.'; }
 loadInsights();
+async function loadProgressEvidence(){try{const r=await(await fetch('/api/coach/progress-evidence')).json();$('progress-evidence').innerHTML=r.indicators.map(x=>`<div class="itrend"><b>${esc(x.name)} · ${esc(x.direction)}</b><div>${esc(x.reading)}</div><small class="sub">${esc(x.basis)} · Confidence: ${esc(x.confidence)}</small></div>`).join('')+`<p class="sub">${esc(r.interpretation)}</p>`;}catch(e){$('progress-evidence').textContent='Progress evidence could not load. Current readings remain in Fitness Dashboard.';}}
+loadProgressEvidence();
 
 // ── Timed workout: set the time, then drag the bars ──
 const DEFAULTS={warmup:{share:15,pct:50},ramp:{share:15,from:50,to:70},interval:{share:40,pct:80},rest:{share:20,pct:50},cooldown:{share:10,pct:45}};
@@ -1194,7 +1511,11 @@ function loadPlanned(d,s){ s=s||(d.sessions||[]).find(x=>x.sport==='ride'); if(!
   const when=new Date(d.date+'T12:00'), isToday=d.date===day?.date;
   const w=s.workout&&fullWorkouts.find(x=>x.id===s.workout), f=isToday?day?.focus:null;
   const mid=f?.watts?Math.round((f.watts[0]+f.watts[1])/2/ftp*100/5)*5:65;      // % of FTP at the middle of the focus band
-  if(w?.blocks?.length && w.blocks.every(b=>b.type==='steady'||b.type==='ramp')){
+  const diagnostic=(s.test||d.test||(isToday?day?.plan?.test:null))==='diagnostic';
+  if(diagnostic){
+    parts=[{kind:'warmup',label:'Settle',minutes:2,pct:60/ftp*100},{kind:'interval',label:'90 W',minutes:2,pct:90/ftp*100},{kind:'interval',label:'120 W',minutes:1,pct:120/ftp*100},{kind:'cooldown',label:'Recovery',minutes:1,pct:60/ftp*100}];
+    setTotal(6);
+  } else if(w?.blocks?.length && w.blocks.every(b=>b.type==='steady'||b.type==='ramp')){
     parts=w.blocks.map((b,i)=>b.type==='ramp'?{kind:'ramp',label:b.label||'Ramp',minutes:b.minutes,from:b.from,to:b.to}
       :{kind:i===0?'warmup':i===w.blocks.length-1?'cooldown':'interval',label:b.label||(i===0?'Warm-up':i===w.blocks.length-1?'Cool':'Main'),minutes:b.minutes,pct:b.pct??b.watts/ftp*100});
     setTotal(parts.reduce((a,p)=>a+p.minutes,0));
@@ -1213,12 +1534,13 @@ function loadPlanned(d,s){ s=s||(d.sessions||[]).find(x=>x.sport==='ride'); if(!
   $('nint').value=Math.max(1,Math.min(8,parts.filter(p=>p.kind==='interval').length));   // the picker matches what's loaded
   $('wname').value='Planned workout · '+when.toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'});
   $('timedtitle').textContent=isToday?"TODAY'S RIDE · TIME TO GET IT IN GEAR":`${when.toLocaleDateString(undefined,{weekday:'long'}).toUpperCase()}'S RIDE · READY WHEN YOU ARE`;
-  $('timedhint').innerHTML=w?`Your planned workout, <b>${esc(w.name)}</b>, loaded and ready. Tweak anything, then <b>Ride now</b>.`
+  $('timedhint').innerHTML=diagnostic?'Morning diagnostic: 2 minutes at 60 W, 2 at 90 W, 1 at 120 W, then 1 minute easy. Use <b>Ride it</b> above to start the diagnostic and record its readings.':w?`Your planned workout, <b>${esc(w.name)}</b>, loaded and ready. Tweak anything, then <b>Ride now</b>.`
     :`Your planned ${s.minutes}-minute ride, loaded and ready: no intervals today, so it's one long steady effort${f?.watts?` at ${Math.round(mid*ftp/100)} W (the middle of ${esc(f.name)})`:''}. Tweak anything, then <b>Ride now</b>.`;
+  $('rideit').hidden=diagnostic;$('planit').hidden=diagnostic;
   draw(); }
-$('fromscratch').onclick=()=>{ $('wname').value='Timed workout'; $('timedtitle').textContent='BUILD A WORKOUT'; $('timedhint').textContent='A new interval workout from scratch. Save it, make it today\'s ride, or ride it now.'; build(); };
+$('fromscratch').onclick=()=>{ $('rideit').hidden=$('planit').hidden=false; $('wname').value='Timed workout'; $('timedtitle').textContent='BUILD A WORKOUT'; $('timedhint').textContent='A new interval workout from scratch. Save it, make it today\'s ride, or ride it now.'; build(); };
 $('saveit').onclick=()=>saveSplit({}); $('planit').onclick=async()=>{ await saveSplit({plan:true}); loadToday(); };
 $('rideit').onclick=async()=>{ const r=await saveSplit({ride:true}); if(r.ok) location.href='/course'; };   // a watts workout: the game, not the map
 addEventListener('resize',draw);
 loadToday();
-</script></body></html>
+</script><script src="/web/program-draft.js"></script><script src="/web/program-workspace.js"></script><script src="/web/fitness-backdrop.js"></script></body></html>

@@ -33,3 +33,13 @@ resume.json
 resume.tmp
 # The built MCP bundle (attached to a GitHub release, not committed)
 mcpb/*.mcpb
+
+# Personal artwork, settings, recovery and backup records
+artwork.json
+artwork.tmp
+web/sports/phase-user-*
+theme.json
+theme.tmp
+backups/
+art_src/
+*.before-*

@@ -211,6 +211,9 @@ async def handle(bridge, method, path, body, host):
         elif method != b"GET":
             return 405, "application/json", b'{"error":"Method not allowed"}', {}
         return 200, "application/json", json.dumps({"theme": themes.current(), "options": themes.OPTIONS}).encode(), {}
+    from urllib.parse import parse_qs, urlsplit
+    if p == "/dashboard" and parse_qs(urlsplit(path).query).get("embedded", [""])[0] != "1":
+        return 302, "text/plain", b"Open the Fitness Dashboard in Coach", {"Location": "/coach#fitness"}
     if p in ("/ride", "/plan", "/fitness", "/workouts", "/milestones", "/coach", "/course", "/dashboard", "/welcome"):
         return 200, TYPES[".html"], (WEB / f"{p[1:]}.html").read_bytes(), {}
     if p.startswith("/web/") and p.endswith((".js", ".css", ".svg", ".png", ".jpg", ".json")):
@@ -301,6 +304,11 @@ async def handle(bridge, method, path, body, host):
             return 400, "application/json", b'{"error":"that request didn\'t make sense"}', {}
     if p == "/posts" or p.startswith(("/api/posts", "/posts/", "/api/strava", "/strava/")):
         return await posts_api(bridge, method, path, p, body)
+    if p == "/api/coach/progress-evidence":
+        import progress_evidence
+        base = Path(bridge.csv_path).parent.parent if getattr(bridge, "csv_path", None) else HERE
+        data = await asyncio.get_running_loop().run_in_executor(None, load_state, base)
+        return 200, "application/json", json.dumps(progress_evidence.report(data)).encode(), {}
     if p.startswith("/api/coach"):
         return await coach_api(bridge, method, path, p, body)
     if p == "/api/load":
@@ -976,6 +984,14 @@ async def coach_api(bridge, method, path, p, body):
         date = req.get("date") or date
         if not __import__("re").fullmatch(r"\d{4}-\d{2}-\d{2}", date):
             return js({"error": "date is YYYY-MM-DD"}, 400)
+        if p == "/api/coach/week":
+            return js({"week": coach.week(d, date, done_by_day(rides.parent, d))})
+        if p == "/api/coach/artwork":
+            import artwork
+            if method==b"POST":
+                asset=artwork.upload(rides.parent,WEB,req)
+                return js({'asset':asset,'assets':artwork.library(rides.parent,WEB)})
+            return js({'assets':artwork.library(rides.parent,WEB)})
         if p == "/api/coach/forecast/save" and method == b"POST":
             return js(capture_program_forecast(bridge,rides,d))
         if p == "/api/coach/run-progression":
@@ -1009,8 +1025,12 @@ async def coach_api(bridge, method, path, p, body):
                        "verdicts": coach.VERDICTS, "workouts": [{"id": w.get("id"), "name": w["name"]} for w in bridge.workouts],
                        "lifting": lifting_today(d, date, rides.parent),
                        "weekly": weekly_due(d, date, rides.parent),
+                       "training_feedback":d.get("training_feedback",{}),
                        "training_block": __import__("training_block").forecast(
                            d, date, done_by_day(rides.parent, d), load_state(rides.parent), d["checkins"].get(date), bridge.workouts)})
+        if p == '/api/coach/journal':
+            import journal_album
+            return js(journal_album.view(d))
         if p == "/api/coach/history":
             days = int((q.get("days") or ["30"])[0])
             since = (__import__("datetime").date.fromisoformat(date) - __import__("datetime").timedelta(days=days)).isoformat()
@@ -1031,12 +1051,116 @@ async def coach_api(bridge, method, path, p, body):
             recovery.observe_checkin(d,date,c)
             coach.save(d); _load_cache["key"] = None
             return js({"flag": f, **with_systems(coach.day(d, date), rides.parent)})
+        if p == "/api/coach/program-builder":
+            import program_builder, training_block
+            gate=training_block.running_gate(d,load_state(rides.parent),d['checkins'].get(coach.today()))
+            if method == b"GET":
+                goal=d.get('program_goal');phases=d.get('phase_profiles',[])
+                weeks=program_builder.macro_weeks(phases,program_builder.P.date(goal['start']),max(program_builder.P.date(goal.get('end') or goal.get('target') or phases[-1]['end']),program_builder.P.date(phases[-1]['end'])),goal['focus'],goal['sport'],gate['status']!='open_for_review',goal['hours'],d.get('plans'),goal.get('schedule_options')) if goal and phases else []
+                return js({'goal':goal,'phases':phases,'weeks':weeks,'events':d.get('events',[]),'running_hold':gate['status']!='open_for_review'})
+            action=req.get('action','preview')
+            if action not in ('preview','accept'):raise ValueError('action is preview or accept')
+            proposal=program_builder.propose(d,req,coach.today(),gate)
+            if req.get('starter_enabled'):
+                import starter_programs, onboarding
+                proposal['starter_level']=req.get('starter_level','easy')
+                proposal['starter_equipment']=req.get('starter_equipment','basic')
+                proposal['strength_anchors']=req.get('strength_anchors') or []
+                proposal['neutral_forecast']=req.get('neutral_forecast',True)
+                proposal['starter']=starter_programs.build(d,proposal,onboarding.current(rides.parent),load_state(rides.parent),done_by_day(rides.parent,d),bridge.workouts,today=coach.today())
+            if action=='accept':
+                if proposal['start']<coach.today():raise ValueError('Apply program changes from today or a future date')
+                if proposal.get('starter') and proposal.get('starter_equipment')=='barbell':
+                    missing=[x['name'] for p_ in proposal['starter']['plans'].values() for s_ in p_['sessions'] for x in s_.get('lifts',[]) if x.get('kind')=='barbell' and x.get('weight') is None]
+                    if missing:raise ValueError('Enter a recent set or report calibration results for: '+', '.join(sorted(set(missing))))
+                program_builder.accept(d,proposal);coach.save(d)
+            return js(proposal)
+        if p == "/api/coach/phase-profiles":
+            import phaseblend, loads, training_block
+            if method == b"POST":
+                action=req.get('action','save')
+                if action not in ('save','preview'):raise ValueError('action is save or preview')
+                phaseblend.save(d,req,coach.today())
+                if action=='save':coach.save(d)
+                date=req.get('start') or date
+            st=load_state(rides.parent)
+            rd=loads.readiness(st,d['checkins'].get(coach.today()) or {}) if st.get('systems') else {}
+            gate=training_block.running_gate(d,st,d['checkins'].get(coach.today()))
+            if gate['status']!='open_for_review':rd={**rd,'running':{'verdict':'rest','why':gate['reasons']}}
+            return js(phaseblend.view(d,date,rd,st.get('headline')))
+        if p == "/api/coach/progression":
+            import progression, training_block
+            if method == b"POST":
+                action=req.get("action")
+                if action=="enable":
+                    progression.enable(d)
+                elif action=="resolve_symptom":
+                    key=req.get("report_key")
+                    if key not in d.get("training_feedback",{}) or req.get("resolved") is not True:
+                        raise ValueError("Explicitly confirm the recorded symptom has resolved")
+                    d.setdefault("progression_symptom_reviews",{})[key]={"date":coach.today(),"note":str(req.get("note") or "")[:1000]}
+                elif action=="compare":
+                    result=progression.compare(d,coach.today(),req["session_date"],int(req.get("session_index",0)),load_state(rides.parent),done_by_day(rides.parent,d),bridge.workouts)
+                    return js(result)
+                else:raise ValueError("action is enable, resolve_symptom or compare")
+                coach.save(d)
+            return js({"policy":(d.get("training_block") or {}).get("progression"),
+                       "decisions":d.get("progression_decisions",[])[-12:],
+                       "active_symptoms":progression.active_symptoms(d,coach.today())})
+        if p == "/api/coach/session-report":
+            import progression
+            if method == b"POST":
+                entry=progression.report(d,date,int(req.get("session_index",0)),req,done_by_day(rides.parent,d),coach.today())
+                entry["assessment"]=progression.feedback(d,entry)
+                coach.save(d)
+                _load_cache["key"] = None
+                progression.daily_adapt(d,coach.today(),done_by_day(rides.parent,d),load_state(rides.parent),bridge.workouts)
+                coach.save(d)
+                capture_program_forecast(bridge,rides,d)
+                return js(entry)
+            return js({"reports":d.get("training_feedback",{})})
         if p == "/api/coach/checkin" and method == b"POST":
+            import copy,journal_album
+            request_id=req.get('request_id')
+            if request_id is not None and (not isinstance(request_id,str) or len(request_id)>100):raise ValueError('Invalid save identifier')
+            existing=next((e for e in d.get('journal_entries',[]) if request_id and e.get('request_id')==request_id and e['date']==date),None)
+            if existing:return js({**coach.day(d,date),'saved':True,'journal_entry':existing})
+            previous=copy.deepcopy(d['checkins'].get(date))
             c = coach.record(d, date, req)
-            coach.save(d)
-            if c.get("verdict"):
-                bridge.event(f"Check-in: {coach.VERDICTS[c['verdict']]} ({'; '.join(c['why'])})")
-            return js(with_systems(coach.day(d, date), rides.parent))
+            entry=journal_album.append(d,date,c,journal_album.capture(d,date),previous,request_id)
+            coach.save(d)  # Persist the report and album entry before any derived calculations.
+            _load_cache["key"] = None
+            if req.get('defer_refresh'):
+                return js({**coach.day(d,date),'saved':True,'journal_entry':entry,'refresh_pending':True})
+            # Other clients retain the complete synchronous update.
+            return await coach_api(bridge,method,'/api/coach/checkin/refresh','/api/coach/checkin/refresh',json.dumps({'date':date,'request_id':entry.get('request_id')}).encode())
+        if p == "/api/coach/checkin/refresh" and method == b"POST":
+            import copy
+            entries=[e for e in d.get('journal_entries',[]) if e['date']==date]
+            entry=entries[-1] if entries else None
+            if not entry:return js({'error':'No saved check-in to refresh'},400)
+            if req.get('request_id') and entry.get('request_id')!=req['request_id']:
+                return js({'saved':True,'superseded':True})
+            c=d['checkins'].get(date,{})
+            warning=None
+            try:
+                import progression
+                st=load_state(rides.parent)
+                readings={'headline':st.get('headline'),'day':next((x for x in st.get('days',[]) if x['date']==date),None)}
+                if st.get('systems'):
+                    import loads
+                    readings['readiness']=loads.readiness(st,c)
+                if entry['snapshot'].get('readings') is None:
+                    entry['snapshot']['readings']=copy.deepcopy(readings)
+                coach.save(d)
+                progression.daily_adapt(d,date,done_by_day(rides.parent,d),st,bridge.workouts)
+                coach.save(d)
+                capture_program_forecast(bridge,rides,d)
+            except Exception as e:
+                warning='Your check-in was saved. Some training calculations could not refresh; try refreshing the readings.'
+                print('Check-in saved; derived update failed:',e)
+            result=with_systems(coach.day(d,date),rides.parent)
+            return js({**result,'saved':True,'journal_entry':entry,'warning':warning})
         if p == "/api/coach/test/start" and method == b"POST":
             capture_program_forecast(bridge,rides,d)
             bridge.coach_test_start()
@@ -1174,9 +1298,13 @@ async def coach_api(bridge, method, path, p, body):
                 coach.save(d)
                 _load_cache["key"] = None
                 gate = training_block.running_gate(d, load_state(rides.parent), d["checkins"].get(sun))
-                decision = training_block.review(d, sun, done_by_day(rides.parent, d), gate)
+                done = done_by_day(rides.parent, d)
+                decision = training_block.review(d, sun, done, gate)
+                import progression
+                progression_result = progression.apply_review(d, sun, done, load_state(rides.parent), bridge.workouts, today=date)
                 coach.save(d)
-                return js({"weekly": out, "sunday": sun, "decision": decision})
+                capture_program_forecast(bridge,rides,d)
+                return js({"weekly": out, "sunday": sun, "decision": decision, "progression": progression_result})
             return js({"due": weekly_due(d, date, rides.parent), "answered": d.get("weekly", {})})
         if p == "/api/coach/block":
             import training_block

@@ -1,10 +1,61 @@
 # S-Bike Training Hub
 
-**Turn a budget smart bike into a full training setup: offline 3D routes, virtual hills and gears, auto-shifting, ERG workouts, a phone handlebar remote, and a training-load model that covers every sport you do, not just the bike. It runs entirely on your Mac, with no subscription and no cloud.**
+**A free personal training companion for planning workouts, managing recovery, and working toward long-term fitness and event goals. Bring cycling, swimming, running, and lifting into one calendar, with detailed training-load estimates, projected loads, and personal check-ins to inform your next decisions.**
 
-It was built for, and has only been tested on, the **Merach S29**. Other smart bikes that speak Bluetooth FTMS may work, but we couldn't test them (see [Other bikes](#other-bikes)).
+The Hub runs locally on your Mac, with no Hub subscription. An optional AI assistant can read your training history, help build and revise plans, and record your reports. You can also use the Coach and training tools **without a smart bike**.
 
-**Merach S29 owner? The problems this was built to fix:**
+For supported stationary bikes, it adds connected workouts, automatic shifting and resistance control, offline 3D routes, a phone/tablet remote, and an interactive ride experience. It began as a bike bridge and has grown into a training hub.
+
+**The aim:** get more benefit from the work you put in, balance overlapping demands across sports, and make recovery part of the plan. The custom load and recovery models are experimental estimates being calibrated through workouts and follow-up reports; they are not validated injury predictions.
+
+The **connected-bike feature** was built for, and has only been tested on, the **Merach S29**. Other smart bikes that speak Bluetooth FTMS may work, but we couldn't test them (see [Other bikes](#other-bikes)).
+
+## Start with your training
+
+- **Plan toward a goal.** Schedule sessions, including multiple sessions in a day, and organize them into a flexible program of phases, with a default 12-week starter horizon and weekly reviews.
+- **See the different costs of training.** Cardiovascular load, running impact and accumulated recovery, swimming exposure, and regional lifting recovery are tracked separately. The body map shows overlapping sources of muscle demand.
+- **Look ahead.** The calendar shows workout details and swim-profile rationale. Projected-load graphs group related metrics in four-card pages, with recorded history separated from forecasts.
+- **Compare the plan with reality.** Import watch workouts, log lifting details, record how sessions felt, and use next-day/follow-up reports and Sunday reviews to inform adjustments.
+- **Work with an AI assistant if you choose.** Local tools provide the data, templates, goals, constraints, and plan-writing actions. The assistant helps interpret and revise the plan; the Hub calculates its metrics.
+
+## Build and review your program
+
+Start in **Welcome** with the sports you train, experience, starting condition, available hours, and an optional event date. Choose **Easy**, **Moderate**, or **Higher** starter workload. The builder compares all three against the same baseline so you can inspect their expected load trajectories and load-limit flags.
+
+- **12 weeks by default.** A shorter horizon or nearer event gets fewer weeks. Longer macro programs are supported; automatic detailed starter prescriptions cover at most the first 12 weeks. Later weeks require further programming.
+- **Simple, editable workouts.** Steady cycling, relaxed freestyle and drills, conditional run/walk, and either bodyweight/band work or barbell squat, bench press and row with bridge/core accessories. These are starting templates, not advanced sport-specialist programs.
+- **Calibration without a maximum attempt.** Start with a familiarization week or enter recent comfortable lifting sets: weight including the bar, repetitions, and repetitions left. Prefer 6–10 reps; accepted range 3–15. Missing barbell working weights must be resolved before applying those prescriptions.
+- **Preview is a draft.** Review and edit phases, dates, names, colors, sport priorities, and weekly/date-specific placements without replacing your saved program. Apply explicitly from today or a future date; completed history and existing workouts are retained.
+- **Horizontal saved timeline, vertical editor.** Select a phase to see its purpose and chosen week. **Weeks in this phase** opens expandable weeks and day strips; **View more** opens a program calendar with three months per row. Detailed workouts and projected-load graphs remain accessible from that calendar.
+- **A single Fitness Dashboard.** Current readings, controls, calibration, recovery and watch insights share one scrolling page with translucent cards over generated landscape artwork. Progress emphasizes measured changes and the evidence behind them. Uploaded artwork stays local.
+
+### What the three forecasts actually calculate
+
+The three options are **workload scenarios**, mainly differing in proposed minutes, sets and modest working-load fractions. They use the same recovery and conditioning models. They are **not yet a solver that automatically finds an optimal program for a chosen load ceiling**, and higher workload does not guarantee better results. Daily limit flags require review; they are not silently optimized away.
+
+| Training | Inputs and model used for the forecast |
+|---|---|
+| Cycling | Planned power steps, FTP, duration and cadence; saved workout/focus details when available |
+| Swimming | Planned duration and stroke/drill mix; comparable recorded swim exposure per minute, equipment information where supported, and the existing swim recovery curve |
+| Barbell starters | Reported lift-specific set → approximate Epley estimated maximum; prescribed weight, sets, reps and tempo → relative-intensity dose; regional allocation → regional recovery |
+| Bodyweight / bands / holds | Exercise type, repetitions or hold duration, effort and tempo, with provisional regional allocation; body mass is not converted into invented joint forces |
+| Running / walking | Available comparable activity doses, steps and existing impact/backlog models; body weight influences recorded impact scoring. Existing running restrictions remain authoritative |
+
+For example, the existing lifting model estimates a maximum as `weight × (1 + (reps + reps_in_reserve) / 30)`, then scores relative intensity using `sets × reps × ((working_weight / estimated_max) / 0.75)²`, with side/tempo factors. Effort-based movements use repetition or hold counts and an effort factor. These **Hub score formulas are provisional heuristics**, not validated tissue-force or recovery equations. Regional percentages are qualitative allocation assumptions, not measured percentages of tendon force.
+
+A small starter movement catalog is deliberate: squat, press, row, bridge and core families can cover basic strength training without pretending to model every exercise. Custom exercises still need appropriate scoring. Recording actual sets, effort, symptoms and delayed responses is how these assumptions can be checked and calibrated.
+
+Recorded personal data takes precedence. Where it is missing, **neutral forecast defaults** can be enabled; the preview lists them explicitly. These are provisional scenario assumptions, not established population averages. Disable them to keep unavailable readings unknown. Forecast defaults are not written into measured history. A snapshot of the selected forecast is retained locally for later comparison with outcomes.
+
+Research supports considering load, volume, frequency and effort when designing resistance training; it does not validate our particular block scale or tissue recovery dates. See the [2026 ACSM position stand announcement](https://acsm.org/science-spotlight-acsm-releases-new-position-stand-on-resistance-training/), [load/sets/frequency network meta-analysis](https://pmc.ncbi.nlm.nih.gov/articles/pmid/37414459/), and [proximity-to-failure meta-regressions](https://pubmed.ncbi.nlm.nih.gov/38970765/). The starter percentages and progression rules remain conservative design choices for review.
+
+<p align="center"><img src="docs/program-workflow.png" width="900" alt="Saved 12-week demo program with horizontal phases, phase details and selected week"></p>
+
+*Illustrative demo program. Screenshots contain no personal training history.*
+
+## Connected cycling
+
+**Merach S29 owner? The bike problems this was built to fix:**
 - **Only one thing can connect to the bike at a time**, so your watch can't record power and cadence while Zwift or Kinomap is connected. The hub holds the one connection and shares it with both.
 - **Hills didn't change the resistance** in Zwift or Kinomap on our S29: it ignored the apps' hill commands. The hub turns the grade into resistance itself, eased in smoothly.
 - **No gears, and no virtual shifting.** The hub adds virtual gears and auto-shifting that keeps your cadence in a band, plus big shift buttons on your phone.
@@ -19,15 +70,15 @@ Newer S29 units, and the S29R2 (2026), may handle hills in Zwift and Kinomap on 
   <img src="docs/ride-post.png" width="380" alt="An automatic ride-post infographic with records, milestones, a power chart and time in zones">
 </p>
 
-## What it does
+### Bike bridge features
 
-The S29 only accepts **one** Bluetooth connection, and it ignores the "hill" commands that training apps send. The hub sits in the middle: it holds the single connection to the bike, and then:
+The tested S29 only accepts **one** Bluetooth connection, and it ignores the "hill" commands that training apps send. The hub sits in the middle: it holds the single connection to the bike, and then:
 
 - **Shares the bike.** It re-advertises the bike as a new device ("SBike Hub"), so a watch (power + cadence) and a training app can connect at the same time.
 - **Makes hills real.** Grades from a route or a training app become resistance, eased in smoothly, with **virtual gears** on top.
 - **Auto-shifts.** It keeps your cadence in a band (65–80 rpm by default), shifting sooner the harder you spin. With a **daily focus** it also steers your watts into a range: easy but still productive. A **climbing mode** handles low-cadence standing efforts.
 - **Computes virtual speed** from watts, weight and grade, so climbs feel like climbs.
-- **Runs ERG workouts.** It holds a target wattage whatever your cadence. In a workout it works in zones around each block's target instead of chasing every watt: green (90–120%) never shifts, yellow (80–90% / 120–140%) is still on the road and shifts after 2 minutes, red after 30 seconds, black after 8. Before it shifts, it checks where the next gear would land, and it won't shift you off the road. FTP tests and Kinomap keep tight control.
+- **Runs ERG workouts.** It holds a target wattage whatever your cadence. In a workout it works in zones around each block's target instead of chasing every watt: green normally starts at the segment's target floor (100–120%). Easy workout blocks allow a wider upper band, bounded by the easy-workout ceiling. Power is smoothed over 10 seconds, shifts allow settling time, and sustained drift is checked before changing gear. Below-floor corrections can happen sooner than above-floor corrections. It checks the next gear and prefers the easiest measured setting that still achieves the target. FTP tests and Kinomap keep tight control.
 - **Pauses and resumes.** The workout clock only runs while you pedal with the bike connected: stop and it pauses by itself, or tap ⏸. If a workout stops before it's done (you tapped End, the page reloaded, the bridge restarted), the Coach page and the game view offer **Resume** for the rest of the day, at the same block and second. The pieces of a day's ride count as one session.
 
 <p align="center">
@@ -36,7 +87,7 @@ The S29 only accepts **one** Bluetooth connection, and it ignores the "hill" com
 </p>
 
 
-On top of that:
+## More features
 
 | | |
 |---|---|
@@ -47,8 +98,8 @@ On top of that:
 | 📍 **Area routes** | Circle where you'd like to ride and say how long. The planner finds loops inside the circle and ranks them for today's focus: time at the focus's watts (climbs slow you), how much of it auto-shift can hold in range, and whether the terrain suits the day. |
 | ⛰ **Climb goals & efforts** | Put training on a route's climbs: "climb 2 in 10:00" becomes a watt target re-worked every second from what's left, and "3 × 15 s at 200 W" shifts you straight into a big gear. Every climb you ride is recorded (time, watts, cadence, VAM), and the planner knows the fastest time your **W′** could cover. |
 | 🎮 **Game view** | A ride with no map route becomes a side-scroller whose hills are the workout. Plan a ride (a course sized to the planned minutes) or hit **Ride now** on a workout (terrain drawn from its blocks). Stay inside your cadence and watt ranges to ride the **lit road** and evolve through your chosen animals: bike → unicorn → wolf → eagle → dragon, or any order you pick from 17. Spin and push **gates** ask for the top of your range for 10 seconds. **Modern** (soft layered silhouettes, dawn to dusk) or **8-bit**. Saved map routes open here too, with their real hills, and 🎮 / 🗺 switch views mid-ride. See [The game view](#the-game-view). |
-| 🧭 **Coach** | Three tabs: **Today** (the verdict and your morning check-in, right on the card), **Plan** and **Progress**. This week at a glance (a marker per day, including swims your watch calendar can't hold), a one-tap effort rating, morning readiness from your watch (HRV, resting heart rate, sleep), **skill ladders** that step up and down with the evidence, **test weeks**, and a calibration card for every capacity. A 6-minute **morning diagnostic** (fixed watts, heart rate read off your watch) gives a go / easy / rest verdict against your own normal. The **timed-workout builder** lets you pick a length, drag bars, and see the parts rebalance in proportion. A short **journal** goes with each check-in. It's never scored, but it raises a **flag** when your words and your sliders disagree (see [The journal flags](#the-journal-flags)). |
-| 🫀🦶🦵 **Training load for every sport** | Runs, walks, swims, gym and rides from your watch, scored on three body systems: **heart & lungs**, **feet & bones**, **leg muscles**. You get separate **bike** and **running** verdicts, and the running load is tracked as accumulated "blocks" that recover on a realistic, slow timeline. Tap any system for its graph, readings, and the sessions behind it. See [Training load: how it works](#training-load-how-it-works). |
+| 🧭 **Coach** | Four tabs: **Today** (the verdict and your morning check-in, right on the card), **Plan**, **Progress**, and **Rules**. This week at a glance (a marker per day, including swims your watch calendar can't hold), a one-tap effort rating, morning readiness from your watch (HRV, resting heart rate, sleep), **skill ladders** that step up and down with the evidence, **test weeks**, and a calibration card for every capacity. A 6-minute **morning diagnostic** (fixed watts, heart rate read off your watch) gives a go / easy / rest verdict against your own normal. The **timed-workout builder** lets you pick a length, drag bars, and see the parts rebalance in proportion. A short **journal** goes with each check-in. It's never scored, but it raises a **flag** when your words and your sliders disagree (see [The journal flags](#the-journal-flags)). |
+| 🫀🦶🦵 **Training load for every sport** | Runs, walks, swims, gym and rides from your watch feed three shared systems: **heart & lungs**, **feet & bones**, and **leg muscles**, plus separate swimming and regional lifting recovery models. The Coach provides sport-specific recommendations and a body map of overlapping sources. Running is tracked as accumulated "blocks" on a conservative, provisional recovery timeline. Tap any system for its graph, readings, and the sessions behind it. See [Training load: how it works](#training-load-how-it-works). |
 | 🎯 **Workout adherence** | Each part of a workout is graded A–F on how well you held it, shown as a pie and a radar chart in the ride report. |
 | 📈 **Live graph, calories, fitness** | A live power graph in zone colors, calories from real work (kJ), personal bests (5 s / 1 / 5 / 20 min) with callouts, and a power-based fitness / fatigue / form chart. |
 | 🏆 **Streaks & milestones** | Day and week streaks, tiered milestones, and fun comparisons (Eiffel Tower, Alpe d'Huez, Everest…). |
@@ -69,7 +120,7 @@ On top of that:
 
 - **A Mac** with Bluetooth, running macOS 13 or newer. The hub uses Apple's Bluetooth and drawing libraries, so it's macOS-only.
 - **Python 3.11+** (`brew install python`) and, for the route planner, **Java** (`brew install openjdk`).
-- **A smart bike.** Tested: Merach S29.
+- **Optional smart bike** for connected cycling. Tested: Merach S29. Coach, workout planning, importing, and load tracking can run without one.
 - **Disk space for maps:** roughly 1–10 GB depending on the regions you choose. The bridge alone needs almost nothing.
 - **Optional:** a watch that pairs with Bluetooth power/cadence sensors (tested: COROS Pace 4), and a phone or tablet for the handlebar remote.
 
@@ -91,7 +142,7 @@ To skip maps and routes and get just the bridge, run `./setup.sh --no-maps`.
 
 **No smart bike?** Run `./setup.sh --no-bike`. You get the Coach, training load for every sport from your watch files, lifting, the dashboard and the AI coaching tools, with no Bluetooth at all. The launcher opens straight to the Coach.
 
-Then:
+For connected cycling, continue below. In no-bike mode, open the Coach, set your profile, and import your activities.
 
 1. **Wake the bike** (pedal a few turns). Make sure no phone or app is connected to it.
 2. **Double-click "S-Bike Hub" on your Desktop**, or use the 🚲 menu icon. The first time, macOS asks to allow **Terminal** to use Bluetooth; say yes. The control panel opens at <http://127.0.0.1:8729>.
@@ -114,10 +165,11 @@ Edit [`regions.json`](regions.json) (name, bounding box, center, zoom) and run `
 | `/panel` | Connections, live numbers, gears, auto-shift, climbing, ERG, workouts, FTP test, personal bests, live graph, phone pairing |
 | `/ride` | 3D ride view and handlebar remote (phone / tablet / computer) |
 | `/plan` | Route planner: search, A→B, loops, "by distance", **area** (routes for today's focus), a route's climbs with time goals and efforts, famous-ride ideas, GPX import |
-| `/coach` | This week, today's bike and running verdicts, the day's focus, morning readiness, effort rating, the body systems (tap for detail), coming up, calibration, progressions, the morning diagnostic, the timed-workout builder |
+| `/coach` | Today, Plan, Fitness Dashboard, Progress, and Rules; sport-specific recommendations, check-ins, calendar, multiple daily sessions, training blocks, projected loads, workout details, swim profiles, lifting, and reviews |
+| `/coach#fitness` | Fitness Dashboard: detailed load metrics, body map, sport verdicts, recovery estimates, and calibration evidence |
 | `/course` | The game view: today's course, a running workout, or the route you're riding |
 | `/workouts` | Block-based workout builder |
-| `/fitness` | Fitness, fatigue and form from power; body systems across every sport; the aerobic engine (watts per beat, decoupling); how your sports carry over |
+| `/fitness` | Legacy cycling detail view; its information is also available in Fitness Dashboard under Cycling history |
 | `/milestones` | Streaks, totals, badges |
 | `/posts` | Ride infographics, captions, the Claude pack, optional Strava |
 
@@ -137,15 +189,15 @@ Edit [`regions.json`](regions.json) (name, bounding box, center, zoom) and run `
 - **The lit road:** inside both your cadence and watt ranges (in a workout, watts near the block's target). Time on it evolves you, **5 minutes per form**; a minute off it drops you one form, not all the way.
 - **The animals:** 17 of them, filmed from CC0 3D models by [Quaternius](https://quaternius.com) into sprite strips, in colour. The farm animals walk below about 16 km/h and gallop above about 19, so pace shows as a change of gait. Pick your forms and their order from **☰ → Forms…**; the choice is kept on the bridge.
 - **Overlays:** the ride's numbers come one card at a time - Ride, Focus, Graph (the last 10 minutes), Route, Workout, Form - cycling every 8 seconds. Tap or swipe to move on, 🔒 to hold one. Something happening jumps to its card for a few seconds. Watts and cadence stay up top. The map view uses the same overlays on phones.
-- **Yellow is on the road too:** in a workout, watts within 80–140% of the block's target count toward your forms and gates. Red and black don't.
+- **Yellow is on the road too:** green and yellow workout power zones count toward forms and gates when cadence requirements are met. Easy blocks have wider upper power bands; red and black do not count.
 - **No map where there's no road:** a watts-and-cadence workout, or a made-up course, only rides in the game view.
 
-## Coaching with Claude (optional)
+## Coaching with an AI assistant (optional)
 
 Everything the pages can do is also available headless, so an AI coach can read your data and write your plan:
 
 - **Command line:** `./hub today`, `./hub rides`, `./hub fitness`, `./hub load`, `./hub checkins`, `./hub checkin --feet 4 --legs 5`, `./hub steps 2026-09-27=6200`, `./hub import FILE.fit`, `./hub plan --verdict easy --note "…" --workout ID`, `./hub split --total 30 --intervals 3`. Run `./hub --help` for the rest.
-- **MCP server:** [`mcp_server.py`](mcp_server.py) exposes 45 tools (today, check-ins, rides, a ride's full story, fitness, body-system load, importing watch files, daily steps, morning readiness, effort ratings, the day's focus and plan, area routes, climb goals, skill ladders, calibration and tests, test weeks, the aerobic engine, sport carry-over, milestones, workouts…) to Claude Code or Claude Desktop:
+- **MCP server:** [`mcp_server.py`](mcp_server.py) exposes tools (today, check-ins, rides, a ride's full story, fitness, body-system load, importing watch files, daily steps, morning readiness, effort ratings, the day's focus and plan, area routes, climb goals, skill ladders, calibration and tests, test weeks, the aerobic engine, sport carry-over, milestones, workouts…) to compatible MCP clients. For Claude Code:
 
   ```bash
   claude mcp add --scope user s-bike-hub -- "$PWD/.venv/bin/python" "$PWD/mcp_server.py"
@@ -153,34 +205,41 @@ Everything the pages can do is also available headless, so an AI coach can read 
 
   For Claude Desktop, add the same command under `mcpServers` in `~/Library/Application Support/Claude/claude_desktop_config.json`. The tools talk only to the hub on your Mac, and the bridge must be running.
 
-We deliberately didn't build a multi-week planner. The load model says how much running your body can take and when; an AI coach with these tools can turn that into a plan that fits your week, your goals and how you feel, and change it tomorrow. If your AI also has a connector for your watch (COROS, for example), it can pull in your activities and daily steps with `import_activities` and `record_steps`.
+The Hub now includes persistent **macro programs with editable phases and detailed starter workouts for up to 12 weeks**, multiple daily sessions, sport-specific workout templates, projected loads, and Sunday review recommendations. An AI coach can use these tools to build and revise a plan around your event goals, available time, calculated load, and reports. A block can extend an already scheduled week; it is not an autonomous guarantee of an optimized program. Recheck actual results and readiness as the week unfolds.
+
+The workflow is **plan → train → import/log → report → review and adapt**. Lifting has its own follow-ups, while Sunday reviews consider the training week across sports. If your AI has a separate watch connector (COROS, for example), it can import activities and record daily steps; otherwise, import watch files yourself.
+
+**AI is optional and supplied separately.** The Hub does not include an AI subscription or require a paid API key for its local calculations. A compatible assistant's free tier may be sufficient for routine check-ins and plan reviews, subject to its access and usage limits. We have not verified the complete coaching workflow on every free-tier client. Providing training data to an external AI service is separate from keeping the Hub's files local.
 
 ## Training load: how it works
 
-Most apps give you one "training load" number. It adds up a hard ride, a run and a gym session as if they cost the same thing, and it tells you you're fresh when your legs and feet say otherwise. That's the gap this model was built to close.
+A single training-load total can miss the distinction between cardiovascular effort and local mechanical demands. The Hub separates those demands so an easy cardiovascular session does not automatically imply that every muscle group is ready for more work.
 
 > ⚠️ This is an **experimental planning model**, not a measurement of your body. It has been tuned against one rider's real training and how it felt. The numbers are starting points that adapt to you (see below). It doesn't diagnose anything: if something hurts, stop and see someone.
 
-### Three body systems, one verdict per sport
+### Shared body systems and sport-specific recovery
 
-Different parts of you adapt at very different speeds. Your heart and lungs catch up in days, but tendons and bone take months. So every activity from your watch (runs, walks, swims, gym, rides) and every ride on the bridge is scored on three systems:
+Every imported activity and recorded bridge ride contributes to shared systems where relevant. Swimming also has a stroke-exposure recovery curve, and logged lifting has recovery estimates per region. These are related planning signals with different units, not interchangeable measurements of tissue damage:
 
 | System | What loads it | How it's scored |
 |---|---|---|
-| ❤️ **Heart & lungs** | everything | Rides with power: training stress from watts (TSS: time × intensity², 100 = an hour at FTP). Everything else: heart-rate load (Banister TRIMP), converted to the same points using **your own rides that have both watts and heart rate**. |
+| ❤️ **Heart & lungs** | everything | Rides with power: training stress from watts (TSS: time × intensity², 100 = an hour at FTP). Other activities: heart-rate load (Banister TRIMP), calibrated using **your own rides that have both watts and heart rate**. Unassisted swims with CSS use pace-based load; fin-assisted swims exclude that pace estimate and use heart rate or an explicitly provisional effort fallback. |
 | 🦶 **Feet & bones** | running, walking | Every step's force, raised to the **4th power**. See below. |
-| 🦵 **Leg muscles** | bike, running, gym | Bike: pedal torque each second, squared, so grinding at low cadence counts extra. Running: body weight × distance × speed. Gym: effort (RPE) × minutes. Swimming: a trickle. |
+| 🦵 **Leg muscles** | bike, running, walking, gym, swim kicking | Bike: pedal torque squared. Running/walking: weight, distance, and speed. Detailed lifting: the leg regions' exercise points; otherwise a generic effort-duration proxy for recorded gym sessions. Swimming: kicking exposure, with equipment and effort context. |
 
-Each system gets a **fitness** (long average: what it's used to) and a **fatigue** (last week), and their ratio:
+The shared systems track **fitness** (a long average) and **fatigue** (a shorter average). Ratio-based planning bands are:
 - under 0.8: room to build
-- 0.8–1.3: the sweet spot
+- 0.8–1.3: the model's working band
 - 1.3–1.5: caution
-- over 1.5: rest. This is the zone where injuries cluster in the sports-science literature, using the acute:chronic workload ratio with Williams' exponentially weighted averages.
+- 1.5 or higher: rest in ratio-based rules
+
+These are provisional planning bands using exponentially weighted averages, not universal injury thresholds. Untuned cardiovascular readiness uses fitness–fatigue form instead; running also has its accumulated-block and progression gates. Separate swimming and lifting blocks are not the same units as these ratios.
 
 **Readiness is weakest-link:**
 - The **bike** verdict comes from heart & lungs and leg muscles.
 - The **running** verdict comes from feet & bones and leg muscles.
-- The bike doesn't load your feet, so sore feet bench your running, not your riding.
+- Cycling has no modeled running-impact dose; riding still depends on leg readiness, cardiovascular readiness, and relevant shared-region demands.
+- Swimming and lifting also consider their own recovery estimates and overlapping regional exposure.
 - Your morning check-in (feet, legs, breathing, 1–10) can always make it more careful: 6+ means easy, 8+ means rest.
 
 #### The journal flags
@@ -198,8 +257,8 @@ Running is the scarcest resource, and it's the most closely managed.
 **1. Every step is a force.**
 - Steps come from your watch's cadence.
 - Each step's peak force is estimated from your weight and speed: about 1.2 × body weight walking, 2 + 0.2 × speed (m/s) × body weight jogging, more downhill.
-- Damage per step rises with the **4th power** of that force. This is the exponent in Carter's "daily stress stimulus" for bone: tissue fatigue rises steeply with load per cycle.
-- So a step 20% harder does about twice the damage, and a walking step does roughly a tenth of a jogging step's.
+- The impact **proxy** rises with the **4th power** of estimated force, inspired by Carter's daily stress stimulus. Applying it here is a modeling choice, not a measurement of tendon, knee, or bone damage.
+- A step with 20% greater estimated force contributes about twice the proxy score. Walking contributes less than running under these assumptions; the exact ratio depends on pace and the force estimate.
 - The detail view shows each run's steps, average force in pounds, and its damage as **"steps at 1,000 lb"**.
 
 **2. Runs add up in blocks.**
@@ -208,18 +267,21 @@ Running is the scarcest resource, and it's the most closely managed.
 - Days already served count. A new run adds 5 days per block it added to whatever plateau is still owed: run (5 days), a day passes (4 left), run again as 2 blocks (+10) = 14 days.
 
 **3. Blocks recover slowly, in three phases.** The timing scales with the load, with no cap:
-- a **plateau** of about **5 days per block**, when nothing seems to heal
+- a **plateau** of about **5 days per added block**, during which the accumulated score holds steady; this does not mean biological healing stops
 - a **decline** over about **3 days per block**, down to a fifth
-- a **remodeling tail** of about four months (a bone remodeling cycle)
+- a **long tail** parameterized at **120 days**, inspired by remodeling timescales rather than measuring an individual's remodeling
 
 So a load of 2 blocks plateaus about 10 days and declines over about 6. A load of 13 blocks plateaus about 65 days (less the days served between the runs that built it) and declines over about 39, then the tail. Recovery time per block is the same at every level of fitness; conditioning changes how much running a block holds, not how long it takes to clear.
 
-**4. Running is cleared by the blocks.**
-- Over **1.5 blocks** means rest, and over 1.0 means easy.
-- In the tail, running is blocked only above 1.1 × the limit.
-- A tail day when your feet and legs both check in at 2/10 or better allows a short, easy run.
-- **The hop test.** Coming back from a block, running also needs a recent (last 3 days) single-leg hop test: **10 pain-free hops** on the worse leg. Log each leg in the morning check-in; the worse one is the number.
-- A separate **five-day "recent run response"** catches the day-after hit of a single run.
+**4. Running decisions respect the blocks and progression checks.**
+- At **1.5 blocks or higher**, the training-block gate holds running. From 1.0 blocks, the underlying load model recommends easy work rather than normal work.
+- A separate **five-day recent-run response** tracks the short response to a session.
+- Recent pain-free hop reports are one input to readiness; a good report does not bypass the mechanical training-block gate.
+- The current progression preset also requires repeated comfortable strength, balance, and loading checks, including dated next-day responses, and a minimum wait since the last run. Its default **50 days is the originating athlete's conservative preference**, configurable in `run_progression.minimum_run_days`; it is not a universal recovery period.
+- The first **60% of the plateau** is protected. After that, a deliberate review may begin decline early only with repeated successful checks. Carried load is preserved and running remains separately gated. A setback can reverse that tentative calibration.
+- Ordinary reports affect today's recommendation immediately; they adjust the accumulated decline only **after the plateau**. Running eligibility opens a plan review, not an automatic run prescription.
+
+The underlying load model retains a tail-phase exception for particularly good feet/leg reports. The training-block gate and progression checks remain stricter: that exception does not override their holds. See [Tentative running progression](#tentative-running-progression).
 
 **5. Walking counts too, but lightly.**
 - Your watch's daily steps, minus the steps in your runs, are your walking.
@@ -240,32 +302,34 @@ The Coach page shows all of it:
 
 ### How it was conceived
 
-It was built in about two days of real use, one iteration at a time, each driven by a mismatch between the numbers and the rider's body:
+The model grew through repeated use and iteration, driven by differences between the initial scores and the originating athlete's reported experience:
 
 1. **Load ratio across sports.** A standard acute:chronic ratio per system. The first version flagged a perfectly steady routine as dangerous, because its averages were too slow. It switched to Williams' exponentially weighted version, plus a rule that keeps a system on "easy" for a week after a spike.
 2. **Heart rate married to watts.** Runs and swims have no power, so heart-rate load is calibrated against the rider's own rides that have both.
 3. **Capacity from how the body responded.** The engine handled a big week like easy work while the feet were clearly overdone. So each system's "usual week" can be tuned to what the body actually showed.
 4. **Step-based, superlinear impact.** The rider's own arithmetic set this off: thousands of steps at several times body weight is a lot of force for an unconditioned body. Distance became steps × force⁴.
 5. **Tissue clocks.** A damage-and-repair model with separate clocks for soft tissue, tendon and bone. It's kept as the "exploratory tissue detail" on the fitness page.
-6. **Blocks.** The rider worked out the plateau / decline / tail shape with ChatGPT, matching how the recovery actually felt, and it matched: rest for running, easy for the legs, go for the engine.
+6. **Blocks.** The rider worked out the plateau / decline / tail shape with ChatGPT, to reflect the athlete's reported experience: running held, easier leg work, and more cardiovascular capacity. Whether the projected recovery tracks later outcomes is still being evaluated.
 7. **Walking**, then the uncapped timeline and the tail rule, in the same way.
 
 ### How it adapts to you
 
-Nothing here is fixed to the person it was first tuned on. With real use it learns:
+The Hub combines personal data, fitted estimates, and configurable planning assumptions. Not every constant learns automatically: the running progression preset, recovery timings, and participation coefficients still need deliberate review. With recorded evidence, it can refine:
 
 | What adapts | From |
 |---|---|
 | **Heart-rate → points conversion** | The median ratio of watts-based load to heart-rate load on your own rides with both. |
 | **Your jogging step** | Runs without cadence (older .tcx exports) are scored from the per-step force and cadence of your runs that have it. |
 | **The size of a block** | Your first three runs, then **benchmark runs**: 2 miles on the same flat loop at a fixed easy pace. Each is graded once the two mornings after are in, on how it felt (1-10), heart rate against the prediction from your last benchmarks, your check-ins leading up to it, and those mornings. Growth follows diminishing returns (about 10% at your starting block, a sliver near 5×), and results overrule the curve: beat the prediction and it grows more and the curve shifts up; fall short and it grows little. Anything hurt, or a 6/10+ morning after: no growth, repeat it. Shown recovery also earns up to +30%: at least four runs over four or more weeks, each followed by three run-free days and reassuring check-ins. |
-| **How long a plateau lasts** | Your check-ins after each run, judged against where you should be. Beat-up mornings (feet or legs 6/10+, or 3 or fewer pain-free hops) in the first half of the plateau are expected, so they're neutral unless getting worse morning to morning; past halfway they add half a day each. Good reports shorten it by half a day each, after more than two. |
+| **Running decline and tentative progression** | Ordinary reports do not shorten the plateau; post-plateau reports adjust decline. Explicit early-decline reviews after the protected 60% require repeated comfortable checks and dated follow-ups. Setbacks can restore the unshortened curve. |
+| **Swimming recovery block size** | Recorded stroke exposure and next-morning shoulder reports, with Sunday reports contributing to the fit. |
+| **Regional lifting recovery** | Logged exercise doses and regional follow-up reports, including weekly reviews. |
 | **Each system's usual week** | Tuned from how your body responded: `./hub capacity impact 150 --note "feet sore at this"`, the `set_capacity` MCP tool, or your AI coach. |
 | **Fitness** | The long averages rise as you train steadily. |
 | **Your normal morning** | The diagnostic verdict compares you with the median of your recent tests. |
 
 Settings in `profile.json`:
-- `habitual_steps`: your ordinary day, default 6000
+- Daily steps are recorded separately. The accumulated walking allowance is derived from running-block capacity and demonstrated walking tolerance, rather than a universal fixed daily allowance.
 - `gym_rpe`: effort for gym sessions with none logged, default 5
 - `training_phase`: `run_durability`, `aerobic_base` or `bike_performance`, which weights the headline balance grade
 - `load_calibration`: tuned usual weeks
@@ -323,7 +387,7 @@ Every capacity (FTP, heart rate at 90 W, a big-gear 3-minute test, critical swim
 You test at your peak, then start the next block fresh.
 
 **What the results feed:**
-- **Swims** are scored against your CSS (hours × (CSS ÷ pace)³ × 100).
+- **Unassisted swims** with CSS use pace-based cardio load (hours × (CSS ÷ pace)³ × 100). Fin-assisted swims use heart rate or a provisional effort fallback; shoulder exposure and leg kicking remain separate.
 - **The running block** grows by up to 10% after a benchmark run followed by two good mornings.
 
 ### Power: CP, W′ and the aerobic engine
@@ -356,7 +420,7 @@ The thresholds (a 2-point SWOLF step, a 5% fade) are starting points to check ag
 
 ### Swim recovery
 
-A separate swim recovery estimate reads active pool lengths from the watch: `strokes × stroke factor × (length speed / 0.9 m/s)²`, adjusted for paddles, pull buoy and perceived effort. The stroke factors and gear multipliers are provisional tuning choices, not measured tendon forces. One provisional block starts at three times the median dose of the first three swims, then is **fitted continuously** to next-morning shoulder reports: a Bayesian fit over candidate block sizes, with the first-swims value as a log-normal prior, with an 80% interval that narrows as reports come in. The 1.5-block line is a planning convention, not an injury threshold. The Coach's body map (anatomy from [body-highlighter](https://www.npmjs.com/package/body-highlighter), MIT) shows where each sport's load lands; the colours are relative participation, not measured forces.
+For unassisted lengths, a separate swim recovery estimate reads active pool lengths from the watch: `strokes × stroke factor × (length speed / 0.9 m/s)²`, adjusted for paddles, pull buoy and perceived effort. On fin-assisted lengths, arm exposure omits the speed-squared multiplier, while kicking contributes separately to leg-muscle load. Snorkel use is recorded without a force multiplier. The stroke factors and equipment multipliers are provisional tuning choices, not measured tendon forces. One provisional block starts at three times the median dose of the first three swims, then is **fitted continuously** to next-morning shoulder reports: a Bayesian fit over candidate block sizes, with the first-swims value as a log-normal prior, with an 80% interval that narrows as reports come in. The 1.5-block line is a planning convention, not an injury threshold. The Coach's body map (anatomy from [body-highlighter](https://www.npmjs.com/package/body-highlighter), MIT) shows where each sport's load lands; the colours are relative participation, not measured forces.
 
 ### Reusable swim profiles
 
@@ -378,6 +442,10 @@ A persistent 4-to-6 week coaching block (`get_training_block` MCP tool, `/api/co
 
 Running has a dedicated gate in the block forecast: its accumulated mechanical score and 1.5-block line, plus the latest reported lower-leg response. A gate on hold prevents the block creator from repeating a week with runs and prevents a Sunday review from advancing running. The mechanical dose itself sets the accumulated curve's plateau. Feet, leg, and hop reports during that plateau affect the day-to-day run/rest decision **without moving the accumulated curve**. Only reports after the plateau adjust its decline duration.
 
+### Ride display
+
+Both ride views provide a full-screen button and request a screen wake lock where the browser supports it. Device/browser support varies; the page must remain visible for the wake lock.
+
 ### Adaptive ERG workouts
 
 Workouts in ERG mode support adaptive target scaling and clear safety boundaries. A warm-up or ramp automatically sets a cadence band (55–110 rpm on ramps; 70–90 rpm during adaptive intervals), and a 20-second rolling median power anchor adjusts subsequent interval watts and recovery blocks proportionally, keeping planned easy programs within their 75% FTP ceiling. If the rider pauses or stops pedalling, the workout clock automatically pauses and preserves active pedalling time on crash recovery.
@@ -386,20 +454,20 @@ Workouts in ERG mode support adaptive target scaling and clear safety boundaries
 
 A gym session is a list of exercises: barbell lifts, medicine-ball throws, cable and band moves, holds and hangs. List them yourself on the Plan tab (name, sets × reps or time, weight, tempo), or ask your AI to build the session. The AI scores it: the kind of exercise, whether it's **restorative** or **build** work, and how each movement's strain is shared across the body.
 - **The check-off** after the workout runs down the list. More weight than planned counts as more load. Less weight asks why: *too heavy* keeps the planned load and lowers the strength estimate; *chose to* counts what you lifted.
-- **Each muscle group gets a recovery block**, tuned by a follow-up two to four days later. Leg work shares the leg budget with running and riding.
+- **Each muscle group gets a recovery block**, tuned by a follow-up due three days later and open for two more days. Leg work shares the leg budget with running and riding.
 - **The Rules tab** holds your line items: "No barbell squats" is enforced, favourites come up often, anything else guides the AI.
 - **The steer** suggests how much of a session should be restorative: 5-10% when you're fresh, about 80% when any system is at its limit. Your after-session and follow-up reports move the curve, and your own call always wins.
 
-- **Calibration on a schedule:** a follow-up three days after every lift session, and a **Sunday check-in** (open through Tuesday) that asks only about what your week held: legs if you rode, feet and the hop test if you ran, shoulders if you swam, each muscle group you lifted, and the week overall. The running, swim and lifting models learn from it and trust it most.
+- **Calibration on a schedule:** a follow-up three days after every lift session, and a **Sunday check-in** (open through Tuesday) that asks about what your week held: legs if you rode, feet and optional comfortable hop reports if you ran, shoulders if you swam, each muscle group you lifted, and the week overall. A future running event also prompts lower-leg reports while running is paused. The running, swim and lifting models learn from it and trust it most.
 - **Lifting carries over:** a muscle group's lifting load counts toward the mechanical load, and toward each sport's verdict by how much that muscle works in the sport. A heavy shoulder day makes the swim verdict easy; kneeling core work barely touches running.
 
 How to use it with an AI coach, and the thinking behind it: **[the wiki](https://github.com/JHarp199345/S-Bike-Training-Hub/wiki/Training-with-your-AI)**.
 
 ### The dashboard
 
-<p align="center"><img src="docs/dashboard.jpg" width="320" alt="The dashboard (sample data): today's verdicts for bike, running, swimming and lifting, then every piece of the mechanical load as a ring against its limit, and the cardio fitness, fatigue and form chart"></p>
+<p align="center"><img src="docs/fitness-dashboard.png" width="900" alt="Fitness Dashboard with translucent cards and a scenic background; illustrative empty demo profile, not an athlete record"></p>
 
-**/dashboard** shows everything the hub computes in one place, each chart with a plain "what it means": today's verdict per sport; every piece of the mechanical load as a ring against its limit; cardio fitness, fatigue and form, and where the week's load came from; where the load lands on the body; lifting blocks, the steer's suggestions against what you did, and strength estimates; what the watch saw; and what every model has learned from your tests and reports. Today, Plan and Progress stay simple; the dashboard is where the detail lives.
+**Fitness Dashboard in Coach** shows everything the hub computes in one place, each chart with a plain "what it means": today's verdict per sport; every piece of the mechanical load as a ring against its limit; cardio fitness, fatigue and form, and where the week's load came from; where the load lands on the body; lifting blocks, the steer's suggestions against what you did, and strength estimates; what the watch saw; and what every model has learned from your tests and reports. Today, Plan and Progress stay simple; the dashboard is where the detail lives.
 
 ### How the sports carry over
 
@@ -411,7 +479,7 @@ A carry-over table estimates how much training one sport builds another, compare
 
 ## Your data stays on your Mac
 
-Everything lives in the project folder and is git-ignored: rides (`rides/`), watch activities and daily steps (`activities/`), saved routes, your profile, FTP and load tuning, personal bests, check-ins, the phone-pairing PIN and tokens, and optional Strava keys. Nothing is uploaded unless you press **Post to Strava**.
+Everything lives in the project folder and is git-ignored: rides (`rides/`), watch activities and daily steps (`activities/`), saved routes, your profile, FTP and load tuning, personal bests, check-ins, the phone-pairing PIN and tokens, and optional Strava keys. The Hub does not automatically upload your training records to a cloud account. Optional Strava posting and any data you share with an external AI assistant or connector leave the Mac under those services' own policies. Map setup downloads external map data; the phone remote serves authorized devices on your local network.
 
 **The phone remote is plain HTTP on your home Wi-Fi.** It's protected by a PIN or one-time QR code, a long random token per paired device, and rate-limiting. It's meant for a home network, not the internet. Stopping the bridge is Mac-only.
 
@@ -431,15 +499,15 @@ Reports and pull requests for other bikes are very welcome.
 ## Development
 
 ```bash
-tests/run_all.sh        # 37 test files: auto-shift, ERG, FTP test, routes, pairing, coach, MCP, adherence, training load, focus, sessions, calibration, CP/W′, carry-over…
+tests/run_all.sh        # Runs every tests/test_*.py file; reports failures by exit status
 ```
 
 - `bridge.py` is the Bluetooth bridge, gears, ERG and the ride loop.
 - `panel.py` and `mapserver.py` serve the web pages and the JSON API.
 - `web/` holds the pages.
 - Routes and maps: `routes.py`, `planner.py` (BRouter), `pmtiles_reader.py`, `places.py`.
-- Training: `coach.py`, `workouts.py`, `bests.py`, `fitness.py`, `milestones.py`, `adherence.py`.
-- Training load: `fit.py` (a standard-library FIT reader), `loads.py` (every sport scored on three body systems, readiness), `damage.py` (the running blocks, walking, and the exploratory tissue model), `morning.py` (readiness from the watch overnight).
+- Training: `coach.py`, `workouts.py`, `programming.py` (sport templates and swim profiles), `training_block.py` (blocks and forecasts), `weekly.py` (Sunday reviews), `bests.py`, `fitness.py`, `milestones.py`, `adherence.py`.
+- Training load: `fit.py` (FIT reader), `loads.py` (shared systems and readiness), `damage.py` (running blocks, walking, exploratory tissue detail), `swimload.py` (stroke and equipment exposure), `lifting.py` (exercise doses and regional recovery), `bodymap.py` (shared sources), `recovery.py` (progression checks and saved forecasts), `morning.py` (overnight readiness).
 - Coaching: `focus.py` (the day's ranges), `session.py` (climb goals, efforts, climb records), `areaplan.py` (area routes), `skills.py` (progressions and regressions), `calibration.py` (capacities, tests, test weeks), `cp.py` (CP, W′, W′ balance), `aerobic.py` (watts per beat, decoupling), `transfer.py` (cross-sport carry-over, Bayesian).
 - Posts: `story.py`, `card.py`, `posts.py`, and `strava.py` (optional).
 

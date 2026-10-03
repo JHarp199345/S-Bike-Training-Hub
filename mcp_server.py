@@ -3,7 +3,7 @@
 A Model Context Protocol server over stdio (JSON-RPC 2.0, one message per
 line), written without extra packages. Every tool calls the bridge's own API
 on this Mac (http://127.0.0.1:8729), the same one the pages and `hub` use -
-nothing leaves the Mac, and the bridge must be running.
+the bridge must be running. An external AI receives the training context returned by these tools under its own service policies.
 
 Registered with Claude Desktop (claude_desktop_config.json) and Claude Code
 (`claude mcp add`) as "s-bike-hub".
@@ -15,7 +15,7 @@ import urllib.error
 import urllib.request
 
 BASE = __import__("os").environ.get("S29_HUB_URL", "http://127.0.0.1:8729")   # tests point this at a scratch server
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 
 
 class HubError(Exception):
@@ -303,6 +303,18 @@ def t_diagnostic(a):
     return call("/api/coach/test/start", {})
 
 
+def t_program(a):
+    return call('/api/coach/program-builder')
+
+def t_program_preview(a):
+    return call('/api/coach/program-builder', {**a.get('fields',{}),'action':'preview'})
+
+def t_program_apply(a):
+    return call('/api/coach/program-builder', {**a.get('fields',{}),'action':'accept'})
+
+def t_progress_evidence(a):
+    return call('/api/coach/progress-evidence')
+
 S = lambda **p: {"type": "object", "properties": p, "additionalProperties": False}
 INT = lambda d, lo=None, hi=None: {"type": "integer", "description": d, **({"minimum": lo} if lo is not None else {}),
                                    **({"maximum": hi} if hi is not None else {})}
@@ -321,7 +333,12 @@ LIFTS = {"type": "array", "description": "The exercises, in order", "items": {"t
                 "additionalProperties": {"type": "number", "minimum": 0}}},
     "required": ["name", "kind", "sets", "regions"]}}
 
+PROGRAM_FIELDS = {'type':'object','description':'Program fields: start YYYY-MM-DD, optional target date, horizon_days (default84), hours, sport (general/ride/swim/run/gym), priorities {sport:improve/maintain/pause}, assessment week/existing, optional reviewed phases, schedule_options, starter_enabled, starter_level easy/moderate/higher, starter_equipment basic/barbell, strength_anchors [{name,weight,unit,reps,rir}], neutral_forecast. Read get_program first; preserve the full reviewed payload when applying.','additionalProperties':True}
 TOOLS = [
+    ('get_program','Read the saved macro program, phases and weekly placements. Does not change anything.',S(),t_program),
+    ('preview_program','Preview a draft and optionally compare three starter workload scenarios and forecasts. Does not save or replace the active program.',S(fields=PROGRAM_FIELDS),t_program_preview),
+    ('apply_program','Apply a reviewed program from today or later. Use only when the athlete asks to save the reviewed changes. Preserves history and existing workouts; fills empty starter dates.',S(fields=PROGRAM_FIELDS),t_program_apply),
+    ('get_progress_evidence','Read measured training responses and evidence for improvement; modeled conditioning is not a guaranteed performance gain.',S(),t_progress_evidence),
     ("get_today", "Today's coaching picture: the rider's check-in and morning diagnostic (heart rate at 90 W / 120 W / "
      "60 s later, legs, breathing, sleep, gut call), the verdict with reasons, their normal (baseline), the plan "
      "already set, FTP, and the workout list. Start every coaching conversation here.", S(date=DATE), t_today),
@@ -620,7 +637,7 @@ for name, _, schema, _ in TOOLS:
         schema["required"] = ["system", "usual_week"]
 BY_NAME = {t[0]: t for t in TOOLS}
 INSTRUCTIONS = ("A bike, run, and swim training companion (built on a Merach S29 smart bike). Start with get_today "
-                "and recent check-ins and activity, then set a concrete day plan. A day can contain ordered ride and "
+                "and recent check-ins and activity, then set a concrete day plan. Read get_program before changing the macro program; use preview_program to compare drafts and starter forecasts, and apply_program only for athlete-approved reviewed changes.  A day can contain ordered ride and "
                 "swim sessions with intervals or drills; consider both shared cardiovascular and sport-specific "
                 "recovery before adding a second session. Running impact and swim recovery blocks are provisional "
                 "planning estimates, not measured tissue damage or injury clearance. Reported pain and the athlete's "
@@ -644,7 +661,7 @@ def handle(msg):
     if method == "initialize":
         pv = (msg.get("params") or {}).get("protocolVersion") or "2025-06-18"
         return {"protocolVersion": pv, "capabilities": {"tools": {"listChanged": False}},
-                "serverInfo": {"name": "s29-hub", "version": VERSION}, "instructions": INSTRUCTIONS}
+                "serverInfo": {"name": "s-bike-hub", "version": VERSION}, "instructions": INSTRUCTIONS}
     if method == "ping":
         return {}
     if method == "tools/list":

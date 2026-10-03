@@ -63,6 +63,7 @@
   // One small Appearance button: in the corner of the page, or inside the menu on the map pages (ride, planner),
   // where the corners belong to the controls. It opens the themes in a little panel.
   document.addEventListener('DOMContentLoaded', () => {
+    if(root.dataset.embedded==='true')return;
     const menu = document.querySelector('#drawer') || document.querySelector('#side');
     const btn = document.createElement('button');
     btn.type = 'button'; btn.className = 'appearance-btn' + (menu ? ' in-menu' : '');

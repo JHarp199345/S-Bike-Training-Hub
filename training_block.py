@@ -155,9 +155,9 @@ def swim_plan_forecast(d, today, load=None, done=None):
         by=(a.get("swim_exposure") or {}).get("by_stroke") or {}
         n=sum(by.values())
         return sum(v*swimload.STROKE_FACTOR.get(k,1) for k,v in by.items())/n if n else 1
-    rate=statistics.median(a["swim_exposure"]["units"]/a["minutes"] for a in samples) if samples else None
+    rate=statistics.median(a["swim_exposure"]["units"]/a["minutes"] for a in samples) if samples else (load.get('planning_priors') or {}).get('swim_units_per_minute')
     factor=statistics.median(observed_factor(a) for a in samples) if samples else 1
-    cardio=statistics.median(a.get("engine",0)/a["minutes"] for a in samples) if samples else None
+    cardio=statistics.median(a.get("engine",0)/a["minutes"] for a in samples) if samples else ((load.get('planning_priors') or {}).get('dose_per_minute',{}).get('swim') or {}).get('engine')
     ref=model.get("reference_units")
     fast, slow=model.get("recent"), model.get("history_component")
     available=rate is not None and ref is not None and ref>0 and fast is not None and slow is not None
@@ -207,7 +207,7 @@ def swim_plan_forecast(d, today, load=None, done=None):
                 "after_blocks":round(fast+slow,2) if added is not None else None,
                 "threshold":model.get("threshold_blocks",swimload.THRESHOLD),"days_ahead":ahead,
                 "outlook":"Near-term estimate" if ahead<=7 else "Conditional forecast" if ahead<=21 else "Long-range scenario",
-                "samples":len(samples),"dose_basis":"Historical swim exposure per minute"+ (" adjusted for saved stroke/work shares" if shape is not None else "; session ratios not recorded"),
+                "samples":len(samples),"dose_basis":("Historical swim exposure per minute" if samples else "Provisional neutral swim exposure prior")+ (" adjusted for saved stroke/work shares" if shape is not None else "; session ratios not recorded"),
                 "assumptions":"All earlier planned swims completed as written; current capacity and recovery rates unchanged; no future symptom reports or unplanned workouts. Cardio and mechanical scores have different units."}
     return out
 
@@ -242,14 +242,14 @@ def projected_loads(d, today, dates, load=None, done=None, workouts=None):
     history=[a for a in acts if a.get("date", "")<=today.isoformat() and a.get("minutes",0)>0]
     def rate(sport,k):
         samples=sorted([a for a in history if a.get("sport")==sport and a.get(k) is not None],key=lambda a:(a.get("date", ""),a.get("start", "")))[-10:]
-        return statistics.median(a[k]/a["minutes"] for a in samples) if samples else None
+        return statistics.median(a[k]/a["minutes"] for a in samples) if samples else (((load.get("planning_priors") or {}).get("dose_per_minute") or {}).get(sport) or {}).get(k)
     def estimate(s,date,index):
         sport={"ride":"bike"}.get(s.get("sport"),s.get("sport")); mins=s.get("minutes") or 0
         doses={k:0.0 for k in loads.SYSTEMS}; basis=[]; regions={}
         if sport=="rest" or not mins: return doses,regions,["Rest: no scheduled training dose"]
         for k in loads.SYSTEMS:
             r=rate(sport,k); doses[k]=r*mins if r is not None else None
-        basis.append("Recent comparable sport's median load per minute × planned duration")
+        basis.append("Comparable sport median dose per minute where recorded; otherwise explicit provisional scenario prior × duration" if load.get("planning_priors") else "Recent comparable sport's median load per minute × planned duration")
         if sport in ("bike","swim","gym","test"): doses["impact"]=0.0
         if sport=="swim":
             doses["engine"]=(swim.get((date,index)) or {}).get("cardio_points")
@@ -297,7 +297,7 @@ def projected_loads(d, today, dates, load=None, done=None, workouts=None):
                 scratch=copy.deepcopy(d)
                 try:
                     ls=lifting.clean(scratch,s["lifts"],draft=True)
-                    if any(not x.get("scored") for x in ls): raise ValueError("unscored exercises")
+                    if any(not x.get("scored") or x.get('kind') in lifting.MAX_BASED and x.get('weight') is None for x in ls): raise ValueError("unscored exercises or missing working weights")
                     for x in ls:
                         pts,_=lifting.points(scratch,x)
                         for key,value in lifting.spread(x,pts).items(): regions[key]=regions.get(key,0)+value
@@ -455,6 +455,14 @@ def projected_loads(d, today, dates, load=None, done=None, workouts=None):
              "regional_overlap":projected_regions,"outlook":"Recorded + remaining plan" if not elapsed else "Near-term estimate" if elapsed<=7 else "Conditional forecast" if elapsed<=21 else "Long-range scenario",
              "goal_basis":"Recovery / maintenance" if phase_id in ("taper","recovery") else "Build conditioning; manage fatigue; respect running hold" if gate["status"]=="hold" else "Build conditioning; manage accumulated loads",
              "assumptions":"Saved sessions completed in order; unchanged capacity and recovery rates; no future symptom reports, extra workouts or above-allowance walking. Unknown session doses keep affected later estimates unavailable."}
+        import phaseblend
+        intent=phaseblend.resolve(d,key,{'running':{'verdict':'rest' if gate['status']=='hold' else 'go'}},(load or {}).get('headline'))
+        out['phase_blend']=intent
+        if intent['enabled']:
+            out['goal_basis']='Phase roles: '+', '.join(x['name']+' '+x['role'] for x in intent['sports'].values())
+            for session in session_rows:
+                role=intent['sports'].get(session['sport'])
+                if role:session['phase_role']=role['role'];session['phase_why']=role['why']
         by_date[key]=out;day+=dt.timedelta(days=1)
     return by_date
 
@@ -498,6 +506,14 @@ def forecast(d, today, done=None, load=None, checkin=None, workouts=None):
                     workout["swim_outlook"]=swim_estimates[(day["date"],index)]
     projections=projected_loads(d,today,[x["date"] for w in weeks for x in w["days"]],load,done,workouts)
     for week in weeks:
+        policy=(block or {}).get("progression") or {}
+        if policy.get("enabled"):
+            index=weeks.index(week)
+            week["focus"]=("Establish a comfortable, fully scored baseline." if index==0 else
+                "Consolidation week: hold increases; review whether aerobic duration should decrease." if index==n-1 else
+                "Sunday review may add five easy minutes to one swim or ride; otherwise hold or reduce. Running remains separately gated.")
+        import phaseblend
+        week['phase_blend']=phaseblend.week(d,today,week['start'],{'running':{'verdict':'rest' if running_gate(d,load,checkin)['status']=='hold' else 'go'}},(load or {}).get('headline'))
         future=[]
         for day in week["days"]:
             day["projected_loads"]=projections.get(day["date"])
@@ -526,6 +542,8 @@ def forecast(d, today, done=None, load=None, checkin=None, workouts=None):
     import recovery
     remodel=((((load or {}).get("systems") or {}).get("impact") or {}).get("tissue") or {}).get("remodeling") or {}
     return {"run_progression":recovery.status(d,remodel,today), "forecast_comparisons":recovery.comparisons(d,load or {},today) if d.get("load_forecasts") else [],"block": block, "weeks": weeks, "alerts": alerts, "running_gate": gate,
+            "progression_decisions":d.get("progression_decisions",[])[-12:],
+            "progression_symptoms":__import__("progression").active_symptoms(d,today if isinstance(today,str) else today.isoformat()),
             "load_outlooks":list(projections.values()),
             "load_history":recorded_load_history(load,today),
             "swim_outlooks":[{"date":date,"session_index":index,**v} for (date,index),v in swim_estimates.items()],
@@ -581,11 +599,18 @@ def review(d, sunday, done, run_gate=None):
         by_sport["run"] = "hold"
         if wk["sports"]["run"]["planned"]:
             decision, why = "hold", "Running was scheduled while the running load or symptom gate was on hold."
+    import phaseblend
+    blend=phaseblend.resolve(d,(sun+dt.timedelta(days=1)).isoformat())
+    if blend['enabled']:
+        for sport,intent in blend['sports'].items():
+            if by_sport.get(sport)=='advance' and not intent['can_progress']:by_sport[sport]='hold'
+        if decision=='advance' and not any(v=='advance' for v in by_sport.values()):
+            decision,why='hold','The next phase calls for maintenance, recovery or a pause; stable performance is success.'
     out = {"sunday": sunday, "week": index + 1, "decision": decision, "why": why,
            "planned_minutes": wk["total_minutes"], "done_minutes": wk["done_minutes"],
            "adherence": round(adherence, 2), "hard_sessions": wk["hard_sessions"],
            "reported_max": max(symptoms) if symptoms else None, "by_sport": by_sport,
-           "running_gate": run_gate,
+           "running_gate": run_gate, "phase_blend":blend,
            "evidence": "provisional coaching rule; verify against later sessions and reports"}
     block["reviews"][sunday] = out
     # Record a recommendation. A coach or athlete reviews it before changing the next week.

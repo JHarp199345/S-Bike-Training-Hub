@@ -53,6 +53,13 @@ def goal(d, today):
 
 def phase(d, today):
     ahead, past = goal(d, today)
+    import phaseblend
+    saved=phaseblend.active(d,today)
+    if saved:
+        ph='peak' if saved.get('stage')=='specific' else saved['kind']
+        days=(dt.date.fromisoformat(ahead['date'])-today).days if ahead else None
+        return {'phase':ph,'event':ahead,'weeks_to_event':round(days/7,1) if days is not None else None,
+                'days_to_event':days,'why':'Saved program: '+saved['label'],'program_phase':saved['id']}
     if past and (not ahead or (dt.date.fromisoformat(ahead["date"]) - today).days > 14):
         return {"phase": "recovery", "event": past, "weeks_to_event": None, "why": f"the week after {past['name']}"}
     if not ahead:
@@ -629,8 +636,18 @@ def programming(d, profile, sport, today, readiness=None, headline=None, capacit
                        and dt.date.fromisoformat(e["date"]) >= today - dt.timedelta(days=7)]
         if swim_events:
             ph = phase({**d, "events":swim_events}, today)
+    import phaseblend
+    blend=phaseblend.resolve(d,today,readiness,headline)
+    intent=blend['sports'].get('ride' if sport=='bike' else sport)
+    if intent and ph['phase'] not in ('taper','recovery'):
+        ph={**ph,'phase':intent['phase'],'why':ph['why']+'; '+blend['profile']['label']+': '+intent['role']}
     state, why = load_state(sport, readiness, headline)
+    if intent and intent['role'] in ('hold','pause'):
+        state='not_ready';why=why+intent['why']
+
     cap, tier = tier_for(state, ph["phase"])
+    if intent and intent['role']=='maintain' and tier is not None:
+        tier=TIERS[min(TIERS.index(tier),TIERS.index('moderate'))]
     level = ((profile or {}).get("experience") or {}).get(sport) or "returning"
     out = {"sport": sport, "phase": ph, "load_state": state, "load_why": why, "tier_cap": cap, "suggested_tier": tier, "level": level,
            "guidance": [
@@ -638,6 +655,8 @@ def programming(d, profile, sport, today, readiness=None, headline=None, capacit
                "Keep a small set of core sessions and repeat them for 4-6 weeks, progressing one thing a little each time; change at a phase change.",
                "Never above the tier cap: it comes from the load the rider is carrying.",
            ]}
+    out['phase_blend']=blend
+    if intent:out['guidance']+=intent['why']+[intent['maintenance']]
     ev = ph.get("event") or {}
     tri = (ev.get("detail") or {}).get("type") == "triathlon" or ev.get("sport") == "tri" or not ev
     if sport == "swim":
@@ -645,9 +664,10 @@ def programming(d, profile, sport, today, readiness=None, headline=None, capacit
         options, context = swim_profile_options(d, settings, ph, state, today, readiness, headline, activities)
         requested = swim_profile or ((d.get("programming") or {}).get("swim") or {}).get("profile_id") or "auto"
         if requested not in ("auto",) + SWIM_PROFILE_IDS: raise ValueError("Unknown swim profile")
-        eligible = [p for p in options if p["eligible"]]
+        eligible = [p for p in options if p["eligible"] and (not intent or intent['role']!='maintain' or TIERS.index(p['tier'])<=TIERS.index('moderate'))]
         default = "recovery" if state == "heavy" or context["recent_demanding"] or context["weekly_worsening"] else {
             "base":"balanced", "build":"race-pace", "peak":"race-pace", "taper":"event-technique", "recovery":"recovery"}[ph["phase"]]
+        if intent and intent['role']=='maintain':default='balanced'
         chosen = next((p for p in eligible if p["id"] == requested), None) if requested != "auto" else None
         chosen = chosen or next((p for p in eligible if p["id"] == default), None) or next(iter(eligible), None)
         out["swim"] = settings
@@ -689,11 +709,11 @@ def programming(d, profile, sport, today, readiness=None, headline=None, capacit
                             "Cap the main set near the distance where the stroke usually breaks down (get_insights, swim.session_length).",
                             "Paddles add shoulder load; keep hard sets to one or two a week."]
     elif sport == "run":
-        out["templates"] = [fill_run(t, _run_paces((profile or {}).get("run_5k_s")), level) for t in snap(RUN, tier, ph["phase"])]
+        out["templates"] = [fill_run(t, _run_paces((profile or {}).get("run_5k_s")), level) for t in snap([t for t in RUN if TIERS.index(t["tier"])<=TIERS.index(cap)], tier, ph["phase"])]
         out["guidance"] += ["The running blocks decide whether running happens at all; frequency before duration, flat before hills."]
     else:
         ftp = (capacities or {}).get("ftp") or (profile or {}).get("ftp")
-        out["templates"] = [fill_bike(t, ftp, level) for t in snap(BIKE, tier, ph["phase"])]
+        out["templates"] = [fill_bike(t, ftp, level) for t in snap([t for t in BIKE if TIERS.index(t["tier"])<=TIERS.index(cap)], tier, ph["phase"])]
         out["guidance"] += ["When the running blocks are high, riding keeps the aerobic work going without the impact."]
     if ph["phase"] == "taper":
         out["guidance"].append(f"Taper: cut volume 40-60%, keep some intensity ({SOURCES['taper']}).")

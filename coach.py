@@ -311,7 +311,10 @@ def upcoming(d, today=None, running_cleared_in=None):
                          f"train normally for {n - 2} more day{'s' if n - 2 != 1 else ''}, then 2 easy days: nothing hard in the last 48 h")
         elif e["kind"] == "race":
             taper = {"run": 3, "bike": 3, "swim": 2, "tri": 7}.get(e["sport"], 3)
-            if n == 0:
+            saved_taper=next((p for p in d.get('phase_profiles',[]) if p.get('kind')=='taper' and p['start']<=e['date']<p['end']),None) if (d.get('program_goal') or {}).get('target')==e['date'] else None
+            if saved_taper:
+                notes.append('saved program: final preparation from '+saved_taper['start']+'; ease workload from recently tolerated training. Race-day readiness still requires review.')
+            elif n == 0:
                 notes.append("race day")
             elif n <= taper:
                 notes.append(f"taper: easy and short until race day (last {taper} days)")
@@ -321,9 +324,9 @@ def upcoming(d, today=None, running_cleared_in=None):
             if e["sport"] in ("run", "tri") and running_cleared_in is not None:
                 if running_cleared_in > n:
                     notes.append(f"heads-up: the load model has running cleared in about {running_cleared_in} days - "
-                                 f"{running_cleared_in - n} days after this. Walk it, or walk-jog it at the running-return step.")
+                                 f"{running_cleared_in - n} days after this. No running while held; review whether comfortable walking participation is appropriate.")
                 else:
-                    notes.append(f"running clears about {n - running_cleared_in} days before it - time to climb the running-return ladder")
+                    notes.append(f"model projects the threshold about {n - running_cleared_in} days before the event; this is not clearance or enough preparation by itself. Running remains subject to the full gate.")
         out.append({**e, "days": n, "notes": notes})
     return out
 

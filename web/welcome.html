@@ -1,4 +1,4 @@
-<!doctype html><html><head><meta charset="utf-8"><title>S29 Hub · Welcome</title>
+<!doctype html><html><head><meta charset="utf-8"><title>S-Bike Training Hub · Welcome</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
  :root{color-scheme:dark}
@@ -37,8 +37,8 @@
 </style><link rel="stylesheet" href="/web/theme.css"><script src="/web/theme.js"></script></head><body><main>
 
 <div class="sub">S-Bike Training Hub</div>
-<h1>Train every sport without breaking down.</h1>
-<div class="lede">A free, local training hub for triathletes and multisport athletes. It measures the load each part of your body is carrying (heart and lungs, bones and tendons, the muscles you use) and matches it to how fast each one recovers, so your progress stays steady instead of two steps forward and one back.</div>
+<h1>Build a program around your sports.</h1>
+<div class="lede">A free, local hub for cycling, swimming, running and strength—in any combination. Plan your training, compare estimated loads, record how it felt and revise your program as you learn what works for you.</div>
 
 <div class="sports">
  <img src="/web/sports/sport-lifting.jpg" alt="Lifting: an athlete holding a barbell overhead in a gym">
@@ -50,13 +50,13 @@
 <h2>HOW IT WORKS</h2>
 <div class="how">
  <div class="card"><div class="n">1</div><h3>You train and report</h3><p>Your fitness tracker records every session. A quick morning check-in, a follow-up after lifting and a Sunday look back say how your body actually feels.</p></div>
- <div class="card"><div class="n">2</div><h3>The hub measures the load</h3><p>Heart-and-lungs load for every sport, and mechanical load tissue by tissue: running blocks for bones and tendons (slow to heal), leg muscles, shoulders from swimming, each muscle you lift with.</p></div>
+ <div class="card"><div class="n">2</div><h3>The hub estimates the load</h3><p>Heart-and-lungs load for every sport, and mechanical load tissue by tissue: running blocks for bones and tendons (slow to heal), leg muscles, shoulders from swimming, each muscle you lift with.</p></div>
  <div class="card"><div class="n">3</div><h3>It learns your recovery</h3><p>Every model starts from a careful guess and tunes itself to your reports, so the numbers become yours: how much you can take, and how long each part of you needs.</p></div>
  <div class="card"><div class="n">4</div><h3>Your AI plans with it</h3><p>Your AI assistant reads the numbers and plans your days: when to push, when to ease off, and what kind of session fits. You decide; your call always wins.</p></div>
 </div>
 
 <h2>BUILT TO WORK WITH AN AI ASSISTANT</h2>
-<div class="card"><p style="margin-top:0">The hub keeps the numbers; your AI does the coaching conversation. It works with a <b>frontier model</b> (like Claude) or a <b>local model</b> running free on your own computer, through any app that supports MCP servers. Everything stays on your Mac.</p>
+<div class="card"><p style="margin-top:0">The hub keeps the numbers; your AI does the coaching conversation. It works with a <b>frontier model</b> (like Claude) or a <b>local model</b> running free on your own computer, through any app that supports MCP servers. The hub stores your records on your Mac. A cloud AI receives the information you choose to share with it; use a local model for an entirely local coaching conversation.</p>
  <div class="modes">
   <div class="card"><h3>🧭 Consult me</h3><em>"Look at my training load and plan me a lifting session that fits my triathlon plan for the next three weeks. Let's discuss it."</em><p class="fine">Your AI leads with your numbers and the hub's suggestions, and you shape the plan together.</p></div>
   <div class="card"><h3>📋 I have a plan</h3><em>"I have a workout: goblet squats 3 × 8 at 35, dead hangs 3 × 30 seconds…"</em><p class="fine">Your AI records it as you said it and scores it, so the load counts. Your plan stands.</p></div>
@@ -110,6 +110,12 @@
   <label>Swim pace <span class="fine">(critical swim speed, min:sec per 100 m)</span><input id="css" placeholder="e.g. 1:55"></label>
   <label>A recent 5K <span class="fine">(min:sec)</span><input id="run5k" placeholder="e.g. 27:30"></label>
  </div>
+
+ <h3>Your starting program</h3><p class="fine">Choose the sports above, then a workload to preview. Basic exercises and sessions are editable. We fill at most 12 weeks of details; you can plan a longer macro cycle and program the extra weeks yourself or with your assistant.</p>
+ <div class="row"><label>Planning horizon (weeks)<input id="starterweeks" type="number" min="1" max="52" value="12"></label><label>Event / peak date (optional)<input id="startertarget" type="date"></label><label>Available hours / week<input id="starterhours" type="number" min="0.5" max="40" step="0.5" value="3.5"></label></div>
+ <div class="how" id="starterchoices"><button type="button" data-level="easy" class="on"><h3>Easy</h3>Lower volume · establish consistency</button><button type="button" data-level="moderate"><h3>Moderate</h3>More volume · review recovery closely</button><button type="button" data-level="higher"><h3>Higher load</h3>Largest starter dose · compare limits first</button></div><p id="startermatch" class="fine"></p>
+ <details><summary>Strength starting weights & calibration</summary><div class="row"><label>Start the program with<select id="starterassessment"><option value="week">Calibration / familiarization week</option><option value="existing">My reported sets · skip tests</option></select></label><label>Strength equipment<select id="starterequipment"><option value="basic">Bodyweight + resistance band</option><option value="barbell">Barbell basics</option></select></label></div><p class="fine">Enter a recent comfortable set for barbell prescriptions. Weight includes the bar, in your selected units. Prefer 6–10 reps with 2–3 reps left. If you don't know, do a familiarization session and report the result before assigning future barbell weights.</p><div id="welcomeanchors"></div></details>
+ <p class="fine">Setup matches your selected sports and experience. The draft compares fatigue, conditioning and local recovery forecasts before you accept. Week one establishes tolerance; later increases are provisional, with consolidation weeks. No max-effort tests required.</p>
  <label>Your rules, one per line <span class="fine">(optional: "No barbell squats", "Favorite lift: incline dumbbell press")</span><textarea id="rules" rows="3"></textarea></label>
  <p style="margin-bottom:0"><button class="go" type="submit">Set me up</button> <span id="msg" class="fine"></span></p>
 </form>
@@ -119,7 +125,7 @@
  <div class="card"><h3 style="font-size:24px">You're set up.</h3>
   <p class="fine">What the hub set for you:</p><ul class="done" id="setlist"></ul>
   <p class="fine">Next:</p><ol class="done" id="nextlist"></ol>
-  <p><button class="go" type="button" onclick="location.href='/coach'">Into the Coach →</button> <a href="/dashboard" style="margin-left:12px">or the Dashboard</a></p>
+  <p><button class="go" type="button" id="buildstarter">Build my program →</button> <a href="/coach#fitness" style="margin-left:12px">or the Dashboard</a></p>
  </div>
 </div>
 <p class="fine" style="margin-top:30px">Free and open source · <a href="https://github.com/JHarp199345/S-Bike-Training-Hub" target="_blank" rel="noopener">GitHub</a> · <a href="https://github.com/JHarp199345/S-Bike-Training-Hub/wiki" target="_blank" rel="noopener">Wiki</a> · The numbers are estimates, tuned by your reports - not medical advice.</p>
@@ -129,7 +135,11 @@ const $=id=>document.getElementById(id);
 const SP=[['bike','🚴 Cycling'],['run','🏃 Running'],['swim','🏊 Swimming'],['lift','🏋️ Lifting']];
 $('sports').innerHTML=SP.map(([k,n])=>`<div class="sp"><input type="checkbox" id="sp-${k}" aria-label="${n}"><span>${n}</span>
   <select id="ex-${k}" aria-label="Experience in ${n}"><option value="new">new to it</option><option value="returning">returning after a break</option><option value="regular">training regularly</option></select></div>`).join('');
-let start='fresh';
+$('welcomeanchors').innerHTML=['BB squat','BB bench press','BB row'].map((name,i)=>`<div class="row"><b>${name}</b><label>Weight<input type="number" id="anchorweight${i}" min="0" step="0.5"></label><label>Reps<input type="number" id="anchorreps${i}" min="3" max="15" value="8"></label><label>Reps left<input type="number" id="anchorrir${i}" min="0" max="5" value="2"></label></div>`).join('');
+let start='fresh',starterLevel='easy',starterQuery='';
+function matchStarter(){const sports=SP.filter(([k])=>$('sp-'+k).checked).map(([,n])=>n);$('startermatch').textContent=sports.length?'Matched sports: '+sports.join(' · '):'Select at least one sport to match your starter program.';}
+$('sports').addEventListener('change',matchStarter);document.querySelectorAll('[data-level]').forEach(b=>b.onclick=()=>{starterLevel=b.dataset.level;document.querySelectorAll('[data-level]').forEach(x=>x.classList.toggle('on',x===b));});
+$('buildstarter').onclick=()=>location.href='/coach?'+starterQuery+'#plan';
 document.querySelectorAll('#start button').forEach(b=>b.onclick=()=>{ start=b.dataset.v; document.querySelectorAll('#start button').forEach(x=>x.classList.toggle('on',x===b)); });
 $('unit').onchange=()=>$('wunit').textContent=`(${$('unit').value})`;
 fetch('/api/setup').then(r=>r.json()).then(s=>{
@@ -141,10 +151,17 @@ fetch('/api/setup').then(r=>r.json()).then(s=>{
   (p.sports||[]).forEach(k=>{ const c=$('sp-'+k); if(c) c.checked=true; });
   Object.entries(p.experience||{}).forEach(([k,v])=>{ const e=$('ex-'+k); if(e) e.value=v; });
   if(p.smart_bike || (!s.no_bike && p.smart_bike==null)) $('smart_bike').checked=!s.no_bike;
+  matchStarter();
 }).catch(()=>{});
 $('form').onsubmit=async ev=>{ ev.preventDefault();
   const sports=SP.map(([k])=>k).filter(k=>$('sp-'+k).checked);
   if(!sports.length){ $('msg').textContent='Pick at least one sport.'; return; }
+  const weeks=Number($('starterweeks').value),hours=Number($('starterhours').value),target=$('startertarget').value;
+  if(!Number.isInteger(weeks)||weeks<1||weeks>52||!Number.isFinite(hours)||hours<=0||hours>40){$('msg').textContent='Choose 1–52 weeks and up to 40 available hours.';return;}
+  if(target&&target<=new Date().toLocaleDateString('en-CA')){$('msg').textContent='Choose a future event date.';return;}
+  starterQuery=new URLSearchParams({program:'setup',starter:'1',sports:sports.map(s=>({bike:'ride',lift:'gym'}[s]||s)).join(','),weeks:String(weeks),hours:String(hours),target,level:starterLevel}).toString();
+  const anchors=['BB squat','BB bench press','BB row'].flatMap((name,i)=>Number($('anchorweight'+i).value)?[{name,weight:Number($('anchorweight'+i).value),reps:Number($('anchorreps'+i).value),rir:Number($('anchorrir'+i).value),unit:$('unit').value}]:[]);
+  sessionStorage.setItem('starterSetup',JSON.stringify({anchors,unit:$('unit').value,equipment:$('starterequipment').value,assessment:$('starterassessment').value}));
   const body={unit:$('unit').value,weight:+$('weight').value,age:$('age').value||null,hr_rest:$('hr_rest').value||null,hr_max:$('hr_max').value||null,
     sports,experience:Object.fromEntries(sports.map(k=>[k,$('ex-'+k).value])),smart_bike:$('smart_bike').checked,start,
     ftp:$('ftp').value||null,css:$('css').value||null,run5k:$('run5k').value||null,rules:$('rules').value.split('\n').map(x=>x.trim()).filter(Boolean)};

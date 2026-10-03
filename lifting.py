@@ -430,7 +430,9 @@ def steer(d, ctx=None, session_regions=None, today=None):
     off = learned_offset(d)
     share = _curve(ratio, off)
     mode = "restorative" if share >= 0.5 else "build" if share <= 0.15 else "mixed"
-    return {"mode": mode, "restorative_share": round(share, 2), "load_ratio": round(ratio, 2), "why": why or ["everything well under its limit"],
+    import phaseblend
+    intent=phaseblend.resolve(d,today or dt.date.today(),headline=ctx.get('headline'))['sports'].get('gym')
+    return {"phase_intent":intent,"mode": mode, "restorative_share": round(share, 2), "load_ratio": round(ratio, 2), "why": why or ["everything well under its limit"],
             "loads": parts, "learned_offset": round(off, 2),
             "note": "The 80% / 5-10% ends are the rider's starting guess; after-session and follow-up reports move the curve. "
                     "A suggestion - the rider's call wins."}
