@@ -219,6 +219,7 @@
  <div class="row" style="margin-top:10px" id="planrow" hidden><span class="sub">Today's ride:</span> <b id="planw"></b> <button class="purple" id="planride">▶ Ride it</button></div>
  <div class="row" style="margin-top:10px" id="courserow" hidden><span class="sub">No route planned:</span> <button class="purple" id="plancourse">🎮 Ride today's course</button></div>
  <div id="completedtoday" hidden style="margin-top:12px"></div>
+ <div class="card" id="importcard" style="margin-top:12px;display:flex;flex-wrap:wrap;gap:10px;align-items:center"><b>⌚ Add watch files</b><span class="sub" style="flex:1;min-width:200px">Rides, runs and swims from your watch (.fit or .tcx, from COROS, Garmin and most others) count toward your training load.</span><label class="go" style="cursor:pointer;display:inline-flex;align-items:center;padding:9px 14px;border-radius:12px;background:var(--accent);color:#fff;font-weight:700">Choose files<input type="file" id="importfiles" accept=".fit,.tcx" multiple hidden></label><span id="importmsg" class="sub" role="status"></span></div>
 </div>
 <h2>TODAY’S WORKOUTS</h2><div id="todayworkouts"></div>
 <h2 id="weeklytitle" data-training-icon-prefix="adapt" hidden>SUNDAY CHECK-IN · YOUR WEEK</h2>
@@ -429,6 +430,9 @@ let shoulderTouched=false, fullWorkouts=[];      // saved workouts with their st
 const colour=pct=>ZONES.find(z=>pct<z[0])[1];
 const mmss=m=>{ const s=Math.round(m*60); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
 const post=(u,b)=>fetch(u,{method:'POST',body:JSON.stringify(b||{})}).then(async r=>({ok:r.ok,j:await r.json()}));
+$('importfiles').onchange=async e=>{const files=[...e.target.files];if(!files.length)return;let added=0,same=0,bad=[];$('importmsg').textContent='Reading '+files.length+' file'+(files.length>1?'s':'')+'…';
+  for(const f of files){try{const r=await fetch('/api/activities/upload?name='+encodeURIComponent(f.name),{method:'POST',body:f});const j=await r.json();if(!r.ok)bad.push(j.error||f.name);else{added+=(j.imported||[]).length;same+=(j.already||[]).length;}}catch(err){bad.push(f.name);}}
+  $('importmsg').textContent=[added?`${added} added`:'',same?`${same} already here`:'',bad.length?bad.join('; '):''].filter(Boolean).join(' · ');e.target.value='';if(added)loadToday();};
 const MISS_WHY={busy:'Busy',sick:'Sick',sore:'Sore',tired:'Too tired',travel:'Travel',weather:'Weather',other:'Other'};
 const MISSX='<span class="missx" aria-label="missed">✕</span>';
 function missedHtml(date,i,s){const r=s.missed_reason?.reason||s.missed_reason;return `<div class="missrow">${MISSX} <b>Missed: ${esc(s.name||s.sport)}</b>${s.minutes?` · ${s.minutes} min`:''}<div class="sub">${r?'Reason: '+esc(MISS_WHY[r]||r)+' · change it:':'What happened? Your coach uses this in the Sunday review.'}</div><div class="why">${Object.entries(MISS_WHY).map(([k,v])=>`<button type="button" data-miss-date="${esc(date)}" data-miss-index="${i}" data-miss-reason="${k}" class="${r===k?'on':''}">${v}</button>`).join('')}</div></div>`;}
