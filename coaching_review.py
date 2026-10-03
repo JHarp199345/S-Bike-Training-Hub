@@ -50,10 +50,13 @@ def outlook(d, load, done, workouts, today, days=14):
             selected=[run] if s['sport']=='run' else strength
             unknown=not selected or any(m.get('after') is None for m in selected)
             conflicts=[m for m in selected if m.get('after') is not None and m.get('limit') is not None and m['after']>=m['limit']]
+            # a running calibration is a measurement: it ends when tiredness, form or pain says so, and its eight-day
+            # watch follows, so the forecast limit doesn't judge it
+            test=s['sport']=='run' and (d.get('plans',{}).get(row['date']) or {}).get('test')=='run_calibration'
             summaries.append({'date':row['date'],'index':i,'sport':s['sport'],'name':s.get('name'),'minutes':s.get('minutes'),
                 'context':progression.context(d,row['date'],s['sport'],s),'readings':selected,
-                'status':'unknown' if unknown else 'conflict' if conflicts else 'within_projected_limits',
-                'alternatives':['Shorten or reduce the scheduled dose','Move the exposure and recheck the following week','Replace affected work with an eligible activity or rest'] if conflicts else [],
+                'status':'test' if test else 'unknown' if unknown else 'conflict' if conflicts else 'within_projected_limits',
+                'alternatives':['Shorten or reduce the scheduled dose','Move the exposure and recheck the following week','Replace affected work with an eligible activity or rest'] if conflicts and not test else [],
                 'meaning':'Readings include all work on this day; they are not isolated per-session measurements.'})
     gate=B.running_gate(d,load,d.get('checkins',{}).get(today))
     import training_rules
@@ -338,7 +341,7 @@ def preview(d,load,done,workouts,today,base,revision,fields):
         held,clear_by=run_hold(gate,today)
         for row in after['sessions']:
             if row['date'] not in seen:continue
-            if row['status']!='within_projected_limits':violations.append(row['date']+': '+str(row['name'])+' has unknown or excessive projected load')
+            if row['status'] not in ('within_projected_limits','test'):violations.append(row['date']+': '+str(row['name'])+' has unknown or excessive projected load')
             if row['sport']=='run' and held(row['date']):violations.append(row['date']+': current running hold remains in force'+(f' (projected to clear {clear_by})' if clear_by else ''))
             if any(__import__('progression').affected(s,[symptom]) for symptom in after['active_symptoms'] for s in B.sessions(candidate['plans'][row['date']])):violations.append(row['date']+': unresolved symptom overlap')
         # Flag newly introduced or worsened limit breaches across all sports, including later days.

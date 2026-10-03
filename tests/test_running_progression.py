@@ -109,6 +109,18 @@ r = reading(cal, (1.3, 0, 0.9))
 check(f"a running calibration (about one block on purpose) isn't judged against the target ({r['planned_week_peak_blocks']})",
       r["planned_week_peak_blocks"] == 0.9)
 
+# a calibration run is a measurement: the forecast limit doesn't judge it
+import coaching_review as CR, training_block as TB
+calib = {"plans": {day(1): {"test": "run_calibration", "sessions": [{"sport": "run", "minutes": 60, "name": "Running calibration"}]}},
+         "checkins": {}, "training_feedback": {}}
+over = {day(1): {"date": day(1), "metrics": [{"key": "run_mechanical", "before": 0.4, "after": 1.9, "limit": 1.5}]}}
+with patch.object(TB, "projected_loads", return_value=over), patch.object(TB, "running_gate", return_value=OPEN), \
+     patch.object(progression, "context", return_value={"phase": "build", "purpose": "aerobic"}), \
+     patch.object(progression, "active_symptoms", return_value=[]):
+    rows = CR.outlook(calib, {}, {}, [], TODAY, 3)["sessions"]
+check(f"a calibration run forecast over the line is a test, not a conflict ({[r['status'] for r in rows]})",
+      [r["status"] for r in rows] == ["test"])
+
 # the target and the runs it judges are the same calendar week (no flip-flop across the week boundary)
 with patch.object(progression, "context", return_value={"phase": "build", "purpose": "aerobic"}), \
      patch.object(progression, "active_symptoms", return_value=[]):
