@@ -34,7 +34,7 @@ async def main():
    server=await panel.serve(bridge,0,lan=False); port=server.sockets[0].getsockname()[1]
    # Apple's stock Python 3.9 and a minimal desktop-style PATH, with no repo cwd/dependencies.
    runtime='/usr/bin/python3' if pathlib.Path('/usr/bin/python3').exists() else sys.executable
-   proc=await asyncio.create_subprocess_exec(runtime,str(entry),cwd=base,env={'PATH':'/usr/bin:/bin','S29_HUB_URL':f'http://127.0.0.1:{port}'},stdin=asyncio.subprocess.PIPE,stdout=asyncio.subprocess.PIPE,stderr=asyncio.subprocess.PIPE,limit=8*1024*1024)
+   proc=await asyncio.create_subprocess_exec(runtime,str(entry),cwd=base,env={'PATH':'/usr/bin:/bin','S29_HUB_URL':f'http://127.0.0.1:{port}',**({k:os.environ[k] for k in ('SYSTEMROOT','SYSTEMDRIVE','TEMP','TMP') if k in os.environ} if os.name=='nt' else {})},stdin=asyncio.subprocess.PIPE,stdout=asyncio.subprocess.PIPE,stderr=asyncio.subprocess.PIPE,limit=8*1024*1024)
    async def rpc(i, method, params):
     proc.stdin.write((json.dumps({'jsonrpc':'2.0','id':i,'method':method,'params':params})+'\n').encode()); await proc.stdin.drain()
     msg=json.loads(await asyncio.wait_for(proc.stdout.readline(),30)); assert 'error' not in msg,msg

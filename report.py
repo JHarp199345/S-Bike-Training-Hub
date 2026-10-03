@@ -190,7 +190,7 @@ h1{{margin:0}}.sub{{color:var(--muted)}}.grid{{display:grid;grid-template-column
 .k{{background:var(--card);border-radius:12px;padding:12px}}.k b{{display:block;font-size:26px}}.k span{{color:var(--muted);font-size:13px}}
 table{{border-collapse:collapse;width:100%;margin:8px 0 18px}}td,th{{border-bottom:1px solid var(--control);padding:6px;text-align:left}}
 th{{color:var(--muted);font-weight:600}}.legend{{font-size:13px;color:var(--muted);margin:4px 0 18px}}</style><link rel="stylesheet" href="/web/theme.css"><script src="/web/theme.js"></script>
-<h1>Ride report</h1><div class="sub">{a['start']:%A %B %-d, %Y · %H:%M} · {name}</div>
+<h1>Ride report</h1><div class="sub">{a['start']:%A %B} {a['start'].day}, {a['start']:%Y · %H:%M} · {name}</div>
 <div class="grid">
 <div class="k"><b>{a['minutes']:.0f} min</b><span>pedalling</span></div>
 <div class="k"><b>{a['avg_w']:.0f} W</b><span>average · {a['np_w']:.0f} W normalized</span></div>

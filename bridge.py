@@ -1237,7 +1237,7 @@ class Bridge:
             if name:
                 when = dt.datetime.strptime(name[:20], "ride_%Y-%m-%d_%H%M")
                 what = "this route" if self.route_ride else "the route"
-                self.event(f"Ghost: racing your ride of {what} from {when:%a %b %-d at %-I:%M %p}")
+                self.event(f"Ghost: racing your ride of {what} from {when:%a %b} {when.day} at {when.hour % 12 or 12}:{when:%M %p}")
             elif self.ghost_name:
                 self.event("Ghost: the road no longer matches that ride - ghost dropped")
             self.ghost_name = name
