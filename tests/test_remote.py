@@ -39,7 +39,8 @@ def main():
           h(p=b"/ride", hd=ck) is None and h(p=b"/tiles/14/2806/6535", hd=ck) is None)
     check("the paired phone still can't stop the bridge", h(m=b"POST", p=b"/stop", hd=ck)[0] == 403)
     check("the paired phone can't unpair everyone", h(m=b"POST", p=b"/remote/forget", hd=ck)[0] == 403)
-    check("a made-up token doesn't work", h(m=b"POST", p=b"/gear/1", hd={b"cookie": f"{remote.COOKIE}=x{tok[1:]}".encode()})[0] == 401)
+    fake = ("y" if tok[0] == "x" else "x") + tok[1:]      # always differs from the real token (1 in 64 started with x)
+    check("a made-up token doesn't work", (h(m=b"POST", p=b"/gear/1", hd={b"cookie": f"{remote.COOKIE}={fake}".encode()}) or [None])[0] == 401)
 
     remote._fails.clear()
     for _ in range(5):
