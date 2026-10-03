@@ -3,7 +3,8 @@
 
 Every check-in returns this list, and the assistant works through it in the same conversation: it proposes the
 lightest fix for each item, previews it, applies it once the athlete agrees, and says what changed and why (or
-that the plan stands). The hub only lists; it never rewrites the plan on its own.
+that the plan stands). The hub only lists; apart from the opt-in progression policy (at most one bounded change
+per check-in, when the athlete has switched it on), it doesn't rewrite the plan on its own.
 
 Most urgent first: stop/whole-body warnings, training-rule breaks, forecast conflicts, running deloads and
 targets, calibration questions, missed sessions without a reason, then cautions.
@@ -71,4 +72,4 @@ def items(d, load, done, workouts, today, days=7):
             "summary": "Nothing needs changing: the plan stands." if not out else
                        f"{len(out)} thing{'s' if len(out) != 1 else ''} to go through with the athlete, most urgent first.",
             "routine": "Go through the items in order: propose the lightest fix, preview it, apply it once the athlete "
-                       "agrees, and say what changed and why. The hub never rewrites the plan by itself."}
+                       "agrees, and say what changed and why. The hub changes nothing here by itself."}
