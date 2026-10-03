@@ -9,11 +9,46 @@ The assistant has two separate levers: change the future program within current 
 3. After athlete approval, `apply_coaching_change` saves the exact `draft_id` with `approved: true`. Re-read the outlook and saved calendar. Changed athlete inputs/source versions or an expired six-hour draft require a fresh review; retained retries return a receipt. Completed days are protected.
 4. Capacity candidates appear when recorded work and delayed responses supply sufficient matched evidence. Preview `kind: capacity`, `target: running_block` or `lift_<region>`. The Hub proposes direction and size from the evidence; the assistant cannot supply an arbitrary larger number. The before/after outlook exposes the modeled consequences. Apply uses the same approved-draft workflow.
 
-## Progressing running load
+## Running load: targets, deloads and weekly adaptation
 
-`outlook.running_progression` compares the coming week's forecast running peak (in blocks) with the current phase's band: assessment 0.6–1.0, base 0.8–1.1, build/peak 1.2–1.45, event-specific 1.1–1.4, taper 0.4–0.9, none in recovery. The 1.5-block line remains the limit. `under_target` means the plan doesn't challenge running: lengthen the long run or add an easy run at least two days from the others, previewing until the forecast reaches the band, and prefer one well-spaced step to several stacked runs. Then read the response before the next step. Clean mornings, a held hop test and steady pace at heart rate let automatic block learning grow the block, so the same band holds more running; rough responses shrink it. The bands are provisional product policy.
+These are provisional product policies (the rider's design), not validated thresholds.
 
-Automatic block learning solves for the largest block under which the evidence day still shows 1.25 blocks carried. It does not rescale linearly from the old block, because the curve is nonlinear and a smaller block overstates the work. Repeating the same runs therefore cannot keep growing it. After rough mornings, the block cannot regrow past its earlier size until two clean runs in a row.
+**Targets.** `outlook.running_progression` compares the blocks carried on the coming week's run days with a target for the athlete's current state:
+
+| State | Target (blocks) |
+|---|---|
+| Building running (build, peak, event-specific), waved week to week | light 0.8–1.0 · middle 1.0–1.2 · heavy 1.2–1.45 |
+| Base | 0.8–1.2 |
+| Running not the focus (maintain): about a third of the middle | 0.3–0.5 |
+| Assessment · taper · recovery | 0.4–0.8 · 0.3–0.6 · 0.1–0.4 |
+| Automatic deload, then deep deload | 0.3–0.4, then 0–0.1 |
+| Re-entry after a deload (one week) | 0.8–0.9 |
+
+The 1.5-block line remains the hard limit. Runs are spaced so each one lands in the target, not stacked. Maintenance running keeps a little intensity, such as strides: endurance holds through large volume cuts when intensity is kept (Hickson, 1981–85).
+
+**Automatic deload.** Any of these in the last four weeks deloads running to 0.4:
+- tightness or pain in a run report;
+- a run reported too hard;
+- legs or feet 6+ in the morning;
+- a hop-test drop of two or more.
+
+If negative reports continue past a week, the target drops to 0.1. Two weeks of them means stop running and get it assessed. Running comes back in at 0.8 for a week, after at least a week and two clean mornings (legs and feet 3 or lower). It's recomputed from the reports every day, so it ends without a manual reset. Shortness of breath or a heart-rate issue is a whole-body warning, not a running one. The Hub changes the target automatically. Calendar changes still go through preview and the athlete's approval, and preview rejects runs over a deload target.
+
+**Weekly cap.** Planned weekly running load (in blocks) may rise at most 15% over the most of the last three weeks, whatever the block says. This guards against any estimate being wrong upward: novice runners who increased weekly distance by more than 30% had more injuries (Nielsen et al., 2014).
+
+**Weekly adaptation (automatic block learning).** A too-small block is the safe error: the plan comes out a little too easy. A too-large one hides real load. So the block shrinks fast and grows slow:
+- A run followed by rough mornings, a hop-test drop, or slower running at the same heart rate shrinks it 15% at once. It can't regrow past its earlier size until two clean in-band runs.
+- Each week with runs that carried at least 0.8 blocks is scored on how easily they were absorbed:
+  - mornings against the prediction for the load (1.5 + 2 × blocks carried, capped at 9);
+  - the share of runs that read as too easy;
+  - pace per heartbeat against the previous comparable run;
+  - heart-rate drift on steady runs of 30+ minutes;
+  - the hop test.
+- The week grows the block only if it read as too easy: mornings at least a point better than predicted, or the athlete said so. Pace per heartbeat must not have fallen more than 3%, and drift must be under 8%.
+- Growth is 1% + 9% × the score. It's capped at 5% with one run and at 3% with no heart-rate evidence.
+- Runs under 0.8 blocks are never evidence. Nobody has to carry a heavy load to prove capacity.
+
+**Emphasis phases.** With several goals, build one or two sports in their bands while the others hold about a third, then rotate. Running's deload and maintenance weeks are when the bike or swim builds. Shared tissue competes: running and leg lifting share the legs, and swimming and upper-body lifting share the shoulders. Cycling and lifting coexist best (Wilson et al., 2012).
 
 ## Evidence rules
 

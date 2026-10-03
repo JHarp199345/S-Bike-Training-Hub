@@ -52,10 +52,11 @@ base = damage.remodeling_response(dates, doses(), feet_reports=reports())
 learned = damage.remodeling_response(dates, doses(), feet_reports=reports(), runs=runs())
 check(f"without run evidence nothing changes (reference {base['reference_points']}, {base['score']} blocks)",
       base["block_learning"] == [])
-check(f"easy runs carried well grow the block ({base['reference_points']} -> {learned['reference_points']})",
-      learned["reference_points"] > 2 * base["reference_points"])
-check(f"…so the same training sits under the 1.5-block line ({base['score']} -> {learned['score']} blocks)",
-      base["score"] >= 1.5 > learned["score"])
+weekly = [x for x in learned["block_learning"] if x.get("score") is not None]
+check(f"weeks of too-easy runs grow the block week by week ({base['reference_points']} -> {learned['reference_points']})",
+      learned["reference_points"] > base["reference_points"] and len(weekly) >= 2)
+check("…by 1-10% a week, scored on how easily the runs were absorbed",
+      all(1.0 <= 100 * (x["to"] / x["from"] - 1) <= 10.05 and 0 <= x["score"] <= 1 for x in weekly))
 check("each step says why", learned["block_learning"] and all(s["why"] and s["to"] != s["from"] for s in learned["block_learning"]))
 check("the first run's easy heart rate is evidence", "heart-rate reserve" in learned["block_learning"][0]["why"])
 
@@ -70,10 +71,26 @@ check("rough mornings after a run shrink the block", k is not None and steps[k][
 check("…and it can't grow past its earlier size until two clean runs in a row confirm it",
       k is not None and len(steps) > k + 1 and steps[k + 1]["to"] <= steps[k]["from"])
 
-# the same runs, repeated, can't keep growing the block: it settles where they're carried at about 1.25 blocks
-peak = max(c["after_blocks"] for c in learned["components"])
-check(f"learned block is self-consistent: the training that taught it peaks near 1.25 blocks under it ({peak})",
-      1.0 <= peak <= 1.5)
+one = damage.learn_block(dates, [30.0 if i in (0, 9) else 0 for i in range(len(dates))], reports(), runs(), 30.0)[1]
+check("one in-band run in a week grows it at most 5%",
+      all(x["to"] / x["from"] <= 1.0501 for x in one if x.get("score") is not None))
+feel = damage.learn_block(dates, doses(), reports(), {d: {"hrr": None, "eff": None} for d in dates}, 30.0)[1]
+check("feelings without heart-rate evidence grow it at most 3% a week",
+      feel and all(x["to"] / x["from"] <= 1.035 for x in feel if x.get("score") is not None))
+light = [3.0 if i in RUNS else 0 for i in range(len(dates))]
+check("runs below the band (0.8 blocks) aren't evidence",
+      not [x for x in damage.learn_block(dates, light, reports(), runs(), 30.0)[1] if x.get("score") is not None])
+weekly_runs = [20.0 if i in (0, 7, 14, 21) else 0 for i in range(len(dates))]     # 0.85-0.97 blocks carried, a week apart
+as_said = damage.learn_block(dates, weekly_runs, reports(feet=3, legs=3), runs(hrr=0.9), 30.0)[1]
+check("a week that felt as predicted holds", not [x for x in as_said if x.get("score") is not None])
+drifty = {d: {**v, "drift": 9.0, "minutes": 40} for d, v in runs().items()}
+check("heart-rate drift of 8% or more holds growth",
+      not [x for x in damage.learn_block(dates, doses(), reports(), drifty, 30.0)[1] if x.get("score") is not None])
+said = {d: {**v, "effort": "too_easy"} for d, v in runs().items()}
+mid = reports(feet=3, legs=3)
+check("the athlete saying 'too easy' counts when the mornings are only a little better than predicted",
+      len([x for x in damage.learn_block(dates, [20.0 if i in RUNS else 0 for i in range(len(dates))], mid, said, 30.0)[1] if x.get("score") is not None])
+      >= len([x for x in damage.learn_block(dates, [20.0 if i in RUNS else 0 for i in range(len(dates))], mid, runs(), 30.0)[1] if x.get("score") is not None]))
 
 slow = damage.remodeling_response(dates, doses(), feet_reports=reports(), runs=runs(slower_from=10))
 check("running slower at the same heart rate shrinks it too", any("slowed" in s["why"] for s in slow["block_learning"]))

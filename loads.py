@@ -240,9 +240,30 @@ def automatic_run_learning(prof, reviews=None):
     return (prof.get('return_to_run') is False and not prof.get('_protected_run_recovery') and not reviews)
 
 
+RUN_DRIFT_MIN = 30      # heart-rate drift only means something on a steady run this long (minutes)
+
+
+def run_drift(a):
+    """Heart-rate drift on a steady run: speed per heartbeat, first half against second, after five minutes of
+    settling (percent; under ~5% the run stayed comfortable). None if short, unsteady or missing speed/HR."""
+    recs = [r for r in a.get("records") or [] if r.get("hr") and r.get("v")]
+    if len(recs) < RUN_DRIFT_MIN * 60:
+        return None
+    body = recs[300:]
+    v = [r["v"] for r in body]
+    mean = sum(v) / len(v)
+    if mean <= 0 or (sum((x - mean) ** 2 for x in v) / len(v)) ** 0.5 / mean > 0.15:   # intervals/hills: not steady
+        return None
+    half = len(body) // 2
+    ratio = lambda part: (sum(r["v"] for r in part) / len(part)) / (sum(r["hr"] for r in part) / len(part))
+    first, second = ratio(body[:half]), ratio(body[half:])
+    return round(100 * (first - second) / first, 1)
+
+
 def run_evidence(scored, prof):
-    """Per running day, for learning the block: share of heart-rate reserve and pace per heartbeat (km/h per bpm
-    over resting). The longest run of the day speaks for it."""
+    """Per running day, for learning the block: share of heart-rate reserve, pace per heartbeat (km/h per bpm
+    over resting), heart-rate drift, and what the athlete said in the run report. The longest run of the day
+    speaks for it."""
     out = {}
     rest, top = prof.get("hr_rest") or 60, prof.get("hr_max") or 185
     for a in scored:
@@ -252,9 +273,11 @@ def run_evidence(scored, prof):
             continue
         kmh = a["km"] / (a["minutes"] / 60)
         hr = a.get("avg_hr")
+        said = (prof.get("_run_feedback") or {}).get(a["date"]) or {}
         out[a["date"]] = {"minutes": a["minutes"], "kmh": round(kmh, 2),
                           "hrr": round((hr - rest) / max(1, top - rest), 3) if hr else None,
-                          "eff": round(kmh / max(1, hr - rest), 4) if hr else None}
+                          "eff": round(kmh / max(1, hr - rest), 4) if hr else None,
+                          "drift": a.get("drift_pct"), "effort": said.get("effort"), "rpe": said.get("rpe")}
     return out
 
 
@@ -431,6 +454,8 @@ def analyse(acts, prof, today=None, meta=None, feet_reports=None, daily_steps=No
         if extra.get("steps"):                         # the force per step that carries the damage (its 4th-power mean), in lb
             f = (s["impact"] / extra["steps"] / REF_POINTS_PER_STEP) ** (1 / POWER) * REF_FORCE / damage.LBF
             extra |= {"force_lb": round(f), "steps_at_1000lb": round(s["impact"] * damage.STEPS_1000LB_PER_POINT)}
+        if a["sport"] == "run":
+            extra["drift_pct"] = run_drift(a)
         scored.append({**extra, "id": a["id"], "source": a["source"], "sport": a["sport"],
                        "date": dt.date.fromtimestamp(a["start"]).isoformat(),
                        "start": dt.datetime.fromtimestamp(a["start"]).strftime("%H:%M"),
@@ -838,6 +863,9 @@ def summary(base, today=None):
         checkins = {day: journal.effective(c) for day, c in checkins.items()}   # confirmed flags count like sliders
         feet_reports = {day: {k: float(c[k]) for k in ("feet", "legs", "hops", "shoulders") if c.get(k) is not None}
                         for day, c in checkins.items() if any(c.get(k) is not None for k in ("feet", "legs", "hops", "shoulders"))}
+        prof["_run_feedback"] = {e["date"]: {"effort": e.get("effort"), "rpe": e.get("rpe")}
+                                 for e in coach.load(base / "coach.json").get("training_feedback", {}).values()
+                                 if e.get("sport") == "run"}
     except (OSError, ValueError, TypeError):
         feet_reports = {}
     try:                                        # calibrated capacities (calibration.py) feed the scoring
