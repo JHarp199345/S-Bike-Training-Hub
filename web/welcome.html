@@ -26,6 +26,7 @@
  label{display:grid;gap:5px;color:var(--text2);font-size:14px}
  input,select,textarea{font:inherit;padding:10px;border-radius:10px;background:var(--bg);color:var(--text);border:1px solid var(--line);min-width:0}
  .seg{display:flex;gap:6px;flex-wrap:wrap}.seg button{flex:1;min-width:120px}
+ .chips button{min-width:64px;padding:6px 4px;line-height:1.2}.chips button small{display:block;opacity:.75;font-size:11px}
  button{font:inherit;font-weight:700;padding:11px 16px;border-radius:12px;border:1px solid var(--line);background:var(--control);color:var(--text);cursor:pointer}
  button.on{background:var(--accent);border-color:var(--accent);color:#fff}
  button.go{background:var(--accent);border-color:var(--accent);color:#fff;font-size:17px;padding:14px 22px}
@@ -125,6 +126,15 @@
  <div id="sports"></div>
  <label style="margin:12px 0"><span><input type="checkbox" id="smart_bike"> I have a smart bike connected to the hub</span></label>
  <label style="margin:0 0 12px"><span><input type="checkbox" id="return_to_run"> I'm coming back from a running injury (shin, foot, knee, hip)</span><span class="fine">Turns on the careful return-to-run protocol: longer gaps between runs and strength, balance and loading checks before running progresses.</span></label>
+ <div id="running" hidden>
+ <h3>Your running</h3>
+ <div class="seg" id="runsnow"><button type="button" data-v="no" class="on">I don't run yet</button><button type="button" data-v="yes">I already run</button></div>
+ <p class="fine" id="runq" style="margin:10px 0 6px">How much running would you like in a week? <span class="fine">40 minutes is about one good run.</span></p>
+ <div class="seg chips" id="runmin"></div>
+ <label id="runmore" hidden style="margin-top:8px">Minutes a week<input id="runmoremin" type="number" inputmode="numeric" min="140" max="600" placeholder="e.g. 180"></label>
+ <label id="runcount" hidden style="margin-top:8px">In how many runs a week?<select id="runsper"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option></select></label>
+ <label style="margin:10px 0 0"><span><input type="checkbox" id="runniggles"> Any pain or niggles right now?</span><span class="fine" id="runnote"></span></label>
+ </div>
  <h3>Where you're starting from</h3>
  <div class="seg" id="start"><button type="button" data-v="fresh" class="on">Fresh: feeling good, no aches</button><button type="button" data-v="loaded">Loaded: sore joints or a heavy block behind me</button></div>
  <p class="fine">Loaded starts every limit 30% more cautious, and asks for the hop test before your first run.</p>
@@ -166,6 +176,19 @@ $('sports').addEventListener('change',matchStarter);document.querySelectorAll('[
 $('buildstarter').onclick=()=>location.href='/coach?'+starterQuery+'#plan';
 document.querySelectorAll('#start button').forEach(b=>b.onclick=()=>{ start=b.dataset.v; document.querySelectorAll('#start button').forEach(x=>x.classList.toggle('on',x===b)); });
 $('unit').onchange=()=>$('wunit').textContent=`(${$('unit').value})`;
+// ── running: what they do now (or would like), in good runs: 40 min is about one good run ──
+const RUNMIN=[[20,'½ run'],[30,'¾ run'],[40,'1 run'],[60,'1½ runs'],[80,'2 runs'],[100,'2½ runs'],[120,'3 runs'],['more','more…']];
+let runsNow=false,runMin=40;
+$('runmin').innerHTML=RUNMIN.map(([m,l])=>`<button type="button" data-m="${m}" class="${m===40?'on':''}">${m==='more'?'140+':m+' min'}<small>${l}</small></button>`).join('');
+function runText(){
+  $('runq').innerHTML=(runsNow?'How much do you run in a typical week?':'How much running would you like in a week?')+' <span class="fine">40 minutes is about one good run.</span>';
+  $('runcount').hidden=!runsNow;
+  $('runnote').textContent=(runsNow?'You start at your usual week and hold it for two weeks before anything increases.':'You start a little below what you pick.')+
+    ' A niggle halves it. A calibration run in your first week measures your running properly.';}
+document.querySelectorAll('#runsnow button').forEach(b=>b.onclick=()=>{runsNow=b.dataset.v==='yes';document.querySelectorAll('#runsnow button').forEach(x=>x.classList.toggle('on',x===b));runText();});
+$('runmin').querySelectorAll('button').forEach(b=>b.onclick=()=>{runMin=b.dataset.m==='more'?'more':+b.dataset.m;$('runmin').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));$('runmore').hidden=runMin!=='more';});
+function showRunning(){const c=$('sp-run');$('running').hidden=!(c&&c.checked);}
+$('sports').addEventListener('change',showRunning);runText();
 fetch('/api/setup').then(r=>r.json()).then(s=>{
   const f=s.folder||'';
   if(f) $('mcpcmd').textContent=`claude mcp add --scope user s-bike-hub -- "${f}/.venv/bin/python" "${f}/mcp_server.py"`;
@@ -176,7 +199,12 @@ fetch('/api/setup').then(r=>r.json()).then(s=>{
   Object.entries(p.experience||{}).forEach(([k,v])=>{ const e=$('ex-'+k); if(e) e.value=v; });
   if(p.smart_bike || (!s.no_bike && p.smart_bike==null)) $('smart_bike').checked=!s.no_bike;
   if(p.return_to_run) $('return_to_run').checked=true;
-  matchStarter();
+  const rs=p.running_start;
+  if(rs){runsNow=rs.runs_now;document.querySelectorAll('#runsnow button').forEach(x=>x.classList.toggle('on',(x.dataset.v==='yes')===runsNow));
+    const hit=RUNMIN.find(([m])=>m===rs.minutes);runMin=hit?rs.minutes:'more';if(!hit)$('runmoremin').value=rs.minutes;
+    $('runmin').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x.dataset.m===String(runMin)));$('runmore').hidden=runMin!=='more';
+    $('runsper').value=rs.runs;$('runniggles').checked=rs.niggles;runText();}
+  showRunning();matchStarter();
 }).catch(()=>{});
 // ── Your bike: scan; a recognized bike is one click, an unrecognized one is queued for the assistant ──
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -225,6 +253,9 @@ $('form').onsubmit=async ev=>{ ev.preventDefault();
   const body={unit:$('unit').value,weight:+$('weight').value,age:$('age').value||null,hr_rest:$('hr_rest').value||null,hr_max:$('hr_max').value||null,
     sports,experience:Object.fromEntries(sports.map(k=>[k,$('ex-'+k).value])),smart_bike:$('smart_bike').checked,return_to_run:$('return_to_run').checked,start,
     ftp:$('ftp').value||null,css:$('css').value||null,run5k:$('run5k').value||null,rules:$('rules').value.split('\n').map(x=>x.trim()).filter(Boolean)};
+  if(sports.includes('run')){const m=runMin==='more'?Number($('runmoremin').value):runMin;
+    if(!Number.isFinite(m)||m<10){$('msg').textContent='Enter your weekly running minutes.';return;}
+    Object.assign(body,{runs_now:runsNow,run_minutes:m,runs_per_week:runsNow?Number($('runsper').value):null,run_niggles:$('runniggles').checked});}
   const r=await fetch('/api/setup',{method:'POST',body:JSON.stringify(body)}); const j=await r.json();
   if(!r.ok){ $('msg').textContent=j.error||'Something went wrong.'; return; }
   $('setlist').innerHTML=j.set.map(x=>`<li>${x.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}</li>`).join('');

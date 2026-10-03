@@ -201,14 +201,20 @@ def build(d,proposal,profile=None,load=None,done=None,workouts=None,today=None):
     target=proposal.get('target')
     tri=proposal.get('sport')=='tri'
     calibrate=proposal.get('run_calibration',True) and not proposal.get('running_hold')
+    rstart=profile.get('running_start')
     for name,factor in LEVELS.items():
-        plans={};journey=[];cal_day=cal_end=None
+        plans={};journey=[];cal_day=cal_end=run_w0=None
         fractions=week_fractions(proposal['weeks'],name,target)
         for w,week in enumerate(proposal['weeks']):
             slots=[x for x in week['slots'] if start.isoformat()<=x['date']<end.isoformat() and x['sport']!='rest' and x.get('source')!='scheduled']
             if cal_day:                       # no running in the calibration run's eight-day watch
                 slots=[x for x in slots if not (x['sport']=='run' and cal_day<x['date']<=cal_end)]
             frac,stage,shape=fractions[w]
+            if rstart and stage not in ('assessment','race_week'):
+                # the athlete's running start: no more runs a week than they do (or chose), and spare run days go
+                # to the other sports' budget
+                runs=[x for x in slots if x['sport']=='run']
+                for x in runs[rstart['runs']:]:slots.remove(x)
             if stage=='race_week' and target:
                 # the day before the race is rest; two days before, openers; nothing after the race in this week
                 before=(dt.date.fromisoformat(target)-dt.timedelta(days=1)).isoformat()
@@ -291,6 +297,11 @@ def build(d,proposal,profile=None,load=None,done=None,workouts=None,today=None):
                 if i not in keep:continue
                 sp=p['sport'];minutes=mins[i]
                 rec=stage in ('recovery','taper','assessment','race_week') or shape=='consolidation'
+                if sp=='run' and rstart and p['role'] not in ('calibration','brick','opener','test'):
+                    # their starting run length, held for current runners' first two weeks, then up to 10% a week
+                    run_w0=w if run_w0 is None else run_w0          # counted from the first week with a run
+                    grow=1.1**max(0,w-run_w0-rstart.get('hold_weeks',0))
+                    minutes=min(minutes,max(10,rstart['per_run']*grow))
                 session=workout(sp,int(minutes),w,name,p['ex'],equipment,d,anchors,rec,stage,p['role'],not proposal.get('running_hold'),
                                 p['slot'].get('lift_focus','full'))
                 session['shape']=shape
