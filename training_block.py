@@ -84,6 +84,9 @@ def _week(d, start, done=None):
         watched_minutes = sum(int(x.get("minutes") or 0) for x in actual if x["sport"] == "gym")
         if logged_minutes > watched_minutes:
             actual.append({"sport": "gym", "minutes": logged_minutes - watched_minutes})
+        import coach
+        marked = coach.mark_missed(d, date, coach.attach_completions(d, date, copy.deepcopy(all_sessions),
+                                                                      copy.deepcopy((done or {}).get(date, []))))
         for s in ss:
             minutes = int(s.get("minutes") or 0)
             totals[s["sport"]]["planned"] += minutes
@@ -92,14 +95,18 @@ def _week(d, start, done=None):
         for s in actual:
             totals[s["sport"]]["done"] += int(s.get("minutes") or 0)
         days.append({"date": date, "sessions": len(ss),
-                     "workouts": [{"sport": s.get("sport"), "name": s.get("name"), "minutes": int(s.get("minutes") or 0)} for s in all_sessions],
+                     "workouts": [{"sport": s.get("sport"), "name": s.get("name"), "minutes": int(s.get("minutes") or 0),
+                                   "shape": s.get("shape"), "completed": bool(s.get("completion")), "missed": bool(s.get("missed")),
+                                   "missed_reason": (s.get("missed_reason") or {}).get("reason")} for s in marked],
                      "minutes": sum(int(s.get("minutes") or 0) for s in ss),
-                     "hard": sum(hard(s) for s in ss), "done_minutes": sum(int(s.get("minutes") or 0) for s in actual)})
+                     "hard": sum(hard(s) for s in ss), "done_minutes": sum(int(s.get("minutes") or 0) for s in actual),
+                     "missed": sum(1 for s in marked if s.get("missed"))})
     return {"start": start.isoformat(), "end": (start + dt.timedelta(days=6)).isoformat(),
             "days": days, "sports": totals, "hard_sessions": hard_count,
             "total_minutes": sum(v["planned"] for v in totals.values()),
             "exposure_minutes": sum(v["exposure"] for v in totals.values()),
-            "done_minutes": sum(v["done"] for v in totals.values())}
+            "done_minutes": sum(v["done"] for v in totals.values()),
+            "missed": sum(x["missed"] for x in days)}
 
 
 def create(d, today, weeks=4, start_date=None, run_gate=None):

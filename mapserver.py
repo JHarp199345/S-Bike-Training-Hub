@@ -1039,6 +1039,40 @@ async def coach_api(bridge, method, path, p, body):
             since = (__import__("datetime").date.fromisoformat(date) - __import__("datetime").timedelta(days=days)).isoformat()
             return js({"checkins": {k: v for k, v in d["checkins"].items() if since <= k <= date},
                        "plans": {k: v for k, v in d["plans"].items() if since <= k <= date}})
+        if p == "/api/coach/recent-weeks":
+            import training_block as TB
+            n = max(1, min(12, int((q.get("weeks") or ["4"])[0])))
+            done = done_by_day(rides.parent, d)
+            goal = d.get("program_goal") or {}
+            avail = round(float(goal.get("hours") or 0) * 60) or None
+            mon = TB.monday(__import__("datetime").date.fromisoformat(date))
+            out = []
+            for i in range(n, -2, -1):          # n weeks back, this week, and next week
+                start = mon - __import__("datetime").timedelta(days=7 * i)
+                w = TB._week(d, start, done)
+                shapes = sorted({s.get("shape") for x in w["days"] for s in x["workouts"] if s.get("shape")})
+                phase = next((ph for ph in d.get("phase_profiles", []) if ph["start"] <= start.isoformat() < ph["end"]), None)
+                out.append({"week_of": w["start"], "when": "this week" if i == 0 else "next week" if i == -1 else f"{i} week{'s' if i > 1 else ''} ago",
+                            "phase": phase and {"label": phase.get("label"), "stage": phase.get("stage")}, "shape": shapes,
+                            "planned_minutes": w["total_minutes"], "done_minutes": w["done_minutes"], "available_minutes": avail,
+                            "planned_share_of_available": round(w["total_minutes"] / avail, 2) if avail else None,
+                            "completion": round(w["done_minutes"] / w["total_minutes"], 2) if w["total_minutes"] and i > 0 else None,
+                            "hard_sessions": w["hard_sessions"],
+                            "missed": [{"date": x["date"], "index": k, "session": s.get("name") or s.get("sport"), "minutes": s.get("minutes"),
+                                        "reason": s.get("missed_reason")} for x in w["days"] for k, s in enumerate(x["workouts"]) if s.get("missed")]})
+            return js({"weeks": out, "goal": {k: goal.get(k) for k in ("goal", "sport", "target", "hours", "start")} if goal else None,
+                       "note": "Planned vs done per week against the athlete's available time; missed sessions with their reasons."})
+        if p == "/api/coach/missed" and method == b"GET":
+            start = (q.get("start") or [(__import__("datetime").date.fromisoformat(coach.today()) - __import__("datetime").timedelta(days=84)).isoformat()])[0]
+            end = (q.get("end") or [coach.today()])[0]
+            return js({"missed": coach.missed_days(d, start, end, done_by_day(rides.parent, d)), "reasons": list(coach.MISS_REASONS)})
+        if p == "/api/coach/missed" and method == b"POST":
+            try:
+                entry = coach.record_missed(d, date, req.get("index"), req.get("reason"), req.get("note", ""))
+            except ValueError as e:
+                return js({"error": str(e)}, 400)
+            coach.save(d); _load_cache["key"] = None
+            return js({"missed": entry, "week": coach.week(d, date, done_by_day(rides.parent, d))})
         if p == "/api/coach/flag" and method == b"POST":
             import journal
             c = d["checkins"].get(date)

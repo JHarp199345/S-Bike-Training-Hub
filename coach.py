@@ -388,6 +388,81 @@ def last_ride(rides_dir, min_seconds=300, d=None):
     return None
 
 
+MISS_REASONS = ("busy", "sick", "sore", "tired", "travel", "weather", "other")
+TRAINABLE = ("ride", "swim", "run", "gym", "walk")
+
+
+def attach_completions(d, k, sessions, actual):
+    """Pair each planned session on day k with what was actually done (completion), sport by sport."""
+    used = set()
+    gym_index = 0
+    for s in sessions:
+        if s.get("sport") == "gym":
+            log = next((l for l in (d.get("lifting") or {}).get("logs", [])
+                        if l.get("date") == k and l.get("session") == s.get("name")
+                        and (l.get("inputs") or {}).get("session_index") in (None, gym_index)), None)
+            if log is None:   # a lift logged that day under another name still counts for the gym session
+                log = next((l for l in (d.get("lifting") or {}).get("logs", []) if l.get("date") == k), None) if gym_index == 0 else None
+            gym_index += 1
+            if log:
+                s["completion"] = {"minutes": log.get("minutes"), "lifting": log}
+            continue
+        want = {"ride": "bike"}.get(s.get("sport"), s.get("sport"))
+        matches = [(n, a) for n, a in enumerate(actual) if n not in used
+                   and {"ride": "bike"}.get(a.get("sport"), a.get("sport")) == want
+                   and a.get("minutes", 0) >= max(ATTEMPT_MIN, (s.get("minutes") or 0) * ATTEMPT_SHARE)]
+        if matches:
+            n, a = matches[0]
+            used.add(n)
+            s["completion"] = a
+    return sessions
+
+
+def mark_missed(d, k, sessions, as_of=None):
+    """A planned session on a past day with nothing recorded against it is missed (with the athlete's reason, if given)."""
+    as_of = as_of or today()
+    reasons = (d.get("missed") or {}).get(k, {})
+    for i, s in enumerate(sessions):
+        if k < as_of and not s.get("completion") and s.get("sport") in TRAINABLE and (s.get("minutes") or 0) > 0:
+            s["missed"] = True
+            if reasons.get(str(i)):
+                s["missed_reason"] = reasons[str(i)]
+    return sessions
+
+
+def missed_days(d, start, end, done=None, as_of=None):
+    """{date: [{index, name, sport, minutes, reason}]} for every missed session from start up to end (exclusive)."""
+    out = {}
+    day0, day1 = dt.date.fromisoformat(start), dt.date.fromisoformat(min(end, as_of or today()))
+    while day0 < day1:
+        k = day0.isoformat()
+        p = d.get("plans", {}).get(k) or {}
+        ss = copy.deepcopy(p.get("sessions") or ([p] if p.get("sport") else []))
+        if ss:
+            mark_missed(d, k, attach_completions(d, k, ss, copy.deepcopy((done or {}).get(k, []))), as_of)
+            miss = [{"index": i, "name": s.get("name") or s.get("sport"), "sport": s.get("sport"), "minutes": s.get("minutes"),
+                     "reason": (s.get("missed_reason") or {}).get("reason")} for i, s in enumerate(ss) if s.get("missed")]
+            if miss:
+                out[k] = miss
+        day0 += dt.timedelta(days=1)
+    return out
+
+
+def record_missed(d, date, index, reason, note=""):
+    """The athlete says why a session didn't happen. Kept for the coach and the Sunday review."""
+    if reason not in MISS_REASONS:
+        raise ValueError("reason: one of " + ", ".join(MISS_REASONS))
+    p = d.get("plans", {}).get(date) or {}
+    ss = p.get("sessions") or ([p] if p.get("sport") else [])
+    if not isinstance(index, int) or not 0 <= index < len(ss):
+        raise ValueError("no planned session with that index on that day")
+    if date >= today():
+        raise ValueError("only past sessions can be missed")
+    entry = {"reason": reason, "note": str(note or "")[:300], "at": dt.datetime.now().isoformat(timespec="minutes")}
+    d.setdefault("missed", {}).setdefault(date, {})[str(index)] = entry
+    return entry
+
+
 def week(d, date, done=None):
     """Monday-Sunday around `date`: each day's plan (sport, minutes, note, verdict) and what was done (done: {date: [...]})."""
     day0 = dt.date.fromisoformat(date)
@@ -401,25 +476,8 @@ def week(d, date, done=None):
                                           "note": p.get("note") or "", "workout": p.get("workout")}] if p.get("sport") else [])
         sessions = copy.deepcopy(sessions)
         actual = copy.deepcopy((done or {}).get(k, []))
-        used = set()
-        gym_index = 0
-        for s in sessions:
-            if s.get("sport") == "gym":
-                log = next((l for l in (d.get("lifting") or {}).get("logs", [])
-                            if l.get("date") == k and l.get("session") == s.get("name")
-                            and (l.get("inputs") or {}).get("session_index") in (None, gym_index)), None)
-                gym_index += 1
-                if log:
-                    s["completion"] = {"minutes": log.get("minutes"), "lifting": log}
-                continue
-            want = {"ride": "bike"}.get(s.get("sport"), s.get("sport"))
-            matches = [(n, a) for n, a in enumerate(actual) if n not in used
-                       and {"ride": "bike"}.get(a.get("sport"), a.get("sport")) == want
-                       and a.get("minutes", 0) >= max(ATTEMPT_MIN, (s.get("minutes") or 0) * ATTEMPT_SHARE)]
-            if matches:
-                n, a = matches[0]
-                used.add(n)
-                s["completion"] = a
+        attach_completions(d, k, sessions, actual)
+        mark_missed(d, k, sessions)
         out.append({"date": k, "sport": p.get("sport") or (sessions[0]["sport"] if sessions else None),
                     "minutes": p.get("minutes") or (sessions[0]["minutes"] if sessions else None),
                     "sessions": sessions, "note": p.get("note"),
