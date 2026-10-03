@@ -27,6 +27,8 @@ const VIEWS = [['desktop', { width: 1280, height: 900 }], ['phone', { width: 390
       return i<0?cards.length-1:i; }, day);
     const card = page.locator(`#programoverview [data-program-phase="${idx}"]`);
     if (await card.count()) { await card.first().click(); await settle(2500); await shot('plan-phase');
+      const ov = page.locator('#programoverview').first();
+      if (await ov.count()) await ov.screenshot({ path: `${out}/${name}-program.png` });
       const det = page.locator('#programoverview .phase-week-browser').first();
       if (await det.count()) { await det.scrollIntoViewIfNeeded(); await det.screenshot({ path: `${out}/${name}-phase-week.png` }); } }
     const strip = page.locator('#weekstrip');
