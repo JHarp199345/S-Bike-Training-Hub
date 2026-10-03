@@ -1358,6 +1358,21 @@ async def coach_api(bridge, method, path, p, body):
             coach.save(d)
             _load_cache["key"] = None
             return js({"recorded": e})
+        if p == "/api/coach/predictions":
+            # race predictions the assistant made from the hub's models, refined and graded (predictions.py)
+            import predictions
+            if method == b"POST":
+                try:
+                    if req.get("result"):
+                        out = predictions.result(d, req.get("event"), req.get("result"), req.get("legs"), req.get("note"))
+                    else:
+                        out = predictions.save(d, req.get("event"), req.get("likely"), req.get("low"), req.get("high"),
+                                               req.get("legs"), req.get("basis"), req.get("levers"), coach.today())
+                except (ValueError, TypeError) as e:
+                    return js({"error": str(e)}, 400)
+                coach.save(d)
+                return js({"saved": out} | predictions.view(d, coach.today()))
+            return js(predictions.view(d, coach.today()))
         if p == "/api/coach/event" and method == b"POST":
             if req.get("remove"):
                 gone = coach.remove_event(d, req["remove"]); coach.save(d)

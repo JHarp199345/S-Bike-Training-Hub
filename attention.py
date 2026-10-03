@@ -7,15 +7,15 @@ that the plan stands). The hub only lists; apart from the opt-in progression pol
 per check-in, when the athlete has switched it on), it doesn't rewrite the plan on its own.
 
 Most urgent first: stop/whole-body warnings, training-rule breaks, forecast conflicts, running deloads and
-targets, calibration questions, missed sessions without a reason, then cautions.
+targets, calibration questions, missed sessions without a reason, cautions, then a race prediction that's due.
 """
 import datetime as dt
 
-ORDER = ("stop", "warning", "rule", "forecast", "deload", "calibration", "missed", "running", "caution")
+ORDER = ("stop", "warning", "rule", "forecast", "deload", "calibration", "missed", "running", "caution", "prediction")
 
 
 def items(d, load, done, workouts, today, days=7):
-    import calibration, coach, coaching_review
+    import calibration, coach, coaching_review, predictions
     out = []
     end = (dt.date.fromisoformat(today) + dt.timedelta(days=days - 1)).isoformat()
     look = coaching_review.outlook(d, load, done, workouts, today, days)
@@ -66,6 +66,11 @@ def items(d, load, done, workouts, today, days=7):
     for f in look.get("training_rules") or []:
         if f["severity"] == "caution":
             add("caution", f["dates"][-1], f"{f['rule']} on {', '.join(f['dates'])}: {f['why']}", "Weigh it with the athlete; change it only if it doesn't fit.", None)
+    for r in predictions.view(d, today)["races"]:
+        if r.get("due") and r["days_to_go"] > 0:
+            add("prediction", today, f"Race prediction for {r['name']} ({r['date']}): {r['why_due']}.",
+                "Predict it again from the hub's numbers (the predict-my-race prompt), say what moved it, and save it.",
+                "save_race_prediction")
     out = [x for x in out if x["date"] <= end or x["kind"] in ("missed", "calibration")]
     out.sort(key=lambda x: (ORDER.index(x["kind"]), x["date"]))
     return {"as_of": today, "days": days, "items": out,

@@ -442,6 +442,15 @@ def t_bike_activate(a):
     return call("/api/bike/activate", {"share": bool(a.get("share"))})
 
 
+def t_predictions(a):
+    return call("/api/coach/predictions")
+
+
+def t_save_prediction(a):
+    return call("/api/coach/predictions", {k: a[k] for k in ("event", "likely", "low", "high", "legs", "basis", "levers",
+                                                               "result", "note") if k in a})
+
+
 def t_progress_evidence(a):
     return call('/api/coach/progress-evidence')
 
@@ -807,6 +816,20 @@ TOOLS = [
      "missed sessions without a reason, cautions. Each item says what and the lightest fix. record_checkin returns the "
      "same list; work through it in the same conversation (preview, apply once they agree, say what changed).",
      S(days=INT("Days ahead (default 7)", 1, 14)), t_attention),
+    ("get_race_predictions", "Race predictions so far, per race: every saved prediction (most likely time, range, legs, "
+     "basis, levers), how it moved, whether a new one is due (a test since the last one, or 3+ weeks) and, after the "
+     "race, how each one graded against the result.",
+     S(), t_predictions),
+    ("save_race_prediction", "Save a race prediction you made from the hub's numbers: {event: race id or date, likely, "
+     "low, high (seconds or h:mm:ss), legs: {swim, t1, bike, t2, run}, basis: the numbers and assumptions used, levers: "
+     "what would move it most}. Or the race result: {event, result: finishing time, legs}, which grades every prediction.",
+     S(event=STR("The race's id or date"), likely=STR("Most likely time (seconds or h:mm:ss)"),
+       low=STR("Fastest plausible time"), high=STR("Slowest plausible time"),
+       legs={"type": "object", "description": "Per-leg times: swim, t1, bike, t2, run",
+             "properties": {k: {"type": ["string", "number"]} for k in ("swim", "t1", "bike", "t2", "run")}, "additionalProperties": False},
+       basis=STR("The numbers and assumptions the prediction used"),
+       levers={"type": "array", "items": {"type": "string"}, "description": "What would move the time most"},
+       result=STR("The actual finishing time, once raced"), note=STR("About the result (conditions, course)")), t_save_prediction),
     ("start_workout", "Start a workout on the bike NOW in ERG (only when he asks, e.g. he's on the bike).",
      S(workout_id=STR("Workout id")), t_start),
     ("start_diagnostic", "Start the 6-minute morning diagnostic on the bike NOW (only when he asks and is on the bike).",
@@ -868,7 +891,21 @@ PROMPTS = {"get-my-bike-working": ("Set up a bike the hub doesn't recognize yet"
                               "Let's do my check-in. Ask me how I slept and how my legs, feet and shoulders feel (and the hop "
                               "test if I'm running today), log it with record_checkin, then go through the attention list it "
                               "returns with me: for each item propose the lightest fix, preview it, and apply it once I agree. "
-                              "Finish with today's plan and anything that changed.")}
+                              "Finish with today's plan and anything that changed."),
+           "predict-my-race": ("Predict my race from the hub's numbers, and refine it as the program goes",
+                               "Predict my race. Read get_race_predictions, get_calibration, get_fitness, get_aerobic, "
+                               "get_insights and get_progress_evidence. Bike: speed from FTP/critical power, my weight and "
+                               "the course. Swim: race pace from CSS, a little slower in open water. Run: from my run "
+                               "evidence, held to what my running block can carry by race day (run/walk if that's what "
+                               "it allows), slower off the bike the harder the ride. Give a range and a most likely time "
+                               "with legs, say which numbers you used and which you had to assume, and name my biggest "
+                               "levers. If there are earlier predictions, say what moved and why. Then save it with "
+                               "save_race_prediction. After the race, record my result the same way.")}
+
+INSTRUCTIONS += (" Race predictions: you make them from the hub's numbers (predict-my-race prompt) and save them with "
+                 "save_race_prediction; the hub keeps every one, says when one is due again (a test since, or 3+ weeks) and "
+                 "grades them all against the result. Give a range, name the numbers used and assumed, and never predict a "
+                 "run the running block can't carry by race day.")
 
 
 def handle(msg):

@@ -28,7 +28,7 @@ def main():
     check("the initialized notification gets no reply", [m["id"] for m in r] == [1, 2, 3, 4])
     tools = r[1]["result"]["tools"]
     check(f"{len(tools)} tools, each with a description and a JSON schema",
-          len(tools) == 67 and all(t["description"] and t["inputSchema"]["type"] == "object" for t in tools))
+          len(tools) == 69 and all(t["description"] and t["inputSchema"]["type"] == "object" for t in tools))
     check("with the bridge off, a tool says so plainly (not a crash)",
           r[2]["result"]["isError"] and "isn't running" in r[2]["result"]["content"][0]["text"])
     check("an unknown method gets a JSON-RPC error", r[3]["error"]["code"] == -32601)
