@@ -289,6 +289,8 @@ def main():
                     for i, s in enumerate(pd["sessions"]):
                         if s.get("missed") and (sp is None or s.get("sport") == sp):
                             api("/api/coach/missed", {"date": prev.isoformat(), "index": i, "reason": why, "note": note})
+            if day.weekday() == 0 or a.shin >= 6 or a.shoulder >= 6:
+                assistant_review(day, a, say)
             if day.weekday() == 6:
                 api("/api/coach/weekly", {"sunday": day.isoformat(), "legs": round(a.fatigue), "feet": a.shin, "shoulders": 3,
                                           "week": 8 if week_done >= 0.85 * max(1, week_plan) else 6,
@@ -305,6 +307,41 @@ def main():
         say("done:", out)
     finally:
         hub.stop()
+
+
+def assistant_review(day, a, say):
+    """What the athlete's AI assistant does with the hub's evidence (scripted here; in real use the assistant
+    reads get_today / get_recent_weeks and calls set_plan): while the running gate holds, the coming week's runs
+    become easy rides of the same length; after a shoulder flare-up, swims become easy rides for a few days."""
+    gate = (api(f"/api/coach/block?date={day.isoformat()}").get("running_gate") or {}).get("status")
+    shoulder = a.shoulder >= 6
+    changed = []
+    for k in range(0, 8):
+        d0 = day + dt.timedelta(days=k)
+        week = api(f"/api/coach/week?date={d0.isoformat()}")["week"]
+        dd = next(x for x in week if x["date"] == d0.isoformat())
+        ss = [s_ for s_ in dd["sessions"] if s_.get("sport")]
+        new, swapped = [], []
+        for s_ in ss:
+            s_ = {k2: v for k2, v in s_.items() if k2 not in ("completion", "missed", "missed_reason")}
+            hold_run = s_["sport"] == "run" and gate == "hold"
+            hold_swim = s_["sport"] == "swim" and shoulder and k <= 4
+            if (hold_run or hold_swim) and not s_.get("completion"):
+                m = s_.get("minutes") or 30
+                why = ("Running is on hold while the shin's accumulated load clears" if hold_run else
+                       "Shoulder pinching on the catch: no swimming for a few days")
+                new.append({"sport": "ride", "minutes": m, "name": f"Easy ride (instead of: {s_.get('name')})",
+                            "steps": [f"{m} min easy, 60-65% FTP, smooth cadence"], "note": why + " - swapped by your assistant.",
+                            "shape": s_.get("shape")})
+                swapped.append(s_.get("name"))
+            else:
+                new.append(s_)
+        if swapped:
+            api("/api/coach/plan", {"date": d0.isoformat(), "sessions": new,
+                                    "note": "Assistant: " + "; ".join(f"{n} -> easy ride" for n in swapped)})
+            changed.append(f"{d0}: {', '.join(swapped)}")
+    if changed:
+        say(f"assistant on {day}: running gate {gate}, shoulder {a.shoulder}/10 -> " + " | ".join(changed))
 
 
 def race(a, day):

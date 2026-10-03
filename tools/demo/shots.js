@@ -47,9 +47,15 @@ const VIEWS = [['desktop', { width: 1280, height: 900 }], ['phone', { width: 390
           const cal = page.locator('#blockdialog');
           if (await cal.isVisible()) {
             await page.setViewportSize({ width: viewport.width, height: 5200 }); await settle(800);
-            // the current week, brought to the top of the dialog
-            await page.evaluate(d => { const c=[...document.querySelectorAll('#blockcard .blockday')].find(b=>b.dataset.date===d); c?.closest('.planweek')?.scrollIntoView({block:'start'}); }, day);
-            await cal.screenshot({ path: `${out}/${name}-training-calendar.png` });
+            await cal.screenshot({ path: `${out}/${name}-training-calendar-all.png` });
+            // this week, and the week after, on their own
+            const weeks = page.locator('#blockcard .planweek');
+            const n = await weeks.count();
+            for (let i = 0; i < n; i++) {
+              const has = await weeks.nth(i).locator(`.blockday[data-date="${day}"]`).count();
+              if (has) { await weeks.nth(i).screenshot({ path: `${out}/${name}-training-calendar.png` });
+                if (i + 1 < n) await weeks.nth(i + 1).screenshot({ path: `${out}/${name}-training-calendar-next.png` }); break; }
+            }
             await page.setViewportSize(viewport); await settle(400); }
           await page.keyboard.press('Escape'); await settle(500);
         }
