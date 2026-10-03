@@ -1,5 +1,6 @@
 """Run every test on any computer: python tests/run_all.py. Judged by exit status.
 Tests marked '# macOS only' are skipped elsewhere (they use Apple's own libraries)."""
+import os
 import pathlib
 import subprocess
 import sys
@@ -12,13 +13,22 @@ for t in sorted(HERE.glob("test_*.py")):
         skipped.append(t.name)
         continue
     t0 = time.monotonic()
-    r = subprocess.run([sys.executable, str(t)], cwd=HERE.parent, capture_output=True, text=True, timeout=900)
+    try:
+        r = subprocess.run([sys.executable, str(t)], cwd=HERE.parent, capture_output=True, text=True, timeout=300,
+                           encoding="utf-8", errors="replace")
+        code, out = r.returncode, r.stdout + r.stderr
+    except subprocess.TimeoutExpired as e:
+        code, out = "timeout", f"{e.stdout or ''}{e.stderr or ''}\n(no result after 300 s)"
+        out = out if isinstance(out, str) else str(out)
     took = time.monotonic() - t0
-    if r.returncode == 0:
+    if code == 0:
         passed.append(t.name)
         print(f"PASS {t.name} ({took:.0f} s)", flush=True)
     else:
         failed.append(t.name)
-        print(f"FAIL {t.name} ({took:.0f} s)\n{(r.stdout + r.stderr)[-4000:]}", flush=True)
+        print(f"FAIL {t.name} ({took:.0f} s)\n{out[-4000:]}", flush=True)
+        if os.environ.get("GITHUB_ACTIONS"):        # failures readable as annotations, not just in the log
+            tail = [x for x in out.strip().splitlines() if x.strip()][-12:]
+            print(f"::error title={t.name}::" + " | ".join(tail).replace("%", "%25")[:3500], flush=True)
 print(f"\n{len(passed)} passed, {len(failed)} failed, {len(skipped)} skipped (macOS only: {', '.join(skipped) or '-'})")
 sys.exit(1 if failed else 0)
