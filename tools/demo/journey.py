@@ -86,6 +86,12 @@ class Hub:
         self.clock.write_text(when.strftime("%Y-%m-%d %H:%M:%S"))
 
     def start(self):
+        import socket
+        for _ in range(40):                       # a previous hub may still be letting go of the port
+            with socket.socket() as so:
+                if so.connect_ex(("127.0.0.1", PORT)) != 0:
+                    break
+            time.sleep(0.5)
         env = {**os.environ, "LD_PRELOAD": FAKETIME, "FAKETIME_TIMESTAMP_FILE": str(self.clock),
                "FAKETIME_NO_CACHE": "1", "FAKETIME_DONT_FAKE_MONOTONIC": "1"}
         self.proc = subprocess.Popen([sys.executable, "bridge.py", "--no-bike", "--no-remote", "--port", str(PORT)],
