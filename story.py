@@ -84,7 +84,7 @@ def build(path):
     start = a["start"]
 
     # --- the ride's own numbers
-    stats = {"date": start.strftime("%A %B %-d"), "start": start.strftime("%H:%M"), "minutes": me["minutes"],
+    stats = {"date": f"{start:%A %B} {start.day}", "start": start.strftime("%H:%M"), "minutes": me["minutes"],
              "time": _fmt_min(me["minutes"]), "km": round(a["km"], 1), "climb_m": round(a["climb_m"]),
              "avg_kmh": round(a["avg_kmh"], 1), "avg_w": me["avg"], "np_w": me["np"], "max_w": round(a["max_w"]),
              "avg_cadence": round(a["avg_cad"]), "kcal": round(live.kcal_from_kj(kj)), "kj": round(kj),
