@@ -15,7 +15,7 @@ import urllib.error
 import urllib.request
 
 BASE = __import__("os").environ.get("S29_HUB_URL", "http://127.0.0.1:8729")   # tests point this at a scratch server
-VERSION = "1.2.0"
+VERSION = "1.2.1"
 
 
 class HubError(Exception):
@@ -49,7 +49,11 @@ def _q(date):
 # ── tools ────────────────────────────────────────────────────────────────────
 
 def t_today(a):
-    return call("/api/coach/today" + _q(_date(a)))
+    out = call("/api/coach/today" + _q(_date(a)))
+    if out.get('training_block'):
+        out['training_block'] = {k:v for k,v in out['training_block'].items() if k not in ('load_outlooks','load_history','swim_outlooks','weeks')}
+        out['training_block']['detail_hint'] = 'Use get_training_block for weekly details; use preview_program for a focused draft forecast.'
+    return out
 
 
 def t_checkins(a):
@@ -303,14 +307,48 @@ def t_diagnostic(a):
     return call("/api/coach/test/start", {})
 
 
+def _program_summary(out, a):
+    """Keep calculations in the Hub; give the model decision evidence and bounded detail."""
+    view = {k:v for k,v in out.items() if k not in ('starter','weeks')}
+    view['weeks'] = [{k:w.get(k) for k in ('week','start','end','purpose','minutes')} for w in out.get('weeks',[])]
+    for brief,w in zip(view['weeks'],out.get('weeks',[])):
+        brief['sessions'] = [{'date':x.get('date'),'sport':x.get('sport'),'source':x.get('source')} for x in w.get('slots',[])]
+    starter = out.get('starter') or {}
+    if starter:
+        view['starter'] = {k:v for k,v in starter.items() if k not in ('plans','display_plans','candidates')}
+        view['starter']['candidates'] = []
+        for c in starter.get('candidates',[]):
+            brief = {k:c.get(k) for k in ('level','journey','summary','unknown_metrics','total_minutes','added_minutes')}
+            flags=c.get('limit_flags',[]); by={}
+            for f in flags:
+                item=by.setdefault(f['metric'],{'metric':f['metric'],'days_over_limit':0,'first_date':f['date'],'peak':f['after'],'limit':f['limit']})
+                item['days_over_limit']+=1
+                if f['after'] is not None and (item['peak'] is None or f['after']>item['peak']):item['peak']=f['after']
+            brief['limit_flags'] = list(by.values());brief['flagged_metric_days']=len(flags)
+            view['starter']['candidates'].append(brief)
+        if a.get('detail_start'):
+            start=dt.date.fromisoformat(a['detail_start']); days=int(a.get('detail_days',7))
+            if not 1<=days<=7:raise ValueError('detail_days must be 1–7')
+            dates=[(start+dt.timedelta(days=i)).isoformat() for i in range(days)]
+            selected=next((c for c in starter.get('candidates',[]) if c['level']==starter.get('selected')), {})
+            view['starter']['detail']={date:{'plan':(selected.get('display_plans') or {}).get(date),
+                'metrics':[{k:r.get(k) for k in ('key','name','unit','before','training','after','expected','limit','over_limit')} for r in (selected.get('projection',{}).get(date) or {}).get('metrics',[])]} for date in dates}
+        view['detail_hint']='Pass detail_start YYYY-MM-DD and detail_days 1–7 to preview_program for selected-scenario sessions and daily forecast metrics.'
+    return view
+
+
 def t_program(a):
-    return call('/api/coach/program-builder')
+    return _program_summary(call('/api/coach/program-builder'),a)
 
 def t_program_preview(a):
-    return call('/api/coach/program-builder', {**a.get('fields',{}),'action':'preview'})
+    fields=a.get('fields')
+    if not isinstance(fields,dict) or not fields:raise ValueError('Provide program fields after reading get_program; include sport, priorities and the requested horizon.')
+    return _program_summary(call('/api/coach/program-builder', {**fields,'action':'preview'}),a)
 
 def t_program_apply(a):
-    return call('/api/coach/program-builder', {**a.get('fields',{}),'action':'accept'})
+    fields=a.get('fields')
+    if not isinstance(fields,dict) or not fields:raise ValueError('Provide the same reviewed fields used for preview_program. Empty apply requests are refused.')
+    return _program_summary(call('/api/coach/program-builder', {**fields,'action':'accept'}),a)
 
 def t_progress_evidence(a):
     return call('/api/coach/progress-evidence')
@@ -334,9 +372,22 @@ LIFTS = {"type": "array", "description": "The exercises, in order", "items": {"t
     "required": ["name", "kind", "sets", "regions"]}}
 
 PROGRAM_FIELDS = {'type':'object','description':'Program fields: start YYYY-MM-DD, optional target date, horizon_days (default84), hours, sport (general/ride/swim/run/gym), priorities {sport:improve/maintain/pause}, assessment week/existing, optional reviewed phases, schedule_options, starter_enabled, starter_level easy/moderate/higher, starter_equipment basic/barbell, strength_anchors [{name,weight,unit,reps,rir}], neutral_forecast. Read get_program first; preserve the full reviewed payload when applying.','additionalProperties':True}
+PROGRAM_FIELDS['properties'] = {
+    'start':DATE, 'target':STR('Optional event/peak date YYYY-MM-DD'),
+    'horizon_days':INT('Ongoing horizon; default 84, starter detail capped at 84',1,366),
+    'goal':STR('Athlete goal'), 'outcome':STR('Desired result'), 'hours':{'type':'number','minimum':0.5,'maximum':40},
+    'sport':STR('Goal sport',enum=['general','ride','swim','run','gym','triathlon']),
+    'priorities':{'type':'object','additionalProperties':{'type':'string','enum':['improve','maintain','pause']}},
+    'assessment':STR('Initial familiarization week or reported existing tests',enum=['week','existing']),
+    'starter_enabled':{'type':'boolean'},'starter_level':STR('Workload scenario',enum=['easy','moderate','higher']),
+    'starter_equipment':STR('Starter lifting equipment',enum=['basic','barbell']),
+    'strength_anchors':{'type':'array','items':{'type':'object','properties':{'name':STR('Exact lift name'),'weight':{'type':'number','minimum':0},'unit':STR('Unit',enum=['lb','kg']),'reps':INT('Comfortable set repetitions',3,15),'rir':INT('Repetitions left',0,5)},'required':['name','weight','unit','reps','rir']}},
+    'phases':{'type':'array','description':'Complete reviewed contiguous phases; read the saved phases first','items':{'type':'object'}},
+    'schedule_options':{'type':'object'},'neutral_forecast':{'type':'boolean'}
+}
 TOOLS = [
     ('get_program','Read the saved macro program, phases and weekly placements. Does not change anything.',S(),t_program),
-    ('preview_program','Preview a draft and optionally compare three starter workload scenarios and forecasts. Does not save or replace the active program.',S(fields=PROGRAM_FIELDS),t_program_preview),
+    ('preview_program','Preview a draft and optionally compare three starter workload scenarios and forecasts. Does not save or replace the active program.',S(fields=PROGRAM_FIELDS,detail_start=DATE,detail_days=INT('Focused detail window, at most one week',1,7)),t_program_preview),
     ('apply_program','Apply a reviewed program from today or later. Use only when the athlete asks to save the reviewed changes. Preserves history and existing workouts; fills empty starter dates.',S(fields=PROGRAM_FIELDS),t_program_apply),
     ('get_progress_evidence','Read measured training responses and evidence for improvement; modeled conditioning is not a guaranteed performance gain.',S(),t_progress_evidence),
     ("get_today", "Today's coaching picture: the rider's check-in and morning diagnostic (heart rate at 90 W / 120 W / "
@@ -635,9 +686,11 @@ for name, _, schema, _ in TOOLS:
         schema["required"] = ["log_date", "ratings"]
     if name in ("set_capacity",):
         schema["required"] = ["system", "usual_week"]
+for name, _, schema, _ in TOOLS:
+    if name in ('preview_program','apply_program'):schema['required']=['fields']
 BY_NAME = {t[0]: t for t in TOOLS}
 INSTRUCTIONS = ("A bike, run, and swim training companion (built on a Merach S29 smart bike). Start with get_today "
-                "and recent check-ins and activity, then set a concrete day plan. Read get_program before changing the macro program; use preview_program to compare drafts and starter forecasts, and apply_program only for athlete-approved reviewed changes.  A day can contain ordered ride and "
+                "and recent check-ins and activity, then set a concrete day plan. Keep an explicit planning checklist: goal/date, phase purpose, available time, sport priorities, current holds, calibration gaps and projected limit flags. Re-read relevant data before writing after a long discussion. Read get_program before changing the macro program; use preview_program to compare drafts and starter forecasts, and apply_program only for athlete-approved reviewed changes. Request detail_start and detail_days for focused preview evidence rather than repeating the full horizon. Explain assumptions separately from measured inputs, and retain unresolved limits in the recommendation. After applying, call get_program and get_today for the affected day to verify the saved program and session. Apply currently rebuilds from fields; it does not lock an exact preview, so re-preview if inputs or athlete data have changed.  A day can contain ordered ride and "
                 "swim sessions with intervals or drills; consider both shared cardiovascular and sport-specific "
                 "recovery before adding a second session. Running impact and swim recovery blocks are provisional "
                 "planning estimates, not measured tissue damage or injury clearance. Reported pain and the athlete's "
@@ -665,7 +718,9 @@ def handle(msg):
     if method == "ping":
         return {}
     if method == "tools/list":
-        return {"tools": [{"name": n, "description": d, "inputSchema": s} for n, d, s, _ in TOOLS]}
+        return {"tools": [{"name": n, "description": d, "inputSchema": s,
+            "annotations": {"readOnlyHint": (n.startswith(('get_','list_','preview_','evaluate_')) and n not in ('get_training_block','get_today','get_skills','get_calibration')),
+                            "openWorldHint": n in ('import_activities','plan_area_route','save_planned_route')}} for n, d, s, _ in TOOLS]}
     if method == "tools/call":
         p = msg.get("params") or {}
         tool = BY_NAME.get(p.get("name"))

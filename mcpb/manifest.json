@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "s-bike-hub",
   "display_name": "S-Bike Training Hub",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Coach from your smart-bike training hub: check-ins, plans, rides, lifting, workouts and training load for bike, run and swim.",
   "long_description": "Connects an optional AI assistant to the locally running training hub: macro program preview/apply, three starter workload forecasts, sport planning, check-ins, import, lifting and progress evidence. The Hub stores records locally. Training context returned to an external AI is subject to that service\u2019s policies.",
   "author": {
