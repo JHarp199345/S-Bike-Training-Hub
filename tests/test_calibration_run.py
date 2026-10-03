@@ -102,6 +102,9 @@ check(f"the test week has a running calibration, and each check week another ({c
 runs_in_watch = [k for c in cal for k, v in plans.items() if c < k <= (dt.date.fromisoformat(c) + dt.timedelta(days=8)).isoformat()
                  and any(s["sport"] == "run" for s in v["sessions"])]
 check(f"no runs during any eight-day watch ({runs_in_watch})", cal and not runs_in_watch)
+before = [k for c in cal[1:] for k, v in plans.items() if (dt.date.fromisoformat(c) - dt.timedelta(days=3)).isoformat() <= k < c
+          and any(s["sport"] == "run" for s in v["sessions"])]
+check(f"a check week's calibration is done fresh: no running in the three days before it ({before})", len(cal) >= 2 and not before)
 s = next(x for x in plans[cal[0]]["sessions"] if x["sport"] == "run")
 check("it says up to 60 min in zone 2, stop early if form breaks down", s["minutes"] == 60 and "zone 2" in " ".join(s["steps"]))
 held = S.build({"plans": {}}, {**p, "running_hold": True}, today="2026-10-05")["candidates"][1]["plans"]

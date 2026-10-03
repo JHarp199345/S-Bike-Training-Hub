@@ -357,6 +357,8 @@ def live_day(hub, a, st, say):
     today = next(x for x in week if x["date"] == day.isoformat())
     runs_today = any(s_.get("sport") == "run" for s_ in today["sessions"])
     checkin(day, a, {"hops_left": 22, "hops_right": 21 if a.shin < 5 else 9} if runs_today else None)
+    # opening the Today page (or the assistant's get_today) is what grades a finished calibration
+    api("/api/coach/today")
     # the morning conversation with the assistant, before anything is done today
     assistant_review(day, a, say)
     week = api(f"/api/coach/week?date={day.isoformat()}")["week"]
