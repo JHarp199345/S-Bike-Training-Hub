@@ -147,15 +147,36 @@ def week_stage(week):
     return (week.get('phase') or {}).get('stage') or (week.get('phase') or {}).get('kind') or 'base'
 
 
+def check_weeks(stages):
+    """Which weeks are check weeks: a deload that is also a retest of every capacity (the rider's design,
+    2026-10-03). Each one costs training, so only a few, placed where they matter: about 2 + 0.15 x (weeks - 12),
+    at least 2 (1 under eight weeks); the last right before event preparation; in long programs the last three
+    close together, so the peak is dialled in. The opening test week and the taper aren't counted."""
+    ramp=[i for i,s in enumerate(stages) if s in ('base','build')]
+    if len(ramp)<3:return set()
+    total=len(stages)
+    n=1 if total<8 else max(2,round(2+.15*(total-12)))
+    n=min(n,len(ramp)//3)
+    last=ramp[-1]
+    if n>=6:
+        end=[last-8,last-4,last];early=n-3;lo,hi=ramp[0]+2,last-12
+    else:
+        end=[last];early=n-1;lo,hi=ramp[0],last
+    picks=[lo+round((j+1)*(hi-lo)/(early+1)) for j in range(early)]+end
+    return {i for i in picks if i in ramp}
+
+
 def week_fractions(weeks,level,target=None):
     """(share of available time, stage, shape) per week. Two different peaks:
       peak volume       the last development weeks: the most hours, mostly aerobic
       peak performance  event preparation: a little less volume, race-specific intensity
     before them the optional test week is light and the foundation builds from the starting share (every fourth
-    building week consolidates, no week more than ~12% over the last); after them a taper, and race week light."""
+    building week builds, no week more than 15% over the last); after them a taper, and race week light.
+    A few building weeks are check weeks instead (check_weeks): a deload with every capacity retested."""
     lo,hi=VOLUME[level]
     stages=[week_stage(w) for w in weeks]
-    ramp=[i for i,s in enumerate(stages) if s in ('base','build')]
+    checks=check_weeks(stages)
+    ramp=[i for i,s in enumerate(stages) if s in ('base','build') and i not in checks]   # check weeks sit outside the ramp
     last_build=ramp[-1] if ramp else 0
     span=max(1,len(ramp)-1)
     out=[];k=0;prev=None
@@ -168,13 +189,12 @@ def week_fractions(weeks,level,target=None):
         elif stage=='recovery':f,shape=lo,'recovery'
         elif stage=='taper':f,shape=.65*hi,'taper'
         elif stage=='specific':f,shape=.90*hi,'peak_performance'
+        elif i in checks:f,shape=max(.35,lo-.10),'check'
         else:
             f=lo+(hi-lo)*min(1,k/span)
-            if k%4==3 and i!=last_build:f,shape=f*.8,'consolidation'
-            else:
-                if prev:f=min(f,prev*1.12)
-                prev=f
-                if f>=.95*hi:shape='peak_volume'
+            if prev:f=min(f,prev*1.15)                      # at most 15% over the last building week (the weekly cap)
+            prev=f
+            if f>=.95*hi or i==last_build:shape='peak_volume'      # the biggest weeks of development
             k+=1
         out.append((round(min(f,hi),3),stage,shape))
     return out
@@ -246,12 +266,13 @@ def build(d,proposal,profile=None,load=None,done=None,workouts=None,today=None):
                 after_legs=sp in ('ride','run') and p['slot']['date'] in leg_days
                 later=any(q['sport']==sp and q['slot']['date'] not in leg_days for q in plan_slots[k+1:])
                 hard_ok=not after_legs or not later          # wait for a later fresh day when there is one
-                if stage=='assessment':role=('calibration' if sp=='run' and calibrate and cal_day is None else 'test') if sp not in seen and sp!='gym' else 'easy'
+                if stage=='assessment' or shape=='check':
+                    role=('calibration' if sp=='run' and calibrate and (cal_day is None or cal_end<p['slot']['date']) else 'test') if sp not in seen and sp!='gym' and hard_ok else 'easy'
                 elif stage in ('taper','race_week'):role='opener' if sp not in seen else 'easy'
                 elif p is longest:role='long'
                 elif stage=='specific' and sp not in seen and sp!='gym' and hard_ok:role='race_pace'
                 elif stage=='build' and shape!='consolidation' and sp not in seen and sp!='gym' and hard_ok:role='quality'
-                if sp!='gym' and (role!='easy' or stage in ('assessment','taper','race_week') or hard_ok):seen.add(sp)
+                if sp!='gym' and (role!='easy' or stage in ('taper','race_week') or hard_ok):seen.add(sp)
                 p['role']=role
                 if role=='calibration':
                     cal_day=p['slot']['date'];cal_end=(dt.date.fromisoformat(cal_day)+dt.timedelta(days=8)).isoformat()
@@ -298,7 +319,7 @@ def build(d,proposal,profile=None,load=None,done=None,workouts=None,today=None):
             for i,p in enumerate(plan_slots):
                 if i not in keep:continue
                 sp=p['sport'];minutes=mins[i]
-                rec=stage in ('recovery','taper','assessment','race_week') or shape=='consolidation'
+                rec=stage in ('recovery','taper','assessment','race_week') or shape in ('consolidation','check')
                 if sp=='run' and rstart and p['role'] not in ('calibration','brick','opener','test'):
                     # their starting run length, held for current runners' first two weeks, then up to 10% a week
                     run_w0=w if run_w0 is None else run_w0          # counted from the first week with a run
@@ -308,6 +329,9 @@ def build(d,proposal,profile=None,load=None,done=None,workouts=None,today=None):
                                 p['slot'].get('lift_focus','full'))
                 session['shape']=shape
                 if sp=='gym':session['lift_focus']=p['slot'].get('lift_focus','full')
+                if sp=='gym' and shape=='check':
+                    session['name']='Strength check'
+                    session['steps'].insert(0,'Check week: one comfortable 6–10 rep set per lift with 2–3 reps left, and record it. No maximum attempts; the rest of the week is light.')
                 if sp=='gym' and w==0 and proposal.get('assessment')=='week':
                     session['name']='Strength calibration / familiarization'
                     session['steps'].insert(0,'Practice technique, then record one comfortable 6–10 rep set per lift with 2–3 reps left. No true maximum or forced repetitions. Use the result to review the remaining draft.')
@@ -327,7 +351,8 @@ def build(d,proposal,profile=None,load=None,done=None,workouts=None,today=None):
                     'note':'The goal of the whole program.','starter':True,'provisional':False})
             journey.append({'week':w+1,'start':week['start'],'minutes':weekly,'budget_minutes':round(proposal['hours']*60*frac),
                             'share_of_available':round(weekly/(proposal['hours']*60),2),'stage':stage,'shape':shape,
-                            'purpose':'Consolidation: an easier week to absorb the work' if shape=='consolidation' else
+                            'purpose':'Check week: a deload that retests every capacity (running calibration, FTP, swim pace, a strength check)' if shape=='check' else
+                                      'Consolidation: an easier week to absorb the work' if shape=='consolidation' else
                                       'Peak volume: the most hours, mostly aerobic' if shape=='peak_volume' else STAGE_PURPOSE.get(stage,'Training'),
                             'provisional':w>0})
         scratch=copy.deepcopy(d);scratch.setdefault('plans',{})

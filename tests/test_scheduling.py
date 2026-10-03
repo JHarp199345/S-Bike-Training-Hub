@@ -91,5 +91,15 @@ for date, v in sorted(plans.items()):
                 if fresh:
                     bad.append(date)
 check(f"hard rides and runs wait for a fresh day after leg lifting ({hard_rides} hard, misplaced: {bad})", hard_rides and not bad)
+# check weeks: a few deloads that retest everything, placed where they matter
+def stages(n):
+    ramp = n - 4
+    return (["assessment"] + ["base"] * round(ramp * .35) + ["build"] * (ramp - round(ramp * .35)) + ["specific", "taper", "taper"])[:n]
+cw = {n: sorted(i + 1 for i in S.check_weeks(stages(n))) for n in (8, 12, 16, 52)}
+check(f"12 weeks: two check weeks, the last right before event prep ({cw[12]})", len(cw[12]) == 2 and cw[12][-1] == stages(12).index("specific"))
+check(f"16 weeks: three ({cw[16]})", len(cw[16]) == 3)
+check(f"52 weeks: eight, the last three close together before the peak ({cw[52]})",
+      len(cw[52]) == 8 and cw[52][-1] - cw[52][-3] <= 8 and cw[52][3] - cw[52][2] >= 4)
+check(f"a short program: one ({cw[8]})", len(cw[8]) == 1)
 print("ALL PASS" if ok else "SOME FAILED")
 sys.exit(0 if ok else 1)
