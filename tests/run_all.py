@@ -17,6 +17,15 @@ def note(line):
 
 
 RESULTS.write_text("", encoding="utf-8")
+
+
+def crashed(kind, value, tb):                      # the runner itself failing must be visible too
+    import traceback
+    note("RUNNER CRASHED: " + " | ".join("".join(traceback.format_exception(kind, value, tb)).strip().splitlines()[-6:]))
+    sys.__excepthook__(kind, value, tb)
+
+
+sys.excepthook = crashed
 for t in sorted(HERE.glob("test_*.py")):
     if sys.platform != "darwin" and "# macOS only" in t.read_text():
         skipped.append(t.name)
@@ -42,4 +51,5 @@ for t in sorted(HERE.glob("test_*.py")):
             tail = [x for x in out.strip().splitlines() if x.strip()][-12:]
             print(f"::error title={t.name}::" + " | ".join(tail).replace("%", "%25")[:3500], flush=True)
 print(f"\n{len(passed)} passed, {len(failed)} failed, {len(skipped)} skipped (macOS only: {', '.join(skipped) or '-'})")
+note(f"DONE {len(passed)} passed, {len(failed)} failed")
 sys.exit(1 if failed else 0)
