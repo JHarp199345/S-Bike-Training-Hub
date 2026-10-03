@@ -32,7 +32,8 @@ jobs:
           S_BIKE_SIM=1 python bridge.py --no-bike --no-remote --port 18890 > hub.log 2>&1 &
           for i in $(seq 1 30); do curl -sf localhost:18890/api/bike/status && break; sleep 1; done
           curl -sf -X POST localhost:18890/api/bike/scan -d '{}' | python -c "import json,sys; d=json.load(sys.stdin); s={o['device']['name']:o['status'] for o in d['found']}; print(s); assert s['MRK-S29-A1B2']=='known' and s['KICKR BIKE 7F3A']=='standard' and s['ACME IC7-0042']=='unrecognized'"
-          curl -sf localhost:18890/welcome | grep -q 'get my bike working'
+          curl -sf localhost:18890/welcome -o welcome.html
+          grep -q 'get my bike working' welcome.html
           kill %1 || true
           cat hub.log
       - name: Every test
