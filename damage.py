@@ -143,7 +143,7 @@ def learn_block(dates, doses, reports, runs, start_reference, since=None, **kw):
                           "reserve) and the mornings after were clean", "from": round(ref, 1), "to": round(new, 1)})
             ref = new
     floor, top = start_reference * LEARN_FLOOR, start_reference * LEARN_TOTAL_MAX
-    prev = first
+    prev, ceiling = first, None
     for i in run_days[1:]:
         curve = remodeling_response(dates[:i + 4], doses[:i + 4], block=ref, feet_reports=reports, **kw)
         ev = next((e for e in curve["components"] if e["date"] == dates[i]), None) if curve else None
@@ -159,13 +159,35 @@ def learn_block(dates, doses, reports, runs, start_reference, since=None, **kw):
         after = [x["hops"] for x in m if isinstance(x, dict) and x.get("hops") is not None]
         hops_drop = bool(earlier and after) and min(after) <= earlier[-1] - 2
         if any(_rough(x) for x in m) or slower or hops_drop:
+            ceiling = [ref, 0]   # rough mornings: no growth past this size until two clean runs in a row
             new = max(floor, ref * LEARN_DOWN)
             if new < ref:
                 why = "rough mornings after" if any(_rough(x) for x in m) else "hop test dropped" if hops_drop else "running slowed at the same heart rate"
                 steps.append({"date": dates[i], "why": why, "from": round(ref, 1), "to": round(new, 1)})
                 ref = new
         elif ev["before_blocks"] >= 0.25 and ev["after_blocks"] > 1 / LEARN_MARGIN and all(_clean(x) for x in m):
-            new = min(top, ref * min(LEARN_STEP_MAX, LEARN_MARGIN * ev["after_blocks"]))
+            # The curve isn't linear in the block (a smaller block also means longer plateaus and more overlap),
+            # so "carried N blocks" measured under the old block overstates the work. The new block is the
+            # largest one under which this same day still shows 1/LEARN_MARGIN blocks carried: the evidence is
+            # re-read in the units it proves, and the same runs repeated can't keep growing it.
+            def carried(r):
+                c = remodeling_response(dates[:i + 4], doses[:i + 4], block=r, feet_reports=reports, **kw)
+                e = next((x for x in c["components"] if x["date"] == dates[i]), None) if c else None
+                return e["after_blocks"] if e else 0
+            lo, hi = ref, min(top, ref * LEARN_STEP_MAX)
+            if ceiling:            # (rough mornings lengthen plateaus, so the next run always looks well carried)
+                ceiling[1] += 1
+                if ceiling[1] < 2:
+                    hi = max(ref, min(hi, ceiling[0]))
+                else:
+                    ceiling = None
+            if carried(hi) >= 1 / LEARN_MARGIN:
+                lo = hi
+            else:
+                for _ in range(10):
+                    mid = (lo + hi) / 2
+                    lo, hi = (mid, hi) if carried(mid) >= 1 / LEARN_MARGIN else (lo, mid)
+            new = lo
             if new > ref * 1.02:
                 steps.append({"date": dates[i], "why": f"ran again with {ev['before_blocks']} blocks still carried, "
                               f"held the pace{' at a lower heart rate' if e_now and e_prev and e_now > 1.02 * e_prev else ''} "
