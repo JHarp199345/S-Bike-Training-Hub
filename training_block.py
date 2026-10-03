@@ -18,6 +18,9 @@ def monday(day):
     return day - dt.timedelta(days=day.weekday())
 
 
+USUAL_WEEK_GROWTH = 1.15   # a planned week may run 15% over the usual week (matches the weekly running cap)
+
+
 def sessions(plan):
     if plan.get("sessions") is not None:
         return plan["sessions"]
@@ -433,10 +436,11 @@ def projected_loads(d, today, dates, load=None, done=None, workouts=None):
         for k in rolling:
             week=[v for date,v in rolling[k] if (day-dt.timedelta(days=6)).isoformat()<=date<=key]
             usual=(systems.get(k) or {}).get("usual_week")
-            ratios.append(sum(week)/usual if week and all(v is not None for v in week) and usual else None)
+            # the usual week grows by doing a little more than usual: the planning limit is the weekly growth cap
+            ratios.append(sum(week)/usual/USUAL_WEEK_GROWTH if week and all(v is not None for v in week) and usual else None)
         ratios += [run_value/1.5 if run_value is not None else None,swim_value/1.5 if swim_value is not None else None,lift_value/1.5 if lift_value is not None else None]
         combined=max(ratios) if all(v is not None for v in ratios) else None
-        row("mechanical","Mechanical utilization","× limit",combined_before,combined,goal="down" if goal_run=="down" else "manage",method="Same maximum of impact, leg, running, swim and lifting utilization as the headline; unlike units stay separate",limit=1)
+        row("mechanical","Mechanical utilization","× limit",combined_before,combined,goal="down" if goal_run=="down" else "manage",method="Maximum of impact and leg load against the usual week plus 15% growth, and running, swim and lifting blocks against 1.5; unlike units stay separate",limit=1)
         combined_before=combined
         import bodymap
         regional_unknown=[]
