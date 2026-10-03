@@ -75,8 +75,10 @@ def workout(sport,minutes,week,level,experience,equipment,d,anchors=None,recover
               'brick':f'{max(8,m-4)} min: find your running legs, then settle at goal race effort; this is practice for the transition',
               'opener':'10 min easy, 3 × 20 s at race effort, easy to finish',
               'test':f'{m-10} min easy running, then the single-leg hop test (record pain-free hops on each leg)',
-              'calibration':'Up to 60 min continuous running or run/walk in heart-rate zone 2 (conversational) on a day you feel your best. '
-                            'Stop early if your form breaks down or anything hurts: what you complete is the measurement'}.get(role)
+              'calibration':'One continuous effort, all at once: up to 60 min of running or run/walk in heart-rate zone 2 (conversational), '
+                            'on a day you feel 100%. The test ends at 60 min. Only stop early if you run out of time, are too tired to keep '
+                            'going, your form breaks down or something hurts: stopping for anything else ruins the test, and you would wait '
+                            'a few days until you are 100% again to retry. If you stop early, the hub asks why'}.get(role)
         s['steps']=(['Start running within 2 minutes of finishing the ride',main,'3 min walking'] if role=='brick' else
                     [main,'Then no running for 8 days: ride, swim and lift as planned, and check in feet, legs and the hop test each morning. Day 9 sets your running block.'] if role=='calibration' else
                     ['5 min comfortable walking',main,'5 min walking cool-down'])
