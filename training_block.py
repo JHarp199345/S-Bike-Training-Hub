@@ -541,7 +541,9 @@ def forecast(d, today, done=None, load=None, checkin=None, workouts=None):
             if goal.get("hours"):
                 week["available_minutes"] = round(goal["hours"] * 60)
         import phaseblend
-        week['phase_blend']=phaseblend.week(d,today,week['start'],{'running':{'verdict':'rest' if running_gate(d,load,checkin)['status']=='hold' else 'go'}},(load or {}).get('headline'))
+        # today's running hold describes this week, not the weeks ahead
+        this_week=week['start']<=(today if isinstance(today,str) else today.isoformat())<=week['end']
+        week['phase_blend']=phaseblend.week(d,today,week['start'],{'running':{'verdict':'rest' if this_week and running_gate(d,load,checkin)['status']=='hold' else 'go'}},(load or {}).get('headline'))
         future=[]
         for day in week["days"]:
             day["projected_loads"]=projections.get(day["date"])

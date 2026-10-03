@@ -321,7 +321,11 @@ def assistant_review(day, a, say):
     """What the athlete's AI assistant does with the hub's evidence (scripted here; in real use the assistant
     reads get_today / get_recent_weeks and calls set_plan): while the running gate holds, the coming week's runs
     become easy rides of the same length; after a shoulder flare-up, swims become easy rides for a few days."""
-    gate = (api(f"/api/coach/block?date={day.isoformat()}").get("running_gate") or {}).get("status")
+    g = api(f"/api/coach/block?date={day.isoformat()}").get("running_gate") or {}
+    gate = g.get("status")
+    # a hold from load alone clears on its own: only runs before the projected clear date move
+    symptom = any(not r.startswith("mechanical running load") for r in g.get("reasons") or [])
+    clear_by = day + dt.timedelta(days=8 if symptom or g.get("model_days") is None else int(g["model_days"]))
     shoulder = a.shoulder >= 6
     changed = []
     for k in range(0, 8):
@@ -332,7 +336,7 @@ def assistant_review(day, a, say):
         new, swapped = [], []
         for s_ in ss:
             s_ = {k2: v for k2, v in s_.items() if k2 not in ("completion", "missed", "missed_reason")}
-            hold_run = s_["sport"] == "run" and gate == "hold"
+            hold_run = s_["sport"] == "run" and gate == "hold" and d0 < clear_by
             hold_swim = s_["sport"] == "swim" and shoulder and k <= 4
             if (hold_run or hold_swim) and not s_.get("completion"):
                 m = s_.get("minutes") or 30
