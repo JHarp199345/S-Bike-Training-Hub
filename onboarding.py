@@ -86,6 +86,11 @@ def apply(base, form):
         p["hr_max"] = round(208 - 0.7 * age)
         done.append(f"maximum heart rate {p['hr_max']} (estimated from age)")
     p["return_to_run"] = bool(form.get("return_to_run"))          # coming back from a running injury: the careful protocol
+    rs = running_start(form)
+    if rs:
+        p["running_start"] = rs
+        done.append(f"running: {rs['runs']} x {rs['per_run']} min to start"
+                    + (" (your usual week, held two weeks)" if rs["runs_now"] else "") + (" - halved for the niggle" if rs["niggles"] else ""))
     p.update(sports=sports, experience=exp, start_state=start, smart_bike=bool(form.get("smart_bike")),
              onboarded=dt.date.today().isoformat())
     # starting capacities
@@ -135,8 +140,34 @@ def apply(base, form):
     return {"set": done, "next": nxt, "start": start, "sports": sports}
 
 
+def running_start(form):
+    """How much running to start with when there's no calibration run yet (the rider's design, 2026-10-03). A
+    new runner says how much they'd like and starts below it; someone who already runs says what they do, in how
+    many runs, and continues it (held two weeks before anything increases). A niggle halves it.
+    In 'good runs': 40 min is one good run a week."""
+    if form.get("run_minutes") in (None, ""):
+        return None
+    minutes = int(form["run_minutes"])
+    if not 10 <= minutes <= 600:
+        raise ValueError("weekly running minutes 10-600")
+    now = bool(form.get("runs_now"))
+    if now:
+        runs = int(form.get("runs_per_week") or max(1, round(minutes / 40)))
+        if not 1 <= runs <= 14:
+            raise ValueError("runs a week 1-14")
+        per = max(10, round(minutes / runs / 5) * 5)
+    else:
+        runs, per = (1, 10) if minutes <= 20 else (2, 10) if minutes <= 30 else (2, 15) if minutes <= 40 else \
+                    (2, min(25, max(15, round(minutes * 0.75 / 2 / 5) * 5)))
+    niggles = bool(form.get("run_niggles"))
+    if niggles:
+        per = max(10, round(per / 2 / 5) * 5)
+    return {"runs_now": now, "minutes": minutes, "runs": runs, "per_run": per, "niggles": niggles,
+            "hold_weeks": 2 if now else 0, "good_runs": round(minutes / 40, 2), "set": dt.date.today().isoformat()}
+
+
 def current(base):
     import rider
     p = rider.load(Path(base) / "profile.json")
     return {k: p.get(k) for k in ("weight_kg", "age", "hr_rest", "hr_max", "sports", "experience", "start_state",
-                                  "smart_bike", "onboarded", "ftp", "return_to_run")}
+                                  "smart_bike", "onboarded", "ftp", "return_to_run", "running_start")}

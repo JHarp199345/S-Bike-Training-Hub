@@ -240,6 +240,35 @@ def automatic_run_learning(prof, reviews=None):
     return (prof.get('return_to_run') is False and not prof.get('_protected_run_recovery') and not reviews)
 
 
+def start_block(prof, scored):
+    """The starting block from the setup's running answers (onboarding.running_start), until a calibration run
+    measures it: a new runner's starting run is about 0.4 blocks (block = 2.5 x one run); someone who already runs
+    has their usual week sit at about one block on the recovery curve. Points per minute come from their own runs
+    when there are any, else the provisional prior."""
+    rs = prof.get("running_start")
+    if not rs:
+        return None
+    import starter_priors
+    own = [a["impact"] / a["minutes"] for a in scored if a.get("sport") == "run" and a.get("minutes") and a.get("impact")][-10:]
+    per_min = statistics.median(own) if own else starter_priors.RATES["run"]["impact"]
+    run = per_min * rs["per_run"]
+    if not rs.get("runs_now"):
+        return round(2.5 * run, 1)
+    # their usual week (rs['runs'] evenly spaced), repeated long enough to settle, peaks at about one block
+    n, weeks = max(1, min(14, rs["runs"])), 8
+    dates = [(dt.date(2026, 1, 5) + dt.timedelta(days=i)).isoformat() for i in range(7 * weeks)]
+    doses = [0.0] * len(dates)
+    for w in range(weeks):
+        for k in range(n):
+            doses[7 * w + round(k * 7 / n) % 7] += run
+    peak = lambda b: max(c["after_blocks"] for c in damage.remodeling_response(dates, doses, block=b)["components"])
+    lo, hi = run * 0.5, run * 40
+    for _ in range(30):
+        mid = (lo + hi) / 2
+        lo, hi = (mid, hi) if peak(mid) > 1.0 else (lo, mid)
+    return round(hi, 1)
+
+
 RUN_DRIFT_MIN = 30      # heart-rate drift only means something on a steady run this long (minutes)
 
 
@@ -529,7 +558,8 @@ def analyse(acts, prof, today=None, meta=None, feet_reports=None, daily_steps=No
                                                   run_doses=[r["sports"].get("run", {}).get("impact", 0.0) for r in days],
                                                   walking=walking, block=prof.get("block_points"), reviews=run_reviews,
                                                   runs=run_evidence(scored, prof) if automatic_run_learning(prof, run_reviews) else None,
-                                                  learn_since=max([x for x in (prof.get('_reviewed_run_date'), prof.get('_block_test_date')) if x], default=None))
+                                                  learn_since=max([x for x in (prof.get('_reviewed_run_date'), prof.get('_block_test_date')) if x], default=None),
+                                                  start_block=start_block(prof, scored) if not prof.get("block_points") else None)
     if systems["impact"]["tissue"]:
         systems["impact"]["tissue"]["walking"] = {k: v for k, v in walking.items() if k != "steps"}
     if systems["impact"]["tissue"]:
@@ -744,7 +774,7 @@ def load_profile(base):
             "calibration": p.get("load_calibration") or {}, "phase": p.get("training_phase", "run_durability"),
             "habitual_steps": int(p.get("habitual_steps") or damage.HABITUAL_STEPS),
             "gym_rpe": float(p.get("gym_rpe") or GYM_RPE_DEFAULT),
-            "return_to_run": p.get("return_to_run")}
+            "return_to_run": p.get("return_to_run"), "running_start": p.get("running_start")}
 
 
 def load_steps(base):
