@@ -500,8 +500,19 @@ def recorded_load_history(load, today):
 def forecast(d, today, done=None, load=None, checkin=None, workouts=None):
     """Calendar exposure, including every session on two-a-day dates."""
     block = d.get("training_block")
-    start = monday(block["start"] if block else today)
-    n = block["weeks"] if block else 1
+    goal, phases = d.get("program_goal"), d.get("phase_profiles") or []
+    program = None
+    if block:
+        start, n = monday(block["start"]), block["weeks"]
+    elif goal and phases:
+        # no 4-week block: the calendar is the saved program, week by week (at most 16 weeks)
+        start = monday(goal["start"])
+        end = dt.date.fromisoformat(goal.get("target") or goal.get("end") or phases[-1]["end"])
+        n = max(1, min(16, ((end - start).days) // 7 + 1))
+        program = {"goal": goal.get("goal"), "outcome": goal.get("outcome"), "start": goal["start"],
+                   "target": goal.get("target"), "hours": goal.get("hours"), "weeks": n}
+    else:
+        start, n = monday(today), 1
     weeks = [_week(d, start + dt.timedelta(days=7*i), done) for i in range(n)]
     swim_estimates=swim_plan_forecast(d,today,load,done)
     for week in weeks:
@@ -519,6 +530,16 @@ def forecast(d, today, done=None, load=None, checkin=None, workouts=None):
             week["focus"]=("Establish a comfortable, fully scored baseline." if index==0 else
                 "Consolidation week: hold increases; review whether aerobic duration should decrease." if index==n-1 else
                 "Sunday review may add five easy minutes to one swim or ride; otherwise hold or reduce. Running remains separately gated.")
+        if program:
+            ph = next((p for p in phases if p["start"] <= week["start"] < p["end"]), None)
+            shapes = [w.get("shape") for x in week["days"] for w in x["workouts"] if w.get("shape")]
+            shape = max(set(shapes), key=shapes.count) if shapes else None
+            label = {"peak_volume": "Peak volume", "peak_performance": "Peak performance", "consolidation": "Consolidation",
+                     "test": "Test week", "taper": "Taper", "race": "Race week", "build": None}.get(shape)
+            week["focus"] = " · ".join(x for x in (ph and ph.get("label"), label, ph and ph.get("purpose")) if x)
+            week["shape"] = shape
+            if goal.get("hours"):
+                week["available_minutes"] = round(goal["hours"] * 60)
         import phaseblend
         week['phase_blend']=phaseblend.week(d,today,week['start'],{'running':{'verdict':'rest' if running_gate(d,load,checkin)['status']=='hold' else 'go'}},(load or {}).get('headline'))
         future=[]
@@ -549,7 +570,7 @@ def forecast(d, today, done=None, load=None, checkin=None, workouts=None):
     import recovery
     remodel=((((load or {}).get("systems") or {}).get("impact") or {}).get("tissue") or {}).get("remodeling") or {}
     return {"run_progression":recovery.status(d,remodel,today), "forecast_comparisons":recovery.comparisons(d,load or {},today) if d.get("load_forecasts") else [],"block": block, "weeks": weeks, "alerts": alerts, "running_gate": gate,
-            "progression_decisions":d.get("progression_decisions",[])[-12:],
+            "program": program, "progression_decisions":d.get("progression_decisions",[])[-12:],
             "progression_symptoms":__import__("progression").active_symptoms(d,today if isinstance(today,str) else today.isoformat()),
             "load_outlooks":list(projections.values()),
             "load_history":recorded_load_history(load,today),
