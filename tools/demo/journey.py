@@ -287,7 +287,7 @@ def main():
                 api("/api/calibration", {"capacity": "ftp", "value": 191, "kind": "test", "date": day.isoformat(),
                                          "note": "Ramp test, week 7"})
                 a.ftp = 191
-            a.fatigue = max(2.0, min(8.0, a.fatigue * 0.7 + 1.0 + 1.2 * hard_today))
+            a.fatigue = max(2.0, min(6.0, a.fatigue * 0.6 + 1.2 + 0.8 * hard_today))   # well-managed: legs 2-5, 6 after a big day
             # the next morning, say why anything was missed (as the athlete would on the calendar)
             prev = day - dt.timedelta(days=1)
             for (d0, sp), (why, note) in MISS.items():

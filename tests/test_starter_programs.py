@@ -83,6 +83,11 @@ class StarterTests(unittest.TestCase):
   pvn=max(len(names(*wk(w['week']))) for w in j if w['shape']=='peak_volume')
   self.assertGreater(pvn,len(names(*wk(2))))
   self.assertIn('Race day',plans['2026-12-27']['sessions'][0]['name'])
+  for date,pl in plans.items():                                # a brick never lands the day after another run
+   if any('Brick' in s['name'] for s in pl['sessions']):
+    for k in (-1,1):
+     near=plans.get((dt.date.fromisoformat(date)+dt.timedelta(days=k)).isoformat(),{}).get('sessions',[])
+     self.assertFalse(any(s['sport']=='run' for s in near),date)
   self.assertNotIn('2026-12-26',plans)                       # rest the day before the race
  def test_conservative_level_stays_well_under_time(self):
   f={'start':'2026-10-05','horizon_days':84,'sport':'general','hours':6,'starter_level':'easy','priorities':{'ride':'improve','swim':'maintain','gym':'maintain','run':'pause'}}

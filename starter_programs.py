@@ -44,6 +44,7 @@ def workout(sport,minutes,week,level,experience,equipment,d,anchors=None,recover
     elif sport=='run':
         names={'easy':'Easy run / walk','long':'Longer easy run','quality':'Steady run with strides','race_pace':'Race-pace run',
                'brick':'Brick run (straight off the bike)','opener':'Run openers','test':'Easy run + hop test'}
+        if role=='easy' and week>=4 and run_open:names['easy']='Easy run'
         s.update(name=names.get(role,'Easy run / walk'),tier='moderate' if role in ('quality','race_pace','brick') else 'easy')
         main={'easy':f'{m-10} min: alternate 1 min easy running and 2 min walking; conversational effort' if week<4 or not run_open else f'{m-10} min easy continuous running; walk breaks whenever you want',
               'long':f'{m-10} min easy continuous running at conversation pace; walk breaks are fine',
@@ -204,7 +205,23 @@ def build(d,proposal,profile=None,load=None,done=None,workouts=None,today=None):
                      for p in plan_slots]
             total=sum(weights) or 1
             brick=tri and stage=='specific' and longest is not None and longest['sport']=='ride' and not proposal.get('running_hold')
-            if brick:budget_brick=min(20,max(10,.08*budget));budget-=budget_brick
+            if brick:
+                budget_brick=min(20,max(10,.08*budget));budget-=budget_brick
+                # the brick is the week's race-effort run: any other run stays easy, and never the day before it
+                bday=dt.date.fromisoformat(longest['slot']['date'])
+                wk0=dt.date.fromisoformat(week['start'])
+                for p in plan_slots:
+                    if p['sport']=='run':
+                        p['role']='easy'
+                        if abs((dt.date.fromisoformat(p['slot']['date'])-bday).days)<=1:
+                            # move it to the least busy day at least two days from the brick, else drop it
+                            busy=collections.Counter(q['slot']['date'] for q in plan_slots)
+                            free=[(wk0+dt.timedelta(days=k)).isoformat() for k in range(7)
+                                  if abs(k-(bday-wk0).days)>=2 and start.isoformat()<=(wk0+dt.timedelta(days=k)).isoformat()<end.isoformat()]
+                            if free:p['slot']=dict(p['slot'],date=min(free,key=lambda x:(busy[x],x)))
+                            else:p['drop']=True
+                keep_idx=[i for i,p in enumerate(plan_slots) if not p.get('drop')]
+                plan_slots=[plan_slots[i] for i in keep_idx];weights=[weights[i] for i in keep_idx];total=sum(weights) or 1
             # share the budget by weight; a session that would fall under its floor is dropped and its share goes
             # to the others (never over a cap, never over the week's budget)
             keep=list(range(len(plan_slots)));mins={}
