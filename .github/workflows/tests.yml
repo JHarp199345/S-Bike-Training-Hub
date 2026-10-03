@@ -52,3 +52,8 @@ jobs:
           cat hub.log
       - name: Every test
         run: python tests/run_all.py
+      - name: Failed tests, as annotations
+        if: failure()
+        shell: bash
+        run: |
+          if [ -f test-results.txt ]; then grep -v '^PASS' test-results.txt | cut -c1-3000 | sed 's/^/::error::/'; echo "::error::$(grep -c '^PASS' test-results.txt) passed before the failure"; else echo "::error::no test-results.txt: the test runner itself failed to start"; fi

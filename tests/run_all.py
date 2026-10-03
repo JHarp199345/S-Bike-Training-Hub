@@ -7,7 +7,16 @@ import sys
 import time
 
 HERE = pathlib.Path(__file__).resolve().parent
+RESULTS = HERE.parent / "test-results.txt"          # read by CI on failure (logs can be hard to reach)
 failed, skipped, passed = [], [], []
+
+
+def note(line):
+    with open(RESULTS, "a", encoding="utf-8") as f:
+        f.write(line + "\n")
+
+
+RESULTS.write_text("", encoding="utf-8")
 for t in sorted(HERE.glob("test_*.py")):
     if sys.platform != "darwin" and "# macOS only" in t.read_text():
         skipped.append(t.name)
@@ -24,9 +33,11 @@ for t in sorted(HERE.glob("test_*.py")):
     if code == 0:
         passed.append(t.name)
         print(f"PASS {t.name} ({took:.0f} s)", flush=True)
+        note(f"PASS {t.name}")
     else:
         failed.append(t.name)
         print(f"FAIL {t.name} ({took:.0f} s)\n{out[-4000:]}", flush=True)
+        note(f"FAIL {t.name} ({code}): " + " | ".join([x for x in out.strip().splitlines() if x.strip()][-10:]))
         if os.environ.get("GITHUB_ACTIONS"):        # failures readable as annotations, not just in the log
             tail = [x for x in out.strip().splitlines() if x.strip()][-12:]
             print(f"::error title={t.name}::" + " | ".join(tail).replace("%", "%25")[:3500], flush=True)
