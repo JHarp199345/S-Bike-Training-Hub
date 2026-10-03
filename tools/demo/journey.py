@@ -6,9 +6,12 @@ lifting check-offs, Sunday check-ins, missed sessions with reasons. The hub runs
 (libfaketime) that this script moves forward one day at a time, so every page sees the athlete's "today".
 No numbers are drawn on the screenshots: everything shown is what the hub calculated.
 
-At each checkpoint it calls tools/demo/shots.js to photograph the Coach.
+At each checkpoint it saves the hub's data and the athlete's state (out/saves/NAME), then calls
+tools/demo/shots.js to photograph the Coach. A re-run can start from any save point instead of week 0:
+the hub is rebuilt from the current code, the saved data is laid over it, that checkpoint is
+photographed again and the journey continues from the next day.
 
-  python3 tools/demo/journey.py [--out DIR] [--no-shots]
+  python3 tools/demo/journey.py [--out DIR] [--no-shots] [--until DATE] [--from NAME|latest] [--list]
 
 Needs Linux with libfaketime (apt install faketime) and Node Playwright (for the screenshots).
 The athlete, Jordan Lee, is invented; any resemblance is coincidence.
@@ -17,6 +20,7 @@ import argparse
 import datetime as dt
 import json
 import os
+import pickle
 import random
 import shutil
 import signal
@@ -81,6 +85,31 @@ class Hub:
             (self.dir / f).unlink(missing_ok=True)
         (self.dir / "rides").mkdir()
         (self.dir / "activities").mkdir()
+
+    def data_files(self):
+        """Everything the hub wrote: files that aren't in the repo, or differ from it."""
+        for f in self.dir.rglob("*"):
+            rel = f.relative_to(self.dir)
+            if not f.is_file() or rel.name == "hub.log" or "__pycache__" in rel.parts:
+                continue
+            src = REPO / rel
+            if not src.is_file() or src.stat().st_size != f.stat().st_size or src.read_bytes() != f.read_bytes():
+                yield rel
+
+    def save(self, folder):
+        data = folder / "data"
+        if folder.exists():
+            shutil.rmtree(folder)
+        for rel in self.data_files():
+            (data / rel).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(self.dir / rel, data / rel)
+
+    def restore(self, folder):
+        for f in (folder / "data").rglob("*"):
+            if f.is_file():
+                dest = self.dir / f.relative_to(folder / "data")
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(f, dest)
 
     def set_time(self, when):
         self.clock.write_text(when.strftime("%Y-%m-%d %H:%M:%S"))
@@ -185,175 +214,326 @@ def checkin(day, a, extra=None):
     return api("/api/coach/checkin", body)
 
 
+def saves_in(out):
+    folder = out / "saves"
+    found = []
+    for meta in folder.glob("*/meta.json"):
+        m = json.loads(meta.read_text())
+        found.append((m["day"], meta.parent.name))
+    return [name for _, name in sorted(found)]
+
+
+def save_point(hub, out, name, a, st):
+    folder = out / "saves" / name
+    hub.save(folder)
+    (folder / "athlete.pkl").write_bytes(pickle.dumps(a.__dict__))
+    (folder / "meta.json").write_text(json.dumps({"day": st["day"].isoformat(), "week_done": st["week_done"],
+                                                  "week_plan": st["week_plan"]}))
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=str(HERE / "out"))
     ap.add_argument("--no-shots", action="store_true")
     ap.add_argument("--until", help="stop after this date (YYYY-MM-DD), for checking a stretch")
+    ap.add_argument("--from", dest="resume", help="start from a save point (a checkpoint name, or 'latest')")
+    ap.add_argument("--list", action="store_true", help="list the save points and exit")
     args = ap.parse_args()
     out = Path(args.out).resolve()
     out.mkdir(parents=True, exist_ok=True)
+    saved = saves_in(out)
+    if args.list:
+        for name in saved:
+            print(name, json.loads((out / "saves" / name / "meta.json").read_text())["day"])
+        return
+    if args.resume:
+        name = saved[-1] if args.resume == "latest" and saved else args.resume
+        if name not in saved:
+            raise SystemExit(f"no save point {args.resume!r}; have: {', '.join(saved) or 'none'}")
     hub = Hub(out)
     hub.build()
-    hub.set_time(dt.datetime.combine(PRE, dt.time(7, 0)))
-    hub.start()
-    log = open(out / "journey.log", "w")
+    log = open(out / "journey.log", "a" if args.resume else "w")
     say = lambda *m: (print(*m, flush=True), print(*m, file=log, flush=True))
     try:
-        api("/api/setup", PERSON)
-        api("/api/theme", {"theme": api("/api/theme")["theme"]})
-        a = Athlete(hub.dir / "activities")
-        # ── three weeks of easy history ──
-        day = PRE
-        while day < START:
-            hub.set_time(dt.datetime.combine(day, dt.time(6, 30)))
-            checkin(day, a)
-            wd = day.weekday()
-            at = dt.datetime.combine(day, dt.time(18, 0))
-            if wd in (1, 5):
-                a.ride(day, {"minutes": 45 if wd == 5 else 35}, at)
-            elif wd == 3:
-                a.swim(day, {"minutes": 25}, at)
-            elif wd in (0, 4):
-                a.run(day, {"minutes": 20, "name": "easy run / walk"}, at)
-            if wd == 6:
-                api("/api/coach/weekly", {"sunday": day.isoformat(), "legs": 3, "feet": 2, "shoulders": 3, "week": 7,
-                                          "hops_left": 20, "hops_right": 20, "run_response": "resolved",
-                                          "note": "Easy week, getting back into it."})
-            day += dt.timedelta(days=1)
-        # ── the program, built the evening before week 1 ──
-        hub.set_time(dt.datetime.combine(START - dt.timedelta(days=1), dt.time(19, 0)))
-        api("/api/coach/event", {"date": RACE.isoformat(), "name": "Lakeside Sprint Triathlon", "kind": "race", "sport": "tri",
-                                 "note": "750 m swim · 20 km bike · 5 km run"})
-        fields = {"start": START.isoformat(), "target": RACE.isoformat(), "sport": "tri", "hours": 4,
-                  "goal": "Lakeside Sprint Triathlon", "outcome": "Finish strong and enjoy it", "assessment": "week",
-                  "priorities": {"ride": "improve", "swim": "improve", "run": "improve", "gym": "maintain"},
-                  "starter_enabled": True, "starter_level": "moderate", "starter_equipment": "basic", "neutral_forecast": True,
-                  "schedule_options": {"available_days": [0, 1, 2, 3, 4, 5, 6], "rest_days": [6]}}
-        draft = api("/api/coach/program-builder", fields)
-        did = draft.get("draft_id") or draft.get("id") or (draft.get("draft") or {}).get("id")
-        api("/api/coach/program-builder", {"action": "accept", "draft_id": did})
-        prog = api("/api/coach/program-builder")
-        say("program:", [(p["stage"], p["start"], p["end"]) for p in prog["phases"]], "running hold:", prog["running_hold"])
-        # ── twelve weeks, day by day ──
-        day = START
-        week_done = week_plan = 0
+        if args.resume:
+            folder = out / "saves" / name
+            hub.restore(folder)
+            meta = json.loads((folder / "meta.json").read_text())
+            a = Athlete.__new__(Athlete)
+            a.__dict__.update(pickle.loads((folder / "athlete.pkl").read_bytes()))
+            a.acts = hub.dir / "activities"
+            st = {"day": dt.date.fromisoformat(meta["day"]), "week_done": meta["week_done"], "week_plan": meta["week_plan"]}
+            hub.set_time(dt.datetime.combine(st["day"], dt.time(19, 30)))
+            hub.start()
+            say(f"resumed from {name} ({st['day']}) with the current code")
+            if not args.no_shots:
+                shots(out, st["day"], name)
+            st["day"] += dt.timedelta(days=1)
+        else:
+            hub.set_time(dt.datetime.combine(PRE, dt.time(7, 0)))
+            hub.start()
+            a = setup(hub, say)
+            st = {"day": START, "week_done": 0, "week_plan": 0}
         stop = dt.date.fromisoformat(args.until) if args.until else RACE + dt.timedelta(days=1)
-        while day <= stop:
-            hub.set_time(dt.datetime.combine(day, dt.time(6, 30)))
-            a.sick = any(k[0] == day and k[1] is None and v[0] == "sick" for k, v in MISS.items())
-            if day == dt.date(2026, 6, 25):
-                a.shin = 6
-            elif day == dt.date(2026, 6, 29):
-                a.shin = 3
-            elif day == dt.date(2026, 7, 6):
-                a.shin = 2
-            a.shoulder = 7 if dt.date(2026, 7, 8) <= day <= dt.date(2026, 7, 10) else 4 if day <= dt.date(2026, 7, 13) and day > dt.date(2026, 7, 10) else 2
-            week = api(f"/api/coach/week?date={day.isoformat()}")["week"]
-            today = next(x for x in week if x["date"] == day.isoformat())
-            # the hub asks for the hop test before a run: the athlete does it in the morning check-in
-            runs_today = any(s_.get("sport") == "run" for s_ in today["sessions"])
-            checkin(day, a, {"hops_left": 22, "hops_right": 21 if a.shin < 5 else 9} if runs_today else None)
-            at = dt.datetime.combine(day, dt.time(6, 45))
-            hard_today = 0
-            for i, s in enumerate(today["sessions"]):
-                sp = s.get("sport")
-                if sp in (None, "rest") or not s.get("minutes"):
-                    if sp == "other" and "Race day" in (s.get("name") or ""):
-                        race(a, day)
-                    continue
-                week_plan += s["minutes"]
-                miss = MISS.get((day, sp)) or MISS.get((day, None))
-                if miss:
-                    continue
-                if sp == "ride":
-                    a.ride(day, s, at)
-                elif sp == "run":
-                    a.run(day, s, at)
-                elif sp == "swim":
-                    a.swim(day, s, at)
-                elif sp == "gym":
-                    api("/api/coach/lifting/log", {"date": day.isoformat(), "session_index": 0, "rpe": 6, "wellness": 7})
-                week_done += s["minutes"]
-                hard_today += s.get("tier") in ("moderate", "hard")
-                at += dt.timedelta(minutes=s["minutes"] + 5)
-            if day == START:
-                api("/api/calibration", {"capacity": "ftp", "value": 182, "kind": "test", "date": day.isoformat(),
-                                         "note": "Ramp test, week 1"})
-                a.ftp = 182
-            if day == START + dt.timedelta(days=2):
-                api("/api/calibration", {"t400": 492, "t200": 231, "date": day.isoformat()})
-            if day == dt.date(2026, 7, 6):
-                api("/api/calibration", {"capacity": "ftp", "value": 191, "kind": "test", "date": day.isoformat(),
-                                         "note": "Ramp test, week 7"})
-                a.ftp = 191
-            a.fatigue = max(2.0, min(6.0, a.fatigue * 0.6 + 1.2 + 0.8 * hard_today))   # well-managed: legs 2-5, 6 after a big day
-            # the next morning, say why anything was missed (as the athlete would on the calendar)
-            prev = day - dt.timedelta(days=1)
-            for (d0, sp), (why, note) in MISS.items():
-                if d0 == prev:
-                    pw = api(f"/api/coach/week?date={prev.isoformat()}")["week"]
-                    pd = next(x for x in pw if x["date"] == prev.isoformat())
-                    for i, s in enumerate(pd["sessions"]):
-                        if s.get("missed") and (sp is None or s.get("sport") == sp):
-                            api("/api/coach/missed", {"date": prev.isoformat(), "index": i, "reason": why, "note": note})
-            if day.weekday() == 0 or a.shin >= 6 or a.shoulder >= 6:
-                assistant_review(day, a, say)
-            if day.weekday() == 6:
-                api("/api/coach/weekly", {"sunday": day.isoformat(), "legs": round(a.fatigue), "feet": a.shin, "shoulders": 3,
-                                          "week": 8 if week_done >= 0.85 * max(1, week_plan) else 6,
-                                          "hops_left": 22, "hops_right": 21 if a.shin < 5 else 15,
-                                          "run_response": "resolved" if a.shin < 5 else "pulling",
-                                          "note": "Good week." if week_done >= 0.85 * max(1, week_plan) else "Lost a couple of sessions."})
-                a.week_passes(week_done / max(1, week_plan))
-                say(f"week ending {day}: planned {week_plan} min, done {week_done} min, ftp {a.ftp}, easy pace {a.run_pace:.0f} s/km")
-                week_done = week_plan = 0
-            if day in CHECKPOINTS and not args.no_shots:
+        while st["day"] <= stop:
+            live_day(hub, a, st, say)
+            day = st["day"]
+            if day in CHECKPOINTS:
                 hub.set_time(dt.datetime.combine(day, dt.time(19, 30)))
-                shots(out, day, CHECKPOINTS[day])
-            day += dt.timedelta(days=1)
+                save_point(hub, out, CHECKPOINTS[day], a, st)
+                if not args.no_shots:
+                    shots(out, day, CHECKPOINTS[day])
+            st["day"] += dt.timedelta(days=1)
         say("done:", out)
     finally:
         hub.stop()
 
 
+def setup(hub, say):
+    api("/api/setup", PERSON)
+    api("/api/theme", {"theme": api("/api/theme")["theme"]})
+    a = Athlete(hub.dir / "activities")
+    # ── three weeks of easy history ──
+    day = PRE
+    while day < START:
+        hub.set_time(dt.datetime.combine(day, dt.time(6, 30)))
+        checkin(day, a)
+        wd = day.weekday()
+        at = dt.datetime.combine(day, dt.time(18, 0))
+        if wd in (1, 5):
+            a.ride(day, {"minutes": 45 if wd == 5 else 35}, at)
+        elif wd == 3:
+            a.swim(day, {"minutes": 25}, at)
+        elif wd in (0, 4):
+            a.run(day, {"minutes": 20, "name": "easy run / walk"}, at)
+        if wd == 6:
+            api("/api/coach/weekly", {"sunday": day.isoformat(), "legs": 3, "feet": 2, "shoulders": 3, "week": 7,
+                                      "hops_left": 20, "hops_right": 20, "run_response": "resolved",
+                                      "note": "Easy week, getting back into it."})
+        day += dt.timedelta(days=1)
+    # ── the program, built the evening before week 1 ──
+    hub.set_time(dt.datetime.combine(START - dt.timedelta(days=1), dt.time(19, 0)))
+    api("/api/coach/event", {"date": RACE.isoformat(), "name": "Lakeside Sprint Triathlon", "kind": "race", "sport": "tri",
+                             "note": "750 m swim · 20 km bike · 5 km run"})
+    fields = {"start": START.isoformat(), "target": RACE.isoformat(), "sport": "tri", "hours": 4,
+              "goal": "Lakeside Sprint Triathlon", "outcome": "Finish strong and enjoy it", "assessment": "week",
+              "priorities": {"ride": "improve", "swim": "improve", "run": "improve", "gym": "maintain"},
+              "starter_enabled": True, "starter_level": "moderate", "starter_equipment": "basic", "neutral_forecast": True,
+              "schedule_options": {"available_days": [0, 1, 2, 3, 4, 5, 6], "rest_days": [6]}}
+    draft = api("/api/coach/program-builder", fields)
+    did = draft.get("draft_id") or draft.get("id") or (draft.get("draft") or {}).get("id")
+    api("/api/coach/program-builder", {"action": "accept", "draft_id": did})
+    prog = api("/api/coach/program-builder")
+    say("program:", [(p["stage"], p["start"], p["end"]) for p in prog["phases"]], "running hold:", prog["running_hold"])
+    return a
+
+
+def live_day(hub, a, st, say):
+    """One day of Jordan's life: check in, let the assistant review, train, report, and on Sunday look back."""
+    day = st["day"]
+    hub.set_time(dt.datetime.combine(day, dt.time(6, 30)))
+    a.sick = any(k[0] == day and k[1] is None and v[0] == "sick" for k, v in MISS.items())
+    if day == dt.date(2026, 6, 25):
+        a.shin = 6
+    elif day == dt.date(2026, 6, 29):
+        a.shin = 3
+    elif day == dt.date(2026, 7, 6):
+        a.shin = 2
+    a.shoulder = 7 if dt.date(2026, 7, 8) <= day <= dt.date(2026, 7, 10) else 4 if dt.date(2026, 7, 10) < day <= dt.date(2026, 7, 13) else 2
+    # the hub asks for the hop test before a run: the athlete does it in the morning check-in
+    week = api(f"/api/coach/week?date={day.isoformat()}")["week"]
+    today = next(x for x in week if x["date"] == day.isoformat())
+    runs_today = any(s_.get("sport") == "run" for s_ in today["sessions"])
+    checkin(day, a, {"hops_left": 22, "hops_right": 21 if a.shin < 5 else 9} if runs_today else None)
+    # the morning conversation with the assistant, before anything is done today
+    assistant_review(day, a, say)
+    week = api(f"/api/coach/week?date={day.isoformat()}")["week"]
+    today = next(x for x in week if x["date"] == day.isoformat())
+    at = dt.datetime.combine(day, dt.time(6, 45))
+    hard_today = 0
+    trained = []
+    for i, s in enumerate(today["sessions"]):
+        sp = s.get("sport")
+        if sp in (None, "rest") or not s.get("minutes"):
+            if sp == "other" and "Race day" in (s.get("name") or ""):
+                race(a, day)
+            continue
+        st["week_plan"] += s["minutes"]
+        if MISS.get((day, sp)) or MISS.get((day, None)):
+            continue
+        if sp == "ride":
+            a.ride(day, s, at)
+        elif sp == "run":
+            a.run(day, s, at)
+        elif sp == "swim":
+            a.swim(day, s, at)
+        elif sp == "gym":
+            api("/api/coach/lifting/log", {"date": day.isoformat(), "session_index": 0, "rpe": 6, "wellness": 7})
+        trained.append((i, s))
+        st["week_done"] += s["minutes"]
+        hard_today += s.get("tier") in ("moderate", "hard")
+        at += dt.timedelta(minutes=s["minutes"] + 5)
+    if day == START:
+        api("/api/calibration", {"capacity": "ftp", "value": 182, "kind": "test", "date": day.isoformat(),
+                                 "note": "Ramp test, week 1"})
+        a.ftp = 182
+    if day == START + dt.timedelta(days=2):
+        api("/api/calibration", {"t400": 492, "t200": 231, "date": day.isoformat()})
+    if day == dt.date(2026, 7, 6):
+        api("/api/calibration", {"capacity": "ftp", "value": 191, "kind": "test", "date": day.isoformat(),
+                                 "note": "Ramp test, week 7"})
+        a.ftp = 191
+    # the evening: a quick report on each run (the end-of-workout response the hub learns from)
+    hub.set_time(dt.datetime.combine(day, dt.time(20, 0)))
+    for i, s in trained:
+        if s.get("sport") != "run":
+            continue
+        name = (s.get("name") or "").lower()
+        building = s.get("phase") in ("base", "build") or any(k in name for k in ("easy", "steady", "long"))
+        body = {"date": day.isoformat(), "session_index": i, "rpe": 4 if building else 7,
+                "effort": "too_easy" if building and a.shin <= 2 and day >= dt.date(2026, 7, 6) else "as_intended"}
+        if day == dt.date(2026, 6, 24):
+            body["symptoms"] = [{"location": "below_knee", "side": "left", "severity": 3}]
+            body["note"] = "Front of the left shin got tight in the last ten minutes."
+        r = api("/api/coach/session-report", body, ok=(200, 400))
+        if r.get("error"):
+            say(f"session report {day} #{i}: {r['error']}")
+    a.fatigue = max(2.0, min(6.0, a.fatigue * 0.6 + 1.2 + 0.8 * hard_today))   # well-managed: legs 2-5, 6 after a big day
+    # the next morning, say why anything was missed (as the athlete would on the calendar)
+    prev = day - dt.timedelta(days=1)
+    for (d0, sp), (why, note) in MISS.items():
+        if d0 == prev:
+            pw = api(f"/api/coach/week?date={prev.isoformat()}")["week"]
+            pd = next(x for x in pw if x["date"] == prev.isoformat())
+            for i, s in enumerate(pd["sessions"]):
+                if s.get("missed") and (sp is None or s.get("sport") == sp):
+                    api("/api/coach/missed", {"date": prev.isoformat(), "index": i, "reason": why, "note": note})
+    if day == dt.date(2026, 7, 6):
+        # the shin has been quiet for a week: Jordan confirms it with the assistant
+        for key, e in (api("/api/coach/session-report").get("reports") or {}).items():
+            if any(x.get("severity", 0) > 0 for x in e.get("symptoms", [])):
+                api("/api/coach/progression", {"action": "resolve_symptom", "report_key": key, "resolved": True,
+                                               "note": "No shin tenderness for a week; hop test even."})
+    if day.weekday() == 6:
+        good = st["week_done"] >= 0.85 * max(1, st["week_plan"])
+        api("/api/coach/weekly", {"sunday": day.isoformat(), "legs": round(a.fatigue), "feet": a.shin, "shoulders": 3,
+                                  "week": 8 if good else 6, "hops_left": 22, "hops_right": 21 if a.shin < 5 else 15,
+                                  "run_response": "resolved" if a.shin < 5 else "pulling",
+                                  "note": "Good week." if good else "Lost a couple of sessions."})
+        a.week_passes(st["week_done"] / max(1, st["week_plan"]))
+        say(f"week ending {day}: planned {st['week_plan']} min, done {st['week_done']} min, ftp {a.ftp}, "
+            f"easy pace {a.run_pace:.0f} s/km")
+        st["week_done"] = st["week_plan"] = 0
+
+
+CR = "/api/coach/coaching-review"
+LADDER = {"run": ["shorten", "ride", "rest"], "gym": ["ride", "rest"], "swim": ["ride", "rest"]}
+
+
 def assistant_review(day, a, say):
-    """What the athlete's AI assistant does with the hub's evidence (scripted here; in real use the assistant
-    reads get_today / get_recent_weeks and calls set_plan): while the running gate holds, the coming week's runs
-    become easy rides of the same length; after a shoulder flare-up, swims become easy rides for a few days."""
-    g = api(f"/api/coach/block?date={day.isoformat()}").get("running_gate") or {}
-    gate = g.get("status")
-    # a hold from load alone clears on its own: only runs before the projected clear date move
-    symptom = any(not r.startswith("mechanical running load") for r in g.get("reasons") or [])
-    clear_by = day + dt.timedelta(days=8 if symptom or g.get("model_days") is None else int(g["model_days"]))
-    shoulder = a.shoulder >= 6
-    changed = []
-    for k in range(0, 8):
-        d0 = day + dt.timedelta(days=k)
-        week = api(f"/api/coach/week?date={d0.isoformat()}")["week"]
-        dd = next(x for x in week if x["date"] == d0.isoformat())
-        ss = [s_ for s_ in dd["sessions"] if s_.get("sport")]
-        new, swapped = [], []
-        for s_ in ss:
-            s_ = {k2: v for k2, v in s_.items() if k2 not in ("completion", "missed", "missed_reason")}
-            hold_run = s_["sport"] == "run" and gate == "hold" and d0 < clear_by
-            hold_swim = s_["sport"] == "swim" and shoulder and k <= 4
-            if (hold_run or hold_swim) and not s_.get("completion"):
-                m = s_.get("minutes") or 30
-                why = ("Running is on hold while the shin's accumulated load clears" if hold_run else
-                       "Shoulder pinching on the catch: no swimming for a few days")
-                new.append({"sport": "ride", "minutes": m, "name": f"Easy ride (instead of: {s_.get('name')})",
-                            "steps": [f"{m} min easy, 60-65% FTP, smooth cadence"], "note": why + " - swapped by your assistant.",
-                            "shape": s_.get("shape")})
-                swapped.append(s_.get("name"))
-            else:
-                new.append(s_)
-        if swapped:
-            api("/api/coach/plan", {"date": d0.isoformat(), "sessions": new,
-                                    "note": "Assistant: " + "; ".join(f"{n} -> easy ride" for n in swapped)})
-            changed.append(f"{d0}: {', '.join(swapped)}")
-    if changed:
-        say(f"assistant on {day}: running gate {gate}, shoulder {a.shoulder}/10 -> " + " | ".join(changed))
+    """What the athlete's AI assistant does each morning, scripted here with the same tools a real assistant
+    uses (get_coaching_review -> preview_coaching_change -> apply_coaching_change after the athlete agrees):
+
+    - capacity: when the hub has repeated, matched evidence that Jordan recovers better than modeled, review it;
+    - calendar: every run or lift the 14-day outlook flags, every run inside a running hold, and swims during a
+      shoulder flare-up get the lightest fix that passes the hub's checks: shorten, then swap for an easy ride,
+      then rest. The hub, not the script, decides whether the draft is safe to apply."""
+    rv = api(CR + "?days=14")
+    for c in rv["capacity"]["candidates"]:
+        if c["status"] == "review_candidate" and c.get("suggested_reference"):
+            p = api(CR, {"action": "preview", "kind": "capacity", "target": c["target"],
+                         "note": f"{len(c['observations'])} matched sessions recovered better than modeled"}, ok=(200, 400))
+            if p.get("draft_id"):
+                api(CR, {"action": "apply", "draft_id": p["draft_id"], "approved": True})
+                say(f"assistant on {day}: {c['target']} capacity {c['reference']} -> {c['suggested_reference']} "
+                    f"({c['direction']}, {len(c['observations'])} sessions)")
+                rv = api(CR + "?days=14")
+    out = rv["outlook"]
+    gate = out["running_gate"]
+    reasons = gate.get("reasons") or []
+    held = gate.get("status") != "open_for_review"
+    load_only = bool(reasons) and all(r.startswith("mechanical running load") for r in reasons)
+    clear_by = (day + dt.timedelta(days=int(gate["model_days"]))).isoformat() \
+        if held and load_only and gate.get("model_days") is not None else None
+    last = (day + dt.timedelta(days=13)).isoformat()
+    # (date, index) -> step on the ladder
+    level = {}
+    for row in out["sessions"]:
+        key = (row["date"], row["index"])
+        if row["sport"] == "run" and held and (clear_by is None or row["date"] < clear_by):
+            level[key] = 1                            # a hold isn't fixed by a shorter run
+        elif row["status"] != "within_projected_limits":
+            level[key] = 0
+    if a.shoulder >= 6:
+        for k in range(5):
+            d0 = (day + dt.timedelta(days=k)).isoformat()
+            for i, s in enumerate(plan_of(d0)):
+                if s.get("sport") == "swim":
+                    level[(d0, i)] = 0
+    if not level:
+        return
+    for _ in range(5):
+        changes = {}
+        for (d0, i) in level:
+            changes.setdefault(d0, None)
+        body = []
+        for d0 in sorted(changes):
+            ss = plan_of(d0)
+            new = [replace(s, LADDER[s["sport"]][min(level[(d0, i)], len(LADDER[s["sport"]]) - 1)], gate, a)
+                   if (d0, i) in level and s.get("sport") in LADDER else s for i, s in enumerate(ss)]
+            body.append({"date": d0, "sessions": new})
+        p = api(CR, {"action": "preview", "kind": "calendar", "changes": body}, ok=(200, 400))
+        if p.get("error"):
+            say(f"assistant on {day}: preview refused: {p['error']}")
+            return
+        bad = p.get("violations") or []
+        if not bad:
+            api(CR, {"action": "apply", "draft_id": p["draft_id"], "approved": True})
+            say(f"assistant on {day}: " + " | ".join(
+                f"{c['date']}: {', '.join(s['name'] for s in c['sessions'])}" for c in p["changes"]))
+            return
+        bumped = False
+        for v in bad:
+            vd = v[:10]
+            hit = [k for k in level if k[0] == vd] or [k for k in level if k[0] <= vd]
+            for k in hit:
+                if level[k] < len(LADDER["run"]) - 1:
+                    level[k] += 1
+                    bumped = True
+            if "remaining" in v:
+                for row in out["sessions"]:
+                    if row["date"] == vd and (vd, row["index"]) not in level and row["date"] <= last:
+                        level[(vd, row["index"])] = 0
+                        bumped = True
+        if not bumped:
+            break
+    say(f"assistant on {day}: no change passed the hub's checks: " + "; ".join(bad))
+
+
+def plan_of(date):
+    week = api(f"/api/coach/week?date={date}")["week"]
+    dd = next(x for x in week if x["date"] == date)
+    return [{k: v for k, v in s.items() if k not in ("completion", "missed", "missed_reason")}
+            for s in dd["sessions"] if s.get("sport")]
+
+
+def replace(s, how, gate, a):
+    m = s.get("minutes") or 30
+    if s["sport"] == "run":
+        why = "running is on hold while the accumulated load clears" if gate.get("status") != "open_for_review" else \
+            "the forecast puts this run over the planning limit"
+    elif s["sport"] == "swim":
+        why = "shoulder pinching on the catch: no swimming for a few days"
+    else:
+        why = "the lifting forecast is over its limit"
+    if how == "shorten":
+        short = max(15, round(m * 0.6 / 5) * 5)
+        return {**s, "minutes": short, "name": f"Easy run, {short} min",
+                "steps": [f"{short} min easy, conversational"], "note": f"Shortened from {m} min: {why}."}
+    if how == "ride":
+        return {"sport": "ride", "minutes": m, "name": f"Easy ride (instead of: {s.get('name')})"[:80],
+                "steps": [f"{m} min easy, 60-65% FTP, smooth cadence"], "note": f"Swapped by your assistant: {why}."}
+    return {"sport": "rest", "minutes": 0, "name": "Rest", "steps": [], "note": f"Rest instead of {s.get('name')}: {why}."}
 
 
 def race(a, day):
