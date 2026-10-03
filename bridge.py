@@ -54,7 +54,13 @@ import live
 import session
 import routes
 import rider
-from bless import BlessServer, GATTAttributePermissions as Perm, GATTCharacteristicProperties as Prop
+try:
+    from bless import BlessServer, GATTAttributePermissions as Perm, GATTCharacteristicProperties as Prop
+except Exception as _bless_error:          # e.g. a Windows Bluetooth runtime mismatch: the hub still runs (no-bike mode)
+    class BlessServer:                     # noqa: D401 - raised at Bluetooth startup, which falls back to no-bike mode
+        def __init__(self, *a, _why=f"{type(_bless_error).__name__}: {_bless_error}", **k):
+            raise RuntimeError("rebroadcasting to apps and watches isn't available on this computer (" + _why + ")")
+    Perm = Prop = None
 
 log = logging.getLogger("bridge")
 
