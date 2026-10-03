@@ -7,42 +7,54 @@
 # Downloads come from PyPI (Python packages) only. Nothing is uploaded anywhere.
 # The route planner and 3D maps are set up on macOS (setup.sh); everything else works here.
 param([switch]$NoBike, [switch]$NoStart)
-$ErrorActionPreference = "Stop"
 Set-Location -Path $PSScriptRoot
 function Say($m) { Write-Host "==> $m" -ForegroundColor Cyan }
+function Fail($m) {
+  if ($env:GITHUB_ACTIONS) { Write-Host "::error::$m" }
+  Write-Host $m -ForegroundColor Red
+  exit 1
+}
+# Native commands (python, pip) report through their exit code; their warnings on stderr aren't failures.
+function Run($exe, [string[]]$argv) {
+  & $exe @argv
+  if ($LASTEXITCODE -ne 0) { Fail "'$exe $($argv -join ' ')' failed (exit code $LASTEXITCODE)" }
+}
 
 # ── Python ──────────────────────────────────────────────────────────────────
-$py = $null
-foreach ($c in @("py -3", "python", "python3")) {
-  try {
-    $v = & cmd /c "$c -c ""import sys; print(sys.version_info >= (3, 11))""" 2>$null
-    if ($v -eq "True") { $py = $c; break }
-  } catch {}
+$py = $null; $pyArgs = @()
+foreach ($c in @(@("py", "-3"), @("python"), @("python3"))) {
+  if (-not (Get-Command $c[0] -ErrorAction SilentlyContinue)) { continue }
+  $rest = @($c | Select-Object -Skip 1)
+  $ok = & $c[0] @rest -c "import sys; print(int(sys.version_info >= (3, 11)))" 2>$null
+  if ("$ok".Trim() -eq "1") { $py = $c[0]; $pyArgs = $rest; break }
 }
 if (-not $py) {
-  Write-Host "Install Python 3.11 or newer first: https://www.python.org/downloads/windows/ (tick 'Add python.exe to PATH')."
-  exit 1
+  Fail "Install Python 3.11 or newer first: https://www.python.org/downloads/windows/ (tick 'Add python.exe to PATH')."
 }
 if (-not (Test-Path ".venv\Scripts\python.exe")) {
   Say "Creating the Python environment (.venv)"
-  & cmd /c "$py -m venv .venv"
+  Run $py ($pyArgs + @("-m", "venv", ".venv"))
 }
+$venv = Join-Path $PSScriptRoot ".venv\Scripts\python.exe"
 Say "Installing Python packages (bleak, bless)"
-& .venv\Scripts\python.exe -m pip install -q --upgrade pip
-& .venv\Scripts\python.exe -m pip install -q -r requirements.txt
+Run $venv @("-m", "pip", "install", "-q", "--upgrade", "pip")
+Run $venv @("-m", "pip", "install", "-q", "-r", "requirements.txt")
 
 # ── Desktop launcher ────────────────────────────────────────────────────────
 $flag = if ($NoBike) { " --no-bike" } else { "" }
-$launcher = Join-Path ([Environment]::GetFolderPath("Desktop")) "S-Bike Hub.cmd"
-@"
-@echo off
-rem Double-click to start the S-Bike Hub. The control panel opens in your browser.
-rem Stop it with "Stop bridge" on the panel, or Ctrl+C in this window.
-cd /d "$PSScriptRoot"
-.venv\Scripts\python.exe -X utf8 bridge.py --ui$flag
-"@ | Set-Content -Path $launcher -Encoding ASCII
-Say "Made the launcher: Desktop\S-Bike Hub.cmd"
+$desktop = [Environment]::GetFolderPath("Desktop")
+if (-not $desktop -or -not (Test-Path $desktop)) { $desktop = $PSScriptRoot }
+$launcher = Join-Path $desktop "S-Bike Hub.cmd"
+$lines = @(
+  "@echo off",
+  "rem Double-click to start the S-Bike Hub. The control panel opens in your browser.",
+  "rem Stop it with 'Stop bridge' on the panel, or Ctrl+C in this window.",
+  "cd /d `"$PSScriptRoot`"",
+  ".venv\Scripts\python.exe -X utf8 bridge.py --ui$flag"
+)
+Set-Content -Path $launcher -Value $lines -Encoding ASCII
+Say "Made the launcher: $launcher"
 
-if ($NoStart) { Say "Installed. Start it from the Desktop launcher."; exit 0 }
+if ($NoStart) { Say "Installed. Start it from the launcher."; exit 0 }
 Say "Starting the hub (the welcome page opens in your browser)"
-& .venv\Scripts\python.exe -X utf8 bridge.py --ui$flag
+& $venv -X utf8 bridge.py --ui $(if ($NoBike) { "--no-bike" })
