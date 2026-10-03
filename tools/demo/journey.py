@@ -49,6 +49,7 @@ PERSON = {"unit": "lb", "weight": 174, "age": 36, "hr_rest": 58, "hr_max": None,
           "sports": ["bike", "swim", "run", "lift"],
           "experience": {"bike": "returning", "swim": "returning", "run": "new", "lift": "returning"},
           "smart_bike": False, "return_to_run": False, "start": "fresh", "ftp": 175, "css": "2:05", "run5k": None,
+          "runs_now": False, "run_minutes": 40, "run_niggles": False,
           "rules": ["No barbell work on the day before a long ride"]}
 
 # What happens that isn't in the plan: (date, sport or None) -> missed reason, and journal lines
@@ -191,6 +192,13 @@ class Athlete:
 
     def run(self, day, s, at):
         name = (s.get("name") or "").lower()
+        if "calibration" in name:
+            # zone 2 the whole way; the first one (a new runner) stops tired at 40 min, later ones finish the hour
+            self.calibrations = getattr(self, "calibrations", 0) + 1
+            mins = 40 if self.calibrations == 1 else 60
+            fitwrite.run(self.acts / f"{day}_{at:%H%M}_run.fit", at.timestamp(), mins * 60, 140 - self.fitness,
+                         self.run_pace + 35, hr_drift=max(1.5, 6.0 - 0.6 * self.fitness))
+            return mins
         hard = any(k in name for k in ("race", "brick", "steady", "openers"))
         pace = self.run_pace - (55 if "race" in name or "brick" in name else 25 if hard else 0)
         hr = 150 - self.fitness + (14 if hard else 0)
@@ -199,6 +207,7 @@ class Athlete:
             pace, hr = pace + 70, hr - 6
         fitwrite.run(self.acts / f"{day}_{at:%H%M}_run.fit", at.timestamp(), secs, hr, pace,
                      hr_drift=max(2.0, 9.0 - 0.7 * self.fitness))
+        return secs / 60
 
     def swim(self, day, s, at):
         per = self.swim_25 - (2.5 if "race" in (s.get("name") or "").lower() else 0)
@@ -354,7 +363,7 @@ def live_day(hub, a, st, say):
     today = next(x for x in week if x["date"] == day.isoformat())
     at = dt.datetime.combine(day, dt.time(6, 45))
     hard_today = 0
-    trained = []
+    trained, stopped = [], []
     for i, s in enumerate(today["sessions"]):
         sp = s.get("sport")
         if sp in (None, "rest") or not s.get("minutes"):
@@ -367,7 +376,9 @@ def live_day(hub, a, st, say):
         if sp == "ride":
             a.ride(day, s, at)
         elif sp == "run":
-            a.run(day, s, at)
+            ran = a.run(day, s, at)
+            if "calibration" in (s.get("name") or "").lower() and ran < 58:
+                stopped.append(day)
         elif sp == "swim":
             a.swim(day, s, at)
         elif sp == "gym":
@@ -388,6 +399,9 @@ def live_day(hub, a, st, say):
         a.ftp = 191
     # the evening: a quick report on each run (the end-of-workout response the hub learns from)
     hub.set_time(dt.datetime.combine(day, dt.time(20, 0)))
+    for d0 in stopped:      # the coach page asks why the calibration stopped before the hour
+        api("/api/calibration", {"calibration_run": d0.isoformat(), "reason": "tired"}, ok=(200, 400))
+        say(f"{d0}: running calibration stopped at 40 min - 'I was too tired to keep going'")
     for i, s in trained:
         if s.get("sport") != "run":
             continue
@@ -424,8 +438,11 @@ def live_day(hub, a, st, say):
                                   "run_response": "resolved" if a.shin < 5 else "pulling",
                                   "note": "Good week." if good else "Lost a couple of sessions."})
         a.week_passes(st["week_done"] / max(1, st["week_plan"]))
+        rem = ((api("/api/load").get("systems") or {}).get("impact", {}).get("tissue") or {}).get("remodeling") or {}
+        steps = rem.get("block_learning") or []
         say(f"week ending {day}: planned {st['week_plan']} min, done {st['week_done']} min, ftp {a.ftp}, "
-            f"easy pace {a.run_pace:.0f} s/km")
+            f"easy pace {a.run_pace:.0f} s/km, running block {rem.get('reference_points')} pts, carrying {rem.get('score')} blocks"
+            + (f" (last change {steps[-1]['date']}: {steps[-1]['why'][:90]})" if steps else ""))
         st["week_done"] = st["week_plan"] = 0
 
 
