@@ -50,6 +50,10 @@ def _q(date):
 
 def t_today(a):
     out = call("/api/coach/today" + _q(_date(a)))
+    try:
+        out["recent_weeks"] = call("/api/coach/recent-weeks?weeks=3&date=" + _date(a))["weeks"]
+    except HubError:
+        pass
     if out.get('training_block'):
         out['training_block'] = {k:v for k,v in out['training_block'].items() if k not in ('load_outlooks','load_history','swim_outlooks','weeks')}
         out['training_block']['detail_hint'] = 'Use get_training_block for weekly details; use preview_program for a focused draft forecast.'
@@ -373,6 +377,15 @@ def _trim_packets(packets, per_char=24):
     return {"shown": out, "total_by_characteristic": seen}
 
 
+def t_missed(a):
+    return call("/api/coach/missed", {"date": a["date"], "index": int(a.get("index", 0)), "reason": a["reason"],
+                                      "note": a.get("note", "")})["missed"]
+
+
+def t_recent_weeks(a):
+    return call(f"/api/coach/recent-weeks?weeks={int(a.get('weeks', 4))}&date={_date(a)}")
+
+
 def t_bike_request(a):
     out = call("/api/bike/request")
     st = call("/api/bike/status")
@@ -446,6 +459,16 @@ PROGRAM_FIELDS['properties'] = {
     'schedule_options':{'type':'object'},'neutral_forecast':{'type':'boolean'}
 }
 TOOLS = [
+    ("get_recent_weeks", "The athlete's response to the plan, week by week: planned vs done minutes against their "
+     "available time, each week's phase and shape (build, consolidation, peak_volume, peak_performance, taper, race), "
+     "hard sessions, and every missed session with its reason. Read it before deciding whether to build, hold, recover "
+     "or taper next week. Does not change anything.",
+     S(weeks=INT("Weeks back to include (1-12, default 4)", 1, 12), date=DATE), t_recent_weeks),
+    ("record_missed_session", "Record why a planned session didn't happen, in the athlete's words (busy, sick, sore, "
+     "tired, travel, weather, other). Shown on their calendar and used when you plan the following weeks: illness or "
+     "soreness argue for holding the build; busy weeks argue for a lighter, more realistic plan.",
+     S(date=DATE, index=INT("Which session that day (0 = first)", 0, 9),
+       reason=STR("Why", enum=["busy", "sick", "sore", "tired", "travel", "weather", "other"]), note=STR("Their words")), t_missed),
     ("get_bike_setup_request", "When the athlete says 'get my bike working' (or their bike won't connect to the hub): "
      "read the bike setup request they queued from the hub's welcome page - the bike's Bluetooth name, services, "
      "readable values and data packets captured while they pedaled - plus step-by-step instructions, safety rules and "
@@ -782,12 +805,13 @@ for name, _, schema, _ in TOOLS:
     if name=='propose_bike_profile':schema['required']=['profile']
     if name=='record_bike_feel':schema['required']=['felt']
     if name=='run_bike_check':schema['required']=['athlete_ready']
+    if name=='record_missed_session':schema['required']=['date','reason']
 BY_NAME = {t[0]: t for t in TOOLS}
 INSTRUCTIONS = ("A bike, run, and swim training companion (built on a Merach S29 smart bike). If the athlete says "
                 "'get my bike working' (or anything like it: their bike won't connect, the hub doesn't recognize "
                 "it), call get_bike_setup_request first and follow its steps; never ask them to paste anything. "
                 "Otherwise start with get_today "
-                "and recent check-ins and activity, then set a concrete day plan. Keep an explicit planning checklist: goal/date, phase purpose, available time, sport priorities, current holds, calibration gaps and projected limit flags. Re-read relevant data before writing after a long discussion. Read get_program before changing the macro program; use preview_program to compare drafts and starter forecasts, and apply_program only for athlete-approved reviewed changes. Request detail_start and detail_days for focused preview evidence rather than repeating the full horizon. Explain assumptions separately from measured inputs, and retain unresolved limits in the recommendation. After applying, call get_program and get_today for the affected day to verify the saved program and session. Apply saves the exact draft_id returned by preview. Draft conflicts require a fresh preview and approval. Use get_training_calendar for saved prescriptions and projections, explain_training_reading to inspect formula/input evidence, and get_adaptation_review for unresolved symptoms and progression context. Never interpret a falling conditioning score alone as lost performance or an easy recovery session as permission to increase load.  Program shape: available weekly hours are the most a week may use, not the starting dose. Start around half of them (an optional test week lighter still), build through the foundation and development phases, and plan two DIFFERENT peaks: PEAK VOLUME weeks at the end of development (the most hours and sessions, 80-95% of available time, mostly aerobic with one quality session per sport) and PEAK PERFORMANCE weeks in event preparation (slightly less volume, race-specific intensity: race-pace intervals, and bricks for triathletes). Then taper (less volume, short race-pace openers) and a light race week (openers two days out, rest the day before). Every fourth building week consolidates. Each session's shape field (test, build, consolidation, peak_volume, peak_performance, taper, race) says which kind of week it belongs to; keep that shape when revising, and let check-ins, missed sessions and load flags hold the build back. A day can contain ordered ride and "
+                "and recent check-ins and activity, then set a concrete day plan. Keep an explicit planning checklist: goal/date, phase purpose, available time, sport priorities, current holds, calibration gaps and projected limit flags. Re-read relevant data before writing after a long discussion. Read get_program before changing the macro program; use preview_program to compare drafts and starter forecasts, and apply_program only for athlete-approved reviewed changes. Request detail_start and detail_days for focused preview evidence rather than repeating the full horizon. Explain assumptions separately from measured inputs, and retain unresolved limits in the recommendation. After applying, call get_program and get_today for the affected day to verify the saved program and session. Apply saves the exact draft_id returned by preview. Draft conflicts require a fresh preview and approval. Use get_training_calendar for saved prescriptions and projections, explain_training_reading to inspect formula/input evidence, and get_adaptation_review for unresolved symptoms and progression context. Never interpret a falling conditioning score alone as lost performance or an easy recovery session as permission to increase load.  You are the planner. The hub records, organizes and calculates the athlete's state (loads, readiness, check-ins, journal, completions, missed sessions and why); you turn that into the plan with them, so they only have to do the training. Decide when to build, hold, recover, peak and taper from the evidence, not the calendar alone: read get_today (it includes recent_weeks) and get_recent_weeks, then revise upcoming weeks with set_plan or preview_program/apply_program. Missed sessions are information - ask why if no reason is recorded (record_missed_session), and plan the next week around what actually happened rather than repeating what was missed. The hub's starter program is a draft skeleton to adapt: when something in it doesn't make sense for this athlete (a session too long for their level, a phase timed wrong for their event, a test they don't need, too little or too much of a sport for their goal), fix it with them and say why, rather than following it to the letter. Program shape: available weekly hours are the most a week may use, not the starting dose. Start around half of them (an optional test week lighter still), build through the foundation and development phases, and plan two DIFFERENT peaks: PEAK VOLUME weeks at the end of development (the most hours and sessions, 80-95% of available time, mostly aerobic with one quality session per sport) and PEAK PERFORMANCE weeks in event preparation (slightly less volume, race-specific intensity: race-pace intervals, and bricks for triathletes). Then taper (less volume, short race-pace openers) and a light race week (openers two days out, rest the day before). Every fourth building week consolidates. Each session's shape field (test, build, consolidation, peak_volume, peak_performance, taper, race) says which kind of week it belongs to; keep that shape when revising, and let check-ins, missed sessions and load flags hold the build back. A day can contain ordered ride and "
                 "swim sessions with intervals or drills; consider both shared cardiovascular and sport-specific "
                 "recovery before adding a second session. Running impact and swim recovery blocks are provisional "
                 "planning estimates, not measured tissue damage or injury clearance. Reported pain and the athlete's "

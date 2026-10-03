@@ -46,7 +46,7 @@ async def main():
     return out
    try:
     await rpc(1,'initialize',{'protocolVersion':'2025-06-18','capabilities':{},'clientInfo':{'name':'installation-test','version':'1'}})
-    assert len((await rpc(2,'tools/list',{}))['tools'])==61
+    assert len((await rpc(2,'tools/list',{}))['tools'])==63
     await tool(3,'get_program')
     before=(base/'coach.json').read_bytes()
     preview=await tool(4,'preview_program',{'fields':fields}); assert len(preview['starter']['candidates'])==3
@@ -64,5 +64,5 @@ async def main():
    finally:
     if proc.returncode is None: proc.kill(); await proc.wait()
     server.close(); await server.wait_closed()
- print('PASS installable bundle: stock runtime, 61 tools, read/preview/apply/check-in/progress; isolated athlete data')
+ print('PASS installable bundle: stock runtime, 63 tools, read/preview/apply/check-in/progress; isolated athlete data')
 if __name__=='__main__': asyncio.run(main())
