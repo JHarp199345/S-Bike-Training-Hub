@@ -44,6 +44,9 @@ $venv = Join-Path $PSScriptRoot ".venv\Scripts\python.exe"
 Say "Installing Python packages (bleak, bless)"
 Run $venv @("-m", "pip", "install", "-q", "--upgrade", "pip")
 Run $venv @("-m", "pip", "install", "-q", "-r", "requirements.txt")
+# bless pins an old Windows Bluetooth runtime that conflicts with bleak's; it works with bleak's newer one
+Run $venv @("-m", "pip", "install", "-q", "--no-deps", "bless==0.3.0")
+Run $venv @("-m", "pip", "install", "-q", "pywin32")
 
 # ── Desktop launcher ────────────────────────────────────────────────────────
 $flag = if ($NoBike) { " --no-bike" } else { "" }

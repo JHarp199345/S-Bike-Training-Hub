@@ -1,5 +1,5 @@
 bleak==3.0.2
-bless==0.3.0
+bless==0.3.0 ; sys_platform != "win32"      # Windows: setup.ps1 installs it without its outdated runtime pin
 pyobjc-core==12.2.2 ; sys_platform == "darwin"
 pyobjc-framework-Cocoa==12.2.2 ; sys_platform == "darwin"
 pyobjc-framework-CoreBluetooth==12.2.2 ; sys_platform == "darwin"

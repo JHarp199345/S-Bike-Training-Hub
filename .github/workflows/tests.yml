@@ -34,7 +34,10 @@ jobs:
         run: |
           ./setup.ps1 -NoBike -NoStart
           if (-not (Test-Path .venv\Scripts\python.exe)) { throw "setup.ps1 did not create the environment" }
+          .venv\Scripts\python.exe -c "from bless import BlessServer; import bleak; print('bless and bleak import on Windows')"
           python -m pip install -r requirements.txt
+          python -m pip install --no-deps bless==0.3.0
+          python -m pip install pywin32
       - name: Bike setup - matched and unrecognized bikes, guided check, assistant tools
         run: python tests/test_bike_setup.py
       - name: The hub starts in no-bike mode and the bike setup answers over HTTP
