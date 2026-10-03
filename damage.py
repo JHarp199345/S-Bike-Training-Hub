@@ -150,7 +150,9 @@ def learn_block(dates, doses, reports, runs, start_reference, **kw):
             prev = i
             continue
         e_now, e_prev = eff(i), eff(prev)
-        slower = e_now is not None and e_prev is not None and e_now < 0.97 * e_prev
+        h_now, h_prev = (runs.get(dates[i]) or {}).get("hrr"), (runs.get(dates[prev]) or {}).get("hrr")
+        alike = h_now is not None and h_prev is not None and abs(h_now - h_prev) <= 0.08   # only like-for-like efforts compare
+        slower = alike and e_now is not None and e_prev is not None and e_now < 0.97 * e_prev
         earlier = [x["hops"] for d, x in reports.items() if isinstance(x, dict) and x.get("hops") is not None and d <= dates[i]]
         after = [x["hops"] for x in m if isinstance(x, dict) and x.get("hops") is not None]
         hops_drop = bool(earlier and after) and min(after) <= earlier[-1] - 2
