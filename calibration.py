@@ -224,31 +224,79 @@ def calibration_stop(d, date, reason, note=""):
     return rec
 
 
-def calibration_runs(d, acts):
-    """Running calibrations on the plan: completed or stopped early, and which ones still need the reason."""
-    out = []
+CAL_MOVE_DAYS = 2           # a test done up to two days off the planned day still counts (once confirmed)
+
+
+def match_runs(d, acts):
+    """Planned running calibrations and the run that was the test: the run on the planned day, or the nearest run
+    within two days of it when there was none that day (no other run in between). {plan day: run day or None}"""
+    out, used = {}, set()
     for day, plan in sorted(d.get("plans", {}).items()):
-        if plan.get("test") != "run_calibration" or day not in acts:
+        if plan.get("test") != "run_calibration":
+            continue
+        if day in acts:
+            out[day] = day
+            continue
+        base = dt.date.fromisoformat(day)
+        near = sorted((abs(k), (base + dt.timedelta(days=k)).isoformat()) for k in range(-CAL_MOVE_DAYS, CAL_MOVE_DAYS + 1) if k)
+        hit = next((x for _, x in near if x in acts and x not in used), None)
+        if hit and not any(min(day, hit) < k < max(day, hit) for k in acts):
+            out[day] = hit
+            used.add(hit)
+        else:
+            out[day] = None
+    return out
+
+
+def calibration_confirm(d, date, is_test, run_date=None):
+    """Was the run near a planned calibration day the test? No: it's an ordinary run and the test is still to do."""
+    dt.date.fromisoformat(date)
+    rec = d.setdefault("benchmarks", {}).setdefault("calibrations", {}).setdefault(date, {})
+    if rec.get("result"):
+        raise ValueError("That calibration is already graded")
+    rec.update({"confirmed": bool(is_test), **({"run_date": run_date} if run_date else {})})
+    return rec
+
+
+def calibration_runs(d, acts):
+    """Running calibrations on the plan: completed or stopped early, and what still needs the athlete's answer
+    (was a moved run the test; why did it stop early)."""
+    out = []
+    for day, run_day in match_runs(d, acts).items():
+        if not run_day:
             continue
         rec = ((d.get("benchmarks") or {}).get("calibrations") or {}).get(day) or {}
-        mins = acts[day].get("minutes") or 0
+        mins = acts[run_day].get("minutes") or 0
         done = mins >= CAL_COMPLETE
-        out.append({"date": day, "minutes": round(mins), "completed": done, "stopped": rec.get("stopped"),
-                    "needs_reason": not done and not rec.get("stopped") and not rec.get("result"),
+        moved = run_day != day
+        confirm = moved and rec.get("confirmed") is None and not rec.get("result")
+        out.append({"date": day, "run_date": run_day, "moved": moved, "minutes": round(mins), "completed": done,
+                    "stopped": rec.get("stopped"), "needs_confirm": confirm,
+                    "needs_reason": not confirm and rec.get("confirmed") is not False and not done and not rec.get("stopped") and not rec.get("result"),
                     "result": {k: rec.get(k) for k in ("result", "block", "multiplier", "why")} if rec.get("result") else None,
                     "reasons": {k: v[0] for k, v in CAL_STOPS.items()}})
     return out[-3:]
 
 
-def run_calibration(d, date, run, checkins, today, other_runs=()):
-    """Grade a running calibration once its eight-day watch is over. `run` is the scored activity (impact points,
-    drift_pct, minutes). Records the block as a test and returns the result; None while watching or already done."""
+def run_calibration(d, date, run, checkins, today, other_runs=(), run_date=None):
+    """Grade a running calibration once its eight-day watch is over. `date` is the planned day, `run_date` the day
+    it was run (up to two days off: see match_runs). `run` is the scored activity (impact points, drift_pct,
+    minutes). Records the block as a test and returns the result; None while watching or already done."""
     cals = d.setdefault("benchmarks", {}).setdefault("calibrations", {})
     rec = cals.setdefault(date, {})
     if rec.get("result"):
         return None
+    planned, date = date, run_date or date
+    rec["run_date"] = date
     day = dt.date.fromisoformat(date)
     elapsed = _days(date, today)
+    moved = date != planned
+    if moved and rec.get("confirmed") is False:
+        rec.update({"result": "not_test", "graded": today,
+                    "why": f"the run on {date} was an ordinary run, not the test: schedule the calibration again on a day you're 100%"})
+        return rec
+    if moved and rec.get("confirmed") is None and elapsed < 14:
+        return None                                  # waiting to hear whether that run was the test
     if elapsed <= CAL_WATCH_DAYS:
         return None
     window = [(day + dt.timedelta(days=k)).isoformat() for k in range(1, CAL_WATCH_DAYS + 1)]
@@ -272,6 +320,8 @@ def run_calibration(d, date, run, checkins, today, other_runs=()):
     if not completed and not stopped and elapsed < 14:
         return None                                  # waiting for why it stopped early
     cap = None if completed else CAL_STOPS[stopped][1] if stopped else 1.0
+    if moved and rec.get("confirmed") is None:      # nobody said it was the test: no headroom claimed
+        cap = 1.0 if cap is None else min(cap, 1.0)
     if not completed and stopped and cap is None:
         rec.update({"result": "void", "graded": today, "minutes": minutes,
                     "why": f"stopped at {round(minutes)} min ({CAL_STOPS[stopped][0].lower()}): the test is void - retry on a day you're 100% again"})
