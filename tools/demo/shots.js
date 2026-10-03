@@ -63,7 +63,8 @@ const VIEWS = [['desktop', { width: 1280, height: 900 }], ['phone', { width: 390
       }
     }
     });
-    await step('fitness', async () => { await page.goto(url + '/coach#fitness', { waitUntil: 'domcontentloaded' }); await settle(5000);
+    await step('fitness', async () => { await page.goto(url + '/coach', { waitUntil: 'domcontentloaded' }); await settle(2000);
+      await page.click('[data-tab="fitness"]'); await settle(5000);
       await shot('fitness'); await shot('fitness-full', { fullPage: true }); });
     await ctx.close();
   }
