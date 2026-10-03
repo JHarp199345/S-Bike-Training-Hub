@@ -8,6 +8,10 @@ the bridge must be running. An external AI receives the training context returne
 Registered with Claude Desktop (claude_desktop_config.json) and Claude Code
 (`claude mcp add`) as "s-bike-hub".
 """
+import os as _os, sys as _sys
+if _os.name == "nt" and not _sys.flags.utf8_mode:      # Windows: the hub's files are UTF-8; rerun in UTF-8 mode
+    import subprocess as _sp                            # (a child on the same console/pipes, so stdio clients still work)
+    _sys.exit(_sp.call([_sys.executable, "-X", "utf8", *_sys.argv]))
 import datetime as dt
 import json
 import sys
