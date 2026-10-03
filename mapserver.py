@@ -312,7 +312,7 @@ async def handle(bridge, method, path, body, host):
         base = Path(bridge.csv_path).parent.parent if getattr(bridge, "csv_path", None) else HERE
         data = await asyncio.get_running_loop().run_in_executor(None, load_state, base)
         return 200, "application/json", json.dumps(progress_evidence.report(data)).encode(), {}
-    if p.startswith("/api/coach"):
+    if p.startswith("/api/coach") or p == "/api/calibration":      # calibration lives with the coach's data
         return await coach_api(bridge, method, path, p, body)
     if p == "/api/load":
         base = Path(bridge.csv_path).parent.parent if getattr(bridge, "csv_path", None) else HERE

@@ -5,7 +5,7 @@ import hashlib
 import json
 
 PROTECTED_FRACTION = .60
-MIN_RUN_DAYS = 50              # athlete preference, not a research-derived healing time
+MIN_RUN_DAYS = None            # no fixed wait: the accumulated blocks set when running clears (an athlete may set their own)
 CHECK_KINDS = ('strength', 'balance', 'loading')
 
 
@@ -84,7 +84,7 @@ def status(d, remodel=None, today=None):
     if poor_today:reasons.append("Today's check-in does not support progression")
     if remodel.get('score') is None: reasons.append('Mechanical running load is unavailable')
     elif remodel['score']>=remodel.get('threshold_blocks',1.5): reasons.append('Mechanical running load is still at or above its planning limit')
-    if elapsed is None or elapsed<min_days: reasons.append(f'Personal minimum wait: {min_days} days since the latest run')
+    if min_days and (elapsed is None or elapsed<min_days): reasons.append(f'Personal minimum wait: {min_days} days since the latest run')
     if not repeated or not set(CHECK_KINDS)<=kinds: reasons.append('Repeated comfortable strength, balance and loading checks with dated next-day responses are still needed')
     review_ok=(remodel.get('phase')=='plateau' and progress is not None and progress>=PROTECTED_FRACTION
                and repeated and {'strength','balance'}<=kinds and not poor_today)

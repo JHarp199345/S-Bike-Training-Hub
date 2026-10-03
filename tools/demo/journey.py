@@ -42,7 +42,7 @@ RACE = dt.date(2026, 8, 16)        # race day (Sunday), end of week 12
 PERSON = {"unit": "lb", "weight": 174, "age": 36, "hr_rest": 58, "hr_max": None,
           "sports": ["bike", "swim", "run", "lift"],
           "experience": {"bike": "returning", "swim": "returning", "run": "new", "lift": "returning"},
-          "smart_bike": False, "start": "fresh", "ftp": 175, "css": "2:05", "run5k": None,
+          "smart_bike": False, "return_to_run": False, "start": "fresh", "ftp": 175, "css": "2:05", "run5k": None,
           "rules": ["No barbell work on the day before a long ride"]}
 
 # What happens that isn't in the plan: (date, sport or None) -> missed reason, and journal lines
@@ -50,10 +50,13 @@ MISS = {(dt.date(2026, 6, 10), "swim"): ("busy", "Work ran late, pool closed"),
         (dt.date(2026, 6, 26), "run"): ("sore", "Left shin still tender - swapped for rest"),
         (dt.date(2026, 6, 30), None): ("sick", "Head cold"),
         (dt.date(2026, 7, 1), None): ("sick", "Still congested"),
+        (dt.date(2026, 7, 9), "swim"): ("sore", "Right shoulder pinching - resting it"),
         (dt.date(2026, 7, 22), "swim"): ("travel", "Work trip, no pool")}
 JOURNAL = {dt.date(2026, 5, 26): "First FTP test done. Harder than I expected, but I paced it.",
            dt.date(2026, 6, 25): "Left shin a bit tender after yesterday's run. Not painful walking.",
            dt.date(2026, 6, 30): "Woke up with a head cold. Taking today and tomorrow off.",
+           dt.date(2026, 7, 8): "Front of my right shoulder pinches when I reach forward on the catch. Worse on the last few lengths.",
+           dt.date(2026, 7, 13): "Shoulder better. Easy swim felt fine, no pinch with a shorter reach.",
            dt.date(2026, 7, 16): "Biggest week so far and I feel good. Long ride felt easy at the end.",
            dt.date(2026, 8, 6): "Race-pace brick felt fast. Transitions are getting smoother.",
            dt.date(2026, 8, 17): "Finished my first triathlon! Swim was chaos, bike was strong, ran the whole run."}
@@ -109,7 +112,11 @@ def api(path, body=None, ok=(200,)):
                                  data=json.dumps(body).encode() if body is not None else None)
     try:
         with urllib.request.urlopen(req, timeout=300) as r:
-            return json.loads(r.read())
+            raw = r.read()
+            try:
+                return json.loads(raw)
+            except ValueError:
+                raise SystemExit(f"{path} -> not JSON: {raw[:300]!r}")
     except urllib.error.HTTPError as e:
         msg = e.read().decode(errors="replace")[:400]
         if e.code in ok:
@@ -130,6 +137,7 @@ class Athlete:
         self.fatigue = 3.0          # legs, 1-10
         self.shin = 2               # feet & bones, 1-10
         self.sick = False
+        self.shoulder = 2
 
     def week_passes(self, completion):
         gain = 0.5 + 0.6 * completion
@@ -162,7 +170,7 @@ class Athlete:
 
 
 def checkin(day, a, extra=None):
-    body = {"date": day.isoformat(), "legs": round(a.fatigue), "feet": a.shin,
+    body = {"date": day.isoformat(), "legs": round(a.fatigue), "feet": a.shin, "shoulders": getattr(a, "shoulder", 2),
             "sleep": a.rng.choice([6, 7, 7, 8, 8]), "breathing": 3 if not a.sick else 6,
             "motivation": a.rng.choice([7, 8, 8, 9]), "gut": "no" if a.sick else "go"}
     if day in JOURNAL:
@@ -175,6 +183,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=str(HERE / "out"))
     ap.add_argument("--no-shots", action="store_true")
+    ap.add_argument("--until", help="stop after this date (YYYY-MM-DD), for checking a stretch")
     args = ap.parse_args()
     out = Path(args.out).resolve()
     out.mkdir(parents=True, exist_ok=True)
@@ -223,7 +232,8 @@ def main():
         # ── twelve weeks, day by day ──
         day = START
         week_done = week_plan = 0
-        while day <= RACE + dt.timedelta(days=1):
+        stop = dt.date.fromisoformat(args.until) if args.until else RACE + dt.timedelta(days=1)
+        while day <= stop:
             hub.set_time(dt.datetime.combine(day, dt.time(6, 30)))
             a.sick = any(k[0] == day and k[1] is None and v[0] == "sick" for k, v in MISS.items())
             if day == dt.date(2026, 6, 25):
@@ -232,6 +242,7 @@ def main():
                 a.shin = 3
             elif day == dt.date(2026, 7, 6):
                 a.shin = 2
+            a.shoulder = 7 if dt.date(2026, 7, 8) <= day <= dt.date(2026, 7, 10) else 4 if day <= dt.date(2026, 7, 13) and day > dt.date(2026, 7, 10) else 2
             checkin(day, a)
             week = api(f"/api/coach/week?date={day.isoformat()}")["week"]
             today = next(x for x in week if x["date"] == day.isoformat())
