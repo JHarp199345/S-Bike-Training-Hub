@@ -471,6 +471,7 @@ def assistant_review(day, a, say):
                 if s.get("sport") == "swim":
                     level[(d0, i)] = 0
     if not level:
+        restore(day, a, gate, say)
         return
     for _ in range(5):
         changes = {}
@@ -489,7 +490,10 @@ def assistant_review(day, a, say):
         bad = p.get("violations") or []
         if not bad:
             api(CR, {"action": "apply", "draft_id": p["draft_id"], "approved": True})
-            say(f"assistant on {day}: " + " | ".join(
+            why = sorted({r["status"] for r in out["sessions"] if (r["date"], r["index"]) in level} - {"within_projected_limits"})
+            say(f"assistant on {day} (running gate {gate.get('status')}: {'; '.join(reasons) or 'clear'}"
+                f"{'; forecast ' + ', '.join(why) if why else ''}"
+                f"{'; shoulder ' + str(a.shoulder) + '/10' if a.shoulder >= 6 else ''}): " + " | ".join(
                 f"{c['date']}: {', '.join(s['name'] for s in c['sessions'])}" for c in p["changes"]))
             return
         bumped = False
@@ -508,6 +512,39 @@ def assistant_review(day, a, say):
         if not bumped:
             break
     say(f"assistant on {day}: no change passed the hub's checks: " + "; ".join(bad))
+
+
+def restore(day, a, gate, say):
+    """Once the reason is gone, put back what was swapped out: runs when the running gate is open again, swims
+    when the shoulder is quiet. Each date is previewed on its own and only kept if the hub's checks pass."""
+    restored = []
+    for k in range(1, 14):
+        d0 = (day + dt.timedelta(days=k)).isoformat()
+        ss = plan_of(d0)
+        new, back = [], []
+        for s in ss:
+            note, name = s.get("note") or "", s.get("name") or ""
+            was = name.split("(instead of: ", 1)[1].rstrip(")") if "(instead of: " in name else None
+            if s.get("sport") == "ride" and was and "running" in note and gate.get("status") == "open_for_review":
+                m = s["minutes"]
+                new.append({"sport": "run", "minutes": m, "name": was, "steps": [f"{m} min as planned"],
+                            "note": "Back in the plan: the running gate is open again."})
+                back.append(was)
+            elif s.get("sport") == "ride" and was and "shoulder" in note and a.shoulder <= 3:
+                m = s["minutes"]
+                new.append({"sport": "swim", "minutes": m, "name": was, "steps": [f"{m} min as planned"],
+                            "note": "Back in the plan: the shoulder is quiet."})
+                back.append(was)
+            else:
+                new.append(s)
+        if not back:
+            continue
+        p = api(CR, {"action": "preview", "kind": "calendar", "changes": [{"date": d0, "sessions": new}]}, ok=(200, 400))
+        if p.get("draft_id") and not p.get("violations"):
+            api(CR, {"action": "apply", "draft_id": p["draft_id"], "approved": True})
+            restored.append(f"{d0}: {', '.join(back)}")
+    if restored:
+        say(f"assistant on {day}: restored " + " | ".join(restored))
 
 
 def plan_of(date):
