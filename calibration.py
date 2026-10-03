@@ -348,8 +348,11 @@ def run_calibration(d, date, run, checkins, today, other_runs=(), run_date=None)
     elif completed:
         why = "completed the hour; " + why
     block = round(points * mult, 1)
+    # a clean watch (no running, mornings 3 or better, hop test held) shows the earlier running load has cleared:
+    # the running curve starts again from the test (loads.summary -> damage.model reset_before)
     rec.update({"result": "set", "points": round(points, 1), "multiplier": mult, "block": block, "drift_pct": drift,
-                "worst_morning": worst, "hop_drop": dropped, "minutes": minutes, "completed": completed, "graded": today, "why": why})
+                "worst_morning": worst, "hop_drop": dropped, "minutes": minutes, "completed": completed, "graded": today, "why": why,
+                "clean_watch": worst <= 3 and not dropped and not other_runs})
     record(d, "block", block, "test", date, f"running calibration: {round(points)} pts x {mult} ({why})")
     return rec
 

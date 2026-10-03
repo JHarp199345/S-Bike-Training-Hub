@@ -74,6 +74,20 @@ try:
 except ValueError:
     check("an unknown reason is refused", True)
 
+# a clean watch means the earlier running load has cleared: the curve starts again from the test
+import damage
+days = [(dt.date(2026, 5, 1) + dt.timedelta(days=i)).isoformat() for i in range(45)]
+history = [33.0 if i % 7 in (0, 3) and i < 29 else 0.0 for i in range(45)]
+history[29] = 68.8                                                      # the calibration run, then the watch
+quiet = {d: {"feet": 2, "legs": 2} for d in days}
+piled = damage.remodeling_response(days, history, feet_reports=quiet, block=68.8)
+fresh = damage.remodeling_response(days, history, feet_reports=quiet, block=68.8, reset_before=days[29])
+check(f"re-read under the new block, old runs would pile up ({piled['score']} blocks)", piled["score"] > 1.5)
+check(f"after a clean watch the curve starts from the test ({fresh['score']} blocks on day 9+)", fresh["score"] < 0.5)
+rec = grade(drift=2.0)[0]
+check("a clean watch is recorded", rec["clean_watch"] is True)
+check("rough mornings are not a clean watch", grade(checkins=mornings(legs=6))[0]["clean_watch"] is False)
+
 # done up to two days off the planned day: matched, then confirmed with the athlete
 plan = {"plans": {DAY: {"test": "run_calibration", "sessions": []}}}
 acts = {after(1): {"minutes": 60, "impact": 100.0, "drift_pct": 2.0}}

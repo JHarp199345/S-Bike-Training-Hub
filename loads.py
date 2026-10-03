@@ -559,7 +559,8 @@ def analyse(acts, prof, today=None, meta=None, feet_reports=None, daily_steps=No
                                                   walking=walking, block=prof.get("block_points"), reviews=run_reviews,
                                                   runs=run_evidence(scored, prof) if automatic_run_learning(prof, run_reviews) else None,
                                                   learn_since=max([x for x in (prof.get('_reviewed_run_date'), prof.get('_block_test_date')) if x], default=None),
-                                                  start_block=start_block(prof, scored) if not prof.get("block_points") else None)
+                                                  start_block=start_block(prof, scored) if not prof.get("block_points") else None,
+                                                  reset_before=prof.get("_reset_before"))
     if systems["impact"]["tissue"]:
         systems["impact"]["tissue"]["walking"] = {k: v for k, v in walking.items() if k != "steps"}
     if systems["impact"]["tissue"]:
@@ -893,6 +894,10 @@ def summary(base, today=None):
         checkins = {day: journal.effective(c) for day, c in checkins.items()}   # confirmed flags count like sliders
         feet_reports = {day: {k: float(c[k]) for k in ("feet", "legs", "hops", "shoulders") if c.get(k) is not None}
                         for day, c in checkins.items() if any(c.get(k) is not None for k in ("feet", "legs", "hops", "shoulders"))}
+        cals = [c for c in ((coach.load(base / "coach.json").get("benchmarks") or {}).get("calibrations") or {}).values()
+                if c.get("result") == "set" and c.get("clean_watch")]
+        if cals:                                   # the running curve starts again from the latest clean calibration
+            prof["_reset_before"] = max(c.get("run_date") or "" for c in cals) or None
         prof["_run_feedback"] = {e["date"]: {"effort": e.get("effort"), "rpe": e.get("rpe")}
                                  for e in coach.load(base / "coach.json").get("training_feedback", {}).values()
                                  if e.get("sport") == "run"}
