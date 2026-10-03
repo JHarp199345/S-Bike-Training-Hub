@@ -19,7 +19,7 @@ import urllib.error
 import urllib.request
 
 BASE = __import__("os").environ.get("S29_HUB_URL", "http://127.0.0.1:8729")   # tests point this at a scratch server
-VERSION = "1.5.0"
+VERSION = "1.6.0"
 
 
 class HubError(Exception):
