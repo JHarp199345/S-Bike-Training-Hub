@@ -71,7 +71,10 @@ def workout(sport,minutes,week,level,experience,equipment,d,anchors=None,recover
             lifts.append({'name':name,'kind':kind,'sets':sets,'reps':8,'weight':weight,'unit':anchor['unit'] if anchor else 'lb','regions':C.SHARES[name],'style':'build','how':how,'equipment':equipment,'rest_seconds':90,'calibration_basis':basis})
         if not lifts:
             raise ValueError('Your lifting rules exclude the starter exercises. Build a custom lifting session instead.')
-        s['lifts']=lifts
+        # the same shape as any planned lift (seconds, tempo, per side, scored), so checking it off works
+        norm=lifting.clean(d,lifts,draft=True)
+        for n,raw in zip(norm,lifts):n.update(rest_seconds=raw['rest_seconds'],calibration_basis=raw['calibration_basis'])
+        s['lifts']=lifts=norm
         s['steps']=['5 min easy mobility and practice repetitions']+[f"{x['name']}: {sets} × 8{(' at '+str(x['weight'])+' '+x['unit']) if x['weight'] is not None else ''}, rest 90 seconds. {x['how']}" for x in lifts]+['2 × 20 seconds comfortable toe-reach with soft knees, without forcing the stretch']
         s['note']+=' Enter your actual working weights and review regional exercise scoring before relying on the lifting load forecast.'
     return s
