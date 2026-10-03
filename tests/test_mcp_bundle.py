@@ -47,7 +47,7 @@ async def main():
     return out
    try:
     await rpc(1,'initialize',{'protocolVersion':'2025-06-18','capabilities':{},'clientInfo':{'name':'installation-test','version':'1'}})
-    assert len((await rpc(2,'tools/list',{}))['tools'])==66
+    assert len((await rpc(2,'tools/list',{}))['tools'])==67
     await tool(3,'get_program')
     before=(base/'coach.json').read_bytes()
     preview=await tool(4,'preview_program',{'fields':fields}); assert len(preview['starter']['candidates'])==3
@@ -55,7 +55,10 @@ async def main():
     detail=await tool(9,'preview_program',{'fields':fields,'detail_start':coach.today(),'detail_days':2}); assert len(detail['starter']['detail'])==2
     rejected=await rpc(10,'tools/call',{'name':'apply_program','arguments':{}});assert rejected['isError']
     await tool(5,'apply_program',{'draft_id':preview['draft']['id']}); assert coach.load(base/'coach.json')['program_goal']
-    await tool(6,'record_checkin',{'date':coach.today(),'legs':3,'feet':2,'shoulders':2,'gut':'go','journal':'Synthetic installation test.'})
+    checked=await tool(6,'record_checkin',{'date':coach.today(),'legs':3,'feet':2,'shoulders':2,'gut':'go','journal':'Synthetic installation test.'})
+    assert checked['attention'] and 'items' in checked['attention'] and checked['attention']['routine'],checked.get('attention')
+    needs=await tool(17,'get_attention',{'days':7}); assert needs['days']==7 and isinstance(needs['items'],list)
+    prompt=await rpc(18,'prompts/get',{'name':'daily-check-in'}); assert 'attention list' in prompt['messages'][0]['content']['text']
     await tool(7,'get_today')
     await tool(8,'get_progress_evidence')
     cal=await tool(11,'get_training_calendar',{'days':7});assert len(cal['calendar'])==7
@@ -72,5 +75,5 @@ async def main():
    finally:
     if proc.returncode is None: proc.kill(); await proc.wait()
     server.close(); await server.wait_closed()
- print('PASS installable bundle: stock runtime, 66 tools, read/preview/apply/check-in/progress; isolated athlete data')
+ print('PASS installable bundle: stock runtime, 67 tools, read/preview/apply/check-in/progress; isolated athlete data')
 if __name__=='__main__': asyncio.run(main())
