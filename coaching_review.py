@@ -172,20 +172,25 @@ def preview(d,load,done,workouts,today,base,revision,fields):
     elif kind=='calendar':
         changes=fields.get('changes')
         if not isinstance(changes,list) or not 1<=len(changes)<=14:raise ValueError('Give 1–14 day replacements')
-        seen=set();old=[]
+        seen=set();originals=[]
         for change in changes:
             date=change['date'];dt.date.fromisoformat(date)
             if not today<=date<=(dt.date.fromisoformat(today)+dt.timedelta(days=13)).isoformat() or date in seen:raise ValueError('Choose distinct dates within the next 14 days')
             if done.get(date):raise ValueError('Completed days cannot be rewritten')
-            seen.add(date);old.append({'date':date,'sessions':copy.deepcopy(B.sessions(d.get('plans',{}).get(date) or {}))})
+            seen.add(date);originals.append({'date':date,'sessions':copy.deepcopy(B.sessions(d.get('plans',{}).get(date) or {}))})
             coach.set_sessions(candidate,date,change['sessions'])
             candidate['plans'][date].pop('test',None)
         after=outlook(candidate,load,done,workouts,today)
         gate=after['running_gate'];violations=[]
+        # A hold from recent running load alone clears on the model's own projection: it blocks runs before that
+        # date (later runs still face their forecast). Symptoms, hop tests, readiness or the return-to-run protocol
+        # block every run in the window.
+        load_only=bool(gate.get('reasons')) and all(str(r).startswith('mechanical running load') for r in gate['reasons'])
+        clear_by=(dt.date.fromisoformat(today)+dt.timedelta(days=int(gate['model_days']))).isoformat() if load_only and gate.get('model_days') is not None else None
         for row in after['sessions']:
             if row['date'] not in seen:continue
             if row['status']!='within_projected_limits':violations.append(row['date']+': '+str(row['name'])+' has unknown or excessive projected load')
-            if row['sport']=='run' and gate['status']!='open_for_review':violations.append(row['date']+': current running hold remains in force')
+            if row['sport']=='run' and gate['status']!='open_for_review' and (clear_by is None or row['date']<clear_by):violations.append(row['date']+': current running hold remains in force'+(f' (projected to clear {clear_by})' if clear_by else ''))
             if any(__import__('progression').affected(s,[symptom]) for symptom in after['active_symptoms'] for s in B.sessions(candidate['plans'][row['date']])):violations.append(row['date']+': unresolved symptom overlap')
         # Flag newly introduced or worsened limit breaches across all sports, including later days.
         before=outlook(d,load,done,workouts,today)
@@ -197,7 +202,7 @@ def preview(d,load,done,workouts,today,base,revision,fields):
                     violations.append(day['date']+': worsened '+m['key']+' forecast limit')
         for row in after['sessions']:
             if row['status']=='conflict':violations.append(row['date']+': remaining '+str(row['name'])+' conflict in reviewed sequence')
-        payload={'kind':kind,'changes' :[{'date':c['date'],'sessions':copy.deepcopy(B.sessions(candidate['plans'][c['date']]))} for c in changes],'original':old,
+        payload={'kind':kind,'changes' :[{'date':c['date'],'sessions':copy.deepcopy(B.sessions(candidate['plans'][c['date']]))} for c in changes],'original':originals,
             'before':before,'after':after,'violations':sorted(set(violations)),
             'notice':'Review the whole 14-day sequence. Holds, unknown loads and symptom overlap block Apply; compare shortening, spacing, substitutions or rest.'}
     else:raise ValueError('Review kind is calendar or capacity')

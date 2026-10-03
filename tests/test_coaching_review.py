@@ -129,6 +129,16 @@ async def main():
         assert all(B.sessions(d['plans'][x['date']])[0]['minutes']==10 for x in out['sessions']) and old.get('capacity_adjustments')==d.get('capacity_adjustments')
         try:C.preview(d,{}, {changes[0]['date']:[{'sport':'run'}]},[],TODAY,base,revision,{'kind':'calendar','changes':changes});raise AssertionError('completed rewrite')
         except ValueError:pass
+        assert [o['date'] for o in review['original']]==[c['date'] for c in changes] and review['original'][0]['sessions']
+        # A hold from recent load alone blocks only runs before its projected clear date; later runs face their forecast.
+        load_hold={'status':'hold','reasons':['mechanical running load 2.60 blocks exceeds the 1.5-block planning limit'],'model_days':5}
+        with patch.object(B,'running_gate',return_value=load_hold):
+            review=C.preview(d,{}, {},[],TODAY,base,revision,{'kind':'calendar','changes':changes})
+            late=[c['date'] for c in changes if c['date']>=(dt.date.fromisoformat(TODAY)+dt.timedelta(days=5)).isoformat()]
+            assert any('hold' in v for v in review['violations']) and late and not any(v.startswith(late[0]) and 'hold' in v for v in review['violations'])
+        with patch.object(B,'running_gate',return_value={'status':'hold','reasons':['hopping still pulls'],'model_days':1}):
+            review=C.preview(d,{}, {},[],TODAY,base,revision,{'kind':'calendar','changes':changes})
+            assert all(any(v.startswith(c['date']) and 'hold' in v for v in review['violations']) for c in changes)
         with patch.object(B,'running_gate',return_value={'status':'hold','reasons':['Mechanical hold']}):
             review=C.preview(d,{}, {},[],TODAY,base,revision,{'kind':'calendar','changes':changes});assert review['violations']
             try:C.apply(d,base,revision,TODAY,review['draft_id'],True);raise AssertionError('hold bypass')
