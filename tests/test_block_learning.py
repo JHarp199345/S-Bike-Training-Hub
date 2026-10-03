@@ -95,6 +95,22 @@ check("the athlete saying 'too easy' counts when the mornings are only a little 
 slow = damage.remodeling_response(dates, doses(), feet_reports=reports(), runs=runs(slower_from=10))
 check("running slower at the same heart rate shrinks it too", any("slowed" in s["why"] for s in slow["block_learning"]))
 
+# Calibration from completed training: clean run/walks the starting block reads as piling up
+WARM = {0, 4, 7, 11, 14, 18, 21, 25}
+warm = [33.0 if i in WARM else 0 for i in range(len(dates))]
+ev = {dates[i]: {"hrr": 0.62, "eff": 0.11} for i in WARM}
+cal = damage.remodeling_response(dates, warm, feet_reports=reports(), block=33.0, runs=ev)
+uncal = damage.remodeling_response(dates, warm, feet_reports=reports(), block=33.0)
+check(f"clean training the block reads as piling up recalibrates it ({uncal['score']} -> {cal['score']} blocks, block "
+      f"{cal['reference_points']} pts)", any(x.get("calibration") for x in cal["block_learning"]) and uncal["score"] > 10)
+check("…so the training the athlete absorbed sits back under the line, not past the cliff",
+      max(c["after_blocks"] for c in cal["components"]) < 1.5)
+sore = damage.remodeling_response(dates, warm, feet_reports=reports(feet=4, legs=3), block=33.0, runs=ev)
+check("not when the mornings weren't clean", not any(x.get("calibration") for x in sore["block_learning"]))
+hop = {**reports(), dates[2]: {"feet": 2, "legs": 3, "hops": 20}, dates[5]: {"feet": 2, "legs": 3, "hops": 16}}
+hop_steps = damage.remodeling_response(dates, warm, feet_reports=hop, block=33.0, runs=ev)["block_learning"]
+check("not within two weeks of a hop-test drop", not any(x.get("calibration") and x["date"] <= dates[5 + 14] for x in hop_steps))
+
 check("the plateau rule is unchanged: 5 days per block added", all(
     abs(e["plateau_days"] - max(1, 5 * e["added_blocks"])) < 0.2 or e["before_blocks"] > 0 for e in learned["components"]))
 top = damage.remodeling_response(dates, [300.0 if i in RUNS else 0 for i in range(len(dates))], feet_reports=reports(),
