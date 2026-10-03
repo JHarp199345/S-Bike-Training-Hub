@@ -178,8 +178,8 @@ $('programpreview').onclick=async()=>{
 $('programaccept').onclick=async()=>{
  if(!programDraft||!workspaceReview)return;const revision=workspaceRevision;const payload=draftCopy(programDraft);
  $('programaccept').disabled=true;$('programmessage').textContent='Applying reviewed changes…';
- const r=await post('/api/coach/program-builder',{...payload,action:'accept'});
- if(!r.ok){$('programmessage').textContent=r.j.error||'Could not apply the program.';if(revision===workspaceRevision)$('programaccept').disabled=false;return;}
+ const r=await post('/api/coach/program-builder',{draft_id:workspaceReview.draft.id,action:'accept'});
+ if(!r.ok){$('programmessage').textContent=r.j.error||'Could not apply the program.';if(revision===workspaceRevision){workspaceReview=null;programDraft=null;$('programaccept').disabled=true;}return;}
  $('programdialog').close();await loadProgram();await loadPhaseProfiles();await loadToday();
 };
 if(new URLSearchParams(location.search).get('program')==='setup'&&new URLSearchParams(location.search).get('starter')!=='1')openProgram();

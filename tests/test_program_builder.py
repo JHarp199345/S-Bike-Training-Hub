@@ -46,10 +46,12 @@ class BuilderTests(unittest.TestCase):
     base=pathlib.Path(tmp);(base/'rides').mkdir();d=coach.load(base/'coach.json');coach.save(d);before=(base/'coach.json').read_bytes()
     bridge=SimpleNamespace(csv_path=str(base/'rides'/'test.csv'),workouts=[],profile={'ftp':180})
     with patch.object(coach,'today',return_value='2026-10-02'),patch.object(mapserver,'load_state',return_value={}):
+     draft_id=None
      for action in ('preview','accept'):
-      code,_,body,_=await mapserver.coach_api(bridge,b'POST','/api/coach/program-builder','/api/coach/program-builder',json.dumps({**self.fields(),'action':action}).encode())
+      code,_,body,_=await mapserver.coach_api(bridge,b'POST','/api/coach/program-builder','/api/coach/program-builder',json.dumps({**self.fields(),'action':action,'draft_id':draft_id}).encode())
       self.assertEqual(code,200,body)
-      if action=='preview':self.assertEqual((base/'coach.json').read_bytes(),before)
+      if action=='preview':
+       self.assertEqual((base/'coach.json').read_bytes(),before);draft_id=json.loads(body)['draft']['id']
      self.assertTrue(coach.load(base/'coach.json')['program_macro_weeks'])
   asyncio.run(run())
 if __name__=='__main__':unittest.main()

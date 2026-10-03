@@ -1057,9 +1057,18 @@ async def coach_api(bridge, method, path, p, body):
             if method == b"GET":
                 goal=d.get('program_goal');phases=d.get('phase_profiles',[])
                 weeks=program_builder.macro_weeks(phases,program_builder.P.date(goal['start']),max(program_builder.P.date(goal.get('end') or goal.get('target') or phases[-1]['end']),program_builder.P.date(phases[-1]['end'])),goal['focus'],goal['sport'],gate['status']!='open_for_review',goal['hours'],d.get('plans'),goal.get('schedule_options')) if goal and phases else []
-                return js({'goal':goal,'phases':phases,'weeks':weeks,'events':d.get('events',[]),'running_hold':gate['status']!='open_for_review'})
+                return js({'goal':goal,'phases':phases,'weeks':weeks,'events':d.get('events',[]),'running_hold':gate['status']!='open_for_review','last_application':(d.get('program_apply_receipts') or [None])[-1],'capabilities':{'reviewed_drafts':True,'calendar_evidence':True}})
             action=req.get('action','preview')
             if action not in ('preview','accept'):raise ValueError('action is preview or accept')
+            import program_drafts
+            state_revision=program_drafts.revision(d,rides.parent,bridge.profile,bridge.workouts,coach.today())
+            if action=='accept':
+                try:
+                    result=program_drafts.apply(rides.parent,d,req.get('draft_id'),state_revision,coach.today())
+                except program_drafts.Conflict as e:
+                    return js({'error':str(e),'code':'draft_conflict','retry':'preview_program'},409)
+                _load_cache['key']=None
+                return js(result)
             proposal=program_builder.propose(d,req,coach.today(),gate)
             if req.get('starter_enabled'):
                 import starter_programs, onboarding
@@ -1068,13 +1077,14 @@ async def coach_api(bridge, method, path, p, body):
                 proposal['strength_anchors']=req.get('strength_anchors') or []
                 proposal['neutral_forecast']=req.get('neutral_forecast',True)
                 proposal['starter']=starter_programs.build(d,proposal,onboarding.current(rides.parent),load_state(rides.parent),done_by_day(rides.parent,d),bridge.workouts,today=coach.today())
-            if action=='accept':
-                if proposal['start']<coach.today():raise ValueError('Apply program changes from today or a future date')
-                if proposal.get('starter') and proposal.get('starter_equipment')=='barbell':
-                    missing=[x['name'] for p_ in proposal['starter']['plans'].values() for s_ in p_['sessions'] for x in s_.get('lifts',[]) if x.get('kind')=='barbell' and x.get('weight') is None]
-                    if missing:raise ValueError('Enter a recent set or report calibration results for: '+', '.join(sorted(set(missing))))
-                program_builder.accept(d,proposal);coach.save(d)
-            return js(proposal)
+            return js(program_drafts.store(rides.parent,proposal,state_revision))
+        if p in ('/api/coach/calendar','/api/coach/reading-evidence'):
+            import planning_evidence
+            if method!=b'GET':return js({'error':'Evidence is read-only'},405)
+            state=load_state(rides.parent);done=done_by_day(rides.parent,d)
+            if p.endswith('/calendar'):
+                return js(planning_evidence.calendar(d,state,done,bridge.workouts,coach.today(),date,int((q.get('days') or ['7'])[0])))
+            return js(planning_evidence.explain(d,state,done,bridge.workouts,coach.today(),date,(q.get('metric') or ['cardio_fatigue'])[0]))
         if p == "/api/coach/phase-profiles":
             import phaseblend, loads, training_block
             if method == b"POST":
