@@ -146,7 +146,9 @@ def running_progression(d, load, today, daily, gate):
     week_end=(week_start+dt.timedelta(days=6-week_start.weekday())).isoformat()
     judged=week_start.isoformat()
     ctx=progression.context(d,judged,'run');phase=ctx['phase'];purpose=ctx.get('purpose')
-    run_days={r['date'] for r in daily if judged<=r['date']<=week_end and any(s['sport']=='run' for s in B.sessions(d.get('plans',{}).get(r['date']) or {}))}
+    # a running calibration is about one full block on purpose: it isn't judged against the week's target
+    run_days={r['date'] for r in daily if judged<=r['date']<=week_end and (d.get('plans',{}).get(r['date']) or {}).get('test')!='run_calibration'
+              and any(s['sport']=='run' for s in B.sessions(d.get('plans',{}).get(r['date']) or {}))}
     reading=lambda day:next((m for m in day['readings'] if m['key']=='run_mechanical'),{})
     on_runs=[reading(day).get('after') for day in daily if day['date'] in run_days]
     peak=round(max(on_runs),2) if on_runs and None not in on_runs else None
@@ -372,7 +374,10 @@ def preview(d,load,done,workouts,today,base,revision,fields):
                 violations.append(f['dates'][-1]+': training rule '+f['rule']+' - '+f['why'])
         payload={'kind':kind,'changes' :[{'date':c['date'],'sessions':copy.deepcopy(B.sessions(candidate['plans'][c['date']]))} for c in changes],'original':originals,
             'before':before,'after':after,'violations':sorted(set(violations)),
-            'cautions':[f for f in after.get('training_rules',[]) if f['severity']=='caution' and any(x in seen for x in f['dates'])],
+            'cautions':[f for f in after.get('training_rules',[]) if f['severity']=='caution' and any(x in seen for x in f['dates'])]
+                +[{'rule':'test_day_changed','severity':'caution','dates':[o['date']],
+                   'why':'This day holds a scheduled test ('+str((d.get('plans',{}).get(o['date']) or {}).get('test'))+'): replacing its sessions removes the test.'}
+                  for o in originals if (d.get('plans',{}).get(o['date']) or {}).get('test')],
             'notice':'Review the whole 14-day sequence. Holds, unknown loads and symptom overlap block Apply; compare shortening, spacing, substitutions or rest.'}
     else:raise ValueError('Review kind is calendar or capacity')
     return _store(base,payload,revision)

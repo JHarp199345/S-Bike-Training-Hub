@@ -477,6 +477,8 @@ def assistant_review(day, a, say):
     level = {}
     for row in out["sessions"]:
         key = (row["date"], row["index"])
+        if "calibration" in (row.get("name") or "").lower():
+            continue                                  # a test is never reshaped; it's kept or moved by the athlete
         if row["sport"] == "run" and held(row["date"]):
             level[key] = 1                            # a hold isn't fixed by a shorter run
         elif row["status"] != "within_projected_limits":
@@ -576,7 +578,7 @@ def progress_running(day, say):
     first, last = rp.get("week") or (day.isoformat(), (day + dt.timedelta(days=6)).isoformat())
     span = (dt.date.fromisoformat(last) - day).days
     runs = [(d0, i, s) for k in range(0, span + 1) for d0 in [(day + dt.timedelta(days=k)).isoformat()] if d0 >= first
-            for i, s in enumerate(plan_of(d0)) if s.get("sport") == "run"]
+            for i, s in enumerate(plan_of(d0)) if s.get("sport") == "run" and "calibration" not in (s.get("name") or "").lower()]
     if status not in ("under_target", "over_target") or not runs:
         return
     why = f"running {rp['planned_week_peak_blocks']} vs the {rp['mode']} target {lo}-{hi} blocks (block {rp['block_points']} pts)"

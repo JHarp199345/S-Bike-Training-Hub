@@ -103,6 +103,12 @@ check(f"load plus a due hop test: held until the projected clear date ({clear})"
 held, _ = C.run_hold({"status": "hold", "reasons": ["hop test: 6 pain-free hops - 10 clears you to run"]}, TODAY)
 check("a failed hop test holds every run until reviewed", held("2026-07-19"))
 check("an open gate holds nothing", not C.run_hold({"status": "open_for_review"}, TODAY)[0](TODAY))
+cal = coach(run_days=(0, 2))
+cal["plans"][day(0)]["test"] = "run_calibration"
+r = reading(cal, (1.3, 0, 0.9))
+check(f"a running calibration (about one block on purpose) isn't judged against the target ({r['planned_week_peak_blocks']})",
+      r["planned_week_peak_blocks"] == 0.9)
+
 # the target and the runs it judges are the same calendar week (no flip-flop across the week boundary)
 with patch.object(progression, "context", return_value={"phase": "build", "purpose": "aerobic"}), \
      patch.object(progression, "active_symptoms", return_value=[]):
