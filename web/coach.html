@@ -149,17 +149,19 @@
  .planpurpose .eyebrow,.weekbanner .eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:.12em;font-weight:800;color:#83d5e4}
  .planpurpose h3{font-size:22px;line-height:1.25;margin:7px 0 8px}.planpurpose p{margin:0;color:var(--text2);max-width:680px}
  .planweek{border:1px solid var(--line);border-radius:16px;overflow:hidden;margin:18px 0;background:var(--deep)}
- .weekbanner{position:relative;min-height:146px;padding:20px;isolation:isolate;background:var(--card);display:flex;align-items:center;justify-content:space-between;gap:14px}
+ .weekbanner{position:relative;min-height:220px;padding:26px 24px;isolation:isolate;background:var(--card);display:flex;align-items:flex-end;overflow:hidden}
+ .weekbanner>div:not(.weekart){position:relative;max-width:min(620px,62%)}
  .weekart{position:absolute;inset:0;z-index:-2;display:flex;justify-content:flex-end;overflow:hidden}
- .weekart img{width:34%;height:100%;object-fit:cover;object-position:center 40%;opacity:.55}
- .weekbanner:after{content:'';position:absolute;inset:0;z-index:-1;background:linear-gradient(90deg,var(--deep) 8%,#0b151de8 38%,#0b151d55 100%)}
+ .weekart img{width:100%;height:100%;object-fit:cover;object-position:center 40%;opacity:1}
+ .weekbanner:after{content:'';position:absolute;inset:0;z-index:-1;background:linear-gradient(90deg,#070d13e6 0%,#070d13b3 34%,#070d1340 62%,#070d1300 82%),linear-gradient(0deg,#070d1399,#070d1300 45%)}
+ .weekbanner .weekfocus,.weekbanner .weekdates{text-shadow:0 1px 3px #000c}.weekbanner h3{text-shadow:0 2px 8px #000c}
  .weekbanner h3{font-size:24px;margin:4px 0;color:#fff;line-height:1.2}.weekdates{color:#c4d1dd;font-size:13px}.weekfocus{max-width:540px;margin:8px 0;color:#edf4fa;font-size:14px}
  .purposechips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.purposechip{display:inline-flex;align-items:center;gap:4px;background:#09141bbd;border:1px solid #ffffff26;border-radius:999px;padding:4px 9px;font-size:11px;color:#edf4fa}.purposechip .sporticon{width:20px;height:18px}
  .weekcontent{padding:12px}.weekstats{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--text2);margin-bottom:10px}.weekstats strong{color:var(--text)}
  .weekdose{font-size:12px;color:var(--muted);margin-top:12px}.weekdose summary{cursor:pointer}.weekdose p{margin:6px 0}
  .calendar-purpose .blockcalendar{min-width:690px}.calendar-purpose .blockday{min-height:100px}.calendar-purpose .blockday .session{white-space:normal;overflow:visible}
  .roadphase{padding:14px;margin-top:10px;border-radius:12px;border-left:3px solid var(--info);background:linear-gradient(110deg,var(--card),var(--deep));display:flex;align-items:flex-start;gap:12px}.roadphase .sporticon{width:34px;height:30px}.roadphase b{display:block;color:var(--text);margin-bottom:4px}
- @media(max-width:620px){.weekbanner{padding:16px;min-height:140px}.weekbanner h3{font-size:21px}.weekart img{width:50%}.weekbanner:after{background:linear-gradient(90deg,#0b151df2,#0b151dc9 65%,#0b151d88)}.planpurpose{padding:16px}.planpurpose h3{font-size:20px}.weekcontent{padding:10px}}
+ @media(max-width:620px){.weekbanner{padding:16px;min-height:260px}.weekbanner>div:not(.weekart){max-width:100%}.weekbanner h3{font-size:21px}.weekbanner:after{background:linear-gradient(0deg,#070d13f0 0%,#070d13c0 45%,#070d1333 80%,#070d1300 100%)}.planpurpose{padding:16px}.planpurpose h3{font-size:20px}.weekcontent{padding:10px}}
 
  .weekhead{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin:24px 0 18px}
  .weekhead h2{margin:0;flex:1 1 110px}.weekactions{display:flex;align-items:center;flex-wrap:wrap;gap:8px;max-width:100%}

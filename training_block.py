@@ -535,7 +535,7 @@ def forecast(d, today, done=None, load=None, checkin=None, workouts=None):
             shapes = [w.get("shape") for x in week["days"] for w in x["workouts"] if w.get("shape")]
             shape = max(set(shapes), key=shapes.count) if shapes else None
             label = {"peak_volume": "Peak volume", "peak_performance": "Peak performance", "consolidation": "Consolidation",
-                     "test": "Test week", "taper": "Taper", "race": "Race week", "build": None}.get(shape)
+                     "test": None, "taper": None, "race": "Race week", "build": None}.get(shape)   # test/taper: the phase says it
             week["focus"] = " · ".join(x for x in (ph and ph.get("label"), label, ph and ph.get("purpose")) if x)
             week["shape"] = shape
             if goal.get("hours"):
