@@ -71,6 +71,17 @@ async def main():
     await tool(16,'apply_coaching_change',{'draft_id':reviewed['draft_id'],'approved':True})
     assert not coach.load(base/'coach.json')['plans'][future]['sessions']
 
+    lifts=[{'name':'BB bench press','kind':'barbell','sets':2,'reps':8,'weight':65,'unit':'lb','hold':3,'regions':{'pecs':100}},
+           {'name':'Cable curl hold','kind':'cable','sets':2,'seconds':10,'weight':15,'unit':'lb','regions':{'biceps':100}}]
+    await tool(19,'evaluate_lift_session',{'lifts':lifts})
+    planned=await tool(20,'plan_lift_session',{'date':coach.today(),'name':'Synthetic hold check','lifts':lifts})
+    gyms=[s for s in planned['plan']['sessions'] if s.get('sport')=='gym' and s.get('lifts')]
+    index=next(i for i,s in enumerate(gyms) if s['name']=='Synthetic hold check')
+    logged=await tool(21,'log_lift_session',{'date':coach.today(),'session_index':index,'done':[{'hold':6,'failure':True},{'seconds':20}],'rpe':7,'wellness':8})
+    rows=logged['log']['lifts']
+    assert rows[0]['hold']==6 and rows[0]['failure'] is True,rows
+    assert rows[1]['seconds']==20,rows
+
     proc.stdin.close(); await asyncio.wait_for(proc.wait(),5); assert proc.returncode==0,(await proc.stderr.read()).decode()
    finally:
     if proc.returncode is None: proc.kill(); await proc.wait()

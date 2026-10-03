@@ -55,6 +55,20 @@ def main():
     rm = lambda x: lifting.state(x)["strength"]["incline press"]["e1rm_kg"]
     check(f"a set to failure has no reps in reserve, so the max isn't inflated ({rm(df)} kg vs {rm(dn)} kg at effort 7)",
           rm(df) < rm(dn) and lf["lifts"][0]["failure"])
+    for bad_actual in ({"hold": -1}, {"hold": 121}, {"failure": "false"}):
+        invalid = new(); lifting.set_session(invalid, day, [bench])
+        try:
+            lifting.log(invalid, day, [bad_actual], 7, 8); rejected = False
+        except ValueError:
+            rejected = True
+        check(f"bad hold/failure report is rejected: {bad_actual}", rejected)
+    ds = new(); ds["lifting"] = {"strength": {"cable curl": {"e1rm_kg": 36.0}}}
+    lifting.set_session(ds, day, [curl])
+    ls = lifting.log(ds, day, [{"seconds": 20}], 7, 8)
+    check("actual static-hold duration reaches scoring and the saved log", ls["lifts"][0]["seconds"] == 20 and ls["lifts"][0]["hold_reps"] == 6.7)
+    dz = new(); lifting.set_session(dz, day, [dict(bench, hold=9)])
+    lz = lifting.log(dz, day, [{"hold": 0}], 7, 8)
+    check("reporting no hold removes the planned pause", lz["lifts"][0]["hold"] == 0 and not lz["lifts"][0].get("hold_reps"))
     dk = new(); dk["lifting"] = {"strength": {"bench press": {"name": "Bench press", "e1rm_kg": 112.0, "date": day, "from": "test"}}}
     base, heavy = lifting.evaluate(dk, [bench])["points_total"], lifting.evaluate(dk, [dict(bench, weight=205)])["points_total"]
     check(f"with a known max, a heavier plan is more load ({heavy} vs {base})", heavy > base)

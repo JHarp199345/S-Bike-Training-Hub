@@ -548,6 +548,12 @@ def log(d, date, done, rpe, wellness, session_index=None, compare_last=None, ove
         sets = x["sets"] if a.get("sets") is None else int(a["sets"])
         hold = x.get("hold") if a.get("hold") is None else int(a["hold"])
         secs = x.get("seconds") if a.get("seconds") is None else int(a["seconds"])
+        if hold is not None and (not 0 <= hold <= 120 or hold and not reps):
+            raise ValueError("Hold is 0–120 seconds per rep; static holds use seconds")
+        if secs is not None and not 1 <= secs <= 600:
+            raise ValueError("Static hold is 1–600 seconds")
+        if a.get("failure") is not None and not isinstance(a["failure"], bool):
+            raise ValueError("Failure must be true or false")
         fail = bool(a.get("failure"))
         lrir, lrpe = (0, 10) if fail else (rir, rpe)
         k = key(x["name"])
