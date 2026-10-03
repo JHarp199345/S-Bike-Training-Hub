@@ -10,13 +10,15 @@ const VIEWS = [['desktop', { width: 1280, height: 900 }], ['phone', { width: 390
   for (const [name, viewport] of VIEWS) {
     const ctx = await browser.newContext({ viewport, deviceScaleFactor: 2, colorScheme: 'dark' });
     const page = await ctx.newPage();
+    page.setDefaultTimeout(180000); page.setDefaultNavigationTimeout(180000);
+    const step = async (label, fn) => { try { await fn(); } catch (e) { console.log(`shots ${name} ${label}: ${e.message.split('\n')[0]}`); } };
     await page.clock.install({ time: new Date(day + 'T19:30:00') });
     page.on('pageerror', e => console.log('PAGEERROR', e.message));
     const settle = async (ms = 1200) => { await page.waitForLoadState('networkidle').catch(() => {}); await page.waitForTimeout(ms); };
     const shot = async (file, opts = {}) => { await page.screenshot({ path: `${out}/${name}-${file}.png`, ...opts }); };
-    await page.goto(url + '/coach#today'); await settle(2500);
-    await shot('today');
-    await shot('today-full', { fullPage: true });
+    await step('today', async () => { await page.goto(url + '/coach#today', { waitUntil: 'domcontentloaded' }); await settle(3500);
+      await shot('today'); await shot('today-full', { fullPage: true }); });
+    await step('plan', async () => {
     // the Plan tab: program timeline, this week, and the week strip
     await page.click('[data-tab="plan"]').catch(() => {}); await settle(2000);
     await shot('plan');
@@ -54,10 +56,9 @@ const VIEWS = [['desktop', { width: 1280, height: 900 }], ['phone', { width: 390
         await page.keyboard.press('Escape'); await settle(500);
       }
     }
-    // Fitness Dashboard
-    await page.goto(url + '/coach#fitness'); await settle(3500);
-    await shot('fitness');
-    await shot('fitness-full', { fullPage: true });
+    });
+    await step('fitness', async () => { await page.goto(url + '/coach#fitness', { waitUntil: 'domcontentloaded' }); await settle(5000);
+      await shot('fitness'); await shot('fitness-full', { fullPage: true }); });
     await ctx.close();
   }
   await browser.close();
