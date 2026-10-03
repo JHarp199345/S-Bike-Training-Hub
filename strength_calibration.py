@@ -11,7 +11,13 @@ SHARES={
  'Incline push-up':{'pecs':45,'triceps':25,'shoulders':15,'abs':15},
  'Resistance-band row':{'lats':40,'scapula':30,'biceps':30},
  'Glute bridge':{'glutes':60,'hamstrings':30,'lower_back':10},
- 'Dead bug':{'abs':70,'obliques':20,'hip_flexors':10}}
+ 'Dead bug':{'abs':70,'obliques':20,'hip_flexors':10},
+ 'Split squat':{'quads':40,'glutes':30,'adductors':15,'hamstrings':10,'calves':5},
+ 'BB Romanian deadlift':{'hamstrings':40,'glutes':30,'lower_back':25,'lats':5},
+ 'Single-leg hip hinge':{'hamstrings':40,'glutes':40,'lower_back':10,'calves':10},
+ 'BB overhead press':{'shoulders':50,'triceps':30,'scapula':10,'abs':10},
+ 'Pike push-up':{'shoulders':50,'triceps':30,'pecs':10,'abs':10},
+ 'Band pull-apart':{'scapula':50,'shoulders':30,'lats':20}}
 
 def anchors(raw):
  if not isinstance(raw,list) or len(raw)>30:raise ValueError('Give at most 30 reported lifting sets')

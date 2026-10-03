@@ -19,7 +19,28 @@ ROLE_WEIGHT={'race_pace':1.5,'quality':1.25,'easy':.85,'opener':.7,'test':1.0}
 OPENER_CAP={'ride':35,'swim':30,'run':25,'gym':25}
 LONG_WEIGHT={'ride':2.0,'run':1.4,'swim':1.2,'gym':.8}
 
-def workout(sport,minutes,week,level,experience,equipment,d,anchors=None,recovery=False,stage='base',role='easy',run_open=True):
+# Lifting split (the athlete's preference): which movement groups each session trains. Splits rotate focuses;
+# full body trains everything each time. Exercises: (barbell name, basic name, basic kind, how).
+LIFT_SPLITS = {'full_body':['full'],'upper_lower':['lower','upper'],'push_pull':['push','pull'],
+               'push_pull_legs':['push','pull','legs'],'lower_push_pull':['lower','upper_push','upper_pull'],
+               'four_way':['knee','hip','upper_push','upper_pull']}
+LIFT_GROUPS = {'full':['knee','upper_push','upper_pull','hip'],'lower':['knee','hip','knee2','hip2'],'upper':['upper_push','upper_pull','push2','pull2'],
+               'push':['knee','upper_push','push2'],'pull':['hip','upper_pull','pull2'],'legs':['knee','hip','knee2','hip2'],
+               'knee':['knee','knee2'],'hip':['hip','hip2'],'upper_push':['upper_push','push2'],'upper_pull':['upper_pull','pull2']}
+LIFT_MOVES = {'knee':('BB squat','Chair squat','bodyweight','Squat to a comfortable depth; use a light load with at least 3 repetitions in reserve.'),
+              'knee2':('Split squat','Split squat','bodyweight','Rear foot on the floor, controlled depth; hold support if needed.'),
+              'hip':('Glute bridge','Glute bridge','bodyweight','Lift hips smoothly; stop at a comfortable height.'),
+              'hip2':('BB Romanian deadlift','Single-leg hip hinge','bodyweight','Hinge at the hips with a long spine; stop where the hamstrings tighten.'),
+              'upper_push':('BB bench press','Incline push-up','bodyweight','Controlled press; use safeties / a spotter for the bench.'),
+              'push2':('BB overhead press','Pike push-up','bodyweight','Press overhead without arching the lower back.'),
+              'upper_pull':('BB row','Resistance-band row','band','Keep the torso stable and pull smoothly.'),
+              'pull2':('Band pull-apart','Band pull-apart','band','Arms straight, squeeze the shoulder blades, slow return.')}
+LIFT_LEGS = {'full','lower','push','pull','legs','knee','hip'}
+LIFT_NAMES = {'full':'full-body','lower':'lower body','upper':'upper body','push':'push (squat + press)','pull':'pull (hinge + row)',
+              'legs':'legs','knee':'knee-dominant','hip':'hip-dominant','upper_push':'upper push','upper_pull':'upper pull'}
+
+
+def workout(sport,minutes,week,level,experience,equipment,d,anchors=None,recovery=False,stage='base',role='easy',run_open=True,lift_focus='full'):
     m=max(10,int(minutes)); sets=1 if week==0 else 2 if level!='higher' or week<4 else 3
     note='Provisional starter dose. Advance only after the weekly review confirms tolerable load and recovery; otherwise repeat or reduce.'
     s={'sport':sport,'minutes':m,'name':{'ride':'Easy endurance ride','swim':'Basic swim technique','run':'Easy run / walk','gym':'Basic full-body strength'}[sport], 'tier':'easy','note':note,'starter':True,'provisional':week>0}
@@ -57,13 +78,20 @@ def workout(sport,minutes,week,level,experience,equipment,d,anchors=None,recover
                     ['5 min comfortable walking',main,'5 min walking cool-down'])
         s['note']+=' Running requires a fresh readiness review before every exposure; no speed work or automatic shortening of recovery.'
     else:
+        focus=lift_focus if lift_focus in LIFT_GROUPS else 'full'
+        if focus!='full':s['name']=f"Strength: {LIFT_NAMES[focus]}"
         if stage in ('taper','specific') or role=='opener':
             sets=1
-            s['name']='Strength maintenance (light)'
+            s['name']='Strength maintenance (light)'+(f": {LIFT_NAMES[focus]}" if focus!='full' else '')
         sets=min(sets,max(1,int((m-7)/12)))
         import lifting
         bar=equipment=='barbell'
-        choices=[('BB squat' if bar else 'Chair squat','barbell' if bar else 'bodyweight','Squat to a comfortable depth; use a light load with at least 3 repetitions in reserve.'),('BB bench press' if bar else 'Incline push-up','barbell' if bar else 'bodyweight','Controlled press; use safeties / a spotter for the bench.'),('BB row' if bar else 'Resistance-band row','barbell' if bar else 'band','Keep the torso stable and pull smoothly.'),('Glute bridge','bodyweight','Lift hips smoothly; stop at a comfortable height.'),('Dead bug','bodyweight','Alternate arm and leg reaches without arching the lower back.')]
+        choices=[]
+        for g in LIFT_GROUPS[focus]:
+            heavy,basic,kind,how=LIFT_MOVES[g]
+            barbell=bar and heavy.startswith('BB ')
+            choices.append((heavy if barbell else basic,'barbell' if barbell else kind,how))
+        choices.append(('Dead bug','bodyweight','Alternate arm and leg reaches without arching the lower back.'))
         lifts=[]
         for name,kind,how in choices:
             if lifting.excluded(d,name,kind):continue
@@ -192,14 +220,22 @@ def build(d,proposal,profile=None,load=None,done=None,workouts=None,today=None):
                 pref=[p for p in endurance if p['sport']==('ride' if tri or proposal.get('sport') in ('tri','general') else proposal.get('sport'))]
                 longest=(pref or endurance)[-1]
             seen=set()
-            for p in plan_slots:
+            # no hard ride or run the day after a leg-lifting session (shared legs); swims are unaffected
+            leg_days={(dt.date.fromisoformat(p['slot']['date'])+dt.timedelta(days=1)).isoformat() for p in plan_slots
+                      if p['sport']=='gym' and p['slot'].get('lift_focus','full') in LIFT_LEGS}
+            leg_days|={(dt.date.fromisoformat(k)+dt.timedelta(days=1)).isoformat() for k,v in plans.items()    # last week's Sunday
+                       if any(x['sport']=='gym' and x.get('lift_focus','full') in LIFT_LEGS for x in v['sessions'])}
+            for k,p in enumerate(plan_slots):
                 sp=p['sport'];role='easy'
+                after_legs=sp in ('ride','run') and p['slot']['date'] in leg_days
+                later=any(q['sport']==sp and q['slot']['date'] not in leg_days for q in plan_slots[k+1:])
+                hard_ok=not after_legs or not later          # wait for a later fresh day when there is one
                 if stage=='assessment':role='test' if sp not in seen and sp!='gym' else 'easy'
                 elif stage in ('taper','race_week'):role='opener' if sp not in seen else 'easy'
                 elif p is longest:role='long'
-                elif stage=='specific' and sp not in seen and sp!='gym':role='race_pace'
-                elif stage=='build' and shape!='consolidation' and sp not in seen and sp!='gym':role='quality'
-                if sp!='gym':seen.add(sp)
+                elif stage=='specific' and sp not in seen and sp!='gym' and hard_ok:role='race_pace'
+                elif stage=='build' and shape!='consolidation' and sp not in seen and sp!='gym' and hard_ok:role='quality'
+                if sp!='gym' and (role!='easy' or stage in ('assessment','taper','race_week') or hard_ok):seen.add(sp)
                 p['role']=role
             weights=[LONG_WEIGHT[p['sport']] if p['role']=='long' else 1.0 if p['sport']=='gym' else ROLE_WEIGHT.get(p['role'],1.0)
                      for p in plan_slots]
@@ -240,8 +276,10 @@ def build(d,proposal,profile=None,load=None,done=None,workouts=None,today=None):
                 if i not in keep:continue
                 sp=p['sport'];minutes=mins[i]
                 rec=stage in ('recovery','taper','assessment','race_week') or shape=='consolidation'
-                session=workout(sp,int(minutes),w,name,p['ex'],equipment,d,anchors,rec,stage,p['role'],not proposal.get('running_hold'))
+                session=workout(sp,int(minutes),w,name,p['ex'],equipment,d,anchors,rec,stage,p['role'],not proposal.get('running_hold'),
+                                p['slot'].get('lift_focus','full'))
                 session['shape']=shape
+                if sp=='gym':session['lift_focus']=p['slot'].get('lift_focus','full')
                 if sp=='gym' and w==0 and proposal.get('assessment')=='week':
                     session['name']='Strength calibration / familiarization'
                     session['steps'].insert(0,'Practice technique, then record one comfortable 6–10 rep set per lift with 2–3 reps left. No true maximum or forced repetitions. Use the result to review the remaining draft.')

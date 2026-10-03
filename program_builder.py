@@ -144,7 +144,24 @@ def validate_options(raw):
     for days in (available,rest):
         if not isinstance(days,list) or any(isinstance(x,bool) or not isinstance(x,int) or x not in range(7) for x in days):raise ValueError('Choose weekdays Monday through Sunday')
     if not set(available)-set(rest):raise ValueError('Leave at least one available training day')
-    return {'first_sport':first,'available_days':sorted(set(available)),'rest_days':sorted(set(rest)),'allow_doubles':bool(raw.get('allow_doubles',False))}
+    import starter_programs
+    split=raw.get('lift_split','full_body')
+    if split not in starter_programs.LIFT_SPLITS:raise ValueError('Lifting split is one of '+', '.join(starter_programs.LIFT_SPLITS))
+    in_row=raw.get('max_lift_days_in_row',4)
+    if isinstance(in_row,bool) or not isinstance(in_row,int) or not 1<=in_row<=5:raise ValueError('Lifting days in a row is 1-5')
+    return {'first_sport':first,'available_days':sorted(set(available)),'rest_days':sorted(set(rest)),'allow_doubles':bool(raw.get('allow_doubles',False)),
+            'lift_split':split,'max_lift_days_in_row':in_row}
+
+
+# What each session loads, for spacing and same-day pairing: running and cycling share the legs, swimming the
+# shoulders; lifting depends on its focus.
+def tissue(sport,focus=None):
+    import starter_programs as S
+    if sport=='gym':
+        focus=focus or 'full'
+        legs=focus in S.LIFT_LEGS;upper=focus in ('full','upper','push','pull','upper_push','upper_pull')
+        return ({'legs'} if legs else set())|({'shoulders'} if upper else set())
+    return {'run':{'legs','impact'},'ride':{'legs'},'swim':{'shoulders'}}.get(sport,set())
 
 
 def review_changes(d,phases,start,end):
@@ -177,6 +194,8 @@ def sessions_for(stage,hours):
 def macro_weeks(phases,start,target,focus,sport,restricted,hours,plans=None,options=None):
     """Tentative sport slots only. No sets, minutes, target power, or load clearance."""
     options=validate_options(options or {})
+    import starter_programs as S
+    split=S.LIFT_SPLITS[options['lift_split']];lift_turn=0;lift_row=0
     result=[];cursor=start;previous_sport=None
     while cursor<target:
         end=min(target,cursor+dt.timedelta(days=7));slots=[]
@@ -227,18 +246,34 @@ def macro_weeks(phases,start,target,focus,sport,restricted,hours,plans=None,opti
             if offset in active_days:
                 used={s:sum(x['sport']==s for x in slots) for s in available}
                 rank=sorted(sequence,key=lambda s:(used[s]/weights[s],s==previous_sport,sequence.index(s)))
-                session=rank[0]
-                # Avoid consecutive running slots even when running is the only priority.
-                if session=='run' and previous_sport=='run' and offset>0 and offset-1 in active_days:
-                    alternative=next((s for s in rank if s!='run'),None)
-                    if alternative is None:
-                        slots.append({'date':day.isoformat(),'sport':'rest','purpose':'Separate running exposures; review tolerance','conditional':True});continue
-                    session=alternative
-                slots.append({'date':day.isoformat(),'sport':session,'purpose':'Assessment / familiarization' if stage=='assessment' else phase['label'],'conditional':True,'source':'suggested','stage':stage})
+                yesterday=previous_sport if offset>0 and offset-1 in active_days else None
+                def spaced(s):
+                    # Runs never back to back in a starter (the block decides beyond that); full-body lifting needs
+                    # 48 h; a split rotates focuses up to the athlete's limit of lifting days in a row. Swims and rides
+                    # may repeat on consecutive days.
+                    if s=='run':return yesterday!='run'
+                    if s=='gym':return yesterday!='gym' if split==['full'] else not (yesterday=='gym' and lift_row>=options['max_lift_days_in_row'])
+                    return True
+                session=next((s for s in rank if spaced(s)),None)
+                if session is None:
+                    slots.append({'date':day.isoformat(),'sport':'rest','purpose':'Separate repeated exposures; review tolerance','conditional':True});continue
+                slot={'date':day.isoformat(),'sport':session,'purpose':'Assessment / familiarization' if stage=='assessment' else phase['label'],'conditional':True,'source':'suggested','stage':stage}
+                if session=='gym':
+                    slot['lift_focus']=split[lift_turn%len(split)];lift_turn+=1
+                    lift_row=lift_row+1 if yesterday=='gym' else 1
+                else:lift_row=0
+                slots.append(slot)
                 previous_sport=session
                 if options['allow_doubles'] and hours>=6 and stage in ('build','specific') and len(available)>1 and active_days.index(offset)==len(active_days)-1:
-                    second=next((s for s in rank if s!=session and s!='run'),None)
-                    if second:slots.append({'date':day.isoformat(),'sport':second,'purpose':'Optional second session — confirm full-program load and spacing','conditional':True,'source':'suggested'})
+                    # a second session only if it loads different tissue (swim with a run, a ride with upper-body
+                    # lifting); strength goes first when it is the priority, otherwise six hours apart if possible
+                    first=tissue(session,slot.get('lift_focus'))
+                    second=next((s for s in rank if s!=session and s!='run' and not (tissue(s,split[lift_turn%len(split)] if s=='gym' else None)&first)),None)
+                    if second:
+                        extra={'date':day.isoformat(),'sport':second,'purpose':'Optional second session — different tissue; six hours apart if you can','conditional':True,'source':'suggested'}
+                        if second=='gym':extra['lift_focus']=split[lift_turn%len(split)];lift_turn+=1
+                        if 'gym' in (second,session) and priority=='gym' and second=='gym':slots.insert(len(slots)-1,extra)
+                        else:slots.append(extra)
             else:slots.append({'date':day.isoformat(),'sport':'rest','purpose':'Rest / open day','conditional':False,'stage':stage})
         result.append({'start':cursor.isoformat(),'end':end.isoformat(),'slots':slots,'running':'On hold — no running slots prescribed' if restricted else 'Recheck readiness before prescribing running','phase':next((copy.deepcopy(p) for p in phases if p['start']<=cursor.isoformat()<p['end']),None),'status':'Proposed placement; detailed dose requires review'})
         cursor=end
