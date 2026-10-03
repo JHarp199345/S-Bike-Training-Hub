@@ -15,7 +15,7 @@ Items, most urgent first:
 - missed sessions without a reason;
 - cautions.
 
-The hub lists. The plan changes only through a reviewed preview the athlete approves. Forecasts weeks ahead are provisional; adjusting at each check-in, with that day's evidence, is how the plan stays right.
+The hub lists. Apart from the opt-in progression policy (at most one bounded change per check-in, when the athlete has switched it on), the plan changes only through a reviewed preview the athlete approves. Forecasts weeks ahead are provisional; adjusting at each check-in, with that day's evidence, is how the plan stays right.
 
 ## Tools and sequence
 
