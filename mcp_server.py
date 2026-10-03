@@ -19,7 +19,7 @@ import urllib.error
 import urllib.request
 
 BASE = __import__("os").environ.get("S29_HUB_URL", "http://127.0.0.1:8729")   # tests point this at a scratch server
-VERSION = "1.6.0"
+VERSION = "1.6.1"
 
 
 class HubError(Exception):
@@ -468,7 +468,7 @@ LIFTS = {"type": "array", "description": "The exercises, in order", "items": {"t
     "seconds": {"type": "integer", "minimum": 1, "maximum": 600}, "weight": {"type": "number", "minimum": 0},
     "unit": {"type": "string", "enum": ["lb", "kg"]}, "per_side": {"type": "boolean"},
     "tempo": {"type": "string", "description": "Seconds down-pause-up, e.g. '3-0-3' (slower = more strain per rep)"},
-    "hold": {"type": "integer", "minimum": 1, "maximum": 120, "description": "Seconds held in each rep (a pause at the top or bottom): every 2 s held counts as another rep at that weight. For a static hold use seconds (with weight) instead of reps"},
+    "hold": {"type": "integer", "minimum": 1, "maximum": 120, "description": "Seconds held in each rep (a pause at the top or bottom): every 3 s held counts as another rep at that weight. For a static hold use seconds (with weight) instead of reps"},
     "regions": {"type": "object", "description": "How the whole movement's strain is shared across body regions (from get_lifting), as percentages adding to ~100, e.g. deadlift {lower_back: 30, glutes: 25, hamstrings: 20, quads: 15, forearms: 10}",
                 "additionalProperties": {"type": "number", "minimum": 0}}},
     "required": ["name", "kind", "sets", "regions"]}}
@@ -673,8 +673,8 @@ TOOLS = [
        override=STR("If they overrode the steer, their reason"),
        done={"type": "array", "description": "One per planned lift, in order", "items": {"type": "object", "properties": {
            "done": {"type": "boolean"}, "weight": {"type": "number"}, "reps": {"type": "integer"}, "sets": {"type": "integer"},
-           "hold": {"type": "integer", "description": "Seconds actually held in each rep, if different from the plan"},
-           "seconds": {"type": "integer", "description": "Seconds actually held, for a static hold"},
+           "hold": {"type": "integer", "minimum": 0, "maximum": 120, "description": "Seconds actually held in each rep, if different from the plan"},
+           "seconds": {"type": "integer", "minimum": 1, "maximum": 600, "description": "Seconds actually held, for a static hold"},
            "failure": {"type": "boolean", "description": "Taken to failure (no reps left): the strength estimate uses 0 in reserve"},
            "why": {"type": "string", "enum": ["too_heavy", "chose"]}}}}), t_lift_log),
     ("record_lift_followup", "Two to four days after a lift session (get_lifting shows when one is due): how each region "
