@@ -544,6 +544,8 @@ def restore(day, a, gate, say):
         if p.get("draft_id") and not p.get("violations"):
             api(CR, {"action": "apply", "draft_id": p["draft_id"], "approved": True})
             restored.append(f"{d0}: {', '.join(back)}")
+        else:
+            say(f"assistant on {day}: can't restore {d0} yet: {p.get('error') or '; '.join(p.get('violations') or [])}")
     if restored:
         say(f"assistant on {day}: restored " + " | ".join(restored))
 
@@ -571,6 +573,9 @@ def progress_running(day, say):
         p = api(CR, {"action": "preview", "kind": "calendar", "changes": [{"date": d0, "sessions": ss}]}, ok=(200, 400))
         peak = ((p.get("after") or {}).get("running_progression") or {}).get("planned_week_peak_blocks")
         if not p.get("draft_id") or p.get("violations") or peak is None or peak > hi:
+            if best is None:
+                say(f"assistant on {day}: {d0} long run {m} min refused: "
+                    f"{p.get('error') or '; '.join(p.get('violations') or []) or f'week peak {peak} vs band top {hi}'}")
             break
         best = (p, m, peak)
         if peak >= lo:
