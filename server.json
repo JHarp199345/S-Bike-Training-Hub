@@ -8,13 +8,13 @@
     "source": "github"
   },
   "websiteUrl": "https://github.com/JHarp199345/S-Bike-Training-Hub",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "packages": [
     {
       "registryType": "mcpb",
-      "identifier": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/download/mcp-v1.5.0/s-bike-hub-mcp-1.5.0.mcpb",
-      "version": "1.5.0",
-      "fileSha256": "bc5676b42b2fd13a745037d38d33db1b39b13521dfb333ea8e8b17b7aecaa124",
+      "identifier": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/download/mcp-v1.6.0/s-bike-hub-mcp-1.6.0.mcpb",
+      "version": "1.6.0",
+      "fileSha256": "993bc7a077bd4724d2c0808dfe4f98dfb124a4b58df5761e7bd0fb92afc3122b",
       "transport": {
         "type": "stdio"
       }
