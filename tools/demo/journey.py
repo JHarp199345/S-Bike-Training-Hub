@@ -472,6 +472,8 @@ def assistant_review(day, a, say):
                     level[(d0, i)] = 0
     if not level:
         restore(day, a, gate, say)
+        if day.weekday() in (0, 3):
+            progress_running(day, say)
         return
     for _ in range(5):
         changes = {}
@@ -545,6 +547,40 @@ def restore(day, a, gate, say):
             restored.append(f"{d0}: {', '.join(back)}")
     if restored:
         say(f"assistant on {day}: restored " + " | ".join(restored))
+
+
+def progress_running(day, say):
+    """Challenge running when the plan doesn't reach the phase's band: lengthen the week's long run in 10-minute
+    steps (previewed each time), keeping the longest version that reaches the band and passes the hub's checks."""
+    rp = api(CR + "?days=14")["outlook"].get("running_progression") or {}
+    if rp.get("status") != "under_target":
+        return
+    lo, hi = rp["target_blocks"]
+    week_end = (day + dt.timedelta(days=6)).isoformat()
+    runs = [(d0, i, s) for k in range(1, 7) for d0 in [(day + dt.timedelta(days=k)).isoformat()]
+            for i, s in enumerate(plan_of(d0)) if s.get("sport") == "run"]
+    if not runs:
+        return
+    d0, i, s = max(runs, key=lambda r: r[2].get("minutes") or 0)
+    base = s.get("minutes") or 30
+    best = None
+    for m in range(base + 10, min(90, base * 2 + 10) + 1, 10):
+        ss = plan_of(d0)
+        ss[i] = {**s, "minutes": m, "name": f"Long run, {m} min", "steps": [f"{m} min easy, conversational; walk breaks are fine"],
+                 "note": f"Lengthened from {base} min: running load was under the {rp['phase']} band ({rp['planned_week_peak_blocks']} "
+                         f"vs {lo}-{hi} blocks). Tell me how the next two mornings feel."}
+        p = api(CR, {"action": "preview", "kind": "calendar", "changes": [{"date": d0, "sessions": ss}]}, ok=(200, 400))
+        peak = ((p.get("after") or {}).get("running_progression") or {}).get("planned_week_peak_blocks")
+        if not p.get("draft_id") or p.get("violations") or peak is None or peak > hi:
+            break
+        best = (p, m, peak)
+        if peak >= lo:
+            break
+    if best:
+        p, m, peak = best
+        api(CR, {"action": "apply", "draft_id": p["draft_id"], "approved": True})
+        say(f"assistant on {day}: running under the {rp['phase']} band ({rp['planned_week_peak_blocks']} vs {lo}-{hi} blocks, "
+            f"block {rp['block_points']} pts) -> {d0} long run {base} -> {m} min, week peak {peak}")
 
 
 def plan_of(date):

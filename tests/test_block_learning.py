@@ -64,8 +64,16 @@ check("a first run near the top of the heart-rate reserve isn't evidence of spar
       not any("heart-rate reserve" in s["why"] for s in hard["block_learning"]))
 
 rough = damage.remodeling_response(dates, doses(), feet_reports=reports(rough_after=10), runs=runs())
-check(f"rough mornings after a run shrink the block ({learned['reference_points']} vs {rough['reference_points']})",
-      rough["reference_points"] < learned["reference_points"] and any("rough" in s["why"] for s in rough["block_learning"]))
+steps = rough["block_learning"]
+k = next((n for n, s in enumerate(steps) if "rough" in s["why"]), None)
+check("rough mornings after a run shrink the block", k is not None and steps[k]["to"] < steps[k]["from"])
+check("…and it can't grow past its earlier size until two clean runs in a row confirm it",
+      k is not None and len(steps) > k + 1 and steps[k + 1]["to"] <= steps[k]["from"])
+
+# the same runs, repeated, can't keep growing the block: it settles where they're carried at about 1.25 blocks
+peak = max(c["after_blocks"] for c in learned["components"])
+check(f"learned block is self-consistent: the training that taught it peaks near 1.25 blocks under it ({peak})",
+      1.0 <= peak <= 1.5)
 
 slow = damage.remodeling_response(dates, doses(), feet_reports=reports(), runs=runs(slower_from=10))
 check("running slower at the same heart rate shrinks it too", any("slowed" in s["why"] for s in slow["block_learning"]))

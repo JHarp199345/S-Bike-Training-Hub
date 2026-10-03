@@ -55,9 +55,52 @@ def outlook(d, load, done, workouts, today, days=14):
                 'status':'unknown' if unknown else 'conflict' if conflicts else 'within_projected_limits',
                 'alternatives':['Shorten or reduce the scheduled dose','Move the exposure and recheck the following week','Replace affected work with an eligible activity or rest'] if conflicts else [],
                 'meaning':'Readings include all work on this day; they are not isolated per-session measurements.'})
-    return {'as_of':today,'days':days,'sessions':summaries,'daily_readings':daily,'running_gate':B.running_gate(d,load,d.get('checkins',{}).get(today)),
+    gate=B.running_gate(d,load,d.get('checkins',{}).get(today))
+    return {'as_of':today,'days':days,'sessions':summaries,'daily_readings':daily,'running_gate':gate,
             'active_symptoms':progression.active_symptoms(d,today),
+            'running_progression':running_progression(d,load,today,daily,gate),
             'notice':'Check the entire sequence, including openers after peak work. Forecasts do not clear execution holds.'}
+
+
+# Running load targets by phase, in blocks at the week's peak (the 1.5-block line is the hard limit). Provisional
+# product policy: build steps the peak up to the band, then responses (mornings, hops, pace at heart rate) let the
+# block itself learn and grow, so the same band holds more running.
+RUN_TARGETS = {'assessment':(.6,1.0),'base':(.8,1.1),'build':(1.2,1.45),'peak':(1.2,1.45),'specific':(1.1,1.4),
+               'taper':(.4,.9),'recovery':(0,.8)}
+
+
+def running_progression(d, load, today, daily, gate):
+    """Is the plan actually challenging running? The coming week's forecast peak against the phase's band."""
+    import progression
+    phase=progression.context(d,today,'run')['phase']
+    band=RUN_TARGETS.get(phase)
+    week_end=(dt.date.fromisoformat(today)+dt.timedelta(days=6)).isoformat()
+    planned=[m['after'] for day in daily if day['date']<=week_end for m in day['readings'] if m['key']=='run_mechanical' and m.get('after') is not None]
+    peak=round(max(planned),2) if planned else None
+    since=(dt.date.fromisoformat(today)-dt.timedelta(days=14)).isoformat()
+    rem=_rem(load)
+    recent=[c['after_blocks'] for c in rem.get('components',[]) if since<=c['date']<today]
+    learned=rem.get('block_learning') or []
+    out={'phase':phase,'target_blocks':list(band) if band else None,'planned_week_peak_blocks':peak,
+         'recent_peak_blocks':round(max(recent),2) if recent else None,'block_points':rem.get('reference_points'),
+         'last_block_change':learned[-1] if learned else None,'status':None,'advice':None}
+    if not band or phase=='recovery':
+        out['status']='not_progressing';out['advice']='No running progression in this phase.'
+    elif gate.get('status')!='open_for_review' or progression.active_symptoms(d,today):
+        out['status']='held';out['advice']='Resolve the running hold or symptoms first; do not add running load.'
+    elif peak is None:
+        out['status']='no_runs_planned';out['advice']='No runs with a forecast this week.'
+    elif peak<band[0]:
+        out['status']='under_target'
+        out['advice']=(f'The plan peaks at {peak} blocks; this {phase} phase targets {band[0]}-{band[1]}. Lengthen the long run or '
+                       'add an easy run at least two days from the others, previewing until the forecast peak reaches the band. '
+                       'Prefer one well-spaced step over several stacked runs. Check the next mornings, hop test and pace at heart '
+                       'rate before the next step: clean responses let the block grow.')
+    elif peak>band[1]:
+        out['status']='over_target';out['advice']=f'The plan peaks at {peak} blocks, above the {phase} band: shorten or space runs.'
+    else:
+        out['status']='on_target';out['advice']='Running load is in the band. Hold it until the responses are clean, then step again.'
+    return out
 
 
 def capacity_candidates(d, load, today):
