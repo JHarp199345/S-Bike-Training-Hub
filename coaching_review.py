@@ -349,6 +349,10 @@ def preview(d,load,done,workouts,today,base,revision,fields):
             violations.append(today+f': weekly running load {rp_after["planned_week_blocks"]} blocks is over the cap of {cap}')
         for day in after['daily_readings']:
             for m in day['readings']:
+                # The combined utilization reading is advisory: its block parts (running, swim, each lifting region)
+                # are checked on their own rows, and growth over the usual week is governed by the running targets,
+                # deloads and the weekly cap.
+                if m['key']=='mechanical':continue
                 old=prior.get((day['date'],m['key']),{})
                 if m.get('after') is not None and m.get('limit') is not None and m['after']>=m['limit'] and (old.get('after') is None or m['after']>old['after']+.005):
                     violations.append(day['date']+': worsened '+m['key']+' forecast limit')
