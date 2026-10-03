@@ -229,6 +229,18 @@ def build(d,proposal,profile=None,load=None,done=None,workouts=None,today=None):
                 pref=[p for p in endurance if p['sport']==('ride' if tri or proposal.get('sport') in ('tri','general') else proposal.get('sport'))]
                 longest=(pref or endurance)[-1]
             seen=set()
+            fresh_cal=None
+            if shape=='check' and calibrate:
+                # a check week's running calibration is done fresh: the last run day of the week, with no running in
+                # the three days before it (this week's earlier runs, and last week's last days, are dropped)
+                runs=[p for p in plan_slots if p['sport']=='run' and (cal_day is None or cal_end<p['slot']['date'])]
+                if runs:
+                    fresh_cal=runs[-1];cd=dt.date.fromisoformat(fresh_cal['slot']['date'])
+                    plan_slots=[p for p in plan_slots if not (p['sport']=='run' and p is not fresh_cal)]
+                    for k in [(cd-dt.timedelta(days=n)).isoformat() for n in (1,2,3)]:
+                        if k in plans:
+                            plans[k]['sessions']=[x for x in plans[k]['sessions'] if x['sport']!='run'] or plans[k]['sessions'][:0]
+                            if not plans[k]['sessions']:plans.pop(k)
             # no hard ride or run the day after a leg-lifting session (shared legs); swims are unaffected
             leg_days={(dt.date.fromisoformat(p['slot']['date'])+dt.timedelta(days=1)).isoformat() for p in plan_slots
                       if p['sport']=='gym' and p['slot'].get('lift_focus','full') in LIFT_LEGS and shape!='check'
@@ -240,7 +252,9 @@ def build(d,proposal,profile=None,load=None,done=None,workouts=None,today=None):
                 sp=p['sport'];role='easy'
                 after_legs=sp in ('ride','run') and p['slot']['date'] in leg_days
                 hard_ok=not after_legs                       # wait for a fresh day; none this week: it stays easy
-                if stage=='assessment' or shape=='check':
+                if shape=='check' and sp=='run':
+                    role='calibration' if p is fresh_cal else 'easy'
+                elif stage=='assessment' or shape=='check':
                     role=('calibration' if sp=='run' and calibrate and (cal_day is None or cal_end<p['slot']['date']) else 'test') if sp not in seen and sp!='gym' and hard_ok else 'easy'
                 elif stage in ('taper','race_week'):role='opener' if sp not in seen else 'easy'
                 elif p is longest:role='long'
