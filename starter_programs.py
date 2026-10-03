@@ -64,7 +64,8 @@ def workout(sport,minutes,week,level,experience,equipment,d,anchors=None,recover
         s['swim_plan']={'stroke_mix':{'free':100},'work_mix':{'swim':80,'drill_swim':20},'why':'Basic freestyle consistency and technique; duration includes rests. No hard sets or required butterfly.'}
     elif sport=='run':
         names={'easy':'Easy run / walk','long':'Longer easy run','quality':'Steady run with strides','race_pace':'Race-pace run',
-               'brick':'Brick run (straight off the bike)','opener':'Run openers','test':'Easy run + hop test'}
+               'brick':'Brick run (straight off the bike)','opener':'Run openers','test':'Easy run + hop test',
+               'calibration':'Running calibration (up to 60 min, zone 2)'}
         if role=='easy' and week>=4 and run_open:names['easy']='Easy run'
         s.update(name=names.get(role,'Easy run / walk'),tier='moderate' if role in ('quality','race_pace','brick') else 'easy')
         main={'easy':f'{m-10} min: alternate 1 min easy running and 2 min walking; conversational effort' if week<4 or not run_open else f'{m-10} min easy continuous running; walk breaks whenever you want',
@@ -73,9 +74,13 @@ def workout(sport,minutes,week,level,experience,equipment,d,anchors=None,recover
               'race_pace':f'3 × {max(3,(m-14)//4)} min at goal race effort with 2 min easy jogging between',
               'brick':f'{max(8,m-4)} min: find your running legs, then settle at goal race effort; this is practice for the transition',
               'opener':'10 min easy, 3 × 20 s at race effort, easy to finish',
-              'test':f'{m-10} min easy running, then the single-leg hop test (record pain-free hops on each leg)'}.get(role)
+              'test':f'{m-10} min easy running, then the single-leg hop test (record pain-free hops on each leg)',
+              'calibration':'Up to 60 min continuous running or run/walk in heart-rate zone 2 (conversational) on a day you feel your best. '
+                            'Stop early if your form breaks down or anything hurts: what you complete is the measurement'}.get(role)
         s['steps']=(['Start running within 2 minutes of finishing the ride',main,'3 min walking'] if role=='brick' else
+                    [main,'Then no running for 8 days: ride, swim and lift as planned, and check in feet, legs and the hop test each morning. Day 9 sets your running block.'] if role=='calibration' else
                     ['5 min comfortable walking',main,'5 min walking cool-down'])
+        if role=='calibration':s['minutes']=60
         s['note']+=' Running requires a fresh readiness review before every exposure; no speed work or automatic shortening of recovery.'
     else:
         focus=lift_focus if lift_focus in LIFT_GROUPS else 'full'
@@ -195,11 +200,14 @@ def build(d,proposal,profile=None,load=None,done=None,workouts=None,today=None):
     candidates=[]
     target=proposal.get('target')
     tri=proposal.get('sport')=='tri'
+    calibrate=proposal.get('run_calibration',True) and not proposal.get('running_hold')
     for name,factor in LEVELS.items():
-        plans={};journey=[]
+        plans={};journey=[];cal_day=cal_end=None
         fractions=week_fractions(proposal['weeks'],name,target)
         for w,week in enumerate(proposal['weeks']):
             slots=[x for x in week['slots'] if start.isoformat()<=x['date']<end.isoformat() and x['sport']!='rest' and x.get('source')!='scheduled']
+            if cal_day:                       # no running in the calibration run's eight-day watch
+                slots=[x for x in slots if not (x['sport']=='run' and cal_day<x['date']<=cal_end)]
             frac,stage,shape=fractions[w]
             if stage=='race_week' and target:
                 # the day before the race is rest; two days before, openers; nothing after the race in this week
@@ -230,13 +238,20 @@ def build(d,proposal,profile=None,load=None,done=None,workouts=None,today=None):
                 after_legs=sp in ('ride','run') and p['slot']['date'] in leg_days
                 later=any(q['sport']==sp and q['slot']['date'] not in leg_days for q in plan_slots[k+1:])
                 hard_ok=not after_legs or not later          # wait for a later fresh day when there is one
-                if stage=='assessment':role='test' if sp not in seen and sp!='gym' else 'easy'
+                if stage=='assessment':role=('calibration' if sp=='run' and calibrate and cal_day is None else 'test') if sp not in seen and sp!='gym' else 'easy'
                 elif stage in ('taper','race_week'):role='opener' if sp not in seen else 'easy'
                 elif p is longest:role='long'
                 elif stage=='specific' and sp not in seen and sp!='gym' and hard_ok:role='race_pace'
                 elif stage=='build' and shape!='consolidation' and sp not in seen and sp!='gym' and hard_ok:role='quality'
                 if sp!='gym' and (role!='easy' or stage in ('assessment','taper','race_week') or hard_ok):seen.add(sp)
                 p['role']=role
+                if role=='calibration':
+                    cal_day=p['slot']['date'];cal_end=(dt.date.fromisoformat(cal_day)+dt.timedelta(days=8)).isoformat()
+            if cal_day:                       # ...including later in the assessment week itself
+                plan_slots=[p for p in plan_slots if not (p['sport']=='run' and p['role']!='calibration' and cal_day<p['slot']['date']<=cal_end)]
+            cal=[p for p in plan_slots if p['role']=='calibration']
+            if cal:
+                budget=max(0,budget-30);plan_slots=[p for p in plan_slots if p['role']!='calibration']   # most stop well short of 60
             weights=[LONG_WEIGHT[p['sport']] if p['role']=='long' else 1.0 if p['sport']=='gym' else ROLE_WEIGHT.get(p['role'],1.0)
                      for p in plan_slots]
             total=sum(weights) or 1
@@ -288,6 +303,11 @@ def build(d,proposal,profile=None,load=None,done=None,workouts=None,today=None):
                     run=workout('run',int(budget_brick),w,name,experience.get('run','new'),equipment,d,anchors,False,stage,'brick',True)
                     run['shape']=shape
                     plans[p['slot']['date']]['sessions'].append(run);weekly+=run['minutes']
+            for p in cal:
+                run=workout('run',60,w,name,p['ex'],equipment,d,anchors,False,stage,'calibration',True)
+                run['shape']=shape
+                plans.setdefault(p['slot']['date'],{'sessions':[]})['sessions'].insert(0,run)
+                plans[p['slot']['date']]['test']='run_calibration';weekly+=run['minutes']
             if stage=='race_week' and target and start.isoformat()<=target<=end.isoformat():
                 plans.setdefault(target,{'sessions':[]})['sessions'].append({'sport':'other','minutes':0,'name':f"Race day: {proposal.get('goal') or 'your event'}",
                     'tier':'race','shape':'race','steps':['Easy 10–15 min warm-up you have practiced','Race your plan: start controlled, finish strong','Record how it went in the check-in'],
