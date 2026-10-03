@@ -12,7 +12,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    env:
+      PYTHONUTF8: "1"        # Windows reads files as cp1252 otherwise; the hub's entry points relaunch in UTF-8 themselves
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -21,9 +23,18 @@ jobs:
       - name: Install (macOS - everything setup.sh installs)
         if: runner.os == 'macOS'
         run: pip install -r requirements.txt
-      - name: Install (Linux - the Bluetooth libraries; the Apple ones don't apply)
+      - name: Install (Linux - setup-linux.sh, as a person would run it)
         if: runner.os == 'Linux'
-        run: pip install bleak==3.0.2 bless==0.3.0
+        run: |
+          bash setup-linux.sh --no-bike --no-start
+          pip install -r requirements.txt
+      - name: Install (Windows - setup.ps1, as a person would run it)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          ./setup.ps1 -NoBike -NoStart
+          if (-not (Test-Path .venv\Scripts\python.exe)) { throw "setup.ps1 did not create the environment" }
+          python -m pip install -r requirements.txt
       - name: Bike setup - matched and unrecognized bikes, guided check, assistant tools
         run: python tests/test_bike_setup.py
       - name: The hub starts in no-bike mode and the bike setup answers over HTTP

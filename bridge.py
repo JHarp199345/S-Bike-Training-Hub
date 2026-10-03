@@ -21,6 +21,10 @@ Run it from the macOS Terminal app (Bluetooth permission belongs to Terminal):
     .venv/bin/python bridge.py
     .venv/bin/python bridge.py --wheel 2096    # wheel size the watch assumes, mm
 """
+import os as _os, sys as _sys
+if _os.name == "nt" and not _sys.flags.utf8_mode:      # Windows: the hub's files are UTF-8; rerun in UTF-8 mode
+    import subprocess as _sp                            # (a child on the same console/pipes, so stdio clients still work)
+    _sys.exit(_sp.call([_sys.executable, "-X", "utf8", *_sys.argv]))
 import argparse
 import asyncio
 import collections
@@ -1652,8 +1656,11 @@ async def main():
     # A normal kill (SIGTERM) is a deliberate stop: stop cleanly so the watchdog
     # leaves it alone.
     loop = asyncio.get_running_loop()
-    loop.add_signal_handler(signal.SIGHUP, window_closed, b)
-    loop.add_signal_handler(signal.SIGTERM, b.stop.set)
+    try:                                    # POSIX only: on Windows, Ctrl+C and the panel's "Stop bridge" stop it
+        loop.add_signal_handler(signal.SIGHUP, window_closed, b)
+        loop.add_signal_handler(signal.SIGTERM, b.stop.set)
+    except (AttributeError, NotImplementedError):
+        pass
     tasks = [asyncio.create_task(b.supervised(n, f)) for n, f in
              ((("Bike link", b.run_bike), ("Sensors", b.run_sensors), ("Sender", b.run_outbox),
                ("Resistance ramp", b.run_ramp), ("Crash snapshots", b.run_snapshots)) if not args.no_bike else ())]
