@@ -468,6 +468,7 @@ LIFTS = {"type": "array", "description": "The exercises, in order", "items": {"t
     "seconds": {"type": "integer", "minimum": 1, "maximum": 600}, "weight": {"type": "number", "minimum": 0},
     "unit": {"type": "string", "enum": ["lb", "kg"]}, "per_side": {"type": "boolean"},
     "tempo": {"type": "string", "description": "Seconds down-pause-up, e.g. '3-0-3' (slower = more strain per rep)"},
+    "hold": {"type": "integer", "minimum": 1, "maximum": 120, "description": "Seconds held in each rep (a pause at the top or bottom): every 2 s held counts as another rep at that weight. For a static hold use seconds (with weight) instead of reps"},
     "regions": {"type": "object", "description": "How the whole movement's strain is shared across body regions (from get_lifting), as percentages adding to ~100, e.g. deadlift {lower_back: 30, glutes: 25, hamstrings: 20, quads: 15, forearms: 10}",
                 "additionalProperties": {"type": "number", "minimum": 0}}},
     "required": ["name", "kind", "sets", "regions"]}}
@@ -660,7 +661,9 @@ TOOLS = [
      "the steer (fits_steer), against the rider's usual, and what each region is already carrying. Use it to judge and "
      "adjust; nothing is saved.", S(lifts=LIFTS), t_lift_eval),
     ("log_lift_session", "The check-off after a gym session, from what the rider tells you: one entry per planned lift, in "
-     "order ({done, weight, reps, sets, why} - leave out what went as planned). If they lifted LESS weight than planned, "
+     "order ({done, weight, reps, sets, hold, seconds, failure, why} - leave out what went as planned). Holds count as "
+     "time under load: pass the seconds held (hold per rep, or seconds for a static hold), never fold them into tempo. "
+     "failure: true when a lift went to failure. If they lifted LESS weight than planned, "
      "ask why and pass why = too_heavy (the load stays as planned; the strength estimate comes down) or chose (the load "
      "is what they lifted). More weight = more load. rpe = session effort 1-10, wellness = how they feel after 1-10. "
      "These reports also tune the steer.",
@@ -670,6 +673,9 @@ TOOLS = [
        override=STR("If they overrode the steer, their reason"),
        done={"type": "array", "description": "One per planned lift, in order", "items": {"type": "object", "properties": {
            "done": {"type": "boolean"}, "weight": {"type": "number"}, "reps": {"type": "integer"}, "sets": {"type": "integer"},
+           "hold": {"type": "integer", "description": "Seconds actually held in each rep, if different from the plan"},
+           "seconds": {"type": "integer", "description": "Seconds actually held, for a static hold"},
+           "failure": {"type": "boolean", "description": "Taken to failure (no reps left): the strength estimate uses 0 in reserve"},
            "why": {"type": "string", "enum": ["too_heavy", "chose"]}}}}), t_lift_log),
     ("record_lift_followup", "Two to four days after a lift session (get_lifting shows when one is due): how each region "
      "it worked feels now, 1-10 (1 fine, 10 very sore), and how the session compared with the one before. This refits "

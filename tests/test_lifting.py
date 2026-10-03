@@ -33,6 +33,28 @@ def main():
     slow = lifting.evaluate(d, [dict(bench, tempo="3-0-3")])["points_total"]
     check(f"tempo 3-0-3 counts as more strain per rep ({slow} vs {lifting.evaluate(d, [bench])['points_total']})",
           slow > lifting.evaluate(d, [bench])["points_total"] * 1.5)
+    # holds (the rider's report, 2026-10-03): time under the full load counts as reps, not as a capped tempo bonus
+    fly = {"name": "Rear delt fly", "kind": "cable", "sets": 3, "reps": 10, "weight": 15, "unit": "lb", "regions": {"shoulders": 70, "scapula": 30}}
+    p0, ph, pt = (lifting.evaluate(d, [x])["points_total"] for x in (fly, dict(fly, hold=9), dict(fly, tempo="1-9-1")))
+    check(f"a 9 s hold in every rep counts as 3 more reps each ({p0} -> {ph}; as tempo it was capped at {pt})",
+          abs(ph - 4 * p0) < 0.5 and ph > pt * 1.5)
+    try:
+        lifting.clean(d, [dict(hang, hold=5)]); bad = False
+    except ValueError:
+        bad = True
+    check("a hold needs reps (a static hold is given in seconds)", bad)
+    dc = new(); dc["lifting"] = {"strength": {"cable curl": {"name": "Cable curl", "e1rm_kg": 36.0, "date": day, "from": "test"}}}
+    curl = {"name": "Cable curl", "kind": "cable", "sets": 3, "seconds": 10, "weight": 120, "unit": "lb", "regions": {"biceps": 70, "forearms": 30}}
+    eh = lifting.evaluate(dc, [curl])["exercises"][0]
+    check(f"a heavy static hold is judged against the max, above it if need be ({eh['points']} points at {eh.get('intensity_pct')}%)",
+          eh["method"] == "hold against max" and eh["intensity_pct"] == 130 and eh["points"] > 2 * lifting.evaluate(new(), [curl])["points_total"])
+    df = new(); lifting.set_session(df, day, [dict(bench, name="Incline press")])
+    lf = lifting.log(df, day, [{"failure": True}], 7, 8)
+    dn = new(); lifting.set_session(dn, day, [dict(bench, name="Incline press")])
+    ln = lifting.log(dn, day, [{}], 7, 8)
+    rm = lambda x: lifting.state(x)["strength"]["incline press"]["e1rm_kg"]
+    check(f"a set to failure has no reps in reserve, so the max isn't inflated ({rm(df)} kg vs {rm(dn)} kg at effort 7)",
+          rm(df) < rm(dn) and lf["lifts"][0]["failure"])
     dk = new(); dk["lifting"] = {"strength": {"bench press": {"name": "Bench press", "e1rm_kg": 112.0, "date": day, "from": "test"}}}
     base, heavy = lifting.evaluate(dk, [bench])["points_total"], lifting.evaluate(dk, [dict(bench, weight=205)])["points_total"]
     check(f"with a known max, a heavier plan is more load ({heavy} vs {base})", heavy > base)

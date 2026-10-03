@@ -28,6 +28,14 @@ LOAD (estimates from sets, reps, weight and tempo - not a measurement of tissue)
   throws, swings and chops (power), bands, bodyweight, holds - effort, not a max:
           set points = reps x (effort / 7)^2 x kind factor x (1 + kg / 20)^0.5 x tempo   (seconds count as reps / 3)
   tempo: seconds per rep (e.g. 3-0-3 = 6) against a normal ~2 s rep: x (seconds / 2)^0.5, at most x 2.
+  holds (the rider's report, 2026-10-03: a 9 s pause at the top of a fly, a heavy curl held, scored next to nothing):
+      a hold is time under the full load, so it counts as reps, not as a tempo bonus: every 3 s held is one more rep
+      at the same intensity (the same 3 s the effort formula uses; a held second has no lowering phase, where most
+      soreness comes from, so it counts a bit less than a moving one). A pause in each rep (hold, seconds):
+      reps x (1 + hold / 3). A weighted static hold (seconds and a weight, with a known or given max) is judged
+      against the max like a lift: seconds / 3 reps, and
+      the weight may be above the lifting max (up to 1.3x: you can hold more than you can lift).
+  to failure: a set taken to failure has no reps in reserve - the strength estimate uses 0, not the session effort.
   The movement's points are shared across its regions by the AI's percentages. Leg regions count toward the
   leg-muscle system the running and riding share; every region gets its own recovery block.
 """
@@ -42,6 +50,8 @@ KG = {"kg": 1.0, "lb": 0.45359237}
 KINDS = ("barbell", "dumbbell", "kettlebell", "machine", "cable", "band", "medicine_ball", "power", "bodyweight", "other")
 STYLES = ("restorative", "build")
 MAX_BASED = ("barbell", "dumbbell", "kettlebell", "machine", "cable")     # a one-rep max makes sense
+HOLD_S_PER_REP = 3.0     # seconds held that count as one rep
+HOLD_REL_MAX = 1.3        # a held weight can be above the lifting max (isometric and lowering strength run higher)
 # "power": swings, chops and throws with any implement (cable, band, bat) - fast, rotational, not judged against a max
 KIND_FACTOR = {"medicine_ball": 0.8, "power": 0.8, "band": 0.6, "bodyweight": 0.7, "other": 0.7, "cable": 0.6,
                "kettlebell": 0.8, "dumbbell": 0.8, "barbell": 0.9, "machine": 0.7}
@@ -244,6 +254,9 @@ def clean(d, lifts, unit=None, draft=False):
         u = x.get("unit") or unit
         if u not in KG:
             raise ValueError("unit is lb or kg")
+        hold = int(x["hold"]) if x.get("hold") else None
+        if hold and (not reps or not 1 <= hold <= 120):
+            raise ValueError(f"'{name}': hold is 1-120 seconds held in each rep (for a static hold, give seconds instead)")
         tempo = str(x.get("tempo") or "").strip()[:12] or None
         ts = tempo_seconds(tempo)
         if tempo and not ts:
@@ -253,7 +266,7 @@ def clean(d, lifts, unit=None, draft=False):
         out.append({"name": name, "how": str(x.get("how") or known.get("how") or "")[:300],
                     "equipment": str(x.get("equipment") or known.get("equipment") or "")[:80],
                     "kind": kind, "style": style, "sets": sets, "reps": reps, "seconds": secs, "weight": w, "unit": u,
-                    "tempo": tempo, "per_side": bool(x.get("per_side", known.get("per_side", False))),
+                    "tempo": tempo, "hold": hold, "per_side": bool(x.get("per_side", known.get("per_side", False))),
                     "regions": shares, "scored": bool(kind and shares)})
     return out
 
@@ -291,7 +304,7 @@ def set_session(d, date, lifts, name=None, minutes=None, index=None, note=None, 
 def estimate_minutes(lifts):
     def rep_s(x):
         return tempo_seconds(x.get("tempo")) or 4
-    work = sum(x["sets"] * ((x["reps"] or 0) * rep_s(x) + (x["seconds"] or 0)) * (2 if x["per_side"] else 1) for x in lifts) / 60
+    work = sum(x["sets"] * ((x["reps"] or 0) * (rep_s(x) + (x.get("hold") or 0)) + (x["seconds"] or 0)) * (2 if x["per_side"] else 1) for x in lifts) / 60
     rest = sum(x["sets"] for x in lifts) * 1.5
     return max(10, round(work + rest))
 
@@ -307,7 +320,7 @@ def remember(d, lifts, date, done=False):
         if done:
             e["times_done"] += 1
             e["last_done"] = date
-            e["last"] = {k: x.get(k) for k in ("sets", "reps", "seconds", "weight", "unit", "tempo")}
+            e["last"] = {k: x.get(k) for k in ("sets", "reps", "seconds", "hold", "weight", "unit", "tempo")}
 
 
 # ── load ────────────────────────────────────────────────────────────────────
@@ -325,15 +338,27 @@ def tempo_factor(x):
     return min(2.0, (ts / NORMAL_REP_S) ** 0.5) if ts and x.get("reps") else 1.0
 
 
-def points(d, x, weight=None, reps=None, sets=None, rpe=None, e1rm=None):
-    """(points, detail) for one exercise as planned, or as done when weight/reps/sets/rpe are given."""
+def points(d, x, weight=None, reps=None, sets=None, rpe=None, e1rm=None, hold=None, seconds=None):
+    """(points, detail) for one exercise as planned, or as done when weight/reps/sets/rpe/hold/seconds are given."""
     if not x.get("scored"):
         return 0.0, {"method": "not scored yet"}
     reps = x["reps"] if reps is None else reps
     sets = x["sets"] if sets is None else sets
+    hold = x.get("hold") if hold is None else hold
+    secs = x.get("seconds") if seconds is None else seconds
     side = 2 if x["per_side"] else 1
     tf = tempo_factor(x)
     wkg = _kg(x, weight)
+    held = {"hold_s": hold, "hold_reps": round(reps * hold / HOLD_S_PER_REP, 1)} if hold and reps else {}
+    reps_eq = reps * (1 + hold / HOLD_S_PER_REP) if hold and reps else reps
+    if x["kind"] in MAX_BASED and wkg and not reps and secs:
+        known = (state(d)["strength"].get(key(x["name"])) or {}).get("e1rm_kg")
+        if e1rm or known:
+            e1rm, src = (e1rm, "given") if e1rm else (known, "your history")
+            rel = min(HOLD_REL_MAX, wkg / e1rm)
+            per_set = secs / HOLD_S_PER_REP * (rel / 0.75) ** 2 * side
+            return per_set * sets, {"method": "hold against max", "e1rm_kg": round(e1rm, 1), "e1rm_from": src,
+                                    "intensity_pct": round(100 * rel), "hold_reps": round(secs / HOLD_S_PER_REP, 1)}
     if x["kind"] in MAX_BASED and wkg and reps and reps <= 20:
         known = (state(d)["strength"].get(key(x["name"])) or {}).get("e1rm_kg")
         if e1rm is None:
@@ -342,14 +367,14 @@ def points(d, x, weight=None, reps=None, sets=None, rpe=None, e1rm=None):
         else:
             src = "given"
         rel = min(1.0, wkg / e1rm)
-        per_set = reps * (rel / 0.75) ** 2 * side * tf
+        per_set = reps_eq * (rel / 0.75) ** 2 * side * tf
         return per_set * sets, {"method": "intensity", "e1rm_kg": round(e1rm, 1), "e1rm_from": src,
-                                "intensity_pct": round(100 * rel), **({"tempo_factor": round(tf, 2)} if tf != 1 else {})}
-    count = reps if reps else (x["seconds"] or 0) / 3
+                                "intensity_pct": round(100 * rel), **held, **({"tempo_factor": round(tf, 2)} if tf != 1 else {})}
+    count = reps_eq if reps else (secs or 0) / 3
     eff = (rpe or EFFORT_RPE) / 7
     heft = (1 + (wkg or 0) / 20) ** 0.5
     per_set = count * eff ** 2 * KIND_FACTOR[x["kind"]] * heft * side * tf
-    return per_set * sets, {"method": "effort", "effort": rpe or EFFORT_RPE, "kind_factor": KIND_FACTOR[x["kind"]],
+    return per_set * sets, {"method": "effort", "effort": rpe or EFFORT_RPE, "kind_factor": KIND_FACTOR[x["kind"]], **held,
                             **({"tempo_factor": round(tf, 2)} if tf != 1 else {})}
 
 
@@ -486,7 +511,8 @@ def evaluate(d, lifts, today=None, ctx=None, draft=True):
 # ── the check-off ───────────────────────────────────────────────────────────
 def log(d, date, done, rpe, wellness, session_index=None, compare_last=None, override=None, ctx=None, _session_name=None):
     """The check-off: `done` is one entry per planned lift, in order:
-    {"done": true|false, "weight": ..., "reps": ..., "sets": ..., "why": "too_heavy"|"chose"} (anything left out = as planned).
+    {"done": true|false, "weight": ..., "reps": ..., "sets": ..., "hold": s, "seconds": s, "failure": true,
+     "why": "too_heavy"|"chose"} (anything left out = as planned; failure = taken to failure, no reps in reserve).
     Returns the log. Raises ValueError naming the lifts that need a why."""
     s = state(d)
     p = d["plans"].get(date) or {}
@@ -520,6 +546,10 @@ def log(d, date, done, rpe, wellness, session_index=None, compare_last=None, ove
         w = x["weight"] if a.get("weight") is None else float(a["weight"])
         reps = x["reps"] if a.get("reps") is None else int(a["reps"])
         sets = x["sets"] if a.get("sets") is None else int(a["sets"])
+        hold = x.get("hold") if a.get("hold") is None else int(a["hold"])
+        secs = x.get("seconds") if a.get("seconds") is None else int(a["seconds"])
+        fail = bool(a.get("failure"))
+        lrir, lrpe = (0, 10) if fail else (rir, rpe)
         k = key(x["name"])
         known = (s["strength"].get(k) or {}).get("e1rm_kg")
         why = a.get("why") if (x.get("weight") is not None and w is not None and w < x["weight"]) else None
@@ -534,8 +564,10 @@ def log(d, date, done, rpe, wellness, session_index=None, compare_last=None, ove
                 p_, det = points(d, x, e1rm=anchor or one_rm(wkg, reps, 0))   # the load as planned
                 det["note"] = "too heavy: the load stays as planned; strength estimate lowered"
             else:
-                from_set = one_rm(wkg, reps, rir)
-                if x["reps"] and reps < x["reps"] and (w or 0) <= (x["weight"] or 0):
+                from_set = one_rm(wkg, reps, lrir)
+                if fail:
+                    new_rm = from_set                                # to failure: that set was the limit
+                elif x["reps"] and reps < x["reps"] and (w or 0) <= (x["weight"] or 0):
                     new_rm = one_rm(wkg, reps, 0)                    # missed reps: at the limit
                 elif from_set > (known or anchor or 0) or not (known or anchor):
                     new_rm = from_set
@@ -543,15 +575,15 @@ def log(d, date, done, rpe, wellness, session_index=None, compare_last=None, ove
                 # (an easy set means the weight was further from the max than the plan assumed); heavier than planned is
                 # judged against the plan, so it counts as harder
                 yard = known or (max(anchor or 0, from_set) if (w or 0) <= (x.get('weight') or 0) else (anchor or from_set))
-                p_, det = points(d, x, weight=w, reps=reps, sets=sets, rpe=rpe, e1rm=yard)
+                p_, det = points(d, x, weight=w, reps=reps, sets=sets, rpe=lrpe, e1rm=yard, hold=hold)
                 if why == "chose":
                     det["note"] = "chose lighter: the load is what was lifted"
         else:
             if why == "too_heavy":
-                p_, det = points(d, x, rpe=rpe)
+                p_, det = points(d, x, rpe=lrpe)
                 det["note"] = "too heavy: the load stays as planned"
             else:
-                p_, det = points(d, x, weight=w, reps=reps, sets=sets, rpe=rpe)
+                p_, det = points(d, x, weight=w, reps=reps, sets=sets, rpe=lrpe, hold=hold, seconds=secs)
         if new_rm:
             s["strength"][k] = {"name": x["name"], "e1rm_kg": round(new_rm, 1), "date": date,
                                 "from": f"{w:g} {x['unit']} x {reps}" + (" (too heavy)" if why == "too_heavy" else "")}
@@ -560,7 +592,7 @@ def log(d, date, done, rpe, wellness, session_index=None, compare_last=None, ove
         total += p_
         pts.append(p_)
         rows.append({"name": x["name"], "done": True, "weight": w, "unit": x["unit"], "reps": reps, "sets": sets,
-                     "seconds": x["seconds"], "tempo": x.get("tempo"), "points": round(p_, 1), "why": why, **det,
+                     "seconds": secs, "hold": hold, "failure": fail or None, "tempo": x.get("tempo"), "points": round(p_, 1), "why": why, **det,
                      "style": x.get("style"), "regions": x.get("regions") or {}})
     entry = {"date": date, "session": sess["name"], "rpe": rpe, "wellness": wellness, "lifts": rows,
              "points_total": round(total, 1), "regions": {r: round(v, 1) for r, v in reg.items()},
