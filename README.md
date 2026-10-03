@@ -196,6 +196,8 @@ Edit [`regions.json`](regions.json) (name, bounding box, center, zoom) and run `
 
 Everything the pages can do is also available headless, so an AI coach can read your data and write your plan:
 
+**Desktop MCP bundle:** [Download MCP 1.2.0](https://github.com/JHarp199345/S-Bike-Training-Hub/releases/download/mcp-v1.2.0/s-bike-hub-mcp-1.2.0.mcpb), or read the [release notes](https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/mcp-v1.2.0). Install it in your compatible desktop MCP client and replace the older bundle. The updated Hub must be running locally. App updates do not automatically update an installed bundle. Version 1.2 adds program reading, previewing, applying, and progress evidence; see [integration details](docs/mcp-1.2-integration.md).
+
 - **Command line:** `./hub today`, `./hub rides`, `./hub fitness`, `./hub load`, `./hub checkins`, `./hub checkin --feet 4 --legs 5`, `./hub steps 2026-09-27=6200`, `./hub import FILE.fit`, `./hub plan --verdict easy --note "…" --workout ID`, `./hub split --total 30 --intervals 3`. Run `./hub --help` for the rest.
 - **MCP server:** [`mcp_server.py`](mcp_server.py) exposes tools (today, check-ins, rides, a ride's full story, fitness, body-system load, importing watch files, daily steps, morning readiness, effort ratings, the day's focus and plan, area routes, climb goals, skill ladders, calibration and tests, test weeks, the aerobic engine, sport carry-over, milestones, workouts…) to compatible MCP clients. For Claude Code:
 
