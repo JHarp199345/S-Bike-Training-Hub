@@ -935,6 +935,7 @@ def calibration_view(d, rides, running_cleared_in=None):
                     _load_cache["key"] = None
         bench = calibration.benchmark_expectation(d, coach.today(), rem["reference_points"]) if rem.get("reference_points") else None
         return {"capacities": est, "due": calibration.due(est, running_cleared=(running_cleared_in == 0)), "benchmark": bench,
+                "calibration_runs": calibration.calibration_runs(d, acts),
                 "benchmarks": dict(sorted(((d.get("benchmarks") or {}).get("runs") or {}).items())[-5:]),
                 "next_test_week": calibration.next_test_week(d)}
     except Exception as e:
@@ -1325,7 +1326,9 @@ async def coach_api(bridge, method, path, p, body):
         if p == "/api/calibration" and method == b"POST":
             import calibration
             try:
-                if req.get("benchmark"):
+                if req.get("calibration_run"):
+                    e = calibration.calibration_stop(d, req["calibration_run"], req.get("reason"), req.get("note", ""))
+                elif req.get("benchmark"):
                     e = calibration.benchmark_report(d, req["benchmark"], req.get("rpe"), req.get("pain", False), req.get("note", ""))
                 elif req.get("t400") is not None:
                     import cp as cp_mod

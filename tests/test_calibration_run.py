@@ -53,6 +53,27 @@ check("not graded before the eight days are over", grade(today=after(8))[0] is N
 check("not graded without enough mornings", grade(checkins=mornings(n=4))[0] is None)
 check("…but graded on four once two weeks have passed", grade(checkins=mornings(n=4), today=after(15))[0] is not None)
 
+# the test ends at an hour; stopped early, the reason caps what it can tell
+def short(minutes, reason=None, drift=2.0, today=after(9)):
+    d = {}
+    if reason:
+        C.calibration_stop(d, DAY, reason)
+    return C.run_calibration(d, DAY, {"impact": 100.0, "drift_pct": drift, "minutes": minutes}, mornings(), today)
+check("completed the hour: the full scale (x1.5)", short(60)["multiplier"] == 1.5 and short(60)["completed"])
+check("past the hour only the first 60 minutes count", short(75)["points"] == 80.0)
+check("stopped early with no reason yet: waits for the answer", short(35) is None)
+check("ran out of time: at most x1.25, flagged as a short test", short(35, "time")["multiplier"] == 1.25 and "full hour" in short(35, "time")["why"])
+check("too tired / form broke down: at most x1.0 - that was their limit", short(40, "tired")["multiplier"] == 1.0 and short(40, "form")["multiplier"] == 1.0)
+check("something hurt: x0.8", short(40, "pain")["multiplier"] == 0.8)
+v = short(25, "interrupted")
+check(f"interrupted: the test is void, no block set ({v['why']})", v["result"] == "void" and "block" not in v)
+check("no answer after two weeks: graded at most x1.0", short(35, today=after(15))["multiplier"] == 1.0)
+try:
+    C.calibration_stop({}, DAY, "bored")
+    check("an unknown reason is refused", False)
+except ValueError:
+    check("an unknown reason is refused", True)
+
 # the starter program: the calibration in the test week, no running for eight days after
 f = {"start": "2026-10-05", "target": "2026-12-27", "sport": "tri", "hours": 4, "goal": "Sprint", "assessment": "week",
      "starter_level": "moderate", "priorities": {"ride": "improve", "swim": "improve", "run": "improve", "gym": "maintain"}}

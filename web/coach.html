@@ -508,10 +508,17 @@ function morningLine(m){ const el=$('morningline'); el.hidden=!m; if(!m) return;
   el.innerHTML=`⌚ Overnight (${m.date.slice(5)}): ${bits.join(' · ')} → <b style="color:${C[m.level]}">${m.level.toUpperCase()}</b>`+(m.why.length?` · ${m.why.join(' · ')}`:''); }
 function calList(c){ const box=$('callist'); if(!c||!c.capacities){ $('calcard').hidden=true; return; } $('calcard').hidden=false;
   const age=d=>d?Math.round((Date.now()-new Date(d+'T12:00'))/864e5):null;
-  box.innerHTML=Object.values(c.capacities).map(k=>{ const pct=Math.round((k.confidence||0)*100), col=pct>=70?'var(--good)':pct>=40?'var(--warn)':'var(--bad)';
+  // running calibrations: completed, or stopped early - and then why
+  const runs=(c.calibration_runs||[]).map(r=>r.needs_reason?`<div class="sys" style="margin:6px 0;border-color:var(--warn)"><b>Running calibration · ${r.date.slice(5)} · stopped at ${r.minutes} min</b>
+      <small>Why did you stop before the hour? It decides how much the test can tell.</small>
+      <div class="seg" style="margin-top:6px">${Object.entries(r.reasons).map(([k,v])=>`<button type="button" data-calstop="${r.date}" data-why="${k}">${v}</button>`).join('')}</div></div>`
+    :`<div class="sys" style="margin:6px 0"><b>Running calibration · ${r.date.slice(5)} · ${r.completed?'completed the hour ✓':`stopped at ${r.minutes} min${r.stopped?' · '+r.reasons[r.stopped].toLowerCase():''}`}</b>
+      <small>${r.result?(r.result.result==='void'?r.result.why:`Block set: <b>${r.result.block}</b> points (×${r.result.multiplier}) · ${r.result.why}`):'Watching the 8 days after - no running until day 9; check in feet, legs and the hop test each morning.'}</small></div>`).join('');
+  box.innerHTML=runs+Object.values(c.capacities).map(k=>{ const pct=Math.round((k.confidence||0)*100), col=pct>=70?'var(--good)':pct>=40?'var(--warn)':'var(--bad)';
     return `<div class="sys" style="margin:6px 0"><b>${k.name}</b><span style="font-size:17px">${k.value!=null?`${k.value} <small style="display:inline;font-size:12px">${k.unit}</small>`:'not measured yet'}</span>
       <div style="height:5px;border-radius:3px;background:var(--control);margin:5px 0"><div style="height:5px;border-radius:3px;width:${pct}%;background:${col}"></div></div>
-      <small>${k.source?`from ${k.source}`:'no data'}${k.last_test?` · tested ${age(k.last_test)} days ago`:' · never tested'} · ${k.due_in_days>0?`test due in ${k.due_in_days} days`:'<b style="color:var(--warn)">test due</b>'} (${k.test_name})</small></div>`; }).join(''); }
+      <small>${k.source?`from ${k.source}`:'no data'}${k.last_test?` · tested ${age(k.last_test)} days ago`:' · never tested'} · ${k.due_in_days>0?`test due in ${k.due_in_days} days`:'<b style="color:var(--warn)">test due</b>'} (${k.test_name})</small></div>`; }).join('');
+  box.querySelectorAll('[data-calstop]').forEach(b=>b.onclick=async()=>{ await post('/api/calibration',{calibration_run:b.dataset.calstop,reason:b.dataset.why}); loadToday(); }); }
 function eventList(evs, cal){ const el=$('eventlist'); const due=(cal&&cal.due)||[];
   const ntw=cal&&cal.next_test_week?` Next test week: <b>${new Date(cal.next_test_week+'T12:00').toLocaleDateString(undefined,{month:'short',day:'numeric'})}</b> - a recovery week that peaks on test day, then rest.`:'';
   const dueHtml=(due.length||ntw)?`<div class="sub" style="margin:4px 0 8px">${due.length?`Tests coming due: ${due.map(t=>`<b>${t.name}</b>${t.last_test?` (last ${t.last_test.slice(5)})`:' (never)'}`).join(' · ')}.`:''}${ntw}</div>`:'';

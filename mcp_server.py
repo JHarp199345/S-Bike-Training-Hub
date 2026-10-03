@@ -286,7 +286,7 @@ def t_schedule_test(a):
 
 def t_record_test(a):
     return call("/api/calibration", {k: a[k] for k in ("capacity", "value", "kind", "date", "note", "t400", "t200",
-                                                        "benchmark", "rpe", "pain") if k in a})
+                                                        "benchmark", "rpe", "pain", "calibration_run", "reason") if k in a})
 
 
 def t_test_week(a):
@@ -782,9 +782,12 @@ TOOLS = [
     ("record_test", "Record a result the hub can't see: a swim CSS test ({t400, t200} seconds - from the rider or the "
      "watch's laps), or any capacity by hand ({capacity: ftp|engine_hr90|legs_3min|swim_css|block, value, kind: "
      "test|manual|training, note}), or how a benchmark run felt ({benchmark: its date, rpe 1-10, pain: true if "
-     "anything hurt}) - the benchmark is graded once the two mornings after are in. Swims are then scored against CSS.",
+     "anything hurt}) - the benchmark is graded once the two mornings after are in. Swims are then scored against CSS. "
+     "A running calibration stopped short of the hour: {calibration_run: its date, reason: time|tired|form|pain|interrupted} "
+     "- ask the athlete why; interrupted voids the test (retry when 100% again).",
      S(t400={"type": "number"}, t200={"type": "number"}, benchmark=DATE, rpe=INT("Benchmark feel, 1 nothing - 10 a fight", 1, 10),
        pain={"type": "boolean", "description": "Anything hurt on the benchmark"},
+       calibration_run=DATE, reason=STR("Why the running calibration stopped early", enum=["time", "tired", "form", "pain", "interrupted"]),
        capacity=STR("Capacity", enum=["ftp", "engine_hr90", "legs_3min", "swim_css", "block"]),
        value={"type": "number"}, kind=STR("test, manual or training", enum=["test", "manual", "training"]),
        date=DATE, note=STR("Where it came from")), t_record_test),

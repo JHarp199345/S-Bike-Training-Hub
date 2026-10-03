@@ -45,9 +45,11 @@ TESTS = {
                              "two mornings - that's the test."},
     "run_calibration": {"name": "Running calibration", "sport": "run", "minutes": 60, "every": 42, "capacity": "block",
                         "needs_running": True,
-                        "how": "On a day you feel your best: up to 60 minutes of continuous running or run/walk, holding "
-                               "heart-rate zone 2 (conversational) the whole time. Stop early if your form breaks down or "
-                               "anything hurts - what you complete is the measurement. Then no running for 8 days: ride, "
+                        "how": "One continuous effort, all at once: up to 60 minutes of running or run/walk in heart-rate "
+                               "zone 2 (conversational), on a day you feel 100%. The test ends at 60 minutes. Don't stop "
+                               "early unless you're out of time, too tired to keep going, your form breaks down or something "
+                               "hurts - stopping for anything else ruins the test, and you'd wait a few days until you're "
+                               "100% again to retry. If you stop early, the hub asks why. Then no running for 8 days: ride, "
                                "swim and lift as planned, and check in feet, legs and the hop test each morning. Day 9 sets "
                                "your running block."},
 }
@@ -200,6 +202,42 @@ def _clamp(x, lo, hi):
 CAL_WATCH_DAYS = 8
 CAL_DRIFT = ((3.0, 1.5), (5.0, 1.25), (8.0, 1.0))   # drift up to x% with clean mornings -> multiplier
 CAL_OVER = 0.8                                      # rough mornings, a hop drop, pain or 8%+ drift: the run was more than a block
+CAL_MINUTES = 60                                    # the test ends at an hour
+CAL_COMPLETE = 58                                   # a watch file this long completed it
+# Stopped early: why, and the most the multiplier may then be (None: the test is void - retry when 100% again)
+CAL_STOPS = {"time": ("I ran out of time", 1.25), "tired": ("I was too tired to keep going", 1.0),
+             "form": ("My form broke down", 1.0), "pain": ("Something hurt", CAL_OVER),
+             "interrupted": ("Something else interrupted it", None)}
+
+
+def calibration_stop(d, date, reason, note=""):
+    """Why a running calibration stopped short of the hour."""
+    if reason not in CAL_STOPS:
+        raise ValueError("reason is " + ", ".join(CAL_STOPS))
+    dt.date.fromisoformat(date)
+    rec = d.setdefault("benchmarks", {}).setdefault("calibrations", {}).setdefault(date, {})
+    if rec.get("result"):
+        raise ValueError("That calibration is already graded")
+    rec.update({"stopped": reason, "stop_note": str(note or "")[:300]})
+    if reason == "pain":
+        rec["pain"] = True
+    return rec
+
+
+def calibration_runs(d, acts):
+    """Running calibrations on the plan: completed or stopped early, and which ones still need the reason."""
+    out = []
+    for day, plan in sorted(d.get("plans", {}).items()):
+        if plan.get("test") != "run_calibration" or day not in acts:
+            continue
+        rec = ((d.get("benchmarks") or {}).get("calibrations") or {}).get(day) or {}
+        mins = acts[day].get("minutes") or 0
+        done = mins >= CAL_COMPLETE
+        out.append({"date": day, "minutes": round(mins), "completed": done, "stopped": rec.get("stopped"),
+                    "needs_reason": not done and not rec.get("stopped") and not rec.get("result"),
+                    "result": {k: rec.get(k) for k in ("result", "block", "multiplier", "why")} if rec.get("result") else None,
+                    "reasons": {k: v[0] for k, v in CAL_STOPS.items()}})
+    return out[-3:]
 
 
 def run_calibration(d, date, run, checkins, today, other_runs=()):
@@ -226,6 +264,18 @@ def run_calibration(d, date, run, checkins, today, other_runs=()):
     points = float(run.get("impact") or 0)
     if not points:
         return None
+    minutes = run.get("minutes") or 0
+    if minutes > CAL_MINUTES:                       # the test ends at an hour
+        points *= CAL_MINUTES / minutes
+    completed = minutes >= CAL_COMPLETE
+    stopped = rec.get("stopped")
+    if not completed and not stopped and elapsed < 14:
+        return None                                  # waiting for why it stopped early
+    cap = None if completed else CAL_STOPS[stopped][1] if stopped else 1.0
+    if not completed and stopped and cap is None:
+        rec.update({"result": "void", "graded": today, "minutes": minutes,
+                    "why": f"stopped at {round(minutes)} min ({CAL_STOPS[stopped][0].lower()}): the test is void - retry on a day you're 100% again"})
+        return rec
     if worst >= 6 or dropped or rec.get("pain") or (drift is not None and drift >= CAL_DRIFT[-1][0]):
         mult, why = CAL_OVER, ("rough mornings" if worst >= 6 else "the hop test dropped" if dropped else
                                "it hurt" if rec.get("pain") else f"heart rate drifted {drift:.1f}%") + ": the run was more than one block"
@@ -239,9 +289,17 @@ def run_calibration(d, date, run, checkins, today, other_runs=()):
     if other_runs:
         mult = min(mult, 1.0)
         why += f"; ran again during the watch ({', '.join(other_runs)}), so no headroom claimed"
+    if cap is not None and mult > cap:
+        mult = cap
+        why += (f"; stopped at {round(minutes)} min ({CAL_STOPS[stopped][0].lower()})" if stopped else
+                f"; stopped at {round(minutes)} min with no reason given") + f", so at most x{cap}"
+        if stopped == "time":
+            why += " - a short test: repeat it with a full hour when you can"
+    elif completed:
+        why = "completed the hour; " + why
     block = round(points * mult, 1)
     rec.update({"result": "set", "points": round(points, 1), "multiplier": mult, "block": block, "drift_pct": drift,
-                "worst_morning": worst, "hop_drop": dropped, "minutes": run.get("minutes"), "graded": today, "why": why})
+                "worst_morning": worst, "hop_drop": dropped, "minutes": minutes, "completed": completed, "graded": today, "why": why})
     record(d, "block", block, "test", date, f"running calibration: {round(points)} pts x {mult} ({why})")
     return rec
 
