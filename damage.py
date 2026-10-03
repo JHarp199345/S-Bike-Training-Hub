@@ -99,6 +99,13 @@ ADAPT_FEELINGS_ONLY = 0.03  # no heart-rate evidence: feelings alone grow it at 
 ADAPT_WEIGHTS = {"mornings": .30, "consistency": .20, "efficiency": .25, "drift": .15, "hops": .10}
 ADAPT_EFF_FULL = 0.03     # pace per heartbeat +3% scores full
 ADAPT_DRIFT = (3.0, 8.0)  # heart-rate drift: 3% or less scores full, 8% or more nothing (and holds growth)
+# Calibration from completed training: two weeks of runs the athlete already did, all absorbed cleanly, that the
+# model reads as over the line mean the block is too small - past a cliff where ordinary training piles up because
+# each run's plateau outlasts the gap to the next. Re-solve it so that training peaks at about one block.
+CALIBRATE_DAYS = 14
+CALIBRATE_RUNS = 3
+CALIBRATE_OVER = 1.5      # the model must read the clean training as over the line
+CALIBRATE_TO = 1.0        # ...and the re-solved block carries it at about one block
 EFFORT_FULL = 0.85        # share of heart-rate reserve treated as a run at the whole block
 
 
@@ -204,12 +211,52 @@ def learn_block(dates, doses, reports, runs, start_reference, since=None, **kw):
                           "from": round(ref, 1), "to": round(new, 1), "score": round(score, 2), "signals": signals})
             ref = new
 
+    def calibrate(i, curve):
+        """Completed training absorbed cleanly but read as over the line: solve the block it actually fits."""
+        nonlocal ref
+        start = (dt.date.fromisoformat(dates[i]) - dt.timedelta(days=CALIBRATE_DAYS)).isoformat()
+        recent = [j for j in run_days if start < dates[j] <= dates[i]]
+        if len(recent) < CALIBRATE_RUNS:
+            return
+        window = [d for d in dates if start < d <= dates[min(len(dates) - 1, i + 2)]]
+        said = [reports.get(d) for d in window if reports.get(d) is not None]
+        hops_all = [(d, x["hops"]) for d, x in sorted(reports.items()) if isinstance(x, dict) and x.get("hops") is not None and d <= window[-1]]
+        before = [h for d, h in hops_all if d <= start][-1:]           # the last test before the window is the baseline
+        hop_list = before + [h for d, h in hops_all if d > start]
+        if len(said) < len(window) // 2 or not all(_clean(x) for x in said):
+            return
+        if any(b <= a - 2 for a, b in zip(hop_list, hop_list[1:])):
+            return
+        peak = lambda c: max((e["after_blocks"] for e in c["components"] if start < e["date"] <= dates[i]), default=0)
+        if peak(curve) <= CALIBRATE_OVER:
+            return
+        def fit(r):
+            c = remodeling_response(dates[:i + 4], doses[:i + 4], block=r, feet_reports=reports, **kw)
+            return peak(c) if c else 0
+        lo, hi = ref, top
+        if fit(hi) > CALIBRATE_TO:
+            new = hi
+        else:
+            for _ in range(14):
+                mid = (lo + hi) / 2
+                lo, hi = (mid, hi) if fit(mid) > CALIBRATE_TO else (lo, mid)
+            new = hi
+        if new > ref * 1.02:
+            steps.append({"date": dates[i], "why": f"{len(recent)} runs in two weeks absorbed cleanly (mornings 3 or better, hop "
+                          f"test held) though the model read {peak(curve):.1f} blocks: recalibrated so that training carries "
+                          f"about {CALIBRATE_TO:g} block", "from": round(ref, 1), "to": round(new, 1), "calibration": True})
+            ref = new
+            state["obs"] = []
+
     prev = first
     for i in run_days[1:]:
         if state["week"] != monday(i):
             close_week()
             state["week"] = monday(i)
         curve = remodeling_response(dates[:i + 4], doses[:i + 4], block=ref, feet_reports=reports, **kw)
+        if curve and not state["rough"]:
+            calibrate(i, curve)
+            curve = remodeling_response(dates[:i + 4], doses[:i + 4], block=ref, feet_reports=reports, **kw)
         ev = next((e for e in curve["components"] if e["date"] == dates[i]), None) if curve else None
         m = mornings(i)
         if not ev or len(m) < 2:

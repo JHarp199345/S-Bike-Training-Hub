@@ -48,6 +48,8 @@ If negative reports continue past a week, the target drops to 0.1. Two weeks of 
 - Growth is 1% + 9% × the score. It's capped at 5% with one run and at 3% with no heart-rate evidence.
 - Runs under 0.8 blocks are never evidence. Nobody has to carry a heavy load to prove capacity.
 
+**Calibration from completed training.** Your recovery curve holds damage flat for 5 days per block carried. If the block is too small, even gentle training piles up: each run's plateau outlasts the gap to the next, so 2 × 20-minute run/walks a week can read as 10+ blocks within a month. Weekly 1–10% steps can't climb back from that, because a model reading 10 blocks holds the athlete out of running, and then no new evidence arrives. So when two weeks of runs the athlete already did (3 or more) came back clean (mornings 3 or lower, no hop-test drop in the window) but the model reads them as more than 1.5 blocks, the block is re-solved so that training peaks at about one block. Nothing is prescribed to find out. Profiles in the return-to-run protocol keep automatic learning off.
+
 **Emphasis phases.** With several goals, build one or two sports in their bands while the others hold about a third, then rotate. Running's deload and maintenance weeks are when the bike or swim builds. Shared tissue competes: running and leg lifting share the legs, and swimming and upper-body lifting share the shoulders. Cycling and lifting coexist best (Wilson et al., 2012).
 
 ## Evidence rules
