@@ -126,6 +126,16 @@ async def main():
         review=C.preview(d,{}, {},[],TODAY,base,revision,{'kind':'calendar','changes':changes})
         assert not review['violations'] and all(s['status']=='within_projected_limits' for s in review['after']['sessions'])
         old=copy.deepcopy(d);C.apply(d,base,revision,TODAY,review['draft_id'],True)
+        # A change can't introduce a pattern that breaks a training rule: a hard ride the day after leg lifting.
+        legs=(dt.date.fromisoformat(TODAY)+dt.timedelta(days=5)).isoformat();after_legs=(dt.date.fromisoformat(TODAY)+dt.timedelta(days=6)).isoformat()
+        rules_d=copy.deepcopy(d);coach.set_sessions(rules_d,legs,[{'sport':'gym','minutes':40,'name':'Strength: lower body'}])
+        rules_d['plans'][legs]['sessions'][0]['lift_focus']='lower'
+        bad=C.preview(rules_d,{}, {},[],TODAY,base,program_drafts.revision(rules_d,base,{},[],TODAY),
+                      {'kind':'calendar','changes':[{'date':after_legs,'sessions':[{'sport':'ride','minutes':45,'name':'Tempo ride','tier':'moderate'}]}]})
+        assert any('hard_after_legs' in v for v in bad['violations']),bad['violations']
+        fine=C.preview(rules_d,{}, {},[],TODAY,base,program_drafts.revision(rules_d,base,{},[],TODAY),
+                       {'kind':'calendar','changes':[{'date':after_legs,'sessions':[{'sport':'ride','minutes':45,'name':'Easy endurance ride','tier':'easy'}]}]})
+        assert not any('training rule' in v for v in fine['violations']),fine['violations']
         assert all(B.sessions(d['plans'][x['date']])[0]['minutes']==10 for x in out['sessions']) and old.get('capacity_adjustments')==d.get('capacity_adjustments')
         try:C.preview(d,{}, {changes[0]['date']:[{'sport':'run'}]},[],TODAY,base,revision,{'kind':'calendar','changes':changes});raise AssertionError('completed rewrite')
         except ValueError:pass

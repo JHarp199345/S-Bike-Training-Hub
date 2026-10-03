@@ -99,6 +99,8 @@ ADAPT_FEELINGS_ONLY = 0.03  # no heart-rate evidence: feelings alone grow it at 
 ADAPT_WEIGHTS = {"mornings": .30, "consistency": .20, "efficiency": .25, "drift": .15, "hops": .10}
 ADAPT_EFF_FULL = 0.03     # pace per heartbeat +3% scores full
 ADAPT_DRIFT = (3.0, 8.0)  # heart-rate drift: 3% or less scores full, 8% or more nothing (and holds growth)
+ADAPT_PERIOD_MAX = 1.30   # between measurements (a calibration run, or calibration from completed training), weekly
+                          # growth adds at most 30%: muscle and lungs say "easy" weeks before bone and tendon catch up
 # Calibration from completed training: two weeks of runs the athlete already did, all absorbed cleanly, that the
 # model reads as over the line mean the block is too small - past a cliff where ordinary training piles up because
 # each run's plateau outlasts the gap to the next. Re-solve it so that training peaks at about one block.
@@ -161,7 +163,7 @@ def learn_block(dates, doses, reports, runs, start_reference, since=None, **kw):
                           "reserve) and the mornings after were clean", "from": round(ref, 1), "to": round(new, 1)})
             ref = new
     floor, top = start_reference * LEARN_FLOOR, start_reference * LEARN_TOTAL_MAX
-    state = {"week": None, "obs": [], "rough": False, "ceiling": None}
+    state = {"week": None, "obs": [], "rough": False, "ceiling": None, "anchor": ref}
 
     def monday(i):
         d = dt.date.fromisoformat(dates[i])
@@ -196,7 +198,7 @@ def learn_block(dates, doses, reports, runs, start_reference, since=None, **kw):
         if eff is None and drift is None:
             cap = min(cap, ADAPT_FEELINGS_ONLY)
         pct = min(cap, ADAPT_MIN + (ADAPT_MAX - ADAPT_MIN) * score)
-        new = min(top, ref * (1 + pct))
+        new = min(top, ref * (1 + pct), state["anchor"] * ADAPT_PERIOD_MAX)
         if state["ceiling"]:
             new = min(new, max(ref, state["ceiling"][0]))
         if new > ref * 1.001:
@@ -247,6 +249,7 @@ def learn_block(dates, doses, reports, runs, start_reference, since=None, **kw):
                           f"about {CALIBRATE_TO:g} block", "from": round(ref, 1), "to": round(new, 1), "calibration": True})
             ref = new
             state["obs"] = []
+            state["anchor"] = ref                    # a new measurement: the weekly allowance starts again
 
     prev = first
     for i in run_days[1:]:

@@ -56,7 +56,9 @@ def outlook(d, load, done, workouts, today, days=14):
                 'alternatives':['Shorten or reduce the scheduled dose','Move the exposure and recheck the following week','Replace affected work with an eligible activity or rest'] if conflicts else [],
                 'meaning':'Readings include all work on this day; they are not isolated per-session measurements.'})
     gate=B.running_gate(d,load,d.get('checkins',{}).get(today))
-    return {'as_of':today,'days':days,'sessions':summaries,'daily_readings':daily,'running_gate':gate,
+    import training_rules
+    rules=training_rules.check(d,today,dates[-1])
+    return {'as_of':today,'days':days,'sessions':summaries,'daily_readings':daily,'running_gate':gate,'training_rules':rules,
             'active_symptoms':progression.active_symptoms(d,today),
             'running_progression':running_progression(d,load,today,daily,gate),
             'notice':'Check the entire sequence, including openers after peak work. Forecasts do not clear execution holds.'}
@@ -363,8 +365,14 @@ def preview(d,load,done,workouts,today,base,revision,fields):
                     violations.append(day['date']+': worsened '+m['key']+' forecast limit')
         for row in after['sessions']:
             if row['status']=='conflict':violations.append(row['date']+': remaining '+str(row['name'])+' conflict in reviewed sequence')
+        # Training rules: a change may not introduce a pattern that breaks one; cautions are listed to weigh.
+        had={(f['rule'],tuple(f['dates'])) for f in before.get('training_rules',[])}
+        for f in after.get('training_rules',[]):
+            if f['severity']=='breaks' and (f['rule'],tuple(f['dates'])) not in had and any(x in seen for x in f['dates']):
+                violations.append(f['dates'][-1]+': training rule '+f['rule']+' - '+f['why'])
         payload={'kind':kind,'changes' :[{'date':c['date'],'sessions':copy.deepcopy(B.sessions(candidate['plans'][c['date']]))} for c in changes],'original':originals,
             'before':before,'after':after,'violations':sorted(set(violations)),
+            'cautions':[f for f in after.get('training_rules',[]) if f['severity']=='caution' and any(x in seen for x in f['dates'])],
             'notice':'Review the whole 14-day sequence. Holds, unknown loads and symptom overlap block Apply; compare shortening, spacing, substitutions or rest.'}
     else:raise ValueError('Review kind is calendar or capacity')
     return _store(base,payload,revision)

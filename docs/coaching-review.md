@@ -52,6 +52,28 @@ If negative reports continue past a week, the target drops to 0.1. Two weeks of 
 
 **Emphasis phases.** With several goals, build one or two sports in their bands while the others hold about a third, then rotate. Running's deload and maintenance weeks are when the bike or swim builds. Shared tissue competes: running and leg lifting share the legs, and swimming and upper-body lifting share the shoulders. Cycling and lifting coexist best (Wilson et al., 2012).
 
+## Training rules: what works together and what doesn't
+
+`training_rules.py` checks any stretch of the plan. The starter programs are generated to pass every *breaks* rule. A coaching-review preview that introduces a breaking pattern can't be applied. *Caution* findings are listed for the assistant to weigh with the athlete. `outlook.training_rules` shows the next two weeks.
+
+| Rule | Severity | Pattern | Why |
+|---|---|---|---|
+| hard_after_legs | breaks | A hard ride or run the day after leg lifting | The legs are shared and still recovering. A strength check (one comfortable set) doesn't count. |
+| same_tissue_double | breaks | Two sessions on the same tissue the same day | Pair different tissue: a swim with a run, a ride with upper-body lifting. A brick is the exception. |
+| full_body_48h | breaks | Full-body lifting on consecutive days | It needs 48 hours. |
+| lift_days_in_row | breaks | More lifting days in a row than the split allows | The athlete's preference (default 4). |
+| region_48h | breaks | A lifting region trained hard two days running | Each region needs 48–72 hours. |
+| hard_same_sport_48h | breaks | Two hard sessions of one sport within 48 hours | Hard days about 48 hours apart (about 80% easy overall). |
+| calibration_watch | breaks | A run during a running calibration's eight-day watch | It spoils the measurement. |
+| runs_back_to_back | caution | Runs on consecutive days | Only when the running block supports it. |
+| legs_peak_together | caution | 2+ hard runs and 2+ leg-lifting sessions in a week | Running and leg strength compete for the legs (Wilson et al., 2012). |
+| shoulders_peak_together | caution | 2+ hard swims and 2+ upper-body sessions in a week | Swimming and upper-body lifting compete for the shoulders. |
+| no_check_week | caution | More than eight weeks without a check week | Deload and retest before the block drifts. |
+
+**Check weeks.** These are a few deloads that retest every capacity: running calibration, FTP, swim pace, and a strength check (one comfortable 6–10 rep set with 2–3 reps left). The count is about 2 + 0.15 × (weeks − 12), at least 2 (1 under eight weeks): 12 weeks → 2, 16 → 3, 52 → 8. The last one sits right before event preparation. In long programs the last three are close together, so the peak is dialled in. Between measurements, the block's automatic weekly growth adds at most 30%. Muscle and lungs report "easy" weeks before bone and tendon have caught up.
+
+**Lifting splits** are the athlete's choice: full body, upper/lower, push/pull, push/pull/legs, lower/push/pull, or four-way (knee, hip, push, pull). Splits work equally well when volume is equal (Schoenfeld et al., 2019). Training each region twice a week beats once (Schoenfeld et al., 2016).
+
 ## Evidence rules
 
 These are provisional product policies, not validated physiological thresholds:

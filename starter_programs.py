@@ -258,14 +258,15 @@ def build(d,proposal,profile=None,load=None,done=None,workouts=None,today=None):
             seen=set()
             # no hard ride or run the day after a leg-lifting session (shared legs); swims are unaffected
             leg_days={(dt.date.fromisoformat(p['slot']['date'])+dt.timedelta(days=1)).isoformat() for p in plan_slots
-                      if p['sport']=='gym' and p['slot'].get('lift_focus','full') in LIFT_LEGS}
+                      if p['sport']=='gym' and p['slot'].get('lift_focus','full') in LIFT_LEGS and shape!='check'
+                      and not (stage=='assessment' and w==0)}
             leg_days|={(dt.date.fromisoformat(k)+dt.timedelta(days=1)).isoformat() for k,v in plans.items()    # last week's Sunday
-                       if any(x['sport']=='gym' and x.get('lift_focus','full') in LIFT_LEGS for x in v['sessions'])}
+                       if any(x['sport']=='gym' and x.get('lift_focus','full') in LIFT_LEGS and x.get('shape')!='check'
+                              and 'familiarization' not in x.get('name','') for x in v['sessions'])}
             for k,p in enumerate(plan_slots):
                 sp=p['sport'];role='easy'
                 after_legs=sp in ('ride','run') and p['slot']['date'] in leg_days
-                later=any(q['sport']==sp and q['slot']['date'] not in leg_days for q in plan_slots[k+1:])
-                hard_ok=not after_legs or not later          # wait for a later fresh day when there is one
+                hard_ok=not after_legs                       # wait for a fresh day; none this week: it stays easy
                 if stage=='assessment' or shape=='check':
                     role=('calibration' if sp=='run' and calibrate and (cal_day is None or cal_end<p['slot']['date']) else 'test') if sp not in seen and sp!='gym' and hard_ok else 'easy'
                 elif stage in ('taper','race_week'):role='opener' if sp not in seen else 'easy'
@@ -371,6 +372,9 @@ def build(d,proposal,profile=None,load=None,done=None,workouts=None,today=None):
         last=projection.get(dates[-1],{}).get('metrics_by_key',{}) if dates else {}
         summary=[{'key':key,'name':r['name'],'unit':r['unit'],'start':first.get(key,{}).get('before'),'end':r['after'],'expected':r['expected']} for key,r in last.items() if key in ('cardio_conditioning','cardio_fatigue','muscle_fatigue','run_mechanical','swim_recovery','strength')]
         flags=[{'date':date,'metric':r['name'],'after':r['after'],'limit':r['limit']} for date,f in projection.items() for r in f['metrics'] if r.get('over_limit')]
-        candidates.append({'level':name,'plans':plans,'display_plans':effective,'journey':journey,'projection':projection,'summary':summary,'limit_flags':flags,'unknown_metrics':[r['name'] for r in summary if r['end'] is None],'total_minutes':sum(w['minutes'] for w in journey),'added_minutes':sum(w['added_minutes'] for w in journey)})
+        import training_rules
+        rules=training_rules.check({'plans':plans,'program_goal':{'schedule_options':proposal.get('schedule_options') or {}}},
+                                   start.isoformat(),(end-dt.timedelta(days=1)).isoformat())
+        candidates.append({'level':name,'plans':plans,'training_rules':rules,'display_plans':effective,'journey':journey,'projection':projection,'summary':summary,'limit_flags':flags,'unknown_metrics':[r['name'] for r in summary if r['end'] is None],'total_minutes':sum(w['minutes'] for w in journey),'added_minutes':sum(w['added_minutes'] for w in journey)})
     selected=next(c for c in candidates if c['level']==level)
     return {'forecast_date':anchor.isoformat(),'selected':level,'detail_end':end.isoformat(),'max_detail_days':84,'plans':selected['plans'],'display_plans':selected['display_plans'],'candidates':candidates,'strength_anchors':anchors,'assumptions':assumptions,'sources':SOURCE_LINKS,'notice':'Starter details cover at most 12 weeks; later macro phases remain open for programming. Higher load means more proposed work, not better results. Forecasts use recorded baselines first, with explicit provisional defaults for missing readings when enabled. Unknown working weights remain unestimated. Conditioning is a modeled training-load trend, not a promised performance gain. Weekly review can repeat, reduce or replace every workout. Load-limit flags require review before training.'}
