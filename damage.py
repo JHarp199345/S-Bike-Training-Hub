@@ -304,7 +304,7 @@ def learn_block(dates, doses, reports, runs, start_reference, since=None, **kw):
 
 
 def remodeling_response(dates, doses, usual_week=None, weight_kg=70.0, feet_reports=None, walking=None, block=None, reviews=None,
-                        runs=None, learn_since=None, start_block=None):
+                        runs=None, learn_since=None, start_block=None, reset_before=None):
     """Provisional blocks: 5 days/block plateau, 3 days/block decline (to 20%), then a ~4-month remodeling tail.
     walking: {"steps": {date: steps walked outside runs}, "pts_per_step", "severity"} - daily walking adds blocks
     above the day's free steps; it extends the plateau (5 days/block) instead of restarting it.
@@ -314,6 +314,8 @@ def remodeling_response(dates, doses, usual_week=None, weight_kg=70.0, feet_repo
     walking steps: one day's repair = 1/8 block to start, corrected by the mornings) and walking (steps walked
     and woken up fine from, scaled to fresh). Biking and swimming don't load them, so they earn nothing. The
     budget shrinks with the load carried, and only the steps over it count - and carry the overlap multiplier."""
+    if reset_before:                   # a running calibration's clean watch: earlier running has cleared
+        doses = [0.0 if d < reset_before else x for d, x in zip(dates, doses)]
     if not dates:
         return None
     doses = list(doses)
@@ -564,14 +566,14 @@ def run(doses, base, p, adapt_gain=ADAPT_GAIN):
 
 
 def model(dates, doses, usual_week=None, weight_kg=70.0, feet_reports=None, run_doses=None, walking=None, block=None, reviews=None,
-          runs=None, learn_since=None, start_block=None):
+          runs=None, learn_since=None, start_block=None, reset_before=None):
     """dates: consecutive ISO days; doses: impact points per day. Returns each tissue's backlog today,
     its history, and a no-more-running projection."""
     if not dates:
         return None
     doses = list(doses)
     remodeling = remodeling_response(dates, run_doses if run_doses is not None else doses, usual_week, weight_kg,
-                                     feet_reports, walking, block, reviews, runs, learn_since, start_block)
+                                     feet_reports, walking, block, reviews, runs, learn_since, start_block, reset_before)
     event = event_response(dates, doses, usual_week, weight_kg, remodeling)
     base = base_capacity(usual_week, weight_kg)
     n = len(dates)
