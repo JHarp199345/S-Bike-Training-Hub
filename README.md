@@ -51,6 +51,8 @@ Research supports considering load, volume, frequency and effort when designing 
 
 <p align="center"><img src="docs/program-workflow.png" width="900" alt="Saved 12-week demo program with horizontal phases, phase details and selected week"></p>
 
+<p align="center"><img src="docs/program-builder.png" width="900" alt="Program builder draft editor with goal, sport priorities and review controls"></p>
+
 *Illustrative demo program. Screenshots contain no personal training history.*
 
 ## Connected cycling
@@ -98,7 +100,7 @@ The tested S29 only accepts **one** Bluetooth connection, and it ignores the "hi
 | 📍 **Area routes** | Circle where you'd like to ride and say how long. The planner finds loops inside the circle and ranks them for today's focus: time at the focus's watts (climbs slow you), how much of it auto-shift can hold in range, and whether the terrain suits the day. |
 | ⛰ **Climb goals & efforts** | Put training on a route's climbs: "climb 2 in 10:00" becomes a watt target re-worked every second from what's left, and "3 × 15 s at 200 W" shifts you straight into a big gear. Every climb you ride is recorded (time, watts, cadence, VAM), and the planner knows the fastest time your **W′** could cover. |
 | 🎮 **Game view** | A ride with no map route becomes a side-scroller whose hills are the workout. Plan a ride (a course sized to the planned minutes) or hit **Ride now** on a workout (terrain drawn from its blocks). Stay inside your cadence and watt ranges to ride the **lit road** and evolve through your chosen animals: bike → unicorn → wolf → eagle → dragon, or any order you pick from 17. Spin and push **gates** ask for the top of your range for 10 seconds. **Modern** (soft layered silhouettes, dawn to dusk) or **8-bit**. Saved map routes open here too, with their real hills, and 🎮 / 🗺 switch views mid-ride. See [The game view](#the-game-view). |
-| 🧭 **Coach** | Four tabs: **Today** (the verdict and your morning check-in, right on the card), **Plan**, **Progress**, and **Rules**. This week at a glance (a marker per day, including swims your watch calendar can't hold), a one-tap effort rating, morning readiness from your watch (HRV, resting heart rate, sleep), **skill ladders** that step up and down with the evidence, **test weeks**, and a calibration card for every capacity. A 6-minute **morning diagnostic** (fixed watts, heart rate read off your watch) gives a go / easy / rest verdict against your own normal. The **timed-workout builder** lets you pick a length, drag bars, and see the parts rebalance in proportion. A short **journal** goes with each check-in. It's never scored, but it raises a **flag** when your words and your sliders disagree (see [The journal flags](#the-journal-flags)). |
+| 🧭 **Coach** | Five tabs: **Today** (the verdict, collapsible check-in journal and daily workouts), **Plan**, **Fitness Dashboard**, **Progress**, and **Rules**. This week at a glance (a marker per day, including swims your watch calendar can't hold), a one-tap effort rating, morning readiness from your watch (HRV, resting heart rate, sleep), **skill ladders** that step up and down with the evidence, **test weeks**, and a calibration card for every capacity. A 6-minute **morning diagnostic** (fixed watts, heart rate read off your watch) gives a go / easy / rest verdict against your own normal. The **timed-workout builder** lets you pick a length, drag bars, and see the parts rebalance in proportion. A short **journal** goes with each check-in. It's never scored, but it raises a **flag** when your words and your sliders disagree (see [The journal flags](#the-journal-flags)). |
 | 🫀🦶🦵 **Training load for every sport** | Runs, walks, swims, gym and rides from your watch feed three shared systems: **heart & lungs**, **feet & bones**, and **leg muscles**, plus separate swimming and regional lifting recovery models. The Coach provides sport-specific recommendations and a body map of overlapping sources. Running is tracked as accumulated "blocks" on a conservative, provisional recovery timeline. Tap any system for its graph, readings, and the sessions behind it. See [Training load: how it works](#training-load-how-it-works). |
 | 🎯 **Workout adherence** | Each part of a workout is graded A–F on how well you held it, shown as a pie and a radar chart in the ride report. |
 | 📈 **Live graph, calories, fitness** | A live power graph in zone colors, calories from real work (kJ), personal bests (5 s / 1 / 5 / 20 min) with callouts, and a power-based fitness / fatigue / form chart. |
@@ -111,7 +113,7 @@ The tested S29 only accepts **one** Bluetooth connection, and it ignores the "hi
   <img src="docs/planner.jpg" width="760" alt="The route planner: offline map with labels and hillshade, place search, and famous-ride ideas">
 </p>
 <p align="center">
-  <img src="docs/coach.png" width="480" alt="The Coach page, Today tab (sample data): the verdict, this morning's check-in with the hop test per leg and a journal entry, a journal flag asking to be confirmed, and the cardio and mechanical load cards">
+  <img src="docs/today-current.png" width="480" alt="Current Today tab with readiness check-in and journal controls, using synthetic demo data">
   &nbsp;
   <img src="docs/adherence.png" width="340" alt="Workout adherence: planned parts as a pie, and a radar chart of how well each part was held">
 </p>
@@ -148,8 +150,8 @@ For connected cycling, continue below. In no-bike mode, open the Coach, set your
 2. **Double-click "S-Bike Hub" on your Desktop**, or use the 🚲 menu icon. The first time, macOS asks to allow **Terminal** to use Bluetooth; say yes. The control panel opens at <http://127.0.0.1:8729>.
 3. **Pair your watch** to "SBike Hub" as a power meter and a speed/cadence sensor.
 4. **Set yourself up:**
-   - run the **FTP ramp test** from the panel. The starting FTP is only a guess, and zones, workouts and fitness all scale from it.
-   - set yourself up in `profile.json` in the project folder: `{"weight_kg": 80, "hr_rest": 60, "hr_max": 185}`. Weight drives virtual speed and running impact; the heart rates drive the heart-rate load. Your FTP gets saved in the same file.
+   - open **Welcome → Set yourself up** to enter your sports, body weight, heart-rate values, available time and goals. Enter a known FTP if available; an FTP test is optional and should fit your readiness and training phase.
+   - choose a calibration week or supply recent comfortable lifting sets if you want weighted starters. Preview the suggested program and its load flags before applying it. Missing personal values remain assumptions until calibrated.
    - in the planner, move the map to where you ride and press **📍 Home view**.
 5. **Put your phone on the handlebars.** Scan the QR code in the panel's *Phone remote* box (same Wi-Fi), and it opens the ride view, paired.
 
@@ -194,9 +196,9 @@ Edit [`regions.json`](regions.json) (name, bounding box, center, zoom) and run `
 
 ## Coaching with an AI assistant (optional)
 
-Everything the pages can do is also available headless, so an AI coach can read your data and write your plan:
+The MCP server gives an optional AI assistant tools to read training data, inspect templates and calibration, preview programs and write plans. It uses the Hub’s own calculations. Some newer controls still need dedicated MCP tools; see the [MCP capability review](docs/mcp-capability-review.md).
 
-**Desktop MCP bundle:** [Download MCP 1.2.0](https://github.com/JHarp199345/S-Bike-Training-Hub/releases/download/mcp-v1.2.0/s-bike-hub-mcp-1.2.0.mcpb), or read the [release notes](https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/mcp-v1.2.0). Install it in your compatible desktop MCP client and replace the older bundle. The updated Hub must be running locally. App updates do not automatically update an installed bundle. Version 1.2 adds program reading, previewing, applying, and progress evidence; see [integration details](docs/mcp-1.2-integration.md).
+**Desktop MCP bundle:** [Download MCP 1.2.1](https://github.com/JHarp199345/S-Bike-Training-Hub/releases/download/mcp-v1.2.1/s-bike-hub-mcp-1.2.1.mcpb), or read the [release notes](https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/mcp-v1.2.1). Install it in your compatible desktop MCP client and replace the older bundle. The updated Hub must be running locally. App updates do not automatically update an installed bundle. Version 1.2 adds program reading, previewing, applying, and progress evidence; see [integration details](docs/mcp-1.2-integration.md).
 
 - **Command line:** `./hub today`, `./hub rides`, `./hub fitness`, `./hub load`, `./hub checkins`, `./hub checkin --feet 4 --legs 5`, `./hub steps 2026-09-27=6200`, `./hub import FILE.fit`, `./hub plan --verdict easy --note "…" --workout ID`, `./hub split --total 30 --intervals 3`. Run `./hub --help` for the rest.
 - **MCP server:** [`mcp_server.py`](mcp_server.py) exposes tools (today, check-ins, rides, a ride's full story, fitness, body-system load, importing watch files, daily steps, morning readiness, effort ratings, the day's focus and plan, area routes, climb goals, skill ladders, calibration and tests, test weeks, the aerobic engine, sport carry-over, milestones, workouts…) to compatible MCP clients. For Claude Code:
@@ -205,7 +207,19 @@ Everything the pages can do is also available headless, so an AI coach can read 
   claude mcp add --scope user s-bike-hub -- "$PWD/.venv/bin/python" "$PWD/mcp_server.py"
   ```
 
-  For Claude Desktop, add the same command under `mcpServers` in `~/Library/Application Support/Claude/claude_desktop_config.json`. The tools talk only to the hub on your Mac, and the bridge must be running.
+  For Claude Desktop, use the bundle installation below. Manual configuration is an alternative for developers. The MCP server connects to your local Hub; data returned to an external assistant is subject to that assistant’s provider policies.
+
+### Install the Claude Desktop extension
+
+1. Start the updated Hub using its Desktop launcher. The extension does not install or start the main app for you.
+2. Download the **1.2.1 `.mcpb`** above. In Claude Desktop, open **Settings → Extensions → Advanced settings → Install extension**, and select the file.
+3. Review the extension’s local-access notice and install it. Under **Configure**, leave the Hub address at `http://127.0.0.1:8729` unless you deliberately changed the port.
+4. Confirm **Enabled** is on and the tools are listed. This version exposes **52 tools**, including **Get program**, **Preview program**, **Apply program**, and **Get progress evidence**. Normal tool approval prompts are expected.
+5. Ask the assistant to read the current program first, preview proposed changes, explain forecast assumptions and limits, and apply only the changes you approve. It should then read back the saved program.
+
+**Installation verified on macOS in Claude Desktop.** The bundle was discovered without editing configuration files or installing additional Python packages. Its packaged server also passed an isolated read → preview → apply → check-in → progress test on macOS’s stock Python 3.9. The main Hub still requires Python 3.11+ and the normal app setup above. This is a local desktop connection; a remote cloud session cannot reach your Mac’s localhost directly.
+
+Program previews return a compact scenario comparison; the assistant can request **1–7 days** of detailed prescriptions and projected readings at a time. This keeps the working context manageable. Applying currently rebuilds from the reviewed fields rather than locking an exact draft: re-preview after changed inputs or new athlete data. [Verified behavior and remaining work](docs/mcp-capability-review.md).
 
 The Hub now includes persistent **macro programs with editable phases and detailed starter workouts for up to 12 weeks**, multiple daily sessions, sport-specific workout templates, projected loads, and Sunday review recommendations. An AI coach can use these tools to build and revise a plan around your event goals, available time, calculated load, and reports. A block can extend an already scheduled week; it is not an autonomous guarantee of an optimized program. Recheck actual results and readiness as the week unfolds.
 
