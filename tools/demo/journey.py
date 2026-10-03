@@ -556,7 +556,9 @@ def progress_running(day, say):
     Every version is previewed; the hub's checks (forecast, holds, deload, weekly cap) decide what is applied."""
     rp = api(CR + "?days=14")["outlook"].get("running_progression") or {}
     status, (lo, hi) = rp.get("status"), rp.get("target_blocks") or (0, 0)
-    runs = [(d0, i, s) for k in range(0, 7) for d0 in [(day + dt.timedelta(days=k)).isoformat()]
+    first, last = rp.get("week") or (day.isoformat(), (day + dt.timedelta(days=6)).isoformat())
+    span = (dt.date.fromisoformat(last) - day).days
+    runs = [(d0, i, s) for k in range(0, span + 1) for d0 in [(day + dt.timedelta(days=k)).isoformat()] if d0 >= first
             for i, s in enumerate(plan_of(d0)) if s.get("sport") == "run"]
     if status not in ("under_target", "over_target") or not runs:
         return

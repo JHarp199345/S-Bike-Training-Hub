@@ -103,5 +103,12 @@ check(f"load plus a due hop test: held until the projected clear date ({clear})"
 held, _ = C.run_hold({"status": "hold", "reasons": ["hop test: 6 pain-free hops - 10 clears you to run"]}, TODAY)
 check("a failed hop test holds every run until reviewed", held("2026-07-19"))
 check("an open gate holds nothing", not C.run_hold({"status": "open_for_review"}, TODAY)[0](TODAY))
+# the target and the runs it judges are the same calendar week (no flip-flop across the week boundary)
+with patch.object(progression, "context", return_value={"phase": "build", "purpose": "aerobic"}), \
+     patch.object(progression, "active_symptoms", return_value=[]):
+    sat = C.running_progression(coach(), {}, "2026-07-11", [], OPEN)
+    tue = C.running_progression(coach(), {}, "2026-07-07", [], OPEN)
+check(f"from the weekend on, next week is judged ({sat['week']})", sat["week"] == ["2026-07-13", "2026-07-19"])
+check(f"midweek, the rest of this week ({tue['week']})", tue["week"] == ["2026-07-07", "2026-07-12"])
 print("ALL PASS" if ok else "SOME FAILED")
 sys.exit(0 if ok else 1)
