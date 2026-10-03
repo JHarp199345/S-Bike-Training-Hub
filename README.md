@@ -501,16 +501,12 @@ Everything lives in the project folder and is git-ignored: rides (`rides/`), wat
 
 ## Other bikes
 
-The hub talks standard **FTMS** (Fitness Machine Service) over Bluetooth, but the S29 has quirks it works around:
-- **Resistance:** the S29 has 16 resistance levels that accept "target resistance" commands. It acknowledges "simulation" (hill) commands but ignores them.
-- **Commands that reboot it:** "resistance 0" and an FTMS reset, so the bridge never forwards unchecked commands.
+Setting up a bike is a step on the welcome page: **Your bike → Scan for my bike**, then click yours in the list.
 
-To try another bike:
-1. Run `.venv/bin/python scan.py` with the bike awake, to see what it advertises.
-2. Start the bridge with `--name <start of its Bluetooth name>`.
-3. If resistance doesn't respond, the places to adapt are `set_level` and the command filter in `bridge.py`.
+- **Recognized** (a saved or built-in profile, like the Merach S29) or **standard** (any bike that speaks the Fitness Machine Service, which most smart bikes made since ~2020 do): one click and it connects. No AI involved.
+- **Not recognized yet:** say yes to *"May the hub ask your assistant to set this bike up?"*, then open your AI assistant and type **get my bike working**. The assistant reads the bike's data through the hub's MCP tools, writes a bike profile (settings, never code), and the hub runs a short guided check while you pedal. The hub enforces the safety rules itself: no resets, no resistance 0, only small in-range steps. Share the finished profile and the next owner of that bike gets the one-click path.
 
-Reports and pull requests for other bikes are very welcome.
+How it works, the safety rules and how it was tested: [docs/bike-setup.md](docs/bike-setup.md). The S29's quirks (16 levels, ignores hill simulation, reboots on a reset or "resistance 0") live in its profile, [bike_profiles/merach-s29.json](bike_profiles/merach-s29.json). Profiles for other bikes are very welcome.
 
 ## Development
 

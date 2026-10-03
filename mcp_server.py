@@ -15,7 +15,7 @@ import urllib.error
 import urllib.request
 
 BASE = __import__("os").environ.get("S29_HUB_URL", "http://127.0.0.1:8729")   # tests point this at a scratch server
-VERSION = "1.3.0"
+VERSION = "1.4.0"
 
 
 class HubError(Exception):
@@ -364,6 +364,52 @@ def t_adaptation(a):
     return call('/api/coach/progression')
 
 
+def _trim_packets(packets, per_char=24):
+    out, seen = [], {}
+    for pk in packets or []:
+        seen[pk["char"]] = seen.get(pk["char"], 0) + 1
+        if seen[pk["char"]] <= per_char:
+            out.append(pk)
+    return {"shown": out, "total_by_characteristic": seen}
+
+
+def t_bike_request(a):
+    out = call("/api/bike/request")
+    st = call("/api/bike/status")
+    out["active_bike"] = st.get("active")
+    r = out.get("request")
+    if r:
+        r = dict(r)
+        if r.get("inspection"):
+            r["inspection"] = dict(r["inspection"], packets=_trim_packets(r["inspection"].get("packets")))
+        r["captures"] = [dict(c, packets=_trim_packets(c.get("packets"))) for c in r.get("captures", [])]
+        r["proposals"] = r.get("proposals", [])[-2:]
+        out["request"] = r
+    return out
+
+
+def t_bike_capture(a):
+    out = call("/api/bike/capture", {"seconds": a.get("seconds", 10), "label": a.get("label", "")})
+    out["capture"]["packets"] = _trim_packets(out["capture"]["packets"], 40)
+    return out
+
+
+def t_bike_propose(a):
+    return call("/api/bike/propose", {"profile": a["profile"], "note": a.get("note", "")})
+
+
+def t_bike_check(a):
+    return call("/api/bike/check", {"athlete_ready": a.get("athlete_ready") is True})
+
+
+def t_bike_feel(a):
+    return call("/api/bike/feel", {"felt": a["felt"], "note": a.get("note", "")})
+
+
+def t_bike_activate(a):
+    return call("/api/bike/activate", {"share": bool(a.get("share"))})
+
+
 def t_progress_evidence(a):
     return call('/api/coach/progress-evidence')
 
@@ -400,6 +446,32 @@ PROGRAM_FIELDS['properties'] = {
     'schedule_options':{'type':'object'},'neutral_forecast':{'type':'boolean'}
 }
 TOOLS = [
+    ("get_bike_setup_request", "When the athlete says 'get my bike working' (or their bike won't connect to the hub): "
+     "read the bike setup request they queued from the hub's welcome page - the bike's Bluetooth name, services, "
+     "readable values and data packets captured while they pedaled - plus step-by-step instructions, safety rules and "
+     "the profile format. Start here and follow its what_to_do steps. Does not change anything.", S(), t_bike_request),
+    ("capture_bike_data", "Record the bike's data packets for a few seconds while the athlete pedals as you asked "
+     "(e.g. label 'steady 60 rpm', then 'steady 90 rpm') so you can see which bytes follow cadence and power. "
+     "Listen-only: nothing is sent to the bike. Tell the athlete what to do first.",
+     S(seconds=INT("3-30 seconds", 3, 30), label=STR("What the athlete is doing, e.g. 'steady 90 rpm'")), t_bike_capture),
+    ("propose_bike_profile", "Propose how the hub should talk to the bike: a profile (data, never code) in the "
+     "profile_format from get_bike_setup_request. The hub validates it and decodes every captured packet with it, "
+     "returning averages, ranges and warnings - fix warnings before checking.",
+     S(profile={"type": "object", "description": "The bike profile (see profile_format)"},
+       note=STR("Your reasoning in a sentence or two, kept with the request")), t_bike_propose),
+    ("run_bike_check", "Run the hub's guided check with the latest proposed profile: ~40 s while the athlete pedals "
+     "steadily. It listens, then (if the profile has resistance control) nudges resistance up a few levels in small "
+     "steps and back down, through the hub's safety rules. ONLY after telling the athlete to pedal steadily and getting "
+     "their OK. Then ask whether it got harder in the middle.",
+     S(athlete_ready={"type": "boolean", "description": "true only after the athlete said they're pedaling steadily and ready"}),
+     t_bike_check),
+    ("record_bike_feel", "Record what the athlete felt during the guided check, in their words: harder (the pedals got "
+     "harder in the middle), no_change, or unsure.",
+     S(felt=STR("What they said", enum=["harder", "no_change", "unsure"]), note=STR("Anything else they said")), t_bike_feel),
+    ("activate_bike_profile", "Make the checked profile the hub's bike - only after the check passed, the athlete "
+     "felt the resistance change, and they agree. share=true returns a pre-filled GitHub link so they can share the "
+     "profile and the next owner of this bike needs no assistant (ask them first).",
+     S(share={"type": "boolean", "description": "Return a link to share the profile (athlete's choice)"}), t_bike_activate),
     ('get_training_calendar','Read 1–14 days of saved workout prescriptions, actual completions, reports, phase context and projected load readings. Stable session IDs change when prescriptions change. Does not save or modify training.',S(date=DATE,days=INT('Window length',1,14)),t_calendar),
     ('explain_training_reading','Investigate a reading: implemented formula, constants, source hash, profile inputs, baseline, recorded contributors, planned doses and assumptions. Unknown is not zero; these models are provisional.',S(date=DATE,metric=STR('Metric key: cardio_fatigue, cardio_conditioning, impact_fatigue, muscle_fatigue, run_mechanical, run_recent, swim_recovery, strength, mechanical or lift_<region>')),t_reading),
     ('get_adaptation_review','Read progression policy, recent decisions and unresolved localized symptoms before changing workloads. Does not change anything.',S(),t_adaptation),
@@ -707,8 +779,14 @@ for name, _, schema, _ in TOOLS:
     if name=='preview_program':schema['required']=['fields']
     if name=='apply_program':schema['required']=['draft_id']
     if name=='explain_training_reading':schema['required']=['metric']
+    if name=='propose_bike_profile':schema['required']=['profile']
+    if name=='record_bike_feel':schema['required']=['felt']
+    if name=='run_bike_check':schema['required']=['athlete_ready']
 BY_NAME = {t[0]: t for t in TOOLS}
-INSTRUCTIONS = ("A bike, run, and swim training companion (built on a Merach S29 smart bike). Start with get_today "
+INSTRUCTIONS = ("A bike, run, and swim training companion (built on a Merach S29 smart bike). If the athlete says "
+                "'get my bike working' (or anything like it: their bike won't connect, the hub doesn't recognize "
+                "it), call get_bike_setup_request first and follow its steps; never ask them to paste anything. "
+                "Otherwise start with get_today "
                 "and recent check-ins and activity, then set a concrete day plan. Keep an explicit planning checklist: goal/date, phase purpose, available time, sport priorities, current holds, calibration gaps and projected limit flags. Re-read relevant data before writing after a long discussion. Read get_program before changing the macro program; use preview_program to compare drafts and starter forecasts, and apply_program only for athlete-approved reviewed changes. Request detail_start and detail_days for focused preview evidence rather than repeating the full horizon. Explain assumptions separately from measured inputs, and retain unresolved limits in the recommendation. After applying, call get_program and get_today for the affected day to verify the saved program and session. Apply saves the exact draft_id returned by preview. Draft conflicts require a fresh preview and approval. Use get_training_calendar for saved prescriptions and projections, explain_training_reading to inspect formula/input evidence, and get_adaptation_review for unresolved symptoms and progression context. Never interpret a falling conditioning score alone as lost performance or an easy recovery session as permission to increase load.  A day can contain ordered ride and "
                 "swim sessions with intervals or drills; consider both shared cardiovascular and sport-specific "
                 "recovery before adding a second session. Running impact and swim recovery blocks are provisional "
@@ -725,6 +803,9 @@ INSTRUCTIONS = ("A bike, run, and swim training companion (built on a Merach S29
                 "says they have a plan, record it; if they ask you to consult, lead with the load numbers and the steer. "
                 "Their call wins.")
 
+PROMPTS = {"get-my-bike-working": ("Set up a bike the hub doesn't recognize yet",
+                                   "Get my bike working. Read get_bike_setup_request and walk me through it.")}
+
 
 def handle(msg):
     method, mid = msg.get("method"), msg.get("id")
@@ -732,7 +813,7 @@ def handle(msg):
         return None                                     # a notification (e.g. notifications/initialized)
     if method == "initialize":
         pv = (msg.get("params") or {}).get("protocolVersion") or "2025-06-18"
-        return {"protocolVersion": pv, "capabilities": {"tools": {"listChanged": False}},
+        return {"protocolVersion": pv, "capabilities": {"tools": {"listChanged": False}, "prompts": {"listChanged": False}},
                 "serverInfo": {"name": "s-bike-hub", "version": VERSION}, "instructions": INSTRUCTIONS}
     if method == "ping":
         return {}
@@ -740,6 +821,14 @@ def handle(msg):
         return {"tools": [{"name": n, "description": d, "inputSchema": s,
             "annotations": {"readOnlyHint": (n.startswith(('get_','list_','preview_','evaluate_','explain_')) and n not in ('get_training_block','get_today','get_skills','get_calibration','preview_program')),
                             "openWorldHint": n in ('import_activities','plan_area_route','save_planned_route')}} for n, d, s, _ in TOOLS]}
+    if method == "prompts/list":
+        return {"prompts": [{"name": n, "description": d} for n, (d, _) in PROMPTS.items()]}
+    if method == "prompts/get":
+        name = (msg.get("params") or {}).get("name")
+        if name not in PROMPTS:
+            raise KeyError(f"unknown prompt {name}")
+        d, text = PROMPTS[name]
+        return {"description": d, "messages": [{"role": "user", "content": {"type": "text", "text": text}}]}
     if method == "tools/call":
         p = msg.get("params") or {}
         tool = BY_NAME.get(p.get("name"))

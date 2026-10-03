@@ -1,0 +1,10 @@
+{
+ "id": "merach-s29",
+ "name": "Merach S29",
+ "match": {"name_prefix": ["MRK-S29"]},
+ "protocol": "ftms",
+ "resistance": {"min": 1, "max": 16, "format": "ftms-level-x10"},
+ "blocked": ["reset", "resistance_zero", "target_power", "simulation"],
+ "notes": "Reboots on an FTMS reset or 'resistance 0'. Acknowledges hill simulation but ignores it, so the hub turns grades into levels itself. No ERG on the bike: the hub's ERG sets levels.",
+ "source": "builtin"
+}
