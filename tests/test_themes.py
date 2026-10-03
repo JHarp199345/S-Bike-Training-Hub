@@ -52,7 +52,7 @@ def main():
         check(f"{name} defines every colour role{' - missing ' + ', '.join(missing) if missing else ''}", not missing)
 
     pages = [p for p in (ROOT / "web").glob("*.html")] + [ROOT / "panel.py", ROOT / "report.py"]
-    without = [p.name for p in pages if "/web/theme.css" not in p.read_text()]
+    without = [p.name for p in pages if "/web/theme.css" not in p.read_text() and 'content="0;url=/coach#fitness"' not in p.read_text()]
     check(f"every page loads the theme ({'missing: ' + ', '.join(without) if without else 'all'})", not without)
     print("ALL PASS" if ok else "SOME FAILED")
     return ok

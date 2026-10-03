@@ -1,0 +1,428 @@
+{
+  "version": 1,
+  "assets": [
+    {
+      "id": "recovery-stretch",
+      "title": "Gentle mobility",
+      "phases": [
+        "recovery"
+      ],
+      "subjects": [
+        "stretching"
+      ],
+      "style": "photorealistic",
+      "file": "/web/sports/phase-recovery-stretch.jpg",
+      "focal": [
+        65,
+        50
+      ]
+    },
+    {
+      "id": "foundation",
+      "title": "Pool foundation",
+      "phases": [
+        "base",
+        "assessment"
+      ],
+      "subjects": [
+        "swimming"
+      ],
+      "style": "photorealistic",
+      "file": "/web/sports/phase-foundation.jpg",
+      "focal": [
+        65,
+        50
+      ]
+    },
+    {
+      "id": "development",
+      "title": "Cycling development",
+      "phases": [
+        "build"
+      ],
+      "subjects": [
+        "cycling"
+      ],
+      "style": "photorealistic",
+      "file": "/web/sports/phase-development.jpg",
+      "focal": [
+        65,
+        50
+      ]
+    },
+    {
+      "id": "lifting",
+      "title": "Strength preparation",
+      "phases": [
+        "specific"
+      ],
+      "subjects": [
+        "lifting"
+      ],
+      "style": "photorealistic",
+      "file": "/web/sports/phase-lifting.jpg",
+      "focal": [
+        65,
+        50
+      ]
+    },
+    {
+      "id": "event-preparation",
+      "title": "Event practice",
+      "phases": [
+        "specific"
+      ],
+      "subjects": [
+        "running"
+      ],
+      "style": "photorealistic",
+      "file": "/web/sports/phase-event-preparation.jpg",
+      "focal": [
+        65,
+        50
+      ]
+    },
+    {
+      "id": "final-preparation",
+      "title": "Ready for the day",
+      "phases": [
+        "taper"
+      ],
+      "subjects": [
+        "preparation"
+      ],
+      "style": "photorealistic",
+      "file": "/web/sports/phase-final-preparation.jpg",
+      "focal": [
+        65,
+        50
+      ]
+    },
+    {
+      "id": "recovery",
+      "title": "Cozy rest",
+      "phases": [
+        "rest"
+      ],
+      "subjects": [
+        "sleeping"
+      ],
+      "style": "photorealistic",
+      "file": "/web/sports/phase-recovery.jpg",
+      "focal": [
+        65,
+        50
+      ]
+    },
+    {
+      "id": "program-hero",
+      "title": "The road ahead",
+      "phases": [
+        "overview"
+      ],
+      "subjects": [
+        "running",
+        "event-goal"
+      ],
+      "style": "photorealistic",
+      "file": "/web/sports/program-hero.jpg",
+      "focal": [
+        65,
+        50
+      ]
+    },
+    {
+      "id": "rest-dawn",
+      "title": "Rest at dawn",
+      "phases": [
+        "recovery",
+        "taper",
+        "rest"
+      ],
+      "subjects": [
+        "sleeping"
+      ],
+      "style": "photorealistic",
+      "file": "/web/sports/phase-rest-dawn.jpg",
+      "focal": [
+        78,
+        48
+      ]
+    },
+    {
+      "id": "ride-dawn",
+      "title": "Morning ride",
+      "phases": [
+        "assessment",
+        "base",
+        "build"
+      ],
+      "subjects": [
+        "cycling"
+      ],
+      "style": "photorealistic",
+      "file": "/web/sports/phase-ride-dawn.jpg",
+      "focal": [
+        78,
+        48
+      ]
+    },
+    {
+      "id": "mobility-morning",
+      "title": "Morning mobility",
+      "phases": [
+        "recovery",
+        "taper"
+      ],
+      "subjects": [
+        "stretching"
+      ],
+      "style": "photorealistic",
+      "file": "/web/sports/phase-mobility-morning.jpg",
+      "focal": [
+        78,
+        48
+      ]
+    },
+    {
+      "id": "swim-dawn",
+      "title": "First light swim",
+      "phases": [
+        "assessment",
+        "base",
+        "build"
+      ],
+      "subjects": [
+        "swimming"
+      ],
+      "style": "photorealistic",
+      "file": "/web/sports/phase-swim-dawn.jpg",
+      "focal": [
+        78,
+        48
+      ]
+    },
+    {
+      "id": "strength-morning",
+      "title": "Medicine-ball strength",
+      "phases": [
+        "base",
+        "build",
+        "specific"
+      ],
+      "subjects": [
+        "lifting"
+      ],
+      "style": "photorealistic",
+      "file": "/web/sports/phase-strength-morning.jpg",
+      "focal": [
+        78,
+        48
+      ]
+    },
+    {
+      "id": "today-cycle-portrait",
+      "title": "Cycling \u00b7 full-card portrait",
+      "phases": [
+        "assessment",
+        "base",
+        "build"
+      ],
+      "subjects": [
+        "cycling"
+      ],
+      "style": "photorealistic",
+      "file": "/web/sports/today-cycle-portrait.jpg",
+      "focal": [
+        78,
+        48
+      ],
+      "subject_box": [
+        0.55,
+        0.15,
+        0.94,
+        0.53
+      ],
+      "layouts": [
+        "tall-workout"
+      ]
+    },
+    {
+      "id": "today-recovery-wide",
+      "title": "Recovery \u00b7 Today guidance",
+      "phases": [
+        "recovery",
+        "taper",
+        "rest"
+      ],
+      "subjects": [
+        "stretching",
+        "preparation"
+      ],
+      "style": "photorealistic",
+      "file": "/web/sports/today-recovery-wide-v2.jpg",
+      "focal": [
+        80,
+        50
+      ],
+      "subject_box": [
+        0.665,
+        0.3,
+        0.85,
+        0.75
+      ],
+      "layouts": [
+        "wide-guidance"
+      ]
+    },
+    {
+      "id": "community-strength-watch",
+      "title": "Strength and watch",
+      "file": "/web/sports/optional-strength-watch-regenerated.jpg",
+      "subjects": [
+        "lifting"
+      ],
+      "phases": [
+        "base",
+        "build",
+        "specific"
+      ],
+      "focal": [
+        50,
+        54
+      ],
+      "style": "photorealistic",
+      "source": "approved-regeneration",
+      "width": 922,
+      "height": 1706
+    },
+    {
+      "id": "community-coastal-cycle",
+      "title": "Coastal cycling",
+      "file": "/web/sports/optional-coastal-cycle-regenerated.jpg",
+      "subjects": [
+        "cycling"
+      ],
+      "phases": [
+        "base",
+        "build"
+      ],
+      "focal": [
+        66,
+        54
+      ],
+      "style": "photorealistic",
+      "source": "approved-regeneration",
+      "width": 1916,
+      "height": 821
+    },
+    {
+      "id": "community-road-run",
+      "title": "Road running",
+      "file": "/web/sports/optional-road-run-regenerated.jpg",
+      "subjects": [
+        "running"
+      ],
+      "phases": [
+        "specific",
+        "overview",
+        "taper"
+      ],
+      "focal": [
+        52,
+        55
+      ],
+      "style": "photorealistic",
+      "source": "approved-regeneration",
+      "width": 1983,
+      "height": 793
+    },
+    {
+      "id": "community-deadlift",
+      "title": "Barbell technique",
+      "file": "/web/sports/optional-deadlift-regenerated.jpg",
+      "subjects": [
+        "lifting"
+      ],
+      "phases": [
+        "base",
+        "build",
+        "specific"
+      ],
+      "focal": [
+        50,
+        55
+      ],
+      "style": "photorealistic",
+      "source": "approved-regeneration",
+      "width": 1696,
+      "height": 927
+    },
+    {
+      "id": "community-cockpit",
+      "title": "Corrected cycling cockpit",
+      "file": "/web/sports/optional-cockpit-regenerated.jpg",
+      "subjects": [
+        "cycling",
+        "preparation"
+      ],
+      "phases": [
+        "assessment",
+        "base",
+        "build",
+        "taper"
+      ],
+      "focal": [
+        50,
+        63
+      ],
+      "style": "photorealistic",
+      "source": "approved-regeneration",
+      "width": 1697,
+      "height": 927
+    },
+    {
+      "id": "community-trail-run",
+      "title": "Trail running",
+      "file": "/web/sports/community-trail-run.jpg",
+      "subjects": [
+        "running"
+      ],
+      "phases": [
+        "specific",
+        "overview",
+        "build"
+      ],
+      "focal": [
+        55,
+        45
+      ],
+      "style": "photorealistic",
+      "source": "user-supplied-sheet",
+      "width": 443,
+      "height": 267
+    },
+    {
+      "id": "community-squat",
+      "title": "Strength foundation",
+      "file": "/web/sports/community-squat.jpg",
+      "subjects": [
+        "lifting"
+      ],
+      "phases": [
+        "base",
+        "build",
+        "specific"
+      ],
+      "focal": [
+        58,
+        52
+      ],
+      "style": "photorealistic",
+      "source": "user-supplied-sheet",
+      "width": 443,
+      "height": 267
+    }
+  ],
+  "rotation": "Choose relevant artwork on opening the view; keep it stable during use."
+}

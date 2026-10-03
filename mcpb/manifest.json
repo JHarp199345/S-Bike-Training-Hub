@@ -2,9 +2,9 @@
   "manifest_version": "0.3",
   "name": "s-bike-hub",
   "display_name": "S-Bike Training Hub",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Coach from your smart-bike training hub: check-ins, plans, rides, lifting, workouts and training load for bike, run and swim.",
-  "long_description": "Connects your AI assistant to S-Bike Training Hub running on your Mac (https://github.com/JHarp199345/S-Bike-Training-Hub): today's verdict and plan, morning check-ins, rides and ride stories, fitness and body-system load across bike, run, swim, walk and gym, watch file import, swim/run/ride insights, lifting sessions (planning, scoring, check-offs, follow-ups, rules and a restorative/build steer), the Sunday check-in, timed workouts, route planning and calibration tests. Everything stays on the Mac: the tools call the hub at http://127.0.0.1:8729, which must be running.",
+  "long_description": "Connects an optional AI assistant to the locally running training hub: macro program preview/apply, three starter workload forecasts, sport planning, check-ins, import, lifting and progress evidence. The Hub stores records locally. Training context returned to an external AI is subject to that service\u2019s policies.",
   "author": {
     "name": "JHarp199345",
     "url": "https://github.com/JHarp199345"

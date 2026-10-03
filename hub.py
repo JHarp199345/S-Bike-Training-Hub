@@ -84,6 +84,7 @@ def main(argv=None):
     ap.add_argument("--json", action="store_true", help="raw JSON")
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("status")
+    p = sub.add_parser("phase-focus"); p.add_argument("--date")
     p = sub.add_parser("today"); p.add_argument("--date")
     p = sub.add_parser("checkins"); p.add_argument("--days", type=int, default=14)
     p = sub.add_parser("checkin"); p.add_argument("--date")
@@ -128,6 +129,9 @@ def main(argv=None):
              + (f"\n   normal: HR@90W {base['hr90']:.0f}" + (f", recovery {base['hrr']:.0f}" if base.get("hrr") is not None else "")
                 + f" ({base['tests']} tests)" if base else "\n   normal: not enough tests yet (3 needed)")
              + f"\n   FTP {d['ftp']} W")
+    elif a.cmd == "phase-focus":
+        result=call('/api/coach/phase-profiles'+(f'?date={a.date}' if a.date else ''))
+        print(json.dumps(result,indent=1,ensure_ascii=False))
     elif a.cmd == "checkins":
         d = call(f"/api/coach/history?days={a.days}")
         dates = sorted(set(d["checkins"]) | set(d["plans"]))
