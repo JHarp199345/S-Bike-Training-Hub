@@ -16,8 +16,13 @@ function Fail($m) {
 }
 # Native commands (python, pip) report through their exit code; their warnings on stderr aren't failures.
 function Run($exe, [string[]]$argv) {
-  & $exe @argv
-  if ($LASTEXITCODE -ne 0) { Fail "'$exe $($argv -join ' ')' failed (exit code $LASTEXITCODE)" }
+  $out = & $exe @argv 2>&1
+  $code = $LASTEXITCODE
+  $out | ForEach-Object { Write-Host $_ }
+  if ($code -ne 0) {
+    if ($env:GITHUB_ACTIONS) { $out | Select-Object -Last 15 | ForEach-Object { Write-Host "::error::$_" } }
+    Fail "'$exe $($argv -join ' ')' failed (exit code $code)"
+  }
 }
 
 # ── Python ──────────────────────────────────────────────────────────────────
