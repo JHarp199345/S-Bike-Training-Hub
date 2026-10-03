@@ -234,6 +234,24 @@ def step_force(mass_kg, v, spm):
     return mass_kg * G * (walk_mult + f * (run_mult - walk_mult))
 
 
+def run_evidence(scored, prof):
+    """Per running day, for learning the block: share of heart-rate reserve and pace per heartbeat (km/h per bpm
+    over resting). The longest run of the day speaks for it."""
+    out = {}
+    rest, top = prof.get("hr_rest") or 60, prof.get("hr_max") or 185
+    for a in scored:
+        if a.get("sport") != "run" or not a.get("minutes") or not a.get("km"):
+            continue
+        if a["date"] in out and out[a["date"]]["minutes"] >= a["minutes"]:
+            continue
+        kmh = a["km"] / (a["minutes"] / 60)
+        hr = a.get("avg_hr")
+        out[a["date"]] = {"minutes": a["minutes"], "kmh": round(kmh, 2),
+                          "hrr": round((hr - rest) / max(1, top - rest), 3) if hr else None,
+                          "eff": round(kmh / max(1, hr - rest), 4) if hr else None}
+    return out
+
+
 def foot_impact(a, prof):
     """Impact points, steps and 70-kg-runner-equivalent km for a run or walk, second by second."""
     mass = prof["weight_kg"]
@@ -478,7 +496,8 @@ def analyse(acts, prof, today=None, meta=None, feet_reports=None, daily_steps=No
     systems["impact"]["tissue"] = damage.model([r["date"] for r in days], [r["impact"]["load"] for r in days],
                                                   u_imp, prof["weight_kg"], feet_reports,
                                                   run_doses=[r["sports"].get("run", {}).get("impact", 0.0) for r in days],
-                                                  walking=walking, block=prof.get("block_points"), reviews=run_reviews)
+                                                  walking=walking, block=prof.get("block_points"), reviews=run_reviews,
+                                                  runs=run_evidence(scored, prof))
     if systems["impact"]["tissue"]:
         systems["impact"]["tissue"]["walking"] = {k: v for k, v in walking.items() if k != "steps"}
     if systems["impact"]["tissue"]:
@@ -692,7 +711,8 @@ def load_profile(base):
             "hr_max": float(p.get("hr_max", 185)), "ftp": float(p.get("ftp", 150)),
             "calibration": p.get("load_calibration") or {}, "phase": p.get("training_phase", "run_durability"),
             "habitual_steps": int(p.get("habitual_steps") or damage.HABITUAL_STEPS),
-            "gym_rpe": float(p.get("gym_rpe") or GYM_RPE_DEFAULT)}
+            "gym_rpe": float(p.get("gym_rpe") or GYM_RPE_DEFAULT),
+            "return_to_run": p.get("return_to_run")}
 
 
 def load_steps(base):
@@ -867,7 +887,14 @@ def summary(base, today=None):
         out["transfer"] = {"error": str(e)}
     rem = ((out.get("systems") or {}).get("impact", {}).get("tissue") or {}).get("remodeling") or {}
     import recovery
-    out["run_progression"]=recovery.status(coach.load(base / "coach.json"),rem,today)
+    # The return-to-run protocol (minimum wait between runs, repeated strength/balance/loading checks) is for
+    # athletes coming back from a running injury: those who said so in the welcome setup, anyone already using it,
+    # and installs from before the question existed (return_to_run absent). Everyone else runs on the blocks alone.
+    cd_ = coach.load(base / "coach.json")
+    if prof.get("return_to_run") is not False or cd_.get("run_progression"):
+        out["run_progression"]=recovery.status(cd_,rem,today)
+    else:
+        out["run_progression"]=None
     if est and not est["block"]["value"] and rem.get("reference_points"):
         est["block"].update(value=round(rem["reference_points"] * damage.STEPS_1000LB_PER_POINT), source="first runs",
                             confidence=0.3)

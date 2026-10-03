@@ -124,6 +124,7 @@
  <h3 style="margin-top:6px">Your sports, and your experience in each</h3>
  <div id="sports"></div>
  <label style="margin:12px 0"><span><input type="checkbox" id="smart_bike"> I have a smart bike connected to the hub</span></label>
+ <label style="margin:0 0 12px"><span><input type="checkbox" id="return_to_run"> I'm coming back from a running injury (shin, foot, knee, hip)</span><span class="fine">Turns on the careful return-to-run protocol: longer gaps between runs and strength, balance and loading checks before running progresses.</span></label>
  <h3>Where you're starting from</h3>
  <div class="seg" id="start"><button type="button" data-v="fresh" class="on">Fresh: feeling good, no aches</button><button type="button" data-v="loaded">Loaded: sore joints or a heavy block behind me</button></div>
  <p class="fine">Loaded starts every limit 30% more cautious, and asks for the hop test before your first run.</p>
@@ -174,6 +175,7 @@ fetch('/api/setup').then(r=>r.json()).then(s=>{
   (p.sports||[]).forEach(k=>{ const c=$('sp-'+k); if(c) c.checked=true; });
   Object.entries(p.experience||{}).forEach(([k,v])=>{ const e=$('ex-'+k); if(e) e.value=v; });
   if(p.smart_bike || (!s.no_bike && p.smart_bike==null)) $('smart_bike').checked=!s.no_bike;
+  if(p.return_to_run) $('return_to_run').checked=true;
   matchStarter();
 }).catch(()=>{});
 // ── Your bike: scan; a recognized bike is one click, an unrecognized one is queued for the assistant ──
@@ -221,7 +223,7 @@ $('form').onsubmit=async ev=>{ ev.preventDefault();
   const anchors=['BB squat','BB bench press','BB row'].flatMap((name,i)=>Number($('anchorweight'+i).value)?[{name,weight:Number($('anchorweight'+i).value),reps:Number($('anchorreps'+i).value),rir:Number($('anchorrir'+i).value),unit:$('unit').value}]:[]);
   sessionStorage.setItem('starterSetup',JSON.stringify({anchors,unit:$('unit').value,equipment:$('starterequipment').value,assessment:$('starterassessment').value}));
   const body={unit:$('unit').value,weight:+$('weight').value,age:$('age').value||null,hr_rest:$('hr_rest').value||null,hr_max:$('hr_max').value||null,
-    sports,experience:Object.fromEntries(sports.map(k=>[k,$('ex-'+k).value])),smart_bike:$('smart_bike').checked,start,
+    sports,experience:Object.fromEntries(sports.map(k=>[k,$('ex-'+k).value])),smart_bike:$('smart_bike').checked,return_to_run:$('return_to_run').checked,start,
     ftp:$('ftp').value||null,css:$('css').value||null,run5k:$('run5k').value||null,rules:$('rules').value.split('\n').map(x=>x.trim()).filter(Boolean)};
   const r=await fetch('/api/setup',{method:'POST',body:JSON.stringify(body)}); const j=await r.json();
   if(!r.ok){ $('msg').textContent=j.error||'Something went wrong.'; return; }

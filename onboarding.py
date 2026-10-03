@@ -85,6 +85,7 @@ def apply(base, form):
     elif age:
         p["hr_max"] = round(208 - 0.7 * age)
         done.append(f"maximum heart rate {p['hr_max']} (estimated from age)")
+    p["return_to_run"] = bool(form.get("return_to_run"))          # coming back from a running injury: the careful protocol
     p.update(sports=sports, experience=exp, start_state=start, smart_bike=bool(form.get("smart_bike")),
              onboarded=dt.date.today().isoformat())
     # starting capacities
@@ -138,4 +139,4 @@ def current(base):
     import rider
     p = rider.load(Path(base) / "profile.json")
     return {k: p.get(k) for k in ("weight_kg", "age", "hr_rest", "hr_max", "sports", "experience", "start_state",
-                                  "smart_bike", "onboarded", "ftp")}
+                                  "smart_bike", "onboarded", "ftp", "return_to_run")}

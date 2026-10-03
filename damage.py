@@ -85,7 +85,94 @@ def walking_day(steps, pts_per_step, severity, before, fresh_steps=HABITUAL_STEP
             "points": counted * pts_per_step}
 
 
-def remodeling_response(dates, doses, usual_week=None, weight_kg=70.0, feet_reports=None, walking=None, block=None, reviews=None):
+LEARN_MARGIN = 0.8        # a tolerated carry of N blocks means the block is at least 0.8 x N as big
+LEARN_STEP_MAX = 1.6      # one piece of evidence grows the block by at most 60%
+LEARN_DOWN = 0.85         # a run followed by rough mornings or slower running shrinks it 15%
+LEARN_TOTAL_MAX = 6.0     # never more than 6x the evidence-free starting block
+LEARN_FLOOR = 0.7         # never under 70% of it
+EFFORT_FULL = 0.85        # share of heart-rate reserve treated as a run at the whole block
+
+
+def _rough(x):
+    if not isinstance(x, dict):
+        return x >= 6
+    return any(x.get(k) is not None and x[k] >= 6 for k in ("feet", "legs"))
+
+
+def _clean(x):
+    if not isinstance(x, dict):
+        return x <= 3
+    return all(x.get(k) is None or x[k] <= 3 for k in ("feet", "legs")) and x.get("feet") is not None
+
+
+def learn_block(dates, doses, reports, runs, start_reference, **kw):
+    """The block from evidence (the rider's design, 2026-10-03): how big a block is for this athlete.
+
+    1. What the first run says: its impact is the run itself (distance, pace, steps); its heart rate says how hard
+       that was. An easy run (share of heart-rate reserve e) followed by clean mornings used only part of the
+       block: block >= dose x EFFORT_FULL / e.
+    2. What repeat runs say: a run that lands while earlier runs are still on the plateau or decline carries
+       `after` blocks. If the mornings after stay clean (no 6+, no hop drop) and the running held up (pace per
+       heartbeat within 3%), the athlete carried that load fine, so the block is at least LEARN_MARGIN x after.
+       Rough mornings or a slower run shrink it. Each change re-runs the curve from the start: the block is the
+       athlete's, not the day's.
+    The plateau, decline, tail and the 1.5-block line are unchanged; only the size of a block learns.
+    Returns (reference, steps)."""
+    ref, steps = start_reference, []
+    idx = {d: i for i, d in enumerate(dates)}
+    run_days = [i for i, x in enumerate(doses) if x > 0]
+    if not run_days:
+        return ref, steps
+
+    def mornings(i, n=3):
+        return [reports[dates[j]] for j in range(i + 1, min(len(dates), i + 1 + n)) if dates[j] in reports]
+
+    def eff(i):
+        r = runs.get(dates[i]) or {}
+        return r.get("eff")
+    first = run_days[0]
+    r0 = runs.get(dates[first]) or {}
+    m0 = mornings(first)
+    if r0.get("hrr") and len(m0) >= 2 and not any(_rough(x) for x in m0):
+        cand = doses[first] * EFFORT_FULL / max(0.45, min(EFFORT_FULL, r0["hrr"]))
+        if cand > ref * 1.05:
+            new = min(cand, ref * LEARN_STEP_MAX)
+            steps.append({"date": dates[first], "why": f"first run felt easy ({round(100 * r0['hrr'])}% of heart-rate "
+                          "reserve) and the mornings after were clean", "from": round(ref, 1), "to": round(new, 1)})
+            ref = new
+    floor, top = start_reference * LEARN_FLOOR, start_reference * LEARN_TOTAL_MAX
+    prev = first
+    for i in run_days[1:]:
+        curve = remodeling_response(dates[:i + 4], doses[:i + 4], block=ref, feet_reports=reports, **kw)
+        ev = next((e for e in curve["components"] if e["date"] == dates[i]), None) if curve else None
+        m = mornings(i)
+        if not ev or len(m) < 2:
+            prev = i
+            continue
+        e_now, e_prev = eff(i), eff(prev)
+        slower = e_now is not None and e_prev is not None and e_now < 0.97 * e_prev
+        earlier = [x["hops"] for d, x in reports.items() if isinstance(x, dict) and x.get("hops") is not None and d <= dates[i]]
+        after = [x["hops"] for x in m if isinstance(x, dict) and x.get("hops") is not None]
+        hops_drop = bool(earlier and after) and min(after) <= earlier[-1] - 2
+        if any(_rough(x) for x in m) or slower or hops_drop:
+            new = max(floor, ref * LEARN_DOWN)
+            if new < ref:
+                why = "rough mornings after" if any(_rough(x) for x in m) else "hop test dropped" if hops_drop else "running slowed at the same heart rate"
+                steps.append({"date": dates[i], "why": why, "from": round(ref, 1), "to": round(new, 1)})
+                ref = new
+        elif ev["before_blocks"] >= 0.25 and ev["after_blocks"] > 1 / LEARN_MARGIN and all(_clean(x) for x in m):
+            new = min(top, ref * min(LEARN_STEP_MAX, LEARN_MARGIN * ev["after_blocks"]))
+            if new > ref * 1.02:
+                steps.append({"date": dates[i], "why": f"ran again with {ev['before_blocks']} blocks still carried, "
+                              f"held the pace{' at a lower heart rate' if e_now and e_prev and e_now > 1.02 * e_prev else ''} "
+                              f"and woke up fine: {ev['after_blocks']} blocks were tolerated", "from": round(ref, 1), "to": round(new, 1)})
+                ref = new
+        prev = i
+    return ref, steps
+
+
+def remodeling_response(dates, doses, usual_week=None, weight_kg=70.0, feet_reports=None, walking=None, block=None, reviews=None,
+                        runs=None):
     """Provisional blocks: 5 days/block plateau, 3 days/block decline (to 20%), then a ~4-month remodeling tail.
     walking: {"steps": {date: steps walked outside runs}, "pts_per_step", "severity"} - daily walking adds blocks
     above the day's free steps; it extends the plateau (5 days/block) instead of restarting it.
@@ -126,6 +213,10 @@ def remodeling_response(dates, doses, usual_week=None, weight_kg=70.0, feet_repo
                     statistics.median(first) if first else 0,1)*(1+credit)
     if block:                          # a calibrated block (benchmark runs taken well: calibration.py) replaces it
         reference = max(float(block), 1.0)
+    learned = []
+    if runs:                           # and the runs themselves teach how big it is (learn_block)
+        reference, learned = learn_block(dates, doses, reports, runs, reference, usual_week=usual_week,
+                                         weight_kg=weight_kg, reviews=reviews)
 
     def adjust(j,stop,plateau_len):
         """Only reports after the mechanical plateau adjust the decline duration.
@@ -275,7 +366,7 @@ def remodeling_response(dates, doses, usual_week=None, weight_kg=70.0, feet_repo
             "cleared_to_run_in_days":cleared,
             "tail_starts_in_days":next((i+1 for i,r in enumerate(projection) if r["phase"]=="tail"),None),
             "hops":hops,
-            "reference_points":round(reference,1),"checkins_used":used,
+            "reference_points":round(reference,1),"block_learning":learned,"checkins_used":used,
             "conditioning_credit":round(credit,2),"confirmed_recoveries":len(clean),
             "components":events[-12:], "walking":walk_rows[-14:],
             "walking_week_blocks":round(sum(r["added_blocks"] for r in walk_rows[-7:]),2),
@@ -338,14 +429,15 @@ def run(doses, base, p, adapt_gain=ADAPT_GAIN):
     return out
 
 
-def model(dates, doses, usual_week=None, weight_kg=70.0, feet_reports=None, run_doses=None, walking=None, block=None, reviews=None):
+def model(dates, doses, usual_week=None, weight_kg=70.0, feet_reports=None, run_doses=None, walking=None, block=None, reviews=None,
+          runs=None):
     """dates: consecutive ISO days; doses: impact points per day. Returns each tissue's backlog today,
     its history, and a no-more-running projection."""
     if not dates:
         return None
     doses = list(doses)
     remodeling = remodeling_response(dates, run_doses if run_doses is not None else doses, usual_week, weight_kg,
-                                     feet_reports, walking, block, reviews)
+                                     feet_reports, walking, block, reviews, runs)
     event = event_response(dates, doses, usual_week, weight_kg, remodeling)
     base = base_capacity(usual_week, weight_kg)
     n = len(dates)
