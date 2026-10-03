@@ -43,3 +43,6 @@ theme.tmp
 backups/
 art_src/
 *.before-*
+
+# Private reviewed program drafts and SQLite journals
+program-drafts.sqlite3*

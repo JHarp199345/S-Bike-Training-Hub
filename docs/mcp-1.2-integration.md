@@ -1,13 +1,25 @@
-# App + MCP 1.2 integration
+# App + MCP 1.3 integration
 
-Version **1.2.1** exposes 52 tools, including `get_program`, `preview_program`, `apply_program`, and `get_progress_evidence`. Tools use the same local app APIs as the browser. Preview does not save; Apply is an explicit athlete-approved action. Reported lifting anchors and starter options go in the `fields` object.
+Version **1.3.0** exposes 55 tools through the same local APIs used by the browser. [Download the bundle](https://github.com/JHarp199345/S-Bike-Training-Hub/releases/download/mcp-v1.3.0/s-bike-hub-mcp-1.3.0.mcpb). See the [README installation instructions](../README.md#install-the-claude-desktop-extension).
 
-[Download 1.2.1](https://github.com/JHarp199345/S-Bike-Training-Hub/releases/download/mcp-v1.2.1/s-bike-hub-mcp-1.2.1.mcpb) or read the [release notes](https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/mcp-v1.2.1). Installation instructions are in the [README](../README.md#install-the-claude-desktop-extension).
+## Planning workflow
 
-Program summaries preserve scenario comparisons and load flags while avoiding multi-megabyte responses. Pass `detail_start` and `detail_days` (1–7) to `preview_program` for the selected scenario’s workouts and projected readings. Empty Apply requests are rejected. Apply currently regenerates from fields; it does not lock an exact reviewed draft.
+1. Read `get_program`, then inspect relevant saved sessions with `get_training_calendar` (1–14 days).
+2. Investigate a reading with `explain_training_reading`; inspect feedback and unresolved symptoms with `get_adaptation_review`.
+3. Call `preview_program` with `fields`. Request 1–7 days of detailed prescriptions through `detail_start` and `detail_days`.
+4. Review alternatives, assumptions, holds and missing anchors with the athlete.
+5. After approval, call `apply_program` with the returned `draft_id`. Read back `get_program` and the saved calendar.
 
-Claude Desktop installation and tool discovery were verified for 1.2.0 and the 1.2.1 update. The 1.2.1 packaged workflow was tested with macOS’s stock Python 3.9, a minimal PATH, no site packages and isolated synthetic athlete data. See the [capability review](mcp-capability-review.md) for measured response sizes, evidence available to the assistant and remaining gaps.
+Preview caches the exact proposal separately from training records for six hours, retaining up to eight drafts. Apply rejects expired or missing drafts, changed coach/profile/activity/workout inputs, changed calculation source versions, and starts in the past. It applies the stored proposal without rebuilding. Retries of retained applied drafts return an existing receipt. Completed history is preserved. These safeguards cover app requests; arbitrary external file edits during an operation are not a supported concurrency mechanism.
 
-Build locally with `sh mcpb/build.sh`. The `.mcpb` is ignored by Git and distributed as a release asset; `server.json` records its SHA-256. Run `tests/test_mcp_bundle.py` to test the actual archive when present, or the source bundle layout in a fresh checkout. Set `S_BIKE_TEST_INSTALLED_SERVER` to an installed server path to verify it matches the tested source.
+**Update the Hub and bundle together.** Field-based Apply from older bundles is no longer accepted. Version 1.3 refuses Apply against an app without reviewed-draft support. Updating Git does not replace an installed desktop extension. The Hub must be running locally.
 
-An app Git update does not automatically replace an assistant’s installed bundle. The Hub must be running on the Mac. External AI receives the training context returned by tools under its provider’s policies.
+Calendar responses expose prescriptions, completions, holds and future projections. Past forecasts are not recreated from today's baseline. Explanation responses include formulas, source hashes, baseline inputs, contributors and unknown values; regional allocations and recovery curves remain estimates.
+
+## Verification and building
+
+The packaged 1.3 server passed synthetic API workflows on stock macOS Python 3.9 with an isolated environment. Previous 1.2 Desktop installation was verified; 1.3 Desktop installation and live assistant decision quality remain separate checks. The optional real-assistant evaluation was blocked by an expired Claude sign-in. See the [capability review](mcp-capability-review.md).
+
+Build with `sh mcpb/build.sh`. Bundles are release assets, ignored by Git; `server.json` records SHA-256. Run `tests/test_mcp_bundle.py` against the archive. Optional `tests/eval_mcp_coaching.py` uses a signed-in Claude Code assistant with synthetic data, disabled built-in tools and preview-only permissions. It consumes the configured assistant's usage allowance and is excluded from routine tests.
+
+The Hub stores athlete data locally. Context supplied to external AI is governed by that provider's policies; remote cloud sessions cannot reach a Mac's localhost directly.

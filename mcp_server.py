@@ -15,7 +15,7 @@ import urllib.error
 import urllib.request
 
 BASE = __import__("os").environ.get("S29_HUB_URL", "http://127.0.0.1:8729")   # tests point this at a scratch server
-VERSION = "1.2.1"
+VERSION = "1.3.0"
 
 
 class HubError(Exception):
@@ -247,7 +247,7 @@ def t_lift_rule(a):
 
 
 def t_swim_activity(a):
-    return call("/api/load/swim-activity", {k: a[k] for k in ("activity_id", "paddles", "pull_buoy", "swim_rpe") if k in a})
+    return call("/api/load/swim-activity", {k: a[k] for k in ("activity_id", "paddles", "pull_buoy", "swim_rpe", "fins", "snorkel", "fins_fraction", "snorkel_fraction", "fin_type", "kick_rpe", "fin_kick_factor") if k in a})
 
 
 def t_morning(a):
@@ -332,7 +332,7 @@ def _program_summary(out, a):
             dates=[(start+dt.timedelta(days=i)).isoformat() for i in range(days)]
             selected=next((c for c in starter.get('candidates',[]) if c['level']==starter.get('selected')), {})
             view['starter']['detail']={date:{'plan':(selected.get('display_plans') or {}).get(date),
-                'metrics':[{k:r.get(k) for k in ('key','name','unit','before','training','after','expected','limit','over_limit')} for r in (selected.get('projection',{}).get(date) or {}).get('metrics',[])]} for date in dates}
+                'metrics':[{k:r.get(k) for k in ('key','name','unit','before','session_dose','dose_unit','after','expected','goal','method','limit','over_limit')} for r in (selected.get('projection',{}).get(date) or {}).get('metrics',[])]} for date in dates}
         view['detail_hint']='Pass detail_start YYYY-MM-DD and detail_days 1–7 to preview_program for selected-scenario sessions and daily forecast metrics.'
     return view
 
@@ -343,12 +343,26 @@ def t_program(a):
 def t_program_preview(a):
     fields=a.get('fields')
     if not isinstance(fields,dict) or not fields:raise ValueError('Provide program fields after reading get_program; include sport, priorities and the requested horizon.')
-    return _program_summary(call('/api/coach/program-builder', {**fields,'action':'preview'}),a)
+    out=call('/api/coach/program-builder', {**fields,'action':'preview'})
+    if not (out.get('draft') or {}).get('id'):raise HubError('Update the Hub app to the MCP 1.3 release before reviewing or applying programs; this app does not support reviewed drafts.')
+    return _program_summary(out,a)
 
 def t_program_apply(a):
-    fields=a.get('fields')
-    if not isinstance(fields,dict) or not fields:raise ValueError('Provide the same reviewed fields used for preview_program. Empty apply requests are refused.')
-    return _program_summary(call('/api/coach/program-builder', {**fields,'action':'accept'}),a)
+    if not a.get('draft_id'):raise ValueError('Preview first, then apply its draft_id. Field-only Apply is refused.')
+    if not call('/api/coach/program-builder').get('capabilities',{}).get('reviewed_drafts'):raise HubError('Update the Hub app to the MCP 1.3 release before applying; the installed app does not support exact reviewed drafts.')
+    return _program_summary(call('/api/coach/program-builder', {'draft_id':a['draft_id'],'action':'accept'}),a)
+
+def t_calendar(a):
+    from urllib.parse import urlencode
+    return call('/api/coach/calendar?'+urlencode({'date':_date(a),'days':a.get('days',7)}))
+
+def t_reading(a):
+    from urllib.parse import urlencode
+    return call('/api/coach/reading-evidence?'+urlencode({'date':_date(a),'metric':a['metric']}))
+
+def t_adaptation(a):
+    return call('/api/coach/progression')
+
 
 def t_progress_evidence(a):
     return call('/api/coach/progress-evidence')
@@ -376,7 +390,7 @@ PROGRAM_FIELDS['properties'] = {
     'start':DATE, 'target':STR('Optional event/peak date YYYY-MM-DD'),
     'horizon_days':INT('Ongoing horizon; default 84, starter detail capped at 84',1,366),
     'goal':STR('Athlete goal'), 'outcome':STR('Desired result'), 'hours':{'type':'number','minimum':0.5,'maximum':40},
-    'sport':STR('Goal sport',enum=['general','ride','swim','run','gym','triathlon']),
+    'sport':STR('Goal sport',enum=['general','ride','swim','run','gym','tri']),
     'priorities':{'type':'object','additionalProperties':{'type':'string','enum':['improve','maintain','pause']}},
     'assessment':STR('Initial familiarization week or reported existing tests',enum=['week','existing']),
     'starter_enabled':{'type':'boolean'},'starter_level':STR('Workload scenario',enum=['easy','moderate','higher']),
@@ -386,9 +400,12 @@ PROGRAM_FIELDS['properties'] = {
     'schedule_options':{'type':'object'},'neutral_forecast':{'type':'boolean'}
 }
 TOOLS = [
+    ('get_training_calendar','Read 1–14 days of saved workout prescriptions, actual completions, reports, phase context and projected load readings. Stable session IDs change when prescriptions change. Does not save or modify training.',S(date=DATE,days=INT('Window length',1,14)),t_calendar),
+    ('explain_training_reading','Investigate a reading: implemented formula, constants, source hash, profile inputs, baseline, recorded contributors, planned doses and assumptions. Unknown is not zero; these models are provisional.',S(date=DATE,metric=STR('Metric key: cardio_fatigue, cardio_conditioning, impact_fatigue, muscle_fatigue, run_mechanical, run_recent, swim_recovery, strength, mechanical or lift_<region>')),t_reading),
+    ('get_adaptation_review','Read progression policy, recent decisions and unresolved localized symptoms before changing workloads. Does not change anything.',S(),t_adaptation),
     ('get_program','Read the saved macro program, phases and weekly placements. Does not change anything.',S(),t_program),
     ('preview_program','Preview a draft and optionally compare three starter workload scenarios and forecasts. Does not save or replace the active program.',S(fields=PROGRAM_FIELDS,detail_start=DATE,detail_days=INT('Focused detail window, at most one week',1,7)),t_program_preview),
-    ('apply_program','Apply a reviewed program from today or later. Use only when the athlete asks to save the reviewed changes. Preserves history and existing workouts; fills empty starter dates.',S(fields=PROGRAM_FIELDS),t_program_apply),
+    ('apply_program','Save the exact reviewed preview by draft_id, only with athlete approval. A changed athlete state or expired draft is rejected; retries are idempotent while the draft remains available. Read back get_program and get_training_calendar afterward.',S(draft_id=STR('ID returned by preview_program; expires after six hours')),t_program_apply),
     ('get_progress_evidence','Read measured training responses and evidence for improvement; modeled conditioning is not a guaranteed performance gain.',S(),t_progress_evidence),
     ("get_today", "Today's coaching picture: the rider's check-in and morning diagnostic (heart rate at 90 W / 120 W / "
      "60 s later, legs, breathing, sleep, gut call), the verdict with reasons, their normal (baseline), the plan "
@@ -543,7 +560,7 @@ TOOLS = [
      "were used and how hard the swim felt. Use get_load for swim activity IDs, then record_checkin with a "
      "shoulders rating for how the shoulders feel. This updates provisional swim recovery blocks.",
      S(activity_id=STR("Imported swim activity ID"), paddles={"type": "boolean"},
-       pull_buoy={"type": "boolean"}, swim_rpe=INT("Swim effort 1-10", 1, 10)), t_swim_activity),
+       pull_buoy={"type": "boolean"}, swim_rpe=INT("Swim effort 1-10", 1, 10), fins={"type":"boolean"}, snorkel={"type":"boolean"}, fins_fraction={"type":"number","minimum":0,"maximum":1}, snorkel_fraction={"type":"number","minimum":0,"maximum":1}, fin_type=STR("Reported fin type"), kick_rpe=INT("Reported kick effort",1,10), fin_kick_factor={"type":"number","minimum":1,"maximum":2,"description":"Explicitly reviewed provisional fin factor; not measured force"}), t_swim_activity),
     ("import_activities", "Import watch activity files into the hub so every sport counts: pass the https download "
      "links for .fit files (e.g. from the COROS tool queryActivityFitFileDownloadUrls, one activity at a time).",
      S(urls={"type": "array", "items": {"type": "string"}, "description": "https links to .fit or .tcx files"}), t_import),
@@ -687,10 +704,12 @@ for name, _, schema, _ in TOOLS:
     if name in ("set_capacity",):
         schema["required"] = ["system", "usual_week"]
 for name, _, schema, _ in TOOLS:
-    if name in ('preview_program','apply_program'):schema['required']=['fields']
+    if name=='preview_program':schema['required']=['fields']
+    if name=='apply_program':schema['required']=['draft_id']
+    if name=='explain_training_reading':schema['required']=['metric']
 BY_NAME = {t[0]: t for t in TOOLS}
 INSTRUCTIONS = ("A bike, run, and swim training companion (built on a Merach S29 smart bike). Start with get_today "
-                "and recent check-ins and activity, then set a concrete day plan. Keep an explicit planning checklist: goal/date, phase purpose, available time, sport priorities, current holds, calibration gaps and projected limit flags. Re-read relevant data before writing after a long discussion. Read get_program before changing the macro program; use preview_program to compare drafts and starter forecasts, and apply_program only for athlete-approved reviewed changes. Request detail_start and detail_days for focused preview evidence rather than repeating the full horizon. Explain assumptions separately from measured inputs, and retain unresolved limits in the recommendation. After applying, call get_program and get_today for the affected day to verify the saved program and session. Apply currently rebuilds from fields; it does not lock an exact preview, so re-preview if inputs or athlete data have changed.  A day can contain ordered ride and "
+                "and recent check-ins and activity, then set a concrete day plan. Keep an explicit planning checklist: goal/date, phase purpose, available time, sport priorities, current holds, calibration gaps and projected limit flags. Re-read relevant data before writing after a long discussion. Read get_program before changing the macro program; use preview_program to compare drafts and starter forecasts, and apply_program only for athlete-approved reviewed changes. Request detail_start and detail_days for focused preview evidence rather than repeating the full horizon. Explain assumptions separately from measured inputs, and retain unresolved limits in the recommendation. After applying, call get_program and get_today for the affected day to verify the saved program and session. Apply saves the exact draft_id returned by preview. Draft conflicts require a fresh preview and approval. Use get_training_calendar for saved prescriptions and projections, explain_training_reading to inspect formula/input evidence, and get_adaptation_review for unresolved symptoms and progression context. Never interpret a falling conditioning score alone as lost performance or an easy recovery session as permission to increase load.  A day can contain ordered ride and "
                 "swim sessions with intervals or drills; consider both shared cardiovascular and sport-specific "
                 "recovery before adding a second session. Running impact and swim recovery blocks are provisional "
                 "planning estimates, not measured tissue damage or injury clearance. Reported pain and the athlete's "
@@ -719,7 +738,7 @@ def handle(msg):
         return {}
     if method == "tools/list":
         return {"tools": [{"name": n, "description": d, "inputSchema": s,
-            "annotations": {"readOnlyHint": (n.startswith(('get_','list_','preview_','evaluate_')) and n not in ('get_training_block','get_today','get_skills','get_calibration')),
+            "annotations": {"readOnlyHint": (n.startswith(('get_','list_','preview_','evaluate_','explain_')) and n not in ('get_training_block','get_today','get_skills','get_calibration','preview_program')),
                             "openWorldHint": n in ('import_activities','plan_area_route','save_planned_route')}} for n, d, s, _ in TOOLS]}
     if method == "tools/call":
         p = msg.get("params") or {}

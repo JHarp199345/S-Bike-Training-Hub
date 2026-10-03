@@ -42,24 +42,27 @@ async def main():
     r=await rpc(i,'tools/call',{'name':name,'arguments':args}); assert not r.get('isError'),r
     print(name, len(r['content'][0]['text'].encode()), 'response bytes')
     out=json.loads(r['content'][0]['text'])
-    if name in ('preview_program','apply_program','get_today'):assert len(r['content'][0]['text'].encode())<100000, 'AI response budget exceeded'
+    if name in ('preview_program','apply_program','get_today','get_training_calendar','explain_training_reading'):assert len(r['content'][0]['text'].encode())<100000, 'AI response budget exceeded'
     return out
    try:
     await rpc(1,'initialize',{'protocolVersion':'2025-06-18','capabilities':{},'clientInfo':{'name':'installation-test','version':'1'}})
-    assert len((await rpc(2,'tools/list',{}))['tools'])==52
+    assert len((await rpc(2,'tools/list',{}))['tools'])==55
     await tool(3,'get_program')
     before=(base/'coach.json').read_bytes()
     preview=await tool(4,'preview_program',{'fields':fields}); assert len(preview['starter']['candidates'])==3
     assert (base/'coach.json').read_bytes()==before
     detail=await tool(9,'preview_program',{'fields':fields,'detail_start':coach.today(),'detail_days':2}); assert len(detail['starter']['detail'])==2
     rejected=await rpc(10,'tools/call',{'name':'apply_program','arguments':{}});assert rejected['isError']
-    await tool(5,'apply_program',{'fields':fields}); assert coach.load(base/'coach.json')['program_goal']
+    await tool(5,'apply_program',{'draft_id':preview['draft']['id']}); assert coach.load(base/'coach.json')['program_goal']
     await tool(6,'record_checkin',{'date':coach.today(),'legs':3,'feet':2,'shoulders':2,'gut':'go','journal':'Synthetic installation test.'})
     await tool(7,'get_today')
     await tool(8,'get_progress_evidence')
+    cal=await tool(11,'get_training_calendar',{'days':7});assert len(cal['calendar'])==7
+    evidence=await tool(12,'explain_training_reading',{'metric':'cardio_conditioning'});assert '42' in evidence['formula']
+    await tool(13,'get_adaptation_review')
     proc.stdin.close(); await asyncio.wait_for(proc.wait(),5); assert proc.returncode==0,(await proc.stderr.read()).decode()
    finally:
     if proc.returncode is None: proc.kill(); await proc.wait()
     server.close(); await server.wait_closed()
- print('PASS installable bundle: stock runtime, 52 tools, read/preview/apply/check-in/progress; isolated athlete data')
+ print('PASS installable bundle: stock runtime, 55 tools, read/preview/apply/check-in/progress; isolated athlete data')
 if __name__=='__main__': asyncio.run(main())

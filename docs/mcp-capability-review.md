@@ -8,58 +8,39 @@ The MCP server is the assistant’s working interface to the Hub. It cannot make
 
 The athlete should not need to copy large tables into chat, repeat constraints after every step, or repair configuration files. The assistant should have a compact overview and bounded access to underlying evidence. More tools alone do not establish better coaching.
 
-## Verified in this revision
+## Verified in MCP 1.3.0
 
-- Claude Desktop installed MCP 1.2.0, accepted its runtime requirements, enabled the extension and discovered all 52 tools using the default local Hub address. No manual JSON configuration or extra Python packages were needed.
-- Claude Desktop also installed the 1.2.1 update with the existing local address and permissions retained; its 20 read-only and 32 write/delete tools were discovered. The installed server matched the release source byte-for-byte and passed the same isolated workflow.
-- Version 1.2.1’s packaged server passed an isolated workflow on macOS’s stock Python 3.9 with a minimal PATH and an unrelated working directory: program read, three-scenario preview, focused detailed preview, apply, check-in and progress evidence.
-- The preview test confirms that the saved coach file remains unchanged. Empty Apply requests now fail clearly. Applying the scratch program saves its goal and preserves the app’s existing API behavior.
-- A six-week preview previously returned about **5.4 MB**. The equivalent compact preview now returns **18,032 bytes**; two days of detailed prescriptions and projections return **33,559 bytes**. Apply returns **18,032 bytes** and Today **10,862 bytes** in the same synthetic fixture. These are measured test results, not universal response-size guarantees.
-- Compact comparisons preserve assumptions, unknown metrics, scenario summaries, and grouped load-limit flags including peak, limit, first flagged date and count. The selected scenario’s detailed daily metrics and workouts remain available through `detail_start` and `detail_days` (1–7).
-- Program tools now advertise typed common inputs and require a nonempty `fields` object. Tool annotations distinguish reading from changes conservatively: Today, calibration and skills reads can also update derived local records, so they are not advertised as strictly read-only.
-- Server instructions explicitly ask the assistant to retain goal, phase, time, priorities, holds and unresolved calibration gaps; re-read state after a long discussion; inspect focused forecast evidence; distinguish assumptions from measurements; and read back the saved program after applying.
+- 55 tools, including new saved-calendar, reading-explanation and adaptation-review tools.
+- Exact cached draft application, six-hour expiry, state conflict detection, retained retry receipts and preservation of completed history. Field-only Apply is rejected. The browser and MCP use the same implementation.
+- Tests reject intervening check-ins, calendar edits, recorded activities, profile changes and workout-library changes. Applying a proposal succeeds even with proposal generation disabled, proving it does not rebuild.
+- Saved calendar inspection exposes actual prescriptions, completions, restrictions, unresolved symptoms and bounded projections. Reading explanations expose implemented formulas, source hashes, assumptions, baseline inputs and contributions. Unknown readings remain unknown.
+- Synthetic coaching scenarios verify recovery/taper “too easy” feedback preserves purpose, build feedback can become a progression candidate, shoulder and heart-rate concerns become regression candidates, running holds remain visible, missing lifting anchors block application, and near-event plans respect taper context. Existing progression tests cover delayed responses and overlap.
+- The actual packaged server passed an isolated workflow using stock macOS Python 3.9: program, preview, detailed preview, exact apply, check-in, Today, progress evidence, calendar, explanation and adaptation review.
+- Fixture response sizes: compact preview **18,417 bytes**, two-day detailed preview **41,748 bytes**, Apply **18,270 bytes**, one-week calendar **28,119 bytes**, reading explanation **2,768 bytes**. These are measurements, not universal limits.
+- The full Python suite passed **55 of 56 files**. The remaining existing headless QR-image scanning failure is outside the changed planning code.
 
-Protocol, real program API and packaged-server tests passed. This verifies interface behavior, not clinical accuracy or the quality of every model’s coaching decisions. Client/model evaluations are a separate gate.
+Earlier 1.2 releases were installed and discovered in Claude Desktop. The 1.3 Desktop update has not yet been retested. Optional real-assistant scenarios are implemented, but the attempted run was blocked by an expired Claude OAuth sign-in. Deterministic scenario tests do not establish actual assistant decision quality or validate the training model.
 
-## Where the assistant can investigate today
+## Evidence available to the assistant
 
-| Question | Existing tools / evidence |
+| Question | Tools |
 |---|---|
-| What are we training toward, and what phase are we in? | `get_program`, `get_today`, `get_training_block` |
-| What happened, and how did it feel? | `get_rides`, `get_ride_story`, `get_checkins`, `get_insights` |
-| Why is training constrained? | `get_load`, `get_today`, sport-specific programming, lifting guidance and calibration |
-| What session templates and rules are available? | `get_programming`, `get_lifting`, `get_skills`, `get_calibration` |
-| How would three starter workloads differ? | `preview_program`, then a focused detailed preview |
-| Can the assistant write and verify the program? | `apply_program`, followed by `get_program` and relevant daily reads |
-| Is performance actually changing? | `get_progress_evidence`, `get_aerobic`, follow-up reports and weekly review |
+| Goals, phases and current constraints | `get_program`, `get_today`, `get_training_block` |
+| Saved sessions, completions and projections | `get_training_calendar` |
+| Formula, baseline, contributors and uncertainty | `explain_training_reading` |
+| Feedback, unresolved symptoms and adaptation decisions | `get_adaptation_review` |
+| Alternatives and detailed prescriptions | `preview_program` |
+| Apply the reviewed proposal and verify | `apply_program`, `get_program`, `get_training_calendar` |
+| Performance evidence | `get_progress_evidence`, `get_aerobic` |
 
-Some older evidence tools still return substantial payloads. The public README explains the load formulas and their limitations; there is not yet a dedicated metric-explanation tool providing a per-reading calculation trace.
+Preview writes a separate local draft cache, so it is conservatively annotated as a write operation. Calendar, explanation and adaptation reads do not save coach records. Older derived-state reads retain conservative annotations.
 
-## Priorities for the next interface revision
+## Remaining work
 
-### 1. Apply the exact reviewed draft
-
-Currently Apply rebuilds a proposal from fields. It does not accept a locked draft ID or check whether athlete data changed between preview and save. Implement a server-side draft ID, input/state revision, expiry, and an idempotent Apply operation. If state changed, return a readable conflict and require a new preview. Verify the saved phases and detailed sessions, not merely a success message.
-
-### 2. Inspect the saved calendar in small ranges
-
-Add a bounded calendar read for existing prescriptions, actual completions and projections. Preview detail describes a proposed scenario, not a universal read of every saved workout. Include stable session IDs and the source of each prescription so the assistant can target one session without rebuilding unrelated weeks.
-
-### 3. Explain a reading from its evidence
-
-Expose metric definitions, units, model version, measured inputs, assumed inputs, session contributions, recovery behavior and uncertainty on request. Include the applicable formula and source references, but do not portray assumed regional allocations as measured tendon forces. This is how the assistant can investigate what a summary means without receiving the entire data history at once.
-
-### 4. Expose the existing adaptation workflow deliberately
-
-The app has session-report, progression comparison, symptom resolution and phase-profile APIs that are not all represented by dedicated MCP tools. Add explicit read/compare/commit operations rather than a generic arbitrary-API tool. Keep athlete authorization, current running holds, phase purpose and cross-sport overlap visible. A report that an intended recovery session felt easy is not automatically a reason to add load.
-
-### 5. Make forecast and execution agree
-
-A synthetic starter cycling prescription had three power steps totaling 17 minutes, but the ride widget constructed its generic warm-up/ramp/main/cool-down layout instead. Investigate that handoff and verify planned steps, saved workout blocks, player execution and forecast use the same prescription. This is an app integration concern as well as an MCP concern.
-
-### 6. Evaluate complete coaching tasks
-
-Use synthetic athlete fixtures and score outcomes, not just successful tool calls: recovery-week “too easy,” a current running hold, shoulder discomfort, a near event, missing lift anchors, delayed adverse response, an intervening workout before Apply, and preserved completed history. Measure whether the assistant chooses relevant evidence, respects constraints, proposes an appropriate change, obtains approval and verifies the result. Repeat across the desktop assistants intended for users.
+- Expand dedicated write tools for existing session reports, symptom resolution and phase-profile review; adaptation reading is now available.
+- Verify cycling starter prescription → workout player → forecast consistency. An earlier synthetic prescription exposed a generic player-layout handoff mismatch; this update does not resolve that integration issue.
+- Complete actual assistant scenario evaluations after sign-in is restored, then repeat across supported desktop assistants. Evaluate evidence selection, constraints, approval and verification, not just tool-call success.
+- Some older evidence responses remain large. Continue bounding detail requests while preserving constraints and uncertainty.
 
 ## Audience fit
 
