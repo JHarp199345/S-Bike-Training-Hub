@@ -55,6 +55,22 @@ check(f"without run evidence nothing changes (reference {base['reference_points'
 weekly = [x for x in learned["block_learning"] if x.get("score") is not None]
 check(f"weeks of too-easy runs grow the block week by week ({base['reference_points']} -> {learned['reference_points']})",
       learned["reference_points"] > base["reference_points"] and len(weekly) >= 2)
+long_dates = [(D0 + dt.timedelta(days=i)).isoformat() for i in range(84)]
+easy = damage.learn_block(long_dates, [10.0 if i % 7 in (0, 3) else 0 for i in range(84)],
+                          {d: {"feet": 1, "legs": 1} for d in long_dates},
+                          {long_dates[i]: {"hrr": 0.6, "eff": 0.11 * 1.01 ** (i // 7), "drift": 1.0, "minutes": 40}
+                           for i in range(84) if i % 7 in (0, 3)}, 12.0)
+anchor, over, weekly_n = None, [], 0
+for x in easy[1]:
+    if x.get("score") is None:                     # a measurement (first run, calibration): the allowance restarts
+        anchor = x["to"]
+        continue
+    anchor = anchor or x["from"]
+    weekly_n += 1
+    if x["to"] > anchor * 1.30 + 0.05:
+        over.append(x["date"])
+check(f"weeks of easy running grow the block at most 30% between measurements ({weekly_n} weekly steps, over: {over})",
+      weekly_n >= 3 and not over)
 check("…by 1-10% a week, scored on how easily the runs were absorbed",
       all(1.0 <= 100 * (x["to"] / x["from"] - 1) <= 10.05 and 0 <= x["score"] <= 1 for x in weekly))
 check("each step says why", learned["block_learning"] and all(s["why"] and s["to"] != s["from"] for s in learned["block_learning"]))
