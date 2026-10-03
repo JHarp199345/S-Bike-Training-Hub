@@ -234,6 +234,11 @@ def step_force(mass_kg, v, spm):
     return mass_kg * G * (walk_mult + f * (run_mult - walk_mult))
 
 
+def automatic_run_learning(prof, reviews=None):
+    """Protected/legacy recovery keeps its reviewed block size; ordinary training may learn."""
+    return (prof.get('return_to_run') is False and not prof.get('_protected_run_recovery') and not reviews)
+
+
 def run_evidence(scored, prof):
     """Per running day, for learning the block: share of heart-rate reserve and pace per heartbeat (km/h per bpm
     over resting). The longest run of the day speaks for it."""
@@ -497,7 +502,7 @@ def analyse(acts, prof, today=None, meta=None, feet_reports=None, daily_steps=No
                                                   u_imp, prof["weight_kg"], feet_reports,
                                                   run_doses=[r["sports"].get("run", {}).get("impact", 0.0) for r in days],
                                                   walking=walking, block=prof.get("block_points"), reviews=run_reviews,
-                                                  runs=run_evidence(scored, prof))
+                                                  runs=run_evidence(scored, prof) if automatic_run_learning(prof, run_reviews) else None)
     if systems["impact"]["tissue"]:
         systems["impact"]["tissue"]["walking"] = {k: v for k, v in walking.items() if k != "steps"}
     if systems["impact"]["tissue"]:
@@ -870,6 +875,7 @@ def summary(base, today=None):
         weekly = set(_coach.load(base / "coach.json").get("weekly", {}))
     except Exception:
         weekly = set()
+    prof['_protected_run_recovery'] = bool(coach.load(base / 'coach.json').get('run_progression'))
     out = analyse(acts, prof, today, meta, feet_reports, load_steps(base), lift_blocks, weekly,
                   (coach.load(base / "coach.json").get("run_progression") or {}).get("reviews", []))
     out["lifting"] = lifted

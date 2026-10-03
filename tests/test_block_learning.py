@@ -4,6 +4,7 @@ or decline are carried without rough mornings or slower running. The curve's sha
 import sys, pathlib; sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 import datetime as dt
 import damage
+import loads
 
 ok = True
 
@@ -34,6 +35,14 @@ def reports(feet=2, legs=3, rough_after=None):
 def runs(hrr=0.62, eff=0.11, slower_from=None):
     return {dates[i]: {"hrr": hrr, "eff": eff * (0.9 if slower_from is not None and i >= slower_from else 1)} for i in RUNS}
 
+
+
+check("protected and legacy recovery cannot automatically rescale blocks", not loads.automatic_run_learning({}) and not loads.automatic_run_learning({'return_to_run':True}))
+check("existing recovery protocol remains protected despite fresh setup", not loads.automatic_run_learning({'return_to_run':False,'_protected_run_recovery':True}))
+check("reviewed recovery cannot automatically rescale blocks", not loads.automatic_run_learning({'return_to_run':False},[{'action':'begin_decline'}]))
+check("ordinary training can use evidence learning", loads.automatic_run_learning({'return_to_run':False}))
+middling = damage.remodeling_response(dates, doses(), feet_reports=reports(feet=4,legs=4), runs=runs())
+check("middling mornings do not count as clean first-run capacity evidence", not any('heart-rate reserve' in x['why'] for x in middling['block_learning']))
 
 base = damage.remodeling_response(dates, doses(), feet_reports=reports())
 learned = damage.remodeling_response(dates, doses(), feet_reports=reports(), runs=runs())

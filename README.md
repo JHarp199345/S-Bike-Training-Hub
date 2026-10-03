@@ -12,7 +12,7 @@ The **connected-bike feature** was built for, and has only been tested on, the *
 
 ## Start with your training
 
-- **Plan toward a goal.** Schedule sessions, including multiple sessions in a day, and organize them into a flexible program of phases, with a default 12-week starter horizon and weekly reviews.
+- **Plan toward a goal.** Schedule sessions, including multiple sessions in a day, and organize them into a flexible program of phases, with a default 12-week starter horizon, phase-based volume progression, distinct peak-volume and peak-performance weeks, and weekly reviews.
 - **See the different costs of training.** Cardiovascular load, running impact and accumulated recovery, swimming exposure, and regional lifting recovery are tracked separately. The body map shows overlapping sources of muscle demand.
 - **Look ahead.** The calendar shows workout details and swim-profile rationale. Projected-load graphs group related metrics in four-card pages, with recorded history separated from forecasts.
 - **Compare the plan with reality.** Import watch workouts, log lifting details, record how sessions felt, and use next-day/follow-up reports and Sunday reviews to inform adjustments.
@@ -28,6 +28,8 @@ Start in **Welcome** with the sports you train, experience, starting condition, 
 - **Preview is a draft.** Review and edit phases, dates, names, colors, sport priorities, and weekly/date-specific placements without replacing your saved program. Apply explicitly from today or a future date; completed history and existing workouts are retained.
 - **Horizontal saved timeline, vertical editor.** Select a phase to see its purpose and chosen week. **Weeks in this phase** opens expandable weeks and day strips; **View more** opens a program calendar with three months per row. Detailed workouts and projected-load graphs remain accessible from that calendar.
 - **A single Fitness Dashboard.** Current readings, controls, calibration, recovery and watch insights share one scrolling page with translucent cards over generated landscape artwork. Progress emphasizes measured changes and the evidence behind them. Uploaded artwork stays local.
+
+For heavier lifting after a light training period, see [strength capacity and recovery calibration](docs/strength-capacity.md).
 
 ### What the three forecasts actually calculate
 
@@ -198,7 +200,7 @@ Edit [`regions.json`](regions.json) (name, bounding box, center, zoom) and run `
 
 The MCP server gives an optional AI assistant tools to read training data, inspect templates and calibration, preview programs and write plans. It uses the Hub’s own calculations. Some newer controls still need dedicated MCP tools; see the [MCP capability review](docs/mcp-capability-review.md).
 
-**Desktop MCP bundle:** [Download MCP 1.3.0](https://github.com/JHarp199345/S-Bike-Training-Hub/releases/download/mcp-v1.3.0/s-bike-hub-mcp-1.3.0.mcpb), or read the [release notes](https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/mcp-v1.3.0). Install it in your compatible desktop MCP client and replace the older bundle. The updated Hub must be running locally. App updates do not automatically update an installed bundle. Version 1.3 adds exact reviewed-draft application, saved calendar inspection, reading explanations and adaptation review; see [integration details](docs/mcp-1.2-integration.md).
+**Desktop MCP bundle:** [Download MCP 1.4.0](https://github.com/JHarp199345/S-Bike-Training-Hub/releases/download/mcp-v1.4.0/s-bike-hub-mcp-1.4.0.mcpb), or read the [release notes](https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/mcp-v1.4.0). Install it in your compatible desktop MCP client and replace the older bundle. The updated Hub must be running locally. App updates do not automatically update an installed bundle. Version 1.4 retains reviewed-draft planning and evidence tools, adding guided bike setup and missed-session review; see [integration details](docs/mcp-1.2-integration.md).
 
 - **Command line:** `./hub today`, `./hub rides`, `./hub fitness`, `./hub load`, `./hub checkins`, `./hub checkin --feet 4 --legs 5`, `./hub steps 2026-09-27=6200`, `./hub import FILE.fit`, `./hub plan --verdict easy --note "…" --workout ID`, `./hub split --total 30 --intervals 3`. Run `./hub --help` for the rest.
 - **MCP server:** [`mcp_server.py`](mcp_server.py) exposes tools (today, check-ins, rides, a ride's full story, fitness, body-system load, importing watch files, daily steps, morning readiness, effort ratings, the day's focus and plan, area routes, climb goals, skill ladders, calibration and tests, test weeks, the aerobic engine, sport carry-over, milestones, workouts…) to compatible MCP clients. For Claude Code:
@@ -212,16 +214,18 @@ The MCP server gives an optional AI assistant tools to read training data, inspe
 ### Install the Claude Desktop extension
 
 1. Start the updated Hub using its Desktop launcher. The extension does not install or start the main app for you.
-2. Download the **1.3.0 `.mcpb`** above. In Claude Desktop, open **Settings → Extensions → Advanced settings → Install extension**, and select the file.
+2. Download the **1.4.0 `.mcpb`** above. In Claude Desktop, open **Settings → Extensions → Advanced settings → Install extension**, and select the file.
 3. Review the extension’s local-access notice and install it. Under **Configure**, leave the Hub address at `http://127.0.0.1:8729` unless you deliberately changed the port.
-4. Confirm **Enabled** is on and the tools are listed. This version exposes **55 tools**, including **Get program**, **Preview program**, **Apply program**, and **Get progress evidence**. Normal tool approval prompts are expected.
+4. Confirm **Enabled** is on and the tools are listed. This version exposes **63 tools**, including **Get program**, **Preview program**, **Apply program**, and **Get progress evidence**. Normal tool approval prompts are expected.
 5. Ask the assistant to read the current program first, preview proposed changes, explain forecast assumptions and limits, and apply only the changes you approve. It should then read back the saved program.
 
-**Earlier 1.2 releases were installed and discovered in Claude Desktop without manual configuration.** The 1.3 packaged server passed an isolated read → preview → apply → check-in → calendar → evidence test on macOS’s stock Python 3.9; its Desktop update has not yet been retested. The main Hub still requires Python 3.11+ and the normal app setup above. This is a local desktop connection; a remote cloud session cannot reach your Mac’s localhost directly.
+**Earlier 1.2 releases were installed and discovered in Claude Desktop without manual configuration.** The 1.4 packaged server passed an isolated read → preview → apply → check-in → calendar → evidence test on macOS’s stock Python 3.9; its Desktop update has not yet been retested. The main Hub still requires Python 3.11+ and the normal app setup above. This is a local desktop connection; a remote cloud session cannot reach your Mac’s localhost directly.
 
 Program previews return a compact scenario comparison; the assistant can request **1–7 days** of detailed prescriptions and projected readings at a time. This keeps the working context manageable. Preview stores the exact proposal in a separate local cache for six hours without changing training records. Apply requires its `draft_id`, preserves completed history, and rejects changed athlete inputs or expired drafts. Repeating a retained applied draft returns its receipt. Update the app and bundle together: older field-based Apply requests are no longer accepted. Use `get_training_calendar` for 1–14 days of saved sessions, completions and projections, `explain_training_reading` for calculation evidence, and `get_adaptation_review` for contextual feedback decisions. [Verified behavior and remaining work](docs/mcp-capability-review.md).
 
 The Hub now includes persistent **macro programs with editable phases and detailed starter workouts for up to 12 weeks**, multiple daily sessions, sport-specific workout templates, projected loads, and Sunday review recommendations. An AI coach can use these tools to build and revise a plan around your event goals, available time, calculated load, and reports. A block can extend an already scheduled week; it is not an autonomous guarantee of an optimized program. Recheck actual results and readiness as the week unfolds.
+
+Missed sessions can be recorded with reasons. The assistant can compare recent planned and completed weeks before proposing changes. [Detailed implementation reference](docs/how-it-works.md).
 
 The workflow is **plan → train → import/log → report → review and adapt**. Lifting has its own follow-ups, while Sunday reviews consider the training week across sports. If your AI has a separate watch connector (COROS, for example), it can import activities and record daily steps; otherwise, import watch files yourself.
 
@@ -503,7 +507,7 @@ Everything lives in the project folder and is git-ignored: rides (`rides/`), wat
 
 Setting up a bike is a step on the welcome page: **Your bike → Scan for my bike**, then click yours in the list.
 
-- **Recognized** (a saved or built-in profile, like the Merach S29) or **standard** (any bike that speaks the Fitness Machine Service, which most smart bikes made since ~2020 do): one click and it connects. No AI involved.
+- **Recognized** (a saved or built-in profile, like the Merach S29) or **standard** (any bike that speaks the Fitness Machine Service, when they expose the required FTMS services): one click and it connects. No AI involved.
 - **Not recognized yet:** say yes to *"May the hub ask your assistant to set this bike up?"*, then open your AI assistant and type **get my bike working**. The assistant reads the bike's data through the hub's MCP tools, writes a bike profile (settings, never code), and the hub runs a short guided check while you pedal. The hub enforces the safety rules itself: no resets, no resistance 0, only small in-range steps. Share the finished profile and the next owner of that bike gets the one-click path.
 
 How it works, the safety rules and how it was tested: [docs/bike-setup.md](docs/bike-setup.md). The S29's quirks (16 levels, ignores hill simulation, reboots on a reset or "resistance 0") live in its profile, [bike_profiles/merach-s29.json](bike_profiles/merach-s29.json). Profiles for other bikes are very welcome.
