@@ -64,7 +64,7 @@ class StarterTests(unittest.TestCase):
   for c in r['candidates']:
    j=c['journey'];share=[w['share_of_available'] for w in j]
    self.assertTrue(all(w['minutes']<=240 for w in j))
-   self.assertEqual(j[0]['shape'],'test');self.assertLessEqual(share[0],.45)
+   self.assertEqual(j[0]['shape'],'test');self.assertLessEqual(share[0],.6)   # three tests, the running calibration up to 60 min
    self.assertLess(share[1],.6)
    pv=[w for w in j if w['shape']=='peak_volume'];pp=[w for w in j if w['shape']=='peak_performance']
    self.assertTrue(pv and pp)

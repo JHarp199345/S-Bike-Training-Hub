@@ -43,6 +43,13 @@ TESTS = {
                              "nothing hard the day before, about the same time of day. Afterwards say how it felt "
                              "(1-10) and whether anything hurt; then check in feet, legs and the hop test the next "
                              "two mornings - that's the test."},
+    "run_calibration": {"name": "Running calibration", "sport": "run", "minutes": 60, "every": 42, "capacity": "block",
+                        "needs_running": True,
+                        "how": "On a day you feel your best: up to 60 minutes of continuous running or run/walk, holding "
+                               "heart-rate zone 2 (conversational) the whole time. Stop early if your form breaks down or "
+                               "anything hurts - what you complete is the measurement. Then no running for 8 days: ride, "
+                               "swim and lift as planned, and check in feet, legs and the hop test each morning. Day 9 sets "
+                               "your running block."},
 }
 
 CAPACITIES = {
@@ -184,6 +191,59 @@ MAX_GAIN = 0.15
 
 def _clamp(x, lo, hi):
     return max(lo, min(hi, x))
+
+
+# ── the running calibration: one measured effort sets the block (the rider's design, 2026-10-03) ─────────
+# A block is one effort and its ~8-day recovery (5-day plateau, 3-day decline), so the most direct measure is one
+# controlled effort and the 8 days after it. The block is that run's load times how well it was absorbed:
+# heart-rate drift says how comfortably aerobic it stayed; the mornings and hop tests say what the tissue thought.
+CAL_WATCH_DAYS = 8
+CAL_DRIFT = ((3.0, 1.5), (5.0, 1.25), (8.0, 1.0))   # drift up to x% with clean mornings -> multiplier
+CAL_OVER = 0.8                                      # rough mornings, a hop drop, pain or 8%+ drift: the run was more than a block
+
+
+def run_calibration(d, date, run, checkins, today, other_runs=()):
+    """Grade a running calibration once its eight-day watch is over. `run` is the scored activity (impact points,
+    drift_pct, minutes). Records the block as a test and returns the result; None while watching or already done."""
+    cals = d.setdefault("benchmarks", {}).setdefault("calibrations", {})
+    rec = cals.setdefault(date, {})
+    if rec.get("result"):
+        return None
+    day = dt.date.fromisoformat(date)
+    elapsed = _days(date, today)
+    if elapsed <= CAL_WATCH_DAYS:
+        return None
+    window = [(day + dt.timedelta(days=k)).isoformat() for k in range(1, CAL_WATCH_DAYS + 1)]
+    said = [checkins[k] for k in window if k in checkins and (checkins[k].get("feet") is not None or checkins[k].get("legs") is not None)]
+    if len(said) < (6 if elapsed < 14 else 4):
+        return None
+    worst = max(c[k] for c in said for k in ("feet", "legs") if c.get(k) is not None)
+    hop = lambda c: c.get("hops") if c.get("hops") is not None else min([x for x in (c.get("hops_left"), c.get("hops_right")) if x is not None], default=None)
+    before = [hop(c) for k, c in sorted(checkins.items()) if k <= date and hop(c) is not None]
+    after = [hop(checkins[k]) for k in window if k in checkins and hop(checkins[k]) is not None]
+    dropped = bool(before and after) and min(after) <= before[-1] - 2
+    drift = run.get("drift_pct")
+    points = float(run.get("impact") or 0)
+    if not points:
+        return None
+    if worst >= 6 or dropped or rec.get("pain") or (drift is not None and drift >= CAL_DRIFT[-1][0]):
+        mult, why = CAL_OVER, ("rough mornings" if worst >= 6 else "the hop test dropped" if dropped else
+                               "it hurt" if rec.get("pain") else f"heart rate drifted {drift:.1f}%") + ": the run was more than one block"
+    elif worst >= 4:
+        mult, why = 1.0, f"mornings up to {worst:g}/10: about one full block"
+    elif drift is None:
+        mult, why = 1.0, "clean mornings, but no heart-rate drift reading (under 30 min or unsteady): one block, no headroom claimed"
+    else:
+        mult = next(m for limit, m in CAL_DRIFT if drift <= limit)
+        why = f"clean mornings and {drift:.1f}% heart-rate drift"
+    if other_runs:
+        mult = min(mult, 1.0)
+        why += f"; ran again during the watch ({', '.join(other_runs)}), so no headroom claimed"
+    block = round(points * mult, 1)
+    rec.update({"result": "set", "points": round(points, 1), "multiplier": mult, "block": block, "drift_pct": drift,
+                "worst_morning": worst, "hop_drop": dropped, "minutes": run.get("minutes"), "graded": today, "why": why})
+    record(d, "block", block, "test", date, f"running calibration: {round(points)} pts x {mult} ({why})")
+    return rec
 
 
 def benchmark_report(d, date, rpe=None, pain=False, note=""):

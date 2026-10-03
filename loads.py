@@ -529,7 +529,7 @@ def analyse(acts, prof, today=None, meta=None, feet_reports=None, daily_steps=No
                                                   run_doses=[r["sports"].get("run", {}).get("impact", 0.0) for r in days],
                                                   walking=walking, block=prof.get("block_points"), reviews=run_reviews,
                                                   runs=run_evidence(scored, prof) if automatic_run_learning(prof, run_reviews) else None,
-                                                  learn_since=prof.get('_reviewed_run_date'))
+                                                  learn_since=max([x for x in (prof.get('_reviewed_run_date'), prof.get('_block_test_date')) if x], default=None))
     if systems["impact"]["tissue"]:
         systems["impact"]["tissue"]["walking"] = {k: v for k, v in walking.items() if k != "steps"}
     if systems["impact"]["tissue"]:
@@ -877,6 +877,7 @@ def summary(base, today=None):
             prof["swim_css"] = est["swim_css"]["value"]
         if est["block"]["value"] and "test" in (est["block"]["source"] or ""):
             prof["block_points"] = est["block"]["value"]
+            prof["_block_test_date"] = est["block"].get("last_test")     # learning restarts from the measured block
     except Exception:
         est = None
     try:                                        # power and heart rate together, ride by ride (aerobic.py)

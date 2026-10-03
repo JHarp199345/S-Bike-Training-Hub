@@ -925,6 +925,14 @@ def calibration_view(d, rides, running_cleared_in=None):
                     if result.get('result')=='grew': result['result']='review_candidate'
                     d.setdefault('benchmarks', {}).setdefault('runs', {})[day] = result
                     coach.save(d)
+        # running calibrations on the plan: the athlete's own test sets the block once its eight-day watch is over
+        for day, plan_ in d.get("plans", {}).items():
+            if plan_.get("test") == "run_calibration" and day in acts:
+                end = (__import__("datetime").date.fromisoformat(day) + __import__("datetime").timedelta(days=calibration.CAL_WATCH_DAYS)).isoformat()
+                others = sorted(k for k in acts if day < k <= end)
+                if calibration.run_calibration(d, day, acts[day], d.get("checkins", {}), coach.today(), others):
+                    coach.save(d)
+                    _load_cache["key"] = None
         bench = calibration.benchmark_expectation(d, coach.today(), rem["reference_points"]) if rem.get("reference_points") else None
         return {"capacities": est, "due": calibration.due(est, running_cleared=(running_cleared_in == 0)), "benchmark": bench,
                 "benchmarks": dict(sorted(((d.get("benchmarks") or {}).get("runs") or {}).items())[-5:]),
