@@ -137,13 +137,18 @@ def running_progression(d, load, today, daily, gate):
     """Is the plan challenging running the right amount? The load on the coming week's run days against the target
     for this phase and state (build wave, maintenance, automatic deload), plus the weekly cap on absolute load."""
     import progression, training_block as B
-    ctx=progression.context(d,today,'run');phase=ctx['phase'];purpose=ctx.get('purpose')
-    week_end=(dt.date.fromisoformat(today)+dt.timedelta(days=6)).isoformat()
-    run_days={r['date'] for r in daily if r['date']<=week_end and any(s['sport']=='run' for s in B.sessions(d.get('plans',{}).get(r['date']) or {}))}
+    # One calendar week, so the wave's target and the runs it judges agree: the rest of this week through
+    # Friday, then next week from the weekend on.
+    now=dt.date.fromisoformat(today)
+    week_start=now if now.weekday()<=4 else now+dt.timedelta(days=7-now.weekday())
+    week_end=(week_start+dt.timedelta(days=6-week_start.weekday())).isoformat()
+    judged=week_start.isoformat()
+    ctx=progression.context(d,judged,'run');phase=ctx['phase'];purpose=ctx.get('purpose')
+    run_days={r['date'] for r in daily if judged<=r['date']<=week_end and any(s['sport']=='run' for s in B.sessions(d.get('plans',{}).get(r['date']) or {}))}
     reading=lambda day:next((m for m in day['readings'] if m['key']=='run_mechanical'),{})
     on_runs=[reading(day).get('after') for day in daily if day['date'] in run_days]
     peak=round(max(on_runs),2) if on_runs and None not in on_runs else None
-    planned=sum(reading(day).get('session_dose') or 0 for day in daily if day['date']<=week_end)
+    planned=sum(reading(day).get('session_dose') or 0 for day in daily if today<=day['date']<=(now+dt.timedelta(days=6)).isoformat())
     rem=_rem(load)
     days=load.get('days') or [];ref=rem.get('reference_points')
     prior=[]
@@ -157,8 +162,8 @@ def running_progression(d, load, today, daily, gate):
     elif purpose in RUN_TARGETS and purpose in ('maintain','pause','recover'):mode,band=purpose,RUN_TARGETS[purpose]
     elif phase in RUN_TARGETS:mode,band=phase,RUN_TARGETS[phase]
     else:
-        wave=_wave(d,today);mode,band='build: '+wave+' week',RUN_WAVE[wave]
-    out={'phase':phase,'mode':mode,'target_blocks':list(band),'band':list(RUN_BAND),'planned_week_peak_blocks':peak,
+        wave=_wave(d,judged);mode,band='build: '+wave+' week',RUN_WAVE[wave]
+    out={'phase':phase,'mode':mode,'week':[judged,week_end],'target_blocks':list(band),'band':list(RUN_BAND),'planned_week_peak_blocks':peak,
          'planned_week_blocks':round(planned,2),'weekly_cap_blocks':cap,'prior_weeks_blocks':[round(x,2) for x in prior],
          'block_points':ref,'last_block_change':learned[-1] if learned else None,'deload':deload,'status':None,'advice':None}
     if deload and deload.get('whole_body'):
