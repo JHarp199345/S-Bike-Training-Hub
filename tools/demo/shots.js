@@ -21,6 +21,14 @@ const VIEWS = [['desktop', { width: 1280, height: 900 }], ['phone', { width: 390
     await page.click('[data-tab="plan"]').catch(() => {}); await settle(2000);
     await shot('plan');
     await shot('plan-full', { fullPage: true });
+    // open the phase that holds today: its week strip and View more appear
+    const idx = await page.evaluate(d => { const cards=[...document.querySelectorAll('#programoverview [data-program-phase]')];
+      const i=cards.findIndex(c=>{const m=c.querySelector('small')?.textContent.match(/(\d{4}-\d{2}-\d{2}).*?(\d{4}-\d{2}-\d{2})/);return m&&m[1]<=d&&d<m[2];});
+      return i<0?cards.length-1:i; }, day);
+    const card = page.locator(`#programoverview [data-program-phase="${idx}"]`);
+    if (await card.count()) { await card.first().click(); await settle(2500); await shot('plan-phase');
+      const det = page.locator('#programoverview .phase-week-browser').first();
+      if (await det.count()) { await det.scrollIntoViewIfNeeded(); await det.screenshot({ path: `${out}/${name}-phase-week.png` }); } }
     const strip = page.locator('#weekstrip');
     if (await strip.count() && await strip.isVisible()) { await strip.scrollIntoViewIfNeeded(); await strip.screenshot({ path: `${out}/${name}-weekstrip.png` }); }
     // the full program calendar (View more)

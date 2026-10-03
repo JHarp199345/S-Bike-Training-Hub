@@ -90,4 +90,11 @@ class StarterTests(unittest.TestCase):
   easy=next(c for c in r['candidates'] if c['level']=='easy')
   self.assertTrue(all(w['share_of_available']<=.81 for w in easy['journey']))
   self.assertLessEqual(easy['journey'][0]['share_of_available'],.5)
+ def test_starter_strength_can_be_checked_off(self):
+  import lifting
+  for equipment in ('basic','barbell'):
+   w=S.workout('gym',30,2,'moderate','new',equipment,{})
+   d={'plans':{'2026-06-11':{'sessions':[w]}},'checkins':{}}
+   log=lifting.log(d,'2026-06-11',None,6,7)
+   self.assertTrue(log and all('seconds' in x and 'per_side' in x for x in w['lifts']))
 if __name__=='__main__':unittest.main()
