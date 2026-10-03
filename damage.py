@@ -133,7 +133,7 @@ def learn_block(dates, doses, reports, runs, start_reference, **kw):
     first = run_days[0]
     r0 = runs.get(dates[first]) or {}
     m0 = mornings(first)
-    if r0.get("hrr") and len(m0) >= 2 and not any(_rough(x) for x in m0):
+    if r0.get("hrr") and len(m0) >= 2 and all(_clean(x) for x in m0):
         cand = doses[first] * EFFORT_FULL / max(0.45, min(EFFORT_FULL, r0["hrr"]))
         if cand > ref * 1.05:
             new = min(cand, ref * LEARN_STEP_MAX)
@@ -153,7 +153,7 @@ def learn_block(dates, doses, reports, runs, start_reference, **kw):
         h_now, h_prev = (runs.get(dates[i]) or {}).get("hrr"), (runs.get(dates[prev]) or {}).get("hrr")
         alike = h_now is not None and h_prev is not None and abs(h_now - h_prev) <= 0.08   # only like-for-like efforts compare
         slower = alike and e_now is not None and e_prev is not None and e_now < 0.97 * e_prev
-        earlier = [x["hops"] for d, x in reports.items() if isinstance(x, dict) and x.get("hops") is not None and d <= dates[i]]
+        earlier = [x["hops"] for d, x in sorted(reports.items()) if isinstance(x, dict) and x.get("hops") is not None and d <= dates[i]]
         after = [x["hops"] for x in m if isinstance(x, dict) and x.get("hops") is not None]
         hops_drop = bool(earlier and after) and min(after) <= earlier[-1] - 2
         if any(_rough(x) for x in m) or slower or hops_drop:

@@ -54,3 +54,11 @@ Keep installation simple, retain ordinary approval controls, use the same local 
 - [Claude Desktop local MCP setup](https://support.claude.com/en/articles/10949351-getting-started-with-local-mcp-servers-on-claude-desktop): local servers and desktop installation.
 
 These references support interface design. They do not validate the Hub’s proprietary block scale or its recovery forecasts.
+
+## October 3 cloud-branch review and MCP 1.4
+
+The training-journey branch adds bike setup, phase-specific training progression and peak weeks, missed-session reasons/recent-week evidence, watch uploads, calendar improvements and a synthetic 12-week journey harness. MCP now exposes 63 tools. The branch head passed GitHub's macOS and Linux checks. Local testing passed 60 of 61 files, with the existing QR-image scanning failure.
+
+Review tightened running learning: protected, legacy and existing return-to-run protocols retain their reviewed block scale; automatic evidence-based rescaling is limited to ordinary training outside that protocol. Initial capacity growth now requires genuinely clean reports rather than merely reports below the roughness cutoff. The 60% plateau review gate remains. The global 50-day default is removed for ordinary users; an athlete-specific minimum remains supported and should be retained for athletes who requested it.
+
+The synthetic journey runs from its own copied app directory; updating source does not alter an already-running copy. Live personal servers must be restarted deliberately after their files are updated. No personal records are part of the release.
