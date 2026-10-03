@@ -2,9 +2,9 @@
   "manifest_version": "0.3",
   "name": "s-bike-hub",
   "display_name": "S-Bike Training Hub",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Coach from your smart-bike training hub: check-ins, plans, rides, lifting, workouts and training load for bike, run and swim.",
-  "long_description": "Drive the local Hub through reviewed-draft program saving, bounded calendar inspection, calculation evidence, adaptation reviews, load forecasts, workout planning and reports. Requires Hub 1.3-compatible APIs. Athlete files stay local; returned context follows the external AI provider\u2019s policies.",
+  "long_description": "Drive the local Hub through reviewed calendar changes, two-week load outlooks, evidence-based capacity recalibration, exact program drafts, calculation evidence and guided bike setup. Requires the matching updated Hub app. Athlete files stay local; returned context follows the external AI provider\u2019s policies.",
   "author": {
     "name": "JHarp199345",
     "url": "https://github.com/JHarp199345"

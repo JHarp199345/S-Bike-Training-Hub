@@ -62,3 +62,7 @@ The training-journey branch adds bike setup, phase-specific training progression
 Review tightened running learning: protected, legacy and existing return-to-run protocols retain their reviewed block scale; automatic evidence-based rescaling is limited to ordinary training outside that protocol. Initial capacity growth now requires genuinely clean reports rather than merely reports below the roughness cutoff. The 60% plateau review gate remains. The global 50-day default is removed for ordinary users; an athlete-specific minimum remains supported and should be retained for athletes who requested it.
 
 The synthetic journey runs from its own copied app directory; updating source does not alter an already-running copy. Live personal servers must be restarted deliberately after their files are updated. No personal records are part of the release.
+
+## MCP 1.5 coaching review
+
+Two-week cross-sport forecast context, exact reviewed calendar replacements and evidence-supported running/regional lifting capacity reviews are available through three new tools (66 total). Benchmark grades now propose review instead of silently increasing capacity on a read. See [workflow, provisional policies and limits](coaching-review.md). Local full tests: 61/62 files pass; the existing QR decode issue remains. New scenario and installable-bundle tests pass. The running personal app is not updated or restarted by this release.

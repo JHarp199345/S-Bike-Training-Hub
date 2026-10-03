@@ -15,7 +15,7 @@ import urllib.error
 import urllib.request
 
 BASE = __import__("os").environ.get("S29_HUB_URL", "http://127.0.0.1:8729")   # tests point this at a scratch server
-VERSION = "1.4.0"
+VERSION = "1.5.0"
 
 
 class HubError(Exception):
@@ -51,7 +51,9 @@ def _q(date):
 def t_today(a):
     out = call("/api/coach/today" + _q(_date(a)))
     try:
-        out["recent_weeks"] = call("/api/coach/recent-weeks?weeks=3&date=" + _date(a))["weeks"]
+        recent = call("/api/coach/recent-weeks?weeks=3&date=" + _date(a))
+        out["recent_weeks"] = recent["weeks"]
+        out["coaching_review"] = recent.get("coaching_review")
     except HubError:
         pass
     if out.get('training_block'):
@@ -364,6 +366,15 @@ def t_reading(a):
     from urllib.parse import urlencode
     return call('/api/coach/reading-evidence?'+urlencode({'date':_date(a),'metric':a['metric']}))
 
+def t_coaching_review(a):
+    return call('/api/coach/coaching-review?days='+str(a.get('days',14)))
+
+def t_coaching_preview(a):
+    return call('/api/coach/coaching-review',{**a,'action':'preview'})
+
+def t_coaching_apply(a):
+    return call('/api/coach/coaching-review',{**a,'action':'apply'})
+
 def t_adaptation(a):
     return call('/api/coach/progression')
 
@@ -459,6 +470,9 @@ PROGRAM_FIELDS['properties'] = {
     'schedule_options':{'type':'object'},'neutral_forecast':{'type':'boolean'}
 }
 TOOLS = [
+    ('get_coaching_review','Read the next 1–14 days of running/lifting outlook, forecast conflicts, holds, symptoms and evidence-based capacity review candidates. Does not save or clear holds.',S(days=INT('Days ahead, including today',1,14)),t_coaching_review),
+    ('preview_coaching_change','Preview calendar replacements or an evidence-supported capacity recalibration. Stores a six-hour review draft, without changing training records. Calendar changes replace all sessions on each specified uncompleted date in the next 14 days. Capacity target is running_block or lift_<region>; evidence determines direction and a provisional bounded step, never an arbitrary requested increase.',S(kind=STR('Review type',enum=['calendar','capacity']),target=STR('Capacity target: running_block or lift_<region>'),changes={'type':'array','minItems':1,'maxItems':14,'items':{'type':'object','required':['date','sessions'],'properties':{'date':DATE,'sessions':{'type':'array','items':{'type':'object'}}}}},note=STR('Why this change serves the program')),t_coaching_preview),
+    ('apply_coaching_change','Apply the exact reviewed coaching draft after explicit athlete approval. Rejects stale state, forecast violations and unresolved restrictions. Read back get_coaching_review and the calendar; this never grants running clearance.',S(draft_id=STR('ID returned by preview_coaching_change'),approved={'type':'boolean','description':'True only after athlete approval'}),t_coaching_apply),
     ("get_recent_weeks", "The athlete's response to the plan, week by week: planned vs done minutes against their "
      "available time, each week's phase and shape (build, consolidation, peak_volume, peak_performance, taper, race), "
      "hard sessions, and every missed session with its reason. Read it before deciding whether to build, hold, recover "
@@ -800,6 +814,8 @@ for name, _, schema, _ in TOOLS:
         schema["required"] = ["system", "usual_week"]
 for name, _, schema, _ in TOOLS:
     if name=='preview_program':schema['required']=['fields']
+    if name=='preview_coaching_change':schema['required']=['kind']
+    if name=='apply_coaching_change':schema['required']=['draft_id','approved']
     if name=='apply_program':schema['required']=['draft_id']
     if name=='explain_training_reading':schema['required']=['metric']
     if name=='propose_bike_profile':schema['required']=['profile']
@@ -807,7 +823,7 @@ for name, _, schema, _ in TOOLS:
     if name=='run_bike_check':schema['required']=['athlete_ready']
     if name=='record_missed_session':schema['required']=['date','reason']
 BY_NAME = {t[0]: t for t in TOOLS}
-INSTRUCTIONS = ("A bike, run, and swim training companion (built on a Merach S29 smart bike). If the athlete says "
+INSTRUCTIONS = ("Before placing or increasing running or lifting, read get_coaching_review and inspect the next two weeks, including openers after peak weeks. Repair forecast conflicts by shortening, spacing, replacing affected work or resting, then preview_coaching_change(kind=calendar) and compare the whole sequence. Preserve recovery/taper purpose and cross-sport overlap. Repeated matched prediction errors or a completed benchmark with delayed recovery may produce a capacity candidate; preview_coaching_change(kind=capacity) proposes an increase or decrease, not a guaranteed increase. Never schedule a benchmark inside a running hold, or use competition performance alone as proof of recovery tolerance. Apply only approved drafts using apply_coaching_change, then read back the outlook and saved calendar. Existing doses and forecasts remain recorded. Optional exercise tempo/range descriptions are estimates; do not invent force or work from machine-labelled pounds. " + "A bike, run, and swim training companion (built on a Merach S29 smart bike). If the athlete says "
                 "'get my bike working' (or anything like it: their bike won't connect, the hub doesn't recognize "
                 "it), call get_bike_setup_request first and follow its steps; never ask them to paste anything. "
                 "Otherwise start with get_today "
@@ -843,7 +859,7 @@ def handle(msg):
         return {}
     if method == "tools/list":
         return {"tools": [{"name": n, "description": d, "inputSchema": s,
-            "annotations": {"readOnlyHint": (n.startswith(('get_','list_','preview_','evaluate_','explain_')) and n not in ('get_training_block','get_today','get_skills','get_calibration','preview_program')),
+            "annotations": {"readOnlyHint": (n.startswith(('get_','list_','preview_','evaluate_','explain_')) and n not in ('get_training_block','get_today','get_skills','get_calibration','preview_program','preview_coaching_change')),
                             "openWorldHint": n in ('import_activities','plan_area_route','save_planned_route')}} for n, d, s, _ in TOOLS]}
     if method == "prompts/list":
         return {"prompts": [{"name": n, "description": d} for n, (d, _) in PROMPTS.items()]}
