@@ -378,6 +378,26 @@ async def handle(bridge, method, path, body, host):
             _load_cache["key"] = None
             return 200, "application/json", json.dumps({"steps": have}).encode(), {}
         return 200, "application/json", json.dumps({"steps": loads.load_steps(base)}).encode(), {}
+    if p == "/api/activities/upload" and method == b"POST":
+        # a watch file chosen on the Coach page: the raw bytes, named in ?name=
+        from urllib.parse import parse_qs, urlsplit
+        base = Path(bridge.csv_path).parent.parent if getattr(bridge, "csv_path", None) else HERE
+        name = Path(parse_qs(urlsplit(path).query).get("name", [""])[0]).name
+        ok = name.lower().endswith((".fit", ".tcx")) and not name.startswith(".") and 0 < len(body) <= 20_000_000
+        if ok and name.lower().endswith(".fit"):
+            ok = body[8:12] == b".FIT"
+        elif ok:
+            ok = b"TrainingCenterDatabase" in body[:4000]
+        if not ok:
+            return 400, "application/json", json.dumps({"error": f"{name or 'That file'} isn't a .fit or .tcx activity file"}).encode(), {}
+        folder = base / "activities"
+        folder.mkdir(exist_ok=True)
+        dest = folder / name
+        if dest.exists() and dest.read_bytes() == body:
+            return 200, "application/json", json.dumps({"imported": [], "already": [name]}).encode(), {}
+        dest.write_bytes(body)
+        _load_cache["key"] = None
+        return 200, "application/json", json.dumps({"imported": [name]}).encode(), {}
     if p == "/api/activities/import" and method == b"POST":
         base = Path(bridge.csv_path).parent.parent if getattr(bridge, "csv_path", None) else HERE
         try:
