@@ -35,6 +35,8 @@ HERE = Path(__file__).resolve().parent
 REPO = HERE.parent.parent
 sys.path[:0] = [str(HERE)]
 import fitwrite  # noqa: E402
+sys.path.insert(0, str(REPO))
+from coaching_review import run_hold  # noqa: E402
 
 PORT = 18850
 URL = f"http://127.0.0.1:{PORT}"
@@ -451,16 +453,13 @@ def assistant_review(day, a, say):
     out = rv["outlook"]
     gate = out["running_gate"]
     reasons = gate.get("reasons") or []
-    held = gate.get("status") != "open_for_review"
-    load_only = bool(reasons) and all(r.startswith("mechanical running load") for r in reasons)
-    clear_by = (day + dt.timedelta(days=int(gate["model_days"]))).isoformat() \
-        if held and load_only and gate.get("model_days") is not None else None
+    held, _ = run_hold(gate, day.isoformat())      # the hub's own rule: a due hop test holds only today's run
     last = (day + dt.timedelta(days=13)).isoformat()
     # (date, index) -> step on the ladder
     level = {}
     for row in out["sessions"]:
         key = (row["date"], row["index"])
-        if row["sport"] == "run" and held and (clear_by is None or row["date"] < clear_by):
+        if row["sport"] == "run" and held(row["date"]):
             level[key] = 1                            # a hold isn't fixed by a shorter run
         elif row["status"] != "within_projected_limits":
             level[key] = 0
@@ -527,7 +526,7 @@ def restore(day, a, gate, say):
         for s in ss:
             note, name = s.get("note") or "", s.get("name") or ""
             was = name.split("(instead of: ", 1)[1].rstrip(")") if "(instead of: " in name else None
-            if s.get("sport") == "ride" and was and "running" in note and gate.get("status") == "open_for_review":
+            if s.get("sport") == "ride" and was and "running" in note and not run_hold(gate, day.isoformat())[0](d0):
                 m = s["minutes"]
                 new.append({"sport": "run", "minutes": m, "name": was, "steps": [f"{m} min as planned"],
                             "note": "Back in the plan: the running gate is open again."})

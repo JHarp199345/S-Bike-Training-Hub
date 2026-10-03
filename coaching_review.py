@@ -86,7 +86,7 @@ def running_progression(d, load, today, daily, gate):
          'last_block_change':learned[-1] if learned else None,'status':None,'advice':None}
     if not band or phase=='recovery':
         out['status']='not_progressing';out['advice']='No running progression in this phase.'
-    elif gate.get('status')!='open_for_review' or progression.active_symptoms(d,today):
+    elif run_hold(gate,today)[0]((dt.date.fromisoformat(today)+dt.timedelta(days=1)).isoformat()) or progression.active_symptoms(d,today):
         out['status']='held';out['advice']='Resolve the running hold or symptoms first; do not add running load.'
     elif peak is None:
         out['status']='no_runs_planned';out['advice']='No runs with a forecast this week.'
@@ -189,6 +189,22 @@ def with_capacity(d,load,today,base):
     return out
 
 
+def run_hold(gate,today):
+    """Which dates the current running gate holds runs on, and the projected clear date for a load-only hold.
+    A hop test that is due is a precondition the athlete meets on the morning of the run, so it holds only
+    today's run. A hold from recent running load alone clears on the model's own projection. Symptoms,
+    a failed hop test, readiness and the return-to-run protocol hold every run until reviewed."""
+    if gate.get('status')=='open_for_review':return (lambda date:False),None
+    reasons=[str(r) for r in gate.get('reasons') or []]
+    due=any(r.startswith('hop test first') for r in reasons)
+    other=[r for r in reasons if not r.startswith('hop test first')]
+    if not other:return (lambda date:due and date==today),None
+    if all(r.startswith('mechanical running load') for r in other) and gate.get('model_days') is not None:
+        clear_by=(dt.date.fromisoformat(today)+dt.timedelta(days=int(gate['model_days']))).isoformat()
+        return (lambda date:date<clear_by or due and date==today),clear_by
+    return (lambda date:True),None
+
+
 def _store(base,payload,revision):
     db=program_drafts.connect(base)
     token=secrets.token_urlsafe(24);expires=time.time()+program_drafts.TTL_SECONDS
@@ -228,12 +244,11 @@ def preview(d,load,done,workouts,today,base,revision,fields):
         # A hold from recent running load alone clears on the model's own projection: it blocks runs before that
         # date (later runs still face their forecast). Symptoms, hop tests, readiness or the return-to-run protocol
         # block every run in the window.
-        load_only=bool(gate.get('reasons')) and all(str(r).startswith('mechanical running load') for r in gate['reasons'])
-        clear_by=(dt.date.fromisoformat(today)+dt.timedelta(days=int(gate['model_days']))).isoformat() if load_only and gate.get('model_days') is not None else None
+        held,clear_by=run_hold(gate,today)
         for row in after['sessions']:
             if row['date'] not in seen:continue
             if row['status']!='within_projected_limits':violations.append(row['date']+': '+str(row['name'])+' has unknown or excessive projected load')
-            if row['sport']=='run' and gate['status']!='open_for_review' and (clear_by is None or row['date']<clear_by):violations.append(row['date']+': current running hold remains in force'+(f' (projected to clear {clear_by})' if clear_by else ''))
+            if row['sport']=='run' and held(row['date']):violations.append(row['date']+': current running hold remains in force'+(f' (projected to clear {clear_by})' if clear_by else ''))
             if any(__import__('progression').affected(s,[symptom]) for symptom in after['active_symptoms'] for s in B.sessions(candidate['plans'][row['date']])):violations.append(row['date']+': unresolved symptom overlap')
         # Flag newly introduced or worsened limit breaches across all sports, including later days.
         before=outlook(d,load,done,workouts,today)
