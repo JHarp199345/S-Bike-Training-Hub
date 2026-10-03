@@ -249,9 +249,11 @@ def main():
             elif day == dt.date(2026, 7, 6):
                 a.shin = 2
             a.shoulder = 7 if dt.date(2026, 7, 8) <= day <= dt.date(2026, 7, 10) else 4 if day <= dt.date(2026, 7, 13) and day > dt.date(2026, 7, 10) else 2
-            checkin(day, a)
             week = api(f"/api/coach/week?date={day.isoformat()}")["week"]
             today = next(x for x in week if x["date"] == day.isoformat())
+            # the hub asks for the hop test before a run: the athlete does it in the morning check-in
+            runs_today = any(s_.get("sport") == "run" for s_ in today["sessions"])
+            checkin(day, a, {"hops_left": 22, "hops_right": 21 if a.shin < 5 else 9} if runs_today else None)
             at = dt.datetime.combine(day, dt.time(6, 45))
             hard_today = 0
             for i, s in enumerate(today["sessions"]):
