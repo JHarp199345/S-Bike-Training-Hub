@@ -105,7 +105,7 @@ def _clean(x):
     return all(x.get(k) is None or x[k] <= 3 for k in ("feet", "legs")) and x.get("feet") is not None
 
 
-def learn_block(dates, doses, reports, runs, start_reference, **kw):
+def learn_block(dates, doses, reports, runs, start_reference, since=None, **kw):
     """The block from evidence (the rider's design, 2026-10-03): how big a block is for this athlete.
 
     1. What the first run says: its impact is the run itself (distance, pace, steps); its heart rate says how hard
@@ -121,6 +121,8 @@ def learn_block(dates, doses, reports, runs, start_reference, **kw):
     ref, steps = start_reference, []
     idx = {d: i for i, d in enumerate(dates)}
     run_days = [i for i, x in enumerate(doses) if x > 0]
+    if since:                     # a reviewed block is the anchor: only runs after the review teach it more
+        run_days = [i for i in run_days if dates[i] > since]
     if not run_days:
         return ref, steps
 
@@ -133,7 +135,7 @@ def learn_block(dates, doses, reports, runs, start_reference, **kw):
     first = run_days[0]
     r0 = runs.get(dates[first]) or {}
     m0 = mornings(first)
-    if r0.get("hrr") and len(m0) >= 2 and all(_clean(x) for x in m0):
+    if not since and r0.get("hrr") and len(m0) >= 2 and all(_clean(x) for x in m0):
         cand = doses[first] * EFFORT_FULL / max(0.45, min(EFFORT_FULL, r0["hrr"]))
         if cand > ref * 1.05:
             new = min(cand, ref * LEARN_STEP_MAX)
@@ -174,7 +176,7 @@ def learn_block(dates, doses, reports, runs, start_reference, **kw):
 
 
 def remodeling_response(dates, doses, usual_week=None, weight_kg=70.0, feet_reports=None, walking=None, block=None, reviews=None,
-                        runs=None):
+                        runs=None, learn_since=None):
     """Provisional blocks: 5 days/block plateau, 3 days/block decline (to 20%), then a ~4-month remodeling tail.
     walking: {"steps": {date: steps walked outside runs}, "pts_per_step", "severity"} - daily walking adds blocks
     above the day's free steps; it extends the plateau (5 days/block) instead of restarting it.
@@ -217,7 +219,7 @@ def remodeling_response(dates, doses, usual_week=None, weight_kg=70.0, feet_repo
         reference = max(float(block), 1.0)
     learned = []
     if runs:                           # and the runs themselves teach how big it is (learn_block)
-        reference, learned = learn_block(dates, doses, reports, runs, reference, usual_week=usual_week,
+        reference, learned = learn_block(dates, doses, reports, runs, reference, since=learn_since, usual_week=usual_week,
                                          weight_kg=weight_kg, reviews=reviews)
 
     def adjust(j,stop,plateau_len):
@@ -432,14 +434,14 @@ def run(doses, base, p, adapt_gain=ADAPT_GAIN):
 
 
 def model(dates, doses, usual_week=None, weight_kg=70.0, feet_reports=None, run_doses=None, walking=None, block=None, reviews=None,
-          runs=None):
+          runs=None, learn_since=None):
     """dates: consecutive ISO days; doses: impact points per day. Returns each tissue's backlog today,
     its history, and a no-more-running projection."""
     if not dates:
         return None
     doses = list(doses)
     remodeling = remodeling_response(dates, run_doses if run_doses is not None else doses, usual_week, weight_kg,
-                                     feet_reports, walking, block, reviews, runs)
+                                     feet_reports, walking, block, reviews, runs, learn_since)
     event = event_response(dates, doses, usual_week, weight_kg, remodeling)
     base = base_capacity(usual_week, weight_kg)
     n = len(dates)

@@ -235,8 +235,9 @@ def step_force(mass_kg, v, spm):
 
 
 def automatic_run_learning(prof, reviews=None):
-    """Protected/legacy recovery keeps its reviewed block size; ordinary training may learn."""
-    return (prof.get('return_to_run') is False and not prof.get('_protected_run_recovery') and not prof.get('_reviewed_run_reference') and not reviews)
+    """Protected/legacy recovery keeps its reviewed block size; ordinary training may learn (after a reviewed
+    capacity change, only from runs since that review: see damage.learn_block)."""
+    return (prof.get('return_to_run') is False and not prof.get('_protected_run_recovery') and not reviews)
 
 
 def run_evidence(scored, prof):
@@ -502,7 +503,8 @@ def analyse(acts, prof, today=None, meta=None, feet_reports=None, daily_steps=No
                                                   u_imp, prof["weight_kg"], feet_reports,
                                                   run_doses=[r["sports"].get("run", {}).get("impact", 0.0) for r in days],
                                                   walking=walking, block=prof.get("block_points"), reviews=run_reviews,
-                                                  runs=run_evidence(scored, prof) if automatic_run_learning(prof, run_reviews) else None)
+                                                  runs=run_evidence(scored, prof) if automatic_run_learning(prof, run_reviews) else None,
+                                                  learn_since=prof.get('_reviewed_run_date'))
     if systems["impact"]["tissue"]:
         systems["impact"]["tissue"]["walking"] = {k: v for k, v in walking.items() if k != "steps"}
     if systems["impact"]["tissue"]:
@@ -879,6 +881,7 @@ def summary(base, today=None):
     if reviewed:
         prof['block_points'] = reviewed['reference']
         prof['_reviewed_run_reference'] = True
+        prof['_reviewed_run_date'] = reviewed['date']
     prof['_protected_run_recovery'] = bool(coach.load(base / 'coach.json').get('run_progression'))
     out = analyse(acts, prof, today, meta, feet_reports, load_steps(base), lift_blocks, weekly,
                   (coach.load(base / "coach.json").get("run_progression") or {}).get("reviews", []))

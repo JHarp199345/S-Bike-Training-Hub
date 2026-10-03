@@ -44,6 +44,10 @@ check("ordinary training can use evidence learning", loads.automatic_run_learnin
 middling = damage.remodeling_response(dates, doses(), feet_reports=reports(feet=4,legs=4), runs=runs())
 check("middling mornings do not count as clean first-run capacity evidence", not any('heart-rate reserve' in x['why'] for x in middling['block_learning']))
 
+
+anchored = damage.remodeling_response(dates, doses(), feet_reports=reports(), block=200.0, runs=runs(), learn_since=dates[9])
+check("after a reviewed capacity change, learning continues from the reviewed block using only later runs",
+      anchored["reference_points"] >= 200.0 and all(s["date"] > dates[9] for s in anchored["block_learning"]))
 base = damage.remodeling_response(dates, doses(), feet_reports=reports())
 learned = damage.remodeling_response(dates, doses(), feet_reports=reports(), runs=runs())
 check(f"without run evidence nothing changes (reference {base['reference_points']}, {base['score']} blocks)",
