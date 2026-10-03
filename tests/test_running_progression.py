@@ -39,5 +39,15 @@ check("taper doesn't ask for more", reading("taper", (0.5,))["status"] == "on_ta
 check("a running hold means no added load", reading("build", (0.3,), gate={"status": "hold", "reasons": ["x"]})["status"] == "held")
 check("an unresolved symptom means no added load", reading("build", (0.3,), symptoms=[{"regions": ["calves"]}])["status"] == "held")
 check("only the coming week counts", reading("build", (0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 1.4))["status"] == "under_target")
+held, _ = C.run_hold({"status": "hold", "reasons": ["hop test first: 10 pain-free single-leg hops on the worse leg clears you to run"]}, TODAY)
+check("a due hop test holds only today's run (the athlete hops that morning)", held(TODAY) and not held("2026-07-08"))
+check("…so it doesn't stop the plan from progressing running",
+      reading("build", (0.3,), gate={"status": "hold", "reasons": ["hop test first: 10 hops"]})["status"] == "under_target")
+held, clear = C.run_hold({"status": "hold", "reasons": ["mechanical running load 1.70 blocks exceeds the 1.5-block planning limit",
+                                                         "hop test first: 10 hops"], "model_days": 3}, TODAY)
+check(f"load plus a due hop test: held until the projected clear date ({clear})", held("2026-07-08") and not held("2026-07-09"))
+held, _ = C.run_hold({"status": "hold", "reasons": ["hop test: 6 pain-free hops - 10 clears you to run"]}, TODAY)
+check("a failed hop test holds every run until reviewed", held("2026-07-19"))
+check("an open gate holds nothing", not C.run_hold({"status": "open_for_review"}, TODAY)[0](TODAY))
 print("ALL PASS" if ok else "SOME FAILED")
 sys.exit(0 if ok else 1)
