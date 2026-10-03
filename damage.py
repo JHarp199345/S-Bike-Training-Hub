@@ -85,11 +85,20 @@ def walking_day(steps, pts_per_step, severity, before, fresh_steps=HABITUAL_STEP
             "points": counted * pts_per_step}
 
 
-LEARN_MARGIN = 0.8        # a tolerated carry of N blocks means the block is at least 0.8 x N as big
-LEARN_STEP_MAX = 1.6      # one piece of evidence grows the block by at most 60%
-LEARN_DOWN = 0.85         # a run followed by rough mornings or slower running shrinks it 15%
+LEARN_STEP_MAX = 1.6      # the first run's heart rate can grow the evidence-free block by at most 60%
+LEARN_DOWN = 0.85         # a run followed by rough mornings or slower running shrinks it 15%, at once
 LEARN_TOTAL_MAX = 6.0     # never more than 6x the evidence-free starting block
 LEARN_FLOOR = 0.7         # never under 70% of it
+# The weekly adaptation pathway (the rider's design, 2026-10-03): each week with in-band runs is scored on how
+# easily they were absorbed, and a week that read as too easy grows the block 1-10%. Provisional weights/thresholds.
+ADAPT_BAND = 0.8          # a run counts as evidence only if it carried at least this many blocks
+ADAPT_EXPECT = (1.5, 2.0) # predicted next-morning legs/feet rating: 1.5 + 2.0 x blocks carried
+ADAPT_MIN, ADAPT_MAX = 0.01, 0.10
+ADAPT_ONE_RUN = 0.05      # one run is thin evidence
+ADAPT_FEELINGS_ONLY = 0.03  # no heart-rate evidence: feelings alone grow it at most 3%
+ADAPT_WEIGHTS = {"mornings": .30, "consistency": .20, "efficiency": .25, "drift": .15, "hops": .10}
+ADAPT_EFF_FULL = 0.03     # pace per heartbeat +3% scores full
+ADAPT_DRIFT = (3.0, 8.0)  # heart-rate drift: 3% or less scores full, 8% or more nothing (and holds growth)
 EFFORT_FULL = 0.85        # share of heart-rate reserve treated as a run at the whole block
 
 
@@ -105,21 +114,26 @@ def _clean(x):
     return all(x.get(k) is None or x[k] <= 3 for k in ("feet", "legs")) and x.get("feet") is not None
 
 
+def _clamp(x):
+    return max(0.0, min(1.0, x))
+
+
 def learn_block(dates, doses, reports, runs, start_reference, since=None, **kw):
     """The block from evidence (the rider's design, 2026-10-03): how big a block is for this athlete.
 
-    1. What the first run says: its impact is the run itself (distance, pace, steps); its heart rate says how hard
-       that was. An easy run (share of heart-rate reserve e) followed by clean mornings used only part of the
-       block: block >= dose x EFFORT_FULL / e.
-    2. What repeat runs say: a run that lands while earlier runs are still on the plateau or decline carries
-       `after` blocks. If the mornings after stay clean (no 6+, no hop drop) and the running held up (pace per
-       heartbeat within 3%), the athlete carried that load fine, so the block is at least LEARN_MARGIN x after.
-       Rough mornings or a slower run shrink it. Each change re-runs the curve from the start: the block is the
-       athlete's, not the day's.
+    1. What the first run says: an easy run (share of heart-rate reserve e) followed by clean mornings used only
+       part of the block: block >= dose x EFFORT_FULL / e.
+    2. Any run followed by rough mornings, a hop-test drop, or slower running at the same heart rate shrinks the
+       block 15% at once (shrink fast).
+    3. Each week is scored on how easily its in-band runs (>= ADAPT_BAND blocks carried) were absorbed (grow by
+       the week): mornings better than predicted for the load, the share of runs that read as too easy, pace per
+       heartbeat against the previous comparable run, heart-rate drift, and the hop test. A week that read as too
+       easy - mornings at least a point better than predicted, or the athlete said so - with heart rate not
+       worse grows the block 1% + 9% x score (at most 5% on one run, 3% without heart-rate evidence). After rough
+       mornings it can't regrow past its earlier size until two clean in-band runs.
     The plateau, decline, tail and the 1.5-block line are unchanged; only the size of a block learns.
     Returns (reference, steps)."""
     ref, steps = start_reference, []
-    idx = {d: i for i, d in enumerate(dates)}
     run_days = [i for i, x in enumerate(doses) if x > 0]
     if since:                     # a reviewed block is the anchor: only runs after the review teach it more
         run_days = [i for i in run_days if dates[i] > since]
@@ -129,9 +143,6 @@ def learn_block(dates, doses, reports, runs, start_reference, since=None, **kw):
     def mornings(i, n=3):
         return [reports[dates[j]] for j in range(i + 1, min(len(dates), i + 1 + n)) if dates[j] in reports]
 
-    def eff(i):
-        r = runs.get(dates[i]) or {}
-        return r.get("eff")
     first = run_days[0]
     r0 = runs.get(dates[first]) or {}
     m0 = mornings(first)
@@ -143,57 +154,102 @@ def learn_block(dates, doses, reports, runs, start_reference, since=None, **kw):
                           "reserve) and the mornings after were clean", "from": round(ref, 1), "to": round(new, 1)})
             ref = new
     floor, top = start_reference * LEARN_FLOOR, start_reference * LEARN_TOTAL_MAX
-    prev, ceiling = first, None
+    state = {"week": None, "obs": [], "rough": False, "ceiling": None}
+
+    def monday(i):
+        d = dt.date.fromisoformat(dates[i])
+        return d - dt.timedelta(days=d.weekday())
+
+    def close_week():
+        nonlocal ref
+        obs, wk = state["obs"], state["week"]
+        state["obs"], rough, state["rough"] = [], state["rough"], False
+        if not obs or rough or wk is None:
+            return
+        n = len(obs)
+        easy = [o["margin"] >= 1 or o["said_easy"] for o in obs]
+        effs = [o["eff"] for o in obs if o["eff"] is not None]
+        drifts = [o["drift"] for o in obs if o["drift"] is not None]
+        eff = sum(effs) / len(effs) if effs else None
+        drift = sum(drifts) / len(drifts) if drifts else None
+        if not any(easy) or (eff is not None and eff < -ADAPT_EFF_FULL) or (drift is not None and drift >= ADAPT_DRIFT[1]):
+            return                                       # absorbed as predicted, or the heart says otherwise: hold
+        hops = [o["hops"] for o in obs if o["hops"] is not None]
+        signals = {"mornings": _clamp(sum(o["margin"] for o in obs) / n / 2)}
+        if n >= 2:
+            signals["consistency"] = sum(easy) / n
+        if eff is not None:
+            signals["efficiency"] = _clamp(eff / ADAPT_EFF_FULL)
+        if drift is not None:
+            signals["drift"] = _clamp((ADAPT_DRIFT[1] - drift) / (ADAPT_DRIFT[1] - ADAPT_DRIFT[0]))
+        if hops:
+            signals["hops"] = sum(hops) / len(hops)
+        score = sum(ADAPT_WEIGHTS[k] * v for k, v in signals.items()) / sum(ADAPT_WEIGHTS[k] for k in signals)
+        cap = ADAPT_ONE_RUN if n == 1 else ADAPT_MAX
+        if eff is None and drift is None:
+            cap = min(cap, ADAPT_FEELINGS_ONLY)
+        pct = min(cap, ADAPT_MIN + (ADAPT_MAX - ADAPT_MIN) * score)
+        new = min(top, ref * (1 + pct))
+        if state["ceiling"]:
+            new = min(new, max(ref, state["ceiling"][0]))
+        if new > ref * 1.001:
+            bits = [f"mornings {sum(o['margin'] for o in obs) / n:+.1f} vs predicted"]
+            if eff is not None:
+                bits.append(f"pace per beat {100 * eff:+.1f}%")
+            if drift is not None:
+                bits.append(f"heart-rate drift {drift:.1f}%")
+            steps.append({"date": (wk + dt.timedelta(days=6)).isoformat(),
+                          "why": f"week of {wk}: {sum(easy)} of {n} in-band run{'s' if n > 1 else ''} absorbed more easily "
+                                 f"than predicted ({', '.join(bits)}): adaptation {score:.2f}, +{100 * (new / ref - 1):.1f}%",
+                          "from": round(ref, 1), "to": round(new, 1), "score": round(score, 2), "signals": signals})
+            ref = new
+
+    prev = first
     for i in run_days[1:]:
+        if state["week"] != monday(i):
+            close_week()
+            state["week"] = monday(i)
         curve = remodeling_response(dates[:i + 4], doses[:i + 4], block=ref, feet_reports=reports, **kw)
         ev = next((e for e in curve["components"] if e["date"] == dates[i]), None) if curve else None
         m = mornings(i)
         if not ev or len(m) < 2:
             prev = i
             continue
-        e_now, e_prev = eff(i), eff(prev)
-        h_now, h_prev = (runs.get(dates[i]) or {}).get("hrr"), (runs.get(dates[prev]) or {}).get("hrr")
+        r_now, r_prev = runs.get(dates[i]) or {}, runs.get(dates[prev]) or {}
+        e_now, e_prev = r_now.get("eff"), r_prev.get("eff")
+        h_now, h_prev = r_now.get("hrr"), r_prev.get("hrr")
         alike = h_now is not None and h_prev is not None and abs(h_now - h_prev) <= 0.08   # only like-for-like efforts compare
         slower = alike and e_now is not None and e_prev is not None and e_now < 0.97 * e_prev
         earlier = [x["hops"] for d, x in sorted(reports.items()) if isinstance(x, dict) and x.get("hops") is not None and d <= dates[i]]
         after = [x["hops"] for x in m if isinstance(x, dict) and x.get("hops") is not None]
         hops_drop = bool(earlier and after) and min(after) <= earlier[-1] - 2
         if any(_rough(x) for x in m) or slower or hops_drop:
-            ceiling = [ref, 0]   # rough mornings: no growth past this size until two clean runs in a row
+            state["ceiling"] = [ref, 0]
+            state["rough"] = True
             new = max(floor, ref * LEARN_DOWN)
             if new < ref:
                 why = "rough mornings after" if any(_rough(x) for x in m) else "hop test dropped" if hops_drop else "running slowed at the same heart rate"
                 steps.append({"date": dates[i], "why": why, "from": round(ref, 1), "to": round(new, 1)})
                 ref = new
-        elif ev["before_blocks"] >= 0.25 and ev["after_blocks"] > 1 / LEARN_MARGIN and all(_clean(x) for x in m):
-            # The curve isn't linear in the block (a smaller block also means longer plateaus and more overlap),
-            # so "carried N blocks" measured under the old block overstates the work. The new block is the
-            # largest one under which this same day still shows 1/LEARN_MARGIN blocks carried: the evidence is
-            # re-read in the units it proves, and the same runs repeated can't keep growing it.
-            def carried(r):
-                c = remodeling_response(dates[:i + 4], doses[:i + 4], block=r, feet_reports=reports, **kw)
-                e = next((x for x in c["components"] if x["date"] == dates[i]), None) if c else None
-                return e["after_blocks"] if e else 0
-            lo, hi = ref, min(top, ref * LEARN_STEP_MAX)
-            if ceiling:            # (rough mornings lengthen plateaus, so the next run always looks well carried)
-                ceiling[1] += 1
-                if ceiling[1] < 2:
-                    hi = max(ref, min(hi, ceiling[0]))
-                else:
-                    ceiling = None
-            if carried(hi) >= 1 / LEARN_MARGIN:
-                lo = hi
-            else:
-                for _ in range(10):
-                    mid = (lo + hi) / 2
-                    lo, hi = (mid, hi) if carried(mid) >= 1 / LEARN_MARGIN else (lo, mid)
-            new = lo
-            if new > ref * 1.02:
-                steps.append({"date": dates[i], "why": f"ran again with {ev['before_blocks']} blocks still carried, "
-                              f"held the pace{' at a lower heart rate' if e_now and e_prev and e_now > 1.02 * e_prev else ''} "
-                              f"and woke up fine: {ev['after_blocks']} blocks were tolerated", "from": round(ref, 1), "to": round(new, 1)})
-                ref = new
+        elif ev["after_blocks"] >= ADAPT_BAND:
+            felt = [max(v for v in (x.get("feet"), x.get("legs")) if v is not None) if isinstance(x, dict) else x
+                    for x in m if not isinstance(x, dict) or x.get("feet") is not None or x.get("legs") is not None]
+            if felt:
+                expected = min(9.0, ADAPT_EXPECT[0] + ADAPT_EXPECT[1] * ev["after_blocks"])
+                state["obs"].append({
+                    "margin": expected - sum(felt) / len(felt),
+                    "said_easy": r_now.get("effort") == "too_easy",
+                    "eff": (e_now / e_prev - 1) if alike and e_now and e_prev else None,
+                    "drift": r_now.get("drift") if (r_now.get("minutes") or 0) >= 30 else None,
+                    "hops": (1.0 if min(after) >= earlier[-1] else 0.0) if earlier and after else None})
+                if state["ceiling"] and all(_clean(x) for x in m):
+                    state["ceiling"][1] += 1
+                    if state["ceiling"][1] >= 2:
+                        state["ceiling"] = None
         prev = i
+    # the last week counts once it's over
+    if state["week"] is not None and dt.date.fromisoformat(dates[-1]) >= state["week"] + dt.timedelta(days=6):
+        close_week()
     return ref, steps
 
 

@@ -197,7 +197,8 @@ class Athlete:
         secs = s["minutes"] * 60 * self.rng.uniform(0.96, 1.04)
         if "run / walk" in name or "hop test" in name:
             pace, hr = pace + 70, hr - 6
-        fitwrite.run(self.acts / f"{day}_{at:%H%M}_run.fit", at.timestamp(), secs, hr, pace)
+        fitwrite.run(self.acts / f"{day}_{at:%H%M}_run.fit", at.timestamp(), secs, hr, pace,
+                     hr_drift=max(2.0, 9.0 - 0.7 * self.fitness))
 
     def swim(self, day, s, at):
         per = self.swim_25 - (2.5 if "race" in (s.get("name") or "").lower() else 0)
@@ -400,7 +401,7 @@ def live_day(hub, a, st, say):
         r = api("/api/coach/session-report", body, ok=(200, 400))
         if r.get("error"):
             say(f"session report {day} #{i}: {r['error']}")
-    a.fatigue = max(2.0, min(6.0, a.fatigue * 0.6 + 1.2 + 0.8 * hard_today))   # well-managed: legs 2-5, 6 after a big day
+    a.fatigue = max(2.0, min(5.0, a.fatigue * 0.6 + 1.2 + 0.8 * hard_today))   # well-managed: legs 2-5
     # the next morning, say why anything was missed (as the athlete would on the calendar)
     prev = day - dt.timedelta(days=1)
     for (d0, sp), (why, note) in MISS.items():
@@ -471,8 +472,7 @@ def assistant_review(day, a, say):
                     level[(d0, i)] = 0
     if not level:
         restore(day, a, gate, say)
-        if day.weekday() in (0, 3):
-            progress_running(day, say)
+        progress_running(day, say)
         return
     for _ in range(5):
         changes = {}
@@ -551,40 +551,69 @@ def restore(day, a, gate, say):
 
 
 def progress_running(day, say):
-    """Challenge running when the plan doesn't reach the phase's band: lengthen the week's long run in 10-minute
-    steps (previewed each time), keeping the longest version that reaches the band and passes the hub's checks."""
+    """Fit running to the hub's target for the week (build wave, maintenance, or automatic deload): under it,
+    lengthen the long run in 10-minute steps; over it, shorten the coming runs, then swap them for easy rides.
+    Every version is previewed; the hub's checks (forecast, holds, deload, weekly cap) decide what is applied."""
     rp = api(CR + "?days=14")["outlook"].get("running_progression") or {}
-    if rp.get("status") != "under_target":
-        return
-    lo, hi = rp["target_blocks"]
-    week_end = (day + dt.timedelta(days=6)).isoformat()
-    runs = [(d0, i, s) for k in range(1, 7) for d0 in [(day + dt.timedelta(days=k)).isoformat()]
+    status, (lo, hi) = rp.get("status"), rp.get("target_blocks") or (0, 0)
+    runs = [(d0, i, s) for k in range(0, 7) for d0 in [(day + dt.timedelta(days=k)).isoformat()]
             for i, s in enumerate(plan_of(d0)) if s.get("sport") == "run"]
-    if not runs:
+    if status not in ("under_target", "over_target") or not runs:
         return
-    d0, i, s = max(runs, key=lambda r: r[2].get("minutes") or 0)
-    base = s.get("minutes") or 30
-    best = None
-    for m in range(base + 10, min(90, base * 2 + 10) + 1, 10):
-        ss = plan_of(d0)
-        ss[i] = {**s, "minutes": m, "name": f"Long run, {m} min", "steps": [f"{m} min easy, conversational; walk breaks are fine"],
-                 "note": f"Lengthened from {base} min: running load was under the {rp['phase']} band ({rp['planned_week_peak_blocks']} "
-                         f"vs {lo}-{hi} blocks). Tell me how the next two mornings feel."}
-        p = api(CR, {"action": "preview", "kind": "calendar", "changes": [{"date": d0, "sessions": ss}]}, ok=(200, 400))
-        peak = ((p.get("after") or {}).get("running_progression") or {}).get("planned_week_peak_blocks")
-        if not p.get("draft_id") or p.get("violations") or peak is None or peak > hi:
-            if best is None:
-                say(f"assistant on {day}: {d0} long run {m} min refused: "
-                    f"{p.get('error') or '; '.join(p.get('violations') or []) or f'week peak {peak} vs band top {hi}'}")
-            break
-        best = (p, m, peak)
-        if peak >= lo:
-            break
-    if best:
-        p, m, peak = best
-        api(CR, {"action": "apply", "draft_id": p["draft_id"], "approved": True})
-        say(f"assistant on {day}: running under the {rp['phase']} band ({rp['planned_week_peak_blocks']} vs {lo}-{hi} blocks, "
-            f"block {rp['block_points']} pts) -> {d0} long run {base} -> {m} min, week peak {peak}")
+    why = f"running {rp['planned_week_peak_blocks']} vs the {rp['mode']} target {lo}-{hi} blocks (block {rp['block_points']} pts)"
+    if status == "under_target":
+        d0, i, s = max(runs, key=lambda r: r[2].get("minutes") or 0)
+        base = s.get("minutes") or 30
+        best = None
+        for m in range(base + 10, min(90, base * 2 + 10) + 1, 10):
+            ss = plan_of(d0)
+            ss[i] = {**s, "minutes": m, "name": f"Long run, {m} min", "steps": [f"{m} min easy, conversational; walk breaks are fine"],
+                     "note": f"Lengthened from {base} min: {why}. Tell me how the next two mornings feel."}
+            p = api(CR, {"action": "preview", "kind": "calendar", "changes": [{"date": d0, "sessions": ss}]}, ok=(200, 400))
+            peak = ((p.get("after") or {}).get("running_progression") or {}).get("planned_week_peak_blocks")
+            if not p.get("draft_id") or p.get("violations") or peak is None or peak > hi:
+                if best is None:
+                    say(f"assistant on {day}: {d0} long run {m} min refused: "
+                        f"{p.get('error') or '; '.join(p.get('violations') or []) or f'runs would reach {peak} vs {hi}'}")
+                break
+            best = (p, m, peak)
+            if peak >= lo:
+                break
+        if best:
+            p, m, peak = best
+            api(CR, {"action": "apply", "draft_id": p["draft_id"], "approved": True})
+            say(f"assistant on {day}: {why} -> {d0} long run {base} -> {m} min (runs now up to {peak})")
+        return
+    # over target: the lightest change that fits, run by run from the soonest
+    changes, done = {}, []
+    for d0, i, s in runs:
+        ss = changes.get(d0) or plan_of(d0)
+        m = s.get("minutes") or 30
+        for how in ("shorten", "ride"):
+            trial = list(ss)
+            if how == "shorten":
+                short = max(15, round(m * 0.5 / 5) * 5)
+                if short >= m:
+                    continue
+                trial[i] = {**s, "minutes": short, "name": f"Easy run, {short} min", "steps": [f"{short} min easy with 4 x 20 s strides"],
+                            "note": f"Shortened from {m} min: {why}."}
+            else:
+                trial[i] = {"sport": "ride", "minutes": m, "name": f"Easy ride (instead of: {s.get('name')})"[:80],
+                            "steps": [f"{m} min easy, 60-65% FTP"], "note": f"Swapped by your assistant: {why}; running is deloading."}
+            body = [{"date": k, "sessions": v} for k, v in {**changes, d0: trial}.items()]
+            p = api(CR, {"action": "preview", "kind": "calendar", "changes": body}, ok=(200, 400))
+            bad = [v for v in p.get("violations") or [] if v.startswith(d0)]
+            if p.get("draft_id") and not bad:
+                changes[d0] = trial
+                done.append(f"{d0}: {trial[i]['name']}")
+                break
+    if changes:
+        p = api(CR, {"action": "preview", "kind": "calendar", "changes": [{"date": k, "sessions": v} for k, v in changes.items()]}, ok=(200, 400))
+        if p.get("draft_id") and not p.get("violations"):
+            api(CR, {"action": "apply", "draft_id": p["draft_id"], "approved": True})
+            say(f"assistant on {day}: {why} -> " + " | ".join(done))
+        else:
+            say(f"assistant on {day}: {why}; no fit passed: {p.get('error') or '; '.join(p.get('violations') or [])}")
 
 
 def plan_of(date):

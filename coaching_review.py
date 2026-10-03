@@ -62,44 +62,126 @@ def outlook(d, load, done, workouts, today, days=14):
             'notice':'Check the entire sequence, including openers after peak work. Forecasts do not clear execution holds.'}
 
 
-# Running load targets by phase, in blocks at the week's peak (the 1.5-block line is the hard limit). Provisional
-# product policy: build steps the peak up to the band, then responses (mornings, hops, pace at heart rate) let the
-# block itself learn and grow, so the same band holds more running.
-RUN_TARGETS = {'assessment':(.6,1.0),'base':(.8,1.1),'build':(1.2,1.45),'peak':(1.2,1.45),'specific':(1.1,1.4),
-               'taper':(.4,.9),'recovery':(0,.8)}
+# Running load targets, in blocks carried on run days (the 1.5-block line stays the hard limit). Provisional
+# product policy (the rider's design, 2026-10-03): when running is building, hold 0.8-1.5 and wave it week to week
+# (light, middle, heavy) so the build can last; when running isn't the focus, keep a third of the middle (0.4) for
+# maintenance; negative reports deload to 0.4 automatically, then 0.1 if they persist past a week.
+RUN_BAND = (0.8, 1.45)
+RUN_WAVE = {'light': (0.8, 1.0), 'middle': (1.0, 1.2), 'heavy': (1.2, 1.45)}
+RUN_TARGETS = {'assessment': (.4, .8), 'base': (.8, 1.2), 'taper': (.3, .6), 'recovery': (.1, .4),
+               'maintain': (.3, .5), 'pause': (0, .1), 'recover': (.1, .4)}
+DELOAD, DEEP_DELOAD, RE_ENTRY = (.3, .4), (0, .1), (.8, .9)
+DELOAD_DAYS = 7            # at least a week at 0.4, and two clean mornings, before coming back
+WEEKLY_RUN_CAP = 1.15      # planned weekly running load may rise at most 15% over the most of the last three weeks
+SYMPTOM_STOP_DAYS = 14     # negative reports this long: stop running and get assessed
+
+
+def run_triggers(d, today):
+    """Dates in the last four weeks with a negative running response, and whether any was a whole-body warning."""
+    since=(dt.date.fromisoformat(today)-dt.timedelta(days=28)).isoformat()
+    hits,whole={},[]
+    for e in d.get('training_feedback',{}).values():
+        if since<=e.get('date','')<=today and e.get('sport')=='run':
+            sore=[x['location'].replace('_',' ') for x in e.get('symptoms',[]) if x.get('severity',0)>0]
+            if sore:hits.setdefault(e['date'],[]).append('run report: '+', '.join(sore))
+            if e.get('effort')=='too_hard':hits.setdefault(e['date'],[]).append('run felt too hard')
+            if e.get('heart_rate_issue'):whole.append(e['date']+': heart-rate issue in run report')
+    last_hops=None
+    for date,c in sorted(d.get('checkins',{}).items()):
+        if date>today:break
+        hops=c.get('hops') if c.get('hops') is not None else min([x for x in (c.get('hops_left'),c.get('hops_right')) if x is not None],default=None)
+        if date>=since:
+            for k in ('legs','feet'):
+                if c.get(k) is not None and c[k]>=6:hits.setdefault(date,[]).append(f'{k} {c[k]}/10 in the morning')
+            if hops is not None and last_hops is not None and hops<=last_hops-2:hits.setdefault(date,[]).append(f'hop test dropped to {hops}')
+            if c.get('breathing') is not None and c['breathing']>=6:whole.append(date+': short of breath')
+        if hops is not None:last_hops=hops
+    return hits,whole
+
+
+def deload_state(d, today):
+    """Automatic running deload from negative reports: None, or the target and why. Stateless: recomputed from
+    the reports each day, so it ends on its own once the athlete reports clean."""
+    hits,whole=run_triggers(d,today)
+    if not hits:return None
+    days=sorted(hits);last=days[-1];first=last
+    for x in reversed(days[:-1]):
+        if (dt.date.fromisoformat(first)-dt.date.fromisoformat(x)).days<DELOAD_DAYS:first=x
+        else:break
+    now=dt.date.fromisoformat(today);t=dt.date.fromisoformat(last)
+    persisted=(t-dt.date.fromisoformat(first)).days
+    clean=[k for k,c in sorted(d.get('checkins',{}).items()) if last<k<=today
+           and all(c.get(x) is not None and c[x]<=3 for x in ('feet','legs'))]
+    why=[f'{k}: {"; ".join(v)}' for k,v in sorted(hits.items()) if k>=first]
+    if (now-t).days<DELOAD_DAYS or len(clean)<2:
+        deep=persisted>=DELOAD_DAYS
+        return {'status':'deep_deload' if deep else 'deload','target':DEEP_DELOAD if deep else DELOAD,'since':first,'why':why,
+                'stop':persisted>=SYMPTOM_STOP_DAYS,'whole_body':whole,
+                'ends':'no sooner than '+(t+dt.timedelta(days=DELOAD_DAYS)).isoformat()+', after two clean mornings'}
+    exit_day=max(dt.date.fromisoformat(clean[1]),t+dt.timedelta(days=DELOAD_DAYS))
+    if (now-exit_day).days<7:
+        return {'status':'re_entry','target':RE_ENTRY,'since':exit_day.isoformat(),'why':why,'stop':False,'whole_body':whole,
+                'ends':(exit_day+dt.timedelta(days=7)).isoformat()}
+    return None
+
+
+def _wave(d, today):
+    goal=d.get('program_goal') or {}
+    start=dt.date.fromisoformat(goal['start']) if goal.get('start') else dt.date(2026,1,5)
+    now=dt.date.fromisoformat(today)
+    week=((now-dt.timedelta(days=now.weekday()))-(start-dt.timedelta(days=start.weekday()))).days//7
+    return ('light','middle','heavy')[week%3]
 
 
 def running_progression(d, load, today, daily, gate):
-    """Is the plan actually challenging running? The coming week's forecast peak against the phase's band."""
-    import progression
-    phase=progression.context(d,today,'run')['phase']
-    band=RUN_TARGETS.get(phase)
+    """Is the plan challenging running the right amount? The load on the coming week's run days against the target
+    for this phase and state (build wave, maintenance, automatic deload), plus the weekly cap on absolute load."""
+    import progression, training_block as B
+    ctx=progression.context(d,today,'run');phase=ctx['phase'];purpose=ctx.get('purpose')
     week_end=(dt.date.fromisoformat(today)+dt.timedelta(days=6)).isoformat()
-    planned=[m['after'] for day in daily if day['date']<=week_end for m in day['readings'] if m['key']=='run_mechanical' and m.get('after') is not None]
-    peak=round(max(planned),2) if planned else None
-    since=(dt.date.fromisoformat(today)-dt.timedelta(days=14)).isoformat()
+    run_days={r['date'] for r in daily if r['date']<=week_end and any(s['sport']=='run' for s in B.sessions(d.get('plans',{}).get(r['date']) or {}))}
+    reading=lambda day:next((m for m in day['readings'] if m['key']=='run_mechanical'),{})
+    on_runs=[reading(day).get('after') for day in daily if day['date'] in run_days]
+    peak=round(max(on_runs),2) if on_runs and None not in on_runs else None
+    planned=sum(reading(day).get('session_dose') or 0 for day in daily if day['date']<=week_end)
     rem=_rem(load)
-    recent=[c['after_blocks'] for c in rem.get('components',[]) if since<=c['date']<today]
+    days=load.get('days') or [];ref=rem.get('reference_points')
+    prior=[]
+    for w in range(3):
+        lo=(dt.date.fromisoformat(today)-dt.timedelta(days=7*(w+1))).isoformat();hi=(dt.date.fromisoformat(today)-dt.timedelta(days=7*w)).isoformat()
+        prior.append(sum(x.get('sports',{}).get('run',{}).get('impact',0) for x in days if lo<=x['date']<hi)/ref if ref else 0)
+    cap=round(max(prior)*WEEKLY_RUN_CAP,2) if prior and max(prior)>0 else None
     learned=rem.get('block_learning') or []
-    out={'phase':phase,'target_blocks':list(band) if band else None,'planned_week_peak_blocks':peak,
-         'recent_peak_blocks':round(max(recent),2) if recent else None,'block_points':rem.get('reference_points'),
-         'last_block_change':learned[-1] if learned else None,'status':None,'advice':None}
-    if not band or phase=='recovery':
-        out['status']='not_progressing';out['advice']='No running progression in this phase.'
+    deload=deload_state(d,today)
+    if deload:mode,band=deload['status'],deload['target']
+    elif purpose in RUN_TARGETS and purpose in ('maintain','pause','recover'):mode,band=purpose,RUN_TARGETS[purpose]
+    elif phase in RUN_TARGETS:mode,band=phase,RUN_TARGETS[phase]
+    else:
+        wave=_wave(d,today);mode,band='build: '+wave+' week',RUN_WAVE[wave]
+    out={'phase':phase,'mode':mode,'target_blocks':list(band),'band':list(RUN_BAND),'planned_week_peak_blocks':peak,
+         'planned_week_blocks':round(planned,2),'weekly_cap_blocks':cap,'prior_weeks_blocks':[round(x,2) for x in prior],
+         'block_points':ref,'last_block_change':learned[-1] if learned else None,'deload':deload,'status':None,'advice':None}
+    if deload and deload.get('whole_body'):
+        out['whole_body_warning']='Shortness of breath or a heart-rate issue was reported: ease ALL training, and if it is unusual or persists, see a doctor. '+'; '.join(deload['whole_body'])
+    if deload and deload['stop']:
+        out['status']='stop';out['advice']='Negative running reports have persisted for two weeks: stop running and have it assessed before continuing.'
     elif run_hold(gate,today)[0]((dt.date.fromisoformat(today)+dt.timedelta(days=1)).isoformat()) or progression.active_symptoms(d,today):
         out['status']='held';out['advice']='Resolve the running hold or symptoms first; do not add running load.'
     elif peak is None:
         out['status']='no_runs_planned';out['advice']='No runs with a forecast this week.'
+    elif peak>band[1]:
+        out['status']='over_target'
+        out['advice']=(f'Runs this week land at up to {peak} blocks; the {mode} target is {band[0]}-{band[1]}. Shorten or space runs'
+                       +(' (automatic deload after negative reports: keep a little easy running for maintenance)' if deload else '')+'.')
     elif peak<band[0]:
         out['status']='under_target'
-        out['advice']=(f'The plan peaks at {peak} blocks; this {phase} phase targets {band[0]}-{band[1]}. Lengthen the long run or '
-                       'add an easy run at least two days from the others, previewing until the forecast peak reaches the band. '
-                       'Prefer one well-spaced step over several stacked runs. Check the next mornings, hop test and pace at heart '
-                       'rate before the next step: clean responses let the block grow.')
-    elif peak>band[1]:
-        out['status']='over_target';out['advice']=f'The plan peaks at {peak} blocks, above the {phase} band: shorten or space runs.'
+        out['advice']=(f'Runs this week land at up to {peak} blocks; the {mode} target is {band[0]}-{band[1]}. Lengthen the long run or '
+                       'add an easy run at least two days from the others, previewing until it reaches the target. Prefer one '
+                       'well-spaced step over several stacked runs.')
     else:
-        out['status']='on_target';out['advice']='Running load is in the band. Hold it until the responses are clean, then step again.'
+        out['status']='on_target';out['advice']=f'Running is in the {mode} target. Read the responses; the block adapts weekly.'
+    if cap is not None and planned>cap:
+        out['advice']+=f' The week plans {round(planned,2)} blocks of running, over the weekly cap of {cap} (15% over the last three weeks\' most): spread the increase.'
     return out
 
 
@@ -253,6 +335,18 @@ def preview(d,load,done,workouts,today,base,revision,fields):
         # Flag newly introduced or worsened limit breaches across all sports, including later days.
         before=outlook(d,load,done,workouts,today)
         prior={(day['date'],m['key']):m for day in before['daily_readings'] for m in day['readings']}
+        # Automatic deload: changed runs must sit at or under its target. Weekly cap on absolute running load.
+        rp_after=after.get('running_progression') or {};deload=rp_after.get('deload')
+        if deload and deload['status'] in ('deload','deep_deload'):
+            for day in after['daily_readings']:
+                if day['date'] in seen and any(s['sport']=='run' for s in B.sessions(candidate['plans'][day['date']])):
+                    m=next((x for x in day['readings'] if x['key']=='run_mechanical'),{})
+                    if m.get('after') is not None and m['after']>deload['target'][1]:
+                        violations.append(day['date']+f': automatic running deload: runs stay at or under {deload["target"][1]} blocks')
+        rp_before=before.get('running_progression') or {}
+        cap=rp_after.get('weekly_cap_blocks')
+        if cap is not None and rp_after.get('planned_week_blocks',0)>cap and rp_after['planned_week_blocks']>rp_before.get('planned_week_blocks',0)+.005:
+            violations.append(today+f': weekly running load {rp_after["planned_week_blocks"]} blocks is over the cap of {cap}')
         for day in after['daily_readings']:
             for m in day['readings']:
                 old=prior.get((day['date'],m['key']),{})
