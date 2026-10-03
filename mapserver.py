@@ -211,6 +211,9 @@ async def handle(bridge, method, path, body, host):
         elif method != b"GET":
             return 405, "application/json", b'{"error":"Method not allowed"}', {}
         return 200, "application/json", json.dumps({"theme": themes.current(), "options": themes.OPTIONS}).encode(), {}
+    if p.startswith("/api/bike/"):
+        import bike_api
+        return await bike_api.handle(bridge, method, p, body)
     from urllib.parse import parse_qs, urlsplit
     if p == "/dashboard" and parse_qs(urlsplit(path).query).get("embedded", [""])[0] != "1":
         return 302, "text/plain", b"Open the Fitness Dashboard in Coach", {"Location": "/coach#fitness"}

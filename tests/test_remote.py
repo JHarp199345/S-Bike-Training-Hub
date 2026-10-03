@@ -1,6 +1,7 @@
 """Phone remote: the Mac always gets in; other devices only after pairing with the PIN;
 wrong PINs are rate-limited; /stop stays Mac-only; forgetting unpairs everyone.
 Also drives the real panel server over a socket from a non-loopback address."""
+# macOS only: uses Apple's Bluetooth/drawing libraries (tests/run_all.py skips it elsewhere)
 import sys, pathlib; sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 import asyncio, json, tempfile
 import remote

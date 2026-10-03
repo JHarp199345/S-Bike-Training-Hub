@@ -43,6 +43,7 @@ from erg import Erg, load_workouts
 from ftptest import RampTest
 from ghost import Ghost
 import bests
+import bikes
 import cp as cp_mod
 import focus
 import live
@@ -58,6 +59,7 @@ def u(short):
     return f"0000{short:04x}-0000-1000-8000-00805f9b34fb"
 
 
+DEFAULT_NAME = "MRK-S29"
 FTMS, IBD, FEATURE, CONTROL, STATUS = u(0x1826), u(0x2AD2), u(0x2ACC), u(0x2AD9), u(0x2ADA)
 RES_RANGE, PWR_RANGE, TRAINING = u(0x2AD6), u(0x2AD8), u(0x2AD3)
 CPS, CP_MEAS, CP_FEAT, SENSOR_LOC = u(0x1818), u(0x2A63), u(0x2A65), u(0x2A5D)
@@ -359,6 +361,7 @@ class Bridge:
         self.target_since = 0.0
         self.last_step = 0.0
         self.level_format = 3        # bytes in a resistance command: 3 (level x10, 16-bit) or 2 (8-bit)
+        self.bike_profile = None     # the bike profile connected with (bikes.py), None = plain --name matching
         Path("rides").mkdir(exist_ok=True)
         self.resumed = None if getattr(args, "no_bike", False) else resumable_state()
         if getattr(args, "no_bike", False):
@@ -572,13 +575,22 @@ class Bridge:
             self.events_csv.writerow([dt.datetime.now().isoformat(timespec="seconds"), msg])
 
     # ── the bike side ───────────────────────────────────────────────────────
+    def wanted_profile(self):
+        """The bike set up on the welcome page (bike.json), unless --name was given by hand."""
+        if self.args.name != DEFAULT_NAME:
+            return None
+        return bikes.active(Path("rides").resolve().parent)
+
     async def find_bike(self):
         while True:
             log.info("Looking for the bike (pedal to wake it; phone and watch must not be connected to it)")
+            prof = self.wanted_profile()      # read each time: setting up a new bike takes effect on the next search
             dev = await BleakScanner.find_device_by_filter(
-                lambda d, a: (d.name or "").upper().startswith(self.args.name),
+                (lambda d, a: bikes.matches(prof, d.name or a.local_name, d.address)) if prof else
+                (lambda d, a: (d.name or "").upper().startswith(self.args.name)),
                 timeout=2.5 if any(self.seen.values()) else 4)
             if dev:
+                self.bike_profile = prof
                 return dev
             # Rest the radio between searches. Scanning back to back starves the
             # connections the Mac is serving: on 2026-09-25 (16:11-16:13) the watch
@@ -595,6 +607,24 @@ class Bridge:
         # virtual ones; the S29's own speed comes from cadence alone.
         out = rewrite_ibd(data, r.road_kmh(), r.road_m()) if r.use_virtual else data
         self.push(FTMS, IBD, out, kind=int.from_bytes(data[0:2], "little"))
+        self.record(ok)
+
+    def on_custom_data(self, _, data: bytearray):
+        """A bike with its own protocol: its packet, read by the profile, becomes an FTMS
+        packet for Kinomap and the same readings as any other bike."""
+        fields = bikes.parse(self.bike_profile, bytes(data))
+        if not fields:
+            return                       # a status packet, not a reading
+        ok = self.ride.update(fields)
+        r = self.ride
+        res = fields.get("resistance")
+        out = bikes.build_ibd(r.power, r.cadence, r.road_kmh() if r.use_virtual else r.speed,
+                              int(res * 10) if res is not None else None)
+        self.push(FTMS, IBD, out, kind="custom")
+        self.record(ok)
+
+    def record(self, ok):
+        r = self.ride
         if ok:
             self.live.add(time.time(), r.power, r.cadence, r.road_kmh(), r.grade, self.gear)
             self.bests.add(time.time(), r.power)
@@ -625,28 +655,68 @@ class Bridge:
             try:
                 async with BleakClient(dev, disconnected_callback=lambda _: self.event("Bike disconnected")) as c:
                     self.bike = c
-                    for uuid in (FEATURE, RES_RANGE, PWR_RANGE):
-                        try:
-                            self.static[uuid] = bytes(await c.read_gatt_char(uuid))
-                        except Exception:
-                            pass
-                    await c.start_notify(IBD, self.on_bike_data)
-                    await c.start_notify(STATUS, self.on_bike_status)
-                    await c.start_notify(CONTROL, self.on_bike_control)
-                    self.event(f"Bike connected ({dev.name}). Recording to {self.csv_path}")
-                    self.describe_features()
-                    # Take control of the bike ourselves, on every (re)connection.
-                    # Kinomap asks once when it connects; after the bike sleeps or
-                    # drops, that grant is gone and every later command is ignored.
-                    self.have_control = False
-                    self.level_sent = None  # re-send the current hill after a reconnect
-                    await c.write_gatt_char(CONTROL, b"\x00", response=True)
+                    prof = self.bike_profile
+                    if prof and prof["protocol"] == "custom":
+                        await self.start_custom(c, dev, prof)
+                    else:
+                        await self.start_ftms(c, dev, prof)
                     while c.is_connected:
                         await asyncio.sleep(1)
             except Exception as e:
                 log.warning("Bike connection error: %s", e)
             self.bike = None
             await asyncio.sleep(2)
+
+    async def start_ftms(self, c, dev, prof):
+        for uuid in (FEATURE, RES_RANGE, PWR_RANGE):
+            try:
+                self.static[uuid] = bytes(await c.read_gatt_char(uuid))
+            except Exception:
+                pass
+        await c.start_notify(IBD, self.on_bike_data)
+        await c.start_notify(STATUS, self.on_bike_status)
+        await c.start_notify(CONTROL, self.on_bike_control)
+        self.event(f"Bike connected ({dev.name}). Recording to {self.csv_path}")
+        self.describe_features()
+        if prof:
+            self.apply_profile(prof)
+        # Take control of the bike ourselves, on every (re)connection.
+        # Kinomap asks once when it connects; after the bike sleeps or
+        # drops, that grant is gone and every later command is ignored.
+        self.have_control = False
+        self.level_sent = None  # re-send the current hill after a reconnect
+        await c.write_gatt_char(CONTROL, b"\x00", response=True)
+
+    async def start_custom(self, c, dev, prof):
+        """A bike with its own protocol (a profile made with the guided setup): readings
+        from the profile's data characteristic, its own init commands, its own levels."""
+        cu = prof["custom"]
+        await c.start_notify(cu["data"]["characteristic"], self.on_custom_data)
+        self.static.pop(RES_RANGE, None)
+        self.apply_profile(prof)
+        if cu["control"]:
+            for cmd in cu["control"]["init"]:
+                await c.write_gatt_char(cu["control"]["characteristic"], bytes.fromhex(cmd),
+                                        response=cu["control"]["response"])
+        self.have_control = True
+        self.level_sent = None
+        self.event(f"Bike connected ({dev.name}, {prof['name']} profile). Recording to {self.csv_path}")
+
+    def apply_profile(self, prof):
+        """What the profile knows that the bike didn't say: its level range and format.
+        A range the bike reports itself wins (and is kept in the profile's safety check)."""
+        r = prof["resistance"]
+        if prof["protocol"] == "custom" or "simulation" in prof["blocked"]:
+            self.bike_sims = False       # hills become levels here, never forwarded as simulation
+        if r.get("none"):
+            self.event(f"{prof['name']}: no resistance control - readings only")
+            return
+        if len(self.static.get(RES_RANGE, b"")) >= 6:
+            prof["resistance"] = dict(r, min=max(0.1, self.res_range[0]), max=self.res_range[1])
+        else:
+            self.res_range = (r["min"], r["max"])
+        if prof["protocol"] == "ftms":
+            self.level_format = 3 if r.get("format", "ftms-level-x10") == "ftms-level-x10" else 2
 
     # ── the broadcast side ──────────────────────────────────────────────────
     def push(self, svc, char, value: bytes, kind=None):
@@ -1328,6 +1398,13 @@ class Bridge:
         return None
 
     def level_command(self, level):
+        prof = self.bike_profile
+        if prof and prof["protocol"] == "custom":
+            try:
+                return bikes.resistance_command(prof, level)
+            except ValueError as e:
+                self.event(f"Resistance {level} not sent: {e}")
+                return None
         if self.level_format == 3:
             return bytes([0x04]) + int(level * 10).to_bytes(2, "little", signed=True)
         return bytes([0x04, level])
@@ -1358,6 +1435,16 @@ class Bridge:
                 self.send_to_bike(self.ramp_step(time.monotonic()))
 
     async def forward(self, value: bytes):
+        prof = self.bike_profile
+        if prof:
+            ctl = prof["custom"]["control"]["characteristic"] if prof["protocol"] == "custom" else bikes.FTMS_CONTROL
+            ok, why = bikes.allowed_write(prof, ctl, value)
+            if not ok:
+                self.event(f"Not sent to the {prof['name']}: {why}")
+                return
+            if prof["protocol"] == "custom":
+                await self.bike.write_gatt_char(ctl, value, response=prof["custom"]["control"]["response"])
+                return
         if not self.have_control:
             await self.bike.write_gatt_char(CONTROL, b"\x00", response=True)
             await asyncio.sleep(0.3)
@@ -1469,7 +1556,8 @@ class Bridge:
 
 async def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--name", default="MRK-S29", help="start of the bike's Bluetooth name")
+    ap.add_argument("--name", default=DEFAULT_NAME,
+                    help="start of the bike's Bluetooth name (default: the bike set up on the welcome page, else MRK-S29)")
     ap.add_argument("--wheel", type=int, default=2096,
                     help="wheel circumference in mm; match the watch's setting (default 2096)")
     ap.add_argument("--broadcast", default="SBike Hub",
@@ -1525,12 +1613,15 @@ async def main():
     # Keep macOS from napping this process when its window is in the background
     # or the Mac is idle: App Nap delays Bluetooth updates until the watch gives
     # up on the sensor. The token must stay referenced for the whole run.
-    from Foundation import NSProcessInfo
-    import Foundation as F
-    opts = (getattr(F, "NSActivityUserInitiated", 0x00FFFFFF | (1 << 20))
-            | getattr(F, "NSActivityLatencyCritical", 0xFF00000000)
-            | getattr(F, "NSActivityIdleSystemSleepDisabled", 1 << 20))
-    _awake = NSProcessInfo.processInfo().beginActivityWithOptions_reason_(opts, "S-Bike Hub bike bridge")  # noqa: F841
+    try:
+        from Foundation import NSProcessInfo
+        import Foundation as F
+        opts = (getattr(F, "NSActivityUserInitiated", 0x00FFFFFF | (1 << 20))
+                | getattr(F, "NSActivityLatencyCritical", 0xFF00000000)
+                | getattr(F, "NSActivityIdleSystemSleepDisabled", 1 << 20))
+        _awake = NSProcessInfo.processInfo().beginActivityWithOptions_reason_(opts, "S-Bike Hub bike bridge")  # noqa: F841
+    except ImportError:
+        pass   # not a Mac: no App Nap to keep away
     b = Bridge(args)
     import panel
     try:

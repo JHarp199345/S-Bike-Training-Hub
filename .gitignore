@@ -46,3 +46,9 @@ art_src/
 
 # Private reviewed program drafts and SQLite journals
 program-drafts.sqlite3*
+
+# Bike setup: the chosen bike, the request for the assistant, and profiles made on this computer
+bike.json
+bike_setup.json
+bike_setup.tmp
+bike_profiles_local/

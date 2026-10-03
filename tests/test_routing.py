@@ -1,4 +1,5 @@
 """Smart-bike data goes to Kinomap only; power and cadence to the watch."""
+# macOS only: uses Apple's Bluetooth/drawing libraries (tests/run_all.py skips it elsewhere)
 import sys, pathlib; sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 import asyncio, types
 import bridge as b

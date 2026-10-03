@@ -55,7 +55,7 @@
  <div class="card"><div class="n">4</div><h3>Your AI plans with it</h3><p>Your AI assistant reads the numbers and plans your days: when to push, when to ease off, and what kind of session fits. You decide; your call always wins.</p></div>
 </div>
 
-<h2>BUILT TO WORK WITH AN AI ASSISTANT</h2>
+<h2 id="ai">BUILT TO WORK WITH AN AI ASSISTANT</h2>
 <div class="card"><p style="margin-top:0">The hub keeps the numbers; your AI does the coaching conversation. It works with a <b>frontier model</b> (like Claude) or a <b>local model</b> running free on your own computer, through any app that supports MCP servers. The hub stores your records on your Mac. A cloud AI receives the information you choose to share with it; use a local model for an entirely local coaching conversation.</p>
  <div class="modes">
   <div class="card"><h3>🧭 Consult me</h3><em>"Look at my training load and plan me a lifting session that fits my triathlon plan for the next three weeks. Let's discuss it."</em><p class="fine">Your AI leads with your numbers and the hub's suggestions, and you shape the plan together.</p></div>
@@ -64,6 +64,29 @@
  <p class="fine" style="margin-bottom:6px">Connect it (after setup):</p>
  <pre id="mcpcmd">claude mcp add --scope user s-bike-hub -- "…/.venv/bin/python" "…/mcp_server.py"</pre>
  <p class="fine">Claude Desktop and other MCP apps: install <b>io.github.JHarp199345/s-bike-hub</b> from the MCP Registry, or the one-file bundle from the <a href="https://github.com/JHarp199345/S-Bike-Training-Hub/releases" target="_blank" rel="noopener">GitHub releases</a>. More in <a href="https://github.com/JHarp199345/S-Bike-Training-Hub/wiki/Training-with-your-AI" target="_blank" rel="noopener">Training with your AI</a>.</p></div>
+
+<h2 id="bike">YOUR BIKE</h2>
+<div class="card" id="bikecard">
+ <p id="bikenow" style="margin-top:0">Riding without a smart bike? Skip this - everything else works without one.</p>
+ <div id="bikestart"><p class="fine" style="margin-top:0">Turn the bike on and pedal a few turns to wake it. Disconnect it from any phone or watch app first: most bikes allow only one connection.</p>
+  <p style="margin-bottom:0"><button class="go" type="button" id="bikescan">Scan for my bike</button> <span id="bikemsg" class="fine"></span></p></div>
+ <div id="bikelist" hidden></div>
+ <div id="bikeconsent" hidden>
+  <h3>The hub can't talk to <span id="bikename"></span> yet</h3>
+  <p>Your AI assistant can work out how. <b>May the hub ask it to set this bike up?</b></p>
+  <p class="fine">Your assistant will see the bike's Bluetooth name, the services it offers and a few seconds of its data packets - <b>no training history</b>. It writes a bike profile (settings, never code); the hub checks it and runs a short guided test that only nudges resistance in small steps while you pedal. Nothing changes until you confirm it worked.</p>
+  <p style="margin-bottom:0"><button class="go" type="button" id="bikeyes">Yes, ask my assistant</button> <button type="button" id="bikeno">Not now</button></p>
+  <p class="fine" id="bikepedal" hidden>Keep pedaling - the hub is listening to the bike for a few seconds…</p>
+ </div>
+ <div id="bikewait" hidden>
+  <h3>Now open your AI assistant and type:</h3>
+  <pre id="bikesay" style="font-size:20px;font-weight:700">get my bike working</pre>
+  <p><button type="button" id="bikecopy">Copy</button> <span class="fine">Your assistant picks up the request from here. Keep this page open: it shows each step, and tells you when to pedal.</span></p>
+  <p class="fine">No assistant connected yet? Connect it first (see <a href="#ai">Built to work with an AI assistant</a> above), then type the line.</p>
+  <div class="card" style="background:var(--deep);margin:0"><b id="bikestatus">Waiting for your assistant…</b><ul id="bikeprogress" class="fine" style="margin:6px 0 0"></ul></div>
+  <p style="margin-bottom:0"><button type="button" id="bikecancel">Cancel the request</button></p>
+ </div>
+</div>
 
 <h2>WHAT YOU NEED</h2>
 <div class="card"><table>
@@ -153,6 +176,41 @@ fetch('/api/setup').then(r=>r.json()).then(s=>{
   if(p.smart_bike || (!s.no_bike && p.smart_bike==null)) $('smart_bike').checked=!s.no_bike;
   matchStarter();
 }).catch(()=>{});
+// ── Your bike: scan; a recognized bike is one click, an unrecognized one is queued for the assistant ──
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let bikeFound=[],bikeTimer=null;
+const BADGE={known:'✅ Recognized',standard:'✅ Standard smart bike',unrecognized:'❔ Not recognized yet'};
+function bikeShow(which){['bikestart','bikelist','bikeconsent','bikewait'].forEach(id=>$(id).hidden=!which.includes(id));}
+async function bikeApi(path,body){const r=await fetch('/api/bike/'+path,body?{method:'POST',body:JSON.stringify(body)}:{});const j=await r.json().catch(()=>({error:'No answer from the hub'}));if(!r.ok)throw new Error(j.error||'Something went wrong');return j;}
+async function bikeStatus(){
+  try{const s=await bikeApi('status');
+    $('bikenow').innerHTML=s.active?`Your bike: <b>${esc(s.active.name)}</b> ✓ <span class="fine">(${s.active.protocol==='custom'?'set up with your assistant':'connects automatically'})</span>`:'No bike set up yet. Riding without a smart bike? Skip this - everything else works without one.';
+    if(s.request){bikeShow(['bikewait']);$('bikestatus').textContent=s.message;
+      const prog=[...(s.request.checks||[]).slice(-1).flatMap(c=>(c.problems||[]).map(p=>'⚠ '+p))];
+      $('bikeprogress').innerHTML=prog.map(x=>`<li>${esc(x)}</li>`).join('');
+      if(!bikeTimer)bikeTimer=setInterval(bikeStatus,2000);
+    }else{if(bikeTimer){clearInterval(bikeTimer);bikeTimer=null;}if(!$('bikewait').hidden){bikeShow(['bikestart']);$('bikemsg').textContent=s.active?`Done - ${s.active.name} is set up.`:'';}}
+    if(s.request&&s.request.status==='checking'){const r=await bikeApi('request');const pr=(r.request&&r.request.check_progress)||[];$('bikestatus').textContent='🚴 Keep pedaling steadily - guided check running';$('bikeprogress').innerHTML=pr.map(x=>`<li>${esc(x)}</li>`).join('');}
+  }catch(e){}
+}
+$('bikescan').onclick=async()=>{$('bikemsg').textContent='Scanning…';$('bikescan').disabled=true;
+  try{const j=await bikeApi('scan',{});bikeFound=j.found;$('bikemsg').textContent=j.message;
+    $('bikelist').innerHTML=j.found.length?j.found.map((o,i)=>`<div class="sp" style="grid-template-columns:1fr auto"><div><b>${esc(o.device.name||o.device.address)}</b> <span class="fine">${BADGE[o.status]}</span><br><span class="fine">${esc(o.why)}</span></div>
+      <button type="button" data-i="${i}" class="${j.likely&&o.device.address===j.likely.device.address?'on':''}">${o.status==='unrecognized'?'This is my bike':'Use this bike'}</button></div>`).join(''):'';
+    bikeShow(['bikestart','bikelist']);
+    $('bikelist').querySelectorAll('button').forEach(b=>b.onclick=()=>bikePick(bikeFound[+b.dataset.i]));
+  }catch(e){$('bikemsg').textContent=e.message;}finally{$('bikescan').disabled=false;}};
+let bikePicked=null;
+async function bikePick(o){bikePicked=o;
+  if(o.status!=='unrecognized'){try{const j=await bikeApi('choose',{address:o.device.address});$('bikemsg').textContent=j.message;bikeShow(['bikestart']);bikeStatus();}catch(e){$('bikemsg').textContent=e.message;}return;}
+  $('bikename').textContent=o.device.name||'this bike';bikeShow(['bikeconsent']);}
+$('bikeno').onclick=()=>{bikeShow(['bikestart','bikelist']);$('bikemsg').textContent='No problem - nothing was sent anywhere.';};
+$('bikeyes').onclick=async()=>{$('bikeyes').disabled=true;$('bikepedal').hidden=false;
+  try{const j=await bikeApi('request',{address:bikePicked.device.address,consent:true});$('bikesay').textContent=j.say;bikeShow(['bikewait']);bikeStatus();}
+  catch(e){$('bikemsg').textContent=e.message;bikeShow(['bikestart','bikelist']);}finally{$('bikeyes').disabled=false;$('bikepedal').hidden=true;}};
+$('bikecopy').onclick=()=>{navigator.clipboard&&navigator.clipboard.writeText($('bikesay').textContent);$('bikecopy').textContent='Copied ✓';};
+$('bikecancel').onclick=async()=>{await bikeApi('cancel',{}).catch(()=>{});bikeShow(['bikestart']);bikeStatus();};
+bikeStatus();
 $('form').onsubmit=async ev=>{ ev.preventDefault();
   const sports=SP.map(([k])=>k).filter(k=>$('sp-'+k).checked);
   if(!sports.length){ $('msg').textContent='Pick at least one sport.'; return; }

@@ -1,5 +1,6 @@
 """Ride posts: story, infographic, Claude pack, Strava (against a stand-in Strava),
 TCX with a route's map, and Strava setup kept to the Mac."""
+# macOS only: uses Apple's Bluetooth/drawing libraries (tests/run_all.py skips it elsewhere)
 import sys, pathlib; sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 import csv, datetime as dt, json, math, tempfile, time
 import xml.etree.ElementTree as ET
