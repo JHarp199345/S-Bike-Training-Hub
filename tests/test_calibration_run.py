@@ -97,10 +97,11 @@ f = {"start": "2026-10-05", "target": "2026-12-27", "sport": "tri", "hours": 4, 
 p = B.propose({"plans": {}}, f, "2026-10-05", {"status": "open_for_review"})
 plans = S.build({"plans": {}}, p, today="2026-10-05")["candidates"][1]["plans"]
 cal = [k for k, v in plans.items() if v.get("test") == "run_calibration"]
-check(f"the test week has one running calibration ({cal})", len(cal) == 1 and cal[0] < "2026-10-12")
-runs_in_watch = [k for k, v in plans.items() if cal and cal[0] < k <= (dt.date.fromisoformat(cal[0]) + dt.timedelta(days=8)).isoformat()
+check(f"the test week has a running calibration, and each check week another ({cal})", len(cal) >= 2 and cal[0] < "2026-10-12"
+      and len([k for k in cal if k < "2026-10-12"]) == 1)
+runs_in_watch = [k for c in cal for k, v in plans.items() if c < k <= (dt.date.fromisoformat(c) + dt.timedelta(days=8)).isoformat()
                  and any(s["sport"] == "run" for s in v["sessions"])]
-check(f"no runs during its eight-day watch ({runs_in_watch})", cal and not runs_in_watch)
+check(f"no runs during any eight-day watch ({runs_in_watch})", cal and not runs_in_watch)
 s = next(x for x in plans[cal[0]]["sessions"] if x["sport"] == "run")
 check("it says up to 60 min in zone 2, stop early if form breaks down", s["minutes"] == 60 and "zone 2" in " ".join(s["steps"]))
 held = S.build({"plans": {}}, {**p, "running_hold": True}, today="2026-10-05")["candidates"][1]["plans"]
