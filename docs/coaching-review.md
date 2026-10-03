@@ -2,6 +2,21 @@
 
 The assistant has two separate levers: change the future program within current constraints, or review a capacity estimate when outcomes repeatedly disagree with expectations. This is an assistant-driven workflow; the Hub supplies calculations and enforces reviewed writes, not autonomous optimization or biological clearance.
 
+## The check-in routine
+
+Every check-in returns an **attention list** for the coming week: `record_checkin` returns it, and it's also available from `get_attention` and `/api/coach/attention`. The assistant goes through it with the athlete in the same conversation. For each item it proposes the lightest fix, previews it, applies it once the athlete agrees, and says what changed and why, or that the plan stands. The MCP `daily-check-in` prompt starts this conversation.
+
+Items, most urgent first:
+- stop or whole-body warnings;
+- training-rule breaks;
+- forecast conflicts;
+- running deloads, re-entry and targets;
+- calibration questions (was it the test? why did it stop?);
+- missed sessions without a reason;
+- cautions.
+
+The hub lists. The plan changes only through a reviewed preview the athlete approves. Forecasts weeks ahead are provisional; adjusting at each check-in, with that day's evidence, is how the plan stays right.
+
 ## Tools and sequence
 
 1. `get_coaching_review` returns 1–14 days of running/lifting forecasts, each day's readings across sports, current running restrictions, unresolved symptoms and capacity candidates. It is also included in `get_recent_weeks` and the MCP Today response. Read the whole sequence, including openers after a peak week.

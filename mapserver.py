@@ -1074,6 +1074,10 @@ async def coach_api(bridge, method, path, p, body):
             since = (__import__("datetime").date.fromisoformat(date) - __import__("datetime").timedelta(days=days)).isoformat()
             return js({"checkins": {k: v for k, v in d["checkins"].items() if since <= k <= date},
                        "plans": {k: v for k, v in d["plans"].items() if since <= k <= date}})
+        if p == '/api/coach/attention':
+            import attention
+            return js(attention.items(d,load_state(rides.parent),done_by_day(rides.parent,d),bridge.workouts,coach.today(),
+                                      max(1,min(14,int((q.get('days') or ['7'])[0])))))
         if p == '/api/coach/coaching-review':
             import coaching_review, program_drafts
             state=load_state(rides.parent);done=done_by_day(rides.parent,d)
@@ -1258,7 +1262,14 @@ async def coach_api(bridge, method, path, p, body):
                 warning='Your check-in was saved. Some training calculations could not refresh; try refreshing the readings.'
                 print('Check-in saved; derived update failed:',e)
             result=with_systems(coach.day(d,date),rides.parent)
-            return js({**result,'saved':True,'journal_entry':entry,'warning':warning})
+            needs=None
+            if date==coach.today():
+                try:                                  # what the assistant should go through with the athlete now
+                    import attention
+                    needs=attention.items(d,load_state(rides.parent),done_by_day(rides.parent,d),bridge.workouts,coach.today())
+                except Exception as e:
+                    print('Attention list failed:',e)
+            return js({**result,'saved':True,'journal_entry':entry,'warning':warning,'attention':needs})
         if p == "/api/coach/test/start" and method == b"POST":
             capture_program_forecast(bridge,rides,d)
             bridge.coach_test_start()
