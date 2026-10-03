@@ -262,9 +262,25 @@ RESUME_AFTER = 30           # seconds of pedalling before a workout is worth res
 
 def pid_alive(pid):
     try:
-        os.kill(int(pid), 0)
+        pid = int(pid)
+    except (TypeError, ValueError):
+        return False
+    if os.name == "nt":
+        # On Windows signal 0 is CTRL_C_EVENT: os.kill(pid, 0) would interrupt the whole console. Ask the OS instead.
+        import ctypes
+        k32 = ctypes.windll.kernel32
+        handle = k32.OpenProcess(0x1000, False, pid)            # PROCESS_QUERY_LIMITED_INFORMATION
+        if not handle:
+            return False
+        code = ctypes.c_ulong()
+        try:
+            return bool(k32.GetExitCodeProcess(handle, ctypes.byref(code))) and code.value == 259   # STILL_ACTIVE
+        finally:
+            k32.CloseHandle(handle)
+    try:
+        os.kill(pid, 0)
         return True
-    except (OSError, TypeError, ValueError):
+    except OSError:
         return False
 
 
