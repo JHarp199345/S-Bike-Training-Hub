@@ -72,6 +72,18 @@ If negative reports continue past a week, the target drops to 0.1. Two weeks of 
 
 **Check weeks.** These are a few deloads that retest every capacity: running calibration, FTP, swim pace, and a strength check (one comfortable 6–10 rep set with 2–3 reps left). The count is about 2 + 0.15 × (weeks − 12), at least 2 (1 under eight weeks): 12 weeks → 2, 16 → 3, 52 → 8. The last one sits right before event preparation. In long programs the last three are close together, so the peak is dialled in. Between measurements, the block's automatic weekly growth adds at most 30%. Muscle and lungs report "easy" weeks before bone and tendon have caught up.
 
+**Lifting sessions** (`lift_sessions.py`) are 2 main compound lifts plus 3 minor ones: a single-limb lift, a sport-support or prehab lift, and core. The support lift comes from the athlete's improving sports: swim dryland (straight-arm pulldown, external rotation, Y-T-W), run support (soleus raises, hip abduction, tibialis raises) or bike support (single-leg bridge, hip extension). It's kept off tissue that tomorrow's hard session needs. The core slot alternates anti-rotation (Pallof press, dead bug, side plank) and rotation (woodchop, med-ball rotational throw). A 30-minute session is 2 + 1; a 60-minute session adds a third main lift and its supporting minor. A power block (jumps or med-ball throws) is optional. Phases set sets, reps and effort, and lifts never go to failure:
+
+| Phase | Main lifts | Reps in reserve |
+|---|---|---|
+| Base | 3 × 10–12 | 3–4 |
+| Build | 4 × 4–6, heavy | 2–3 |
+| Event-specific | 3 × 3–5, explosive | 3 |
+| Taper | 1–2 sets | 3+ |
+| Check week | one comfortable set of 6–10 | 2–3 |
+
+Minor lifts stay at 2–3 × 8–15. When every set reaches the top of its range, add 2.5–5%. The athlete's **rules** ("I can't do pull ups", "No barbell deadlifts", "No BB squats") swap a lift for the next option in its slot, never dropping it, so the session keeps its shape. An equipment word narrows a rule: "No barbell deadlifts" keeps dumbbell Romanian deadlifts.
+
 **Lifting splits** are the athlete's choice: full body, upper/lower, push/pull, push/pull/legs, lower/push/pull, or four-way (knee, hip, push, pull). Splits work equally well when volume is equal (Schoenfeld et al., 2019). Training each region twice a week beats once (Schoenfeld et al., 2016).
 
 ## Evidence rules

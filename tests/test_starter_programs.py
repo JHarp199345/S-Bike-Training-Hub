@@ -28,8 +28,11 @@ class StarterTests(unittest.TestCase):
   for c in r['candidates']:
    self.assertTrue(all(w['minutes']<=p['hours']*60 for w in c['journey']))
    self.assertTrue(all(s['steps'] for plan in c['plans'].values() for s in plan['sessions']))
-  lifts=S.workout('gym',30,3,'moderate','new','barbell',{})['lifts']
+  lifts=S.workout('gym',30,3,'moderate','new','barbell',{},lift_focus='upper_push')['lifts']
   self.assertIn('BB bench press',[x['name'] for x in lifts]);self.assertTrue(all(x['weight'] is None for x in lifts))
+  self.assertEqual([x['role'] for x in lifts],['main','main','prehab'])          # 30 min: 2 main + 1 minor
+  basic=S.workout('gym',45,3,'moderate','new','basic',{})['lifts']
+  self.assertEqual(len(basic),5);self.assertTrue(all(x['kind'] in ('bodyweight','band') for x in basic))
  def test_known_bike_forecast_uses_power_and_ftp(self):
   p=self.proposal(priorities={'ride':'improve','swim':'pause','gym':'pause','run':'pause'})
   load={'profile':{'ftp':180},'systems':{'engine':{'fitness':10,'fatigue':12},'muscle':{'fitness':3,'fatigue':4},'impact':{'fitness':0,'fatigue':0}}}
@@ -53,9 +56,11 @@ class StarterTests(unittest.TestCase):
   weight,basis=C.prescribe(anchor,'moderate',2);self.assertEqual(weight,75)
   self.assertLessEqual(weight,anchor['weight'])
   with self.assertRaises(ValueError):C.anchors([{'name':'BB row','weight':100,'reps':40}])
-  w=S.workout('gym',30,2,'moderate','new','barbell',{}, {'BB bench press':anchor})
+  w=S.workout('gym',30,2,'moderate','new','barbell',{}, {'BB bench press':anchor},lift_focus='upper_push')
   bench=next(x for x in w['lifts'] if x['name']=='BB bench press')
-  self.assertEqual(bench['weight'],75);self.assertTrue(bench['regions'])
+  self.assertEqual(bench['weight'],85);self.assertTrue(bench['regions'])        # base: 62% of the estimated max
+  heavy=S.workout('gym',30,2,'moderate','new','barbell',{}, {'BB bench press':anchor},stage='build',lift_focus='upper_push')
+  self.assertEqual(next(x for x in heavy['lifts'] if x['name']=='BB bench press')['weight'],100)   # build: 80%, never over the reported set
  def test_program_shape_builds_to_peaks_then_tapers(self):
   import datetime as dt
   f={'start':'2026-10-05','target':'2026-12-27','sport':'tri','hours':4,'goal':'First sprint triathlon','assessment':'week','starter_level':'moderate',
