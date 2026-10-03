@@ -74,6 +74,23 @@ try:
 except ValueError:
     check("an unknown reason is refused", True)
 
+# done up to two days off the planned day: matched, then confirmed with the athlete
+plan = {"plans": {DAY: {"test": "run_calibration", "sessions": []}}}
+acts = {after(1): {"minutes": 60, "impact": 100.0, "drift_pct": 2.0}}
+check("a run the day after a planned calibration is matched to it", C.match_runs(plan, acts) == {DAY: after(1)})
+check("a run three days off is not", C.match_runs(plan, {after(3): acts[after(1)]}) == {DAY: None})
+check("not when another run sits in between", C.match_runs(plan, {after(-1): {}, after(-2): acts[after(1)]})[DAY] == after(-1))
+runs = C.calibration_runs(plan, acts)
+check("a moved run asks whether it was the test", runs[0]["needs_confirm"] and runs[0]["moved"] and not runs[0]["needs_reason"])
+moved = lambda **kw: C.run_calibration({**{"benchmarks": {"calibrations": {DAY: kw}}}} if kw else {}, DAY, acts[after(1)],
+                                       {**mornings(), after(9): {"feet": 2, "legs": 2}}, kw.pop("today", after(10)), (), after(1))
+check("…and waits for the answer", moved() is None)
+check("confirmed: graded on the full scale from the day it was run", moved(confirmed=True)["multiplier"] == 1.5)
+no = moved(confirmed=False)
+check("an ordinary run: not the test, no block, schedule it again", no["result"] == "not_test" and "block" not in no)
+late = C.run_calibration({}, DAY, acts[after(1)], {**mornings(), after(9): {"feet": 2, "legs": 2}}, after(16), (), after(1))
+check("nobody answered in two weeks: measured anyway, no headroom claimed", late["multiplier"] == 1.0)
+
 # the starter program: the calibration in the test week, no running for eight days after
 f = {"start": "2026-10-05", "target": "2026-12-27", "sport": "tri", "hours": 4, "goal": "Sprint", "assessment": "week",
      "starter_level": "moderate", "priorities": {"ride": "improve", "swim": "improve", "run": "improve", "gym": "maintain"}}

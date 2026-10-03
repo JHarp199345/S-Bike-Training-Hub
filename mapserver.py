@@ -926,11 +926,11 @@ def calibration_view(d, rides, running_cleared_in=None):
                     d.setdefault('benchmarks', {}).setdefault('runs', {})[day] = result
                     coach.save(d)
         # running calibrations on the plan: the athlete's own test sets the block once its eight-day watch is over
-        for day, plan_ in d.get("plans", {}).items():
-            if plan_.get("test") == "run_calibration" and day in acts:
-                end = (__import__("datetime").date.fromisoformat(day) + __import__("datetime").timedelta(days=calibration.CAL_WATCH_DAYS)).isoformat()
-                others = sorted(k for k in acts if day < k <= end)
-                if calibration.run_calibration(d, day, acts[day], d.get("checkins", {}), coach.today(), others):
+        for day, run_day in calibration.match_runs(d, acts).items():
+            if run_day:
+                end = (__import__("datetime").date.fromisoformat(run_day) + __import__("datetime").timedelta(days=calibration.CAL_WATCH_DAYS)).isoformat()
+                others = sorted(k for k in acts if run_day < k <= end)
+                if calibration.run_calibration(d, day, acts[run_day], d.get("checkins", {}), coach.today(), others, run_day):
                     coach.save(d)
                     _load_cache["key"] = None
         bench = calibration.benchmark_expectation(d, coach.today(), rem["reference_points"]) if rem.get("reference_points") else None
@@ -1326,7 +1326,9 @@ async def coach_api(bridge, method, path, p, body):
         if p == "/api/calibration" and method == b"POST":
             import calibration
             try:
-                if req.get("calibration_run"):
+                if req.get("calibration_run") and req.get("was_test") is not None:
+                    e = calibration.calibration_confirm(d, req["calibration_run"], req["was_test"] is True, req.get("run_date"))
+                elif req.get("calibration_run"):
                     e = calibration.calibration_stop(d, req["calibration_run"], req.get("reason"), req.get("note", ""))
                 elif req.get("benchmark"):
                     e = calibration.benchmark_report(d, req["benchmark"], req.get("rpe"), req.get("pain", False), req.get("note", ""))
