@@ -33,7 +33,7 @@ def guide(d, date, s):
  title,purpose,after=TEST_PURPOSES[key]
  return {'id':key,'title':title,'purpose':purpose,'how':calibration.TESTS[key]['how'],'after':after,
          'caution':'Start only when the current plan and recovery checks allow it. Stop for pain, dizziness, or loss of control.',
-         'image':'/web/sports/phase-foundation.jpg' if key=='css' else '/web/sports/community-road-run.jpg' if key in ('benchmark_run','run_calibration') else '/web/sports/test-assessment.jpg'}
+         'image':'/web/sports/morning-diagnostic-sunrise.jpg' if key=='diagnostic' else '/web/sports/phase-foundation.jpg' if key=='css' else '/web/sports/community-road-run.jpg' if key in ('benchmark_run','run_calibration') else '/web/sports/test-assessment.jpg'}
 
 
 def describe(d,date,index,s=None):

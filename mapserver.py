@@ -1013,6 +1013,10 @@ async def coach_api(bridge, method, path, p, body):
     import workouts
     from urllib.parse import parse_qs, urlsplit
     js = lambda obj, code=200: (code, "application/json", json.dumps(obj, ensure_ascii=False).encode(), {})
+    if p == "/api/coach/update-check" and method == b"GET":
+        import updates
+        try:return js(await asyncio.to_thread(updates.check,WEB))
+        except Exception:return js({"error":"Could not reach the public update list. Your local Hub still works; try again later."},503)
     rides = Path(bridge.csv_path).parent if getattr(bridge, "csv_path", None) else HERE / "rides"
     d = coach.load(coach.file_for(rides))                  # beside the bridge's own rides: a test bridge writes its own
     q = parse_qs(urlsplit(path).query)

@@ -1,0 +1,137 @@
+{
+  "latest": "app-2026-10-03-art-history",
+  "entries": [
+    {
+      "id": "app-2026-10-03-art-history",
+      "date": "2026-10-03",
+      "version": "App update",
+      "title": "Morning inspiration and a visible update history",
+      "changes": [
+        "Gave the morning diagnostic its own mountain-sunrise artwork.",
+        "Added this local update history with links to release details and the wiki."
+      ],
+      "image": "/web/sports/morning-diagnostic-sunrise.jpg"
+    },
+    {
+      "id": "mcp-v1.7.0",
+      "date": "2026-10-03",
+      "version": "MCP 1.7.0",
+      "title": "Clearer workouts and reliable reports",
+      "changes": [
+        "Fixed effort reports for completed lifts without watch imports.",
+        "Added illustrated test guides and separate workout instructions and planning explanations.",
+        "Check-ins review explanations and update only what needs changing."
+      ],
+      "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/mcp-v1.7.0",
+      "image": "/web/sports/test-assessment.jpg"
+    },
+    {
+      "id": "mcp-v1.6.1",
+      "date": "2026-10-03",
+      "version": "MCP 1.6.1",
+      "title": "Count the lift you actually performed",
+      "changes": [
+        "Added pauses, weighted holds and failure reports to the lifting tools.",
+        "Aligned assistant instructions with the current hold calculation."
+      ],
+      "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/mcp-v1.6.1"
+    },
+    {
+      "id": "mcp-v1.6.0",
+      "date": "2026-10-03",
+      "version": "MCP 1.6.0",
+      "title": "A more complete coaching routine",
+      "changes": [
+        "Added check-in attention lists and recorded race predictions.",
+        "Exposed current calibration, cross-sport rules and structured lifting through the assistant."
+      ],
+      "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/mcp-v1.6.0"
+    },
+    {
+      "id": "mcp-v1.5.0",
+      "date": "2026-10-03",
+      "version": "MCP 1.5.0",
+      "title": "Review the whole sequence",
+      "changes": [
+        "Added a two-week running and lifting outlook.",
+        "Preview and approve calendar repairs and evidence-supported capacity changes."
+      ],
+      "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/mcp-v1.5.0"
+    },
+    {
+      "id": "mcp-v1.4.0",
+      "date": "2026-10-03",
+      "version": "MCP 1.4.0",
+      "title": "Guided setup and progression",
+      "changes": [
+        "Added guided bike setup and recent-week review.",
+        "Expanded phase-specific starter progression and the simulated athlete journey."
+      ],
+      "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/mcp-v1.4.0"
+    },
+    {
+      "id": "mcp-v1.3.0",
+      "date": "2026-10-02",
+      "version": "MCP 1.3.0",
+      "title": "Apply the plan you reviewed",
+      "changes": [
+        "Locked program changes to an exact reviewed draft.",
+        "Added calendar evidence, formula inspection and swim equipment including fins and snorkels."
+      ],
+      "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/mcp-v1.3.0"
+    },
+    {
+      "id": "mcp-v1.2.1",
+      "date": "2026-10-02",
+      "version": "MCP 1.2.1",
+      "title": "Smaller, more usable planning context",
+      "changes": [
+        "Made program previews easier for assistants to read.",
+        "Verified the desktop extension installation and planning workflow."
+      ],
+      "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/mcp-v1.2.1"
+    },
+    {
+      "id": "mcp-v1.2.0",
+      "date": "2026-10-02",
+      "version": "MCP 1.2.0",
+      "title": "Build and compare programs",
+      "changes": [
+        "Added program preview, apply and progress evidence.",
+        "Compare three proposed workloads before choosing a starter program."
+      ],
+      "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/mcp-v1.2.0"
+    },
+    {
+      "id": "mcp-v1.1.0",
+      "date": "2026-09-30",
+      "version": "MCP 1.1.0",
+      "title": "Bring lifting into the Hub",
+      "changes": [
+        "Added lifting prescriptions, logs, follow-ups and Sunday reviews."
+      ],
+      "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/mcp-v1.1.0"
+    },
+    {
+      "id": "mcp-v1.0.0",
+      "date": "2026-09-30",
+      "version": "MCP 1.0.0",
+      "title": "Connect an assistant",
+      "changes": [
+        "Published the first one-file MCP bundle for coaching, rides, imports and training load."
+      ],
+      "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/mcp-v1.0.0"
+    },
+    {
+      "id": "outset",
+      "date": "2026-09-27",
+      "version": "The outset",
+      "title": "The first public release",
+      "changes": [
+        "The repository began its public history as a stationary-bike training hub.",
+        "During the following week it grew into a shared place for coaching, multisport load, recovery and program planning."
+      ],
+      "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/commit/97395bd"
+    }
+  ]
+}
