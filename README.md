@@ -186,3 +186,7 @@ Built by JHarp199345 with [Claude](https://claude.com) as co-author. The running
 ### Workout reports and purpose
 
 Completed lifting sessions support **Too easy**, **As intended**, and **Too hard** reports in Today and Plan, with visible save confirmation. Today shows the saved workout steps; Plan explains the workout’s purpose, phase and neighboring sessions. Test cards explain what each assessment measures, how it runs and what to record afterward. During check-ins the assistant reviews explanations against the saved plan and forecasts, updating only stale or misleading text. Explanation updates preserve the workout dose and recovery rules.
+
+### Update history
+
+Open **What’s new** in the Coach header for dated release milestones, artwork, and links to the wiki. **Check for updates** reads the public GitHub update list; optional automatic checks run when you open the Hub, at most twice a day. They send no athlete records and never install updates automatically. Older installs need to update once to gain this checker.
