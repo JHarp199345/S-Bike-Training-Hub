@@ -62,9 +62,10 @@ def report(d,date,index,fields,done,today):
     ss=B.sessions(d.get('plans',{}).get(date) or {})
     if not 0<=index<len(ss):raise ValueError('Choose a scheduled session')
     session=ss[index];sport=session['sport']
-    actual=[a for a in done.get(date,[]) if a.get('sport') in (sport,'bike' if sport=='ride' else sport)]
-    ordinal=sum(x['sport']==sport for x in ss[:index])
-    if len(actual)<=ordinal:raise ValueError('Import or log the completed workout before reporting effort')
+    import coach
+    marked=coach.attach_completions(d,date,copy.deepcopy(ss),copy.deepcopy(done.get(date,[])))
+    completion=marked[index].get('completion')
+    if not completion:raise ValueError('Import or log the completed workout before reporting effort')
     effort=fields.get('effort')
     if effort not in ('too_easy','as_intended','too_hard'):raise ValueError('effort is too_easy, as_intended or too_hard')
     rpe=fields.get('rpe')
@@ -90,7 +91,7 @@ def report(d,date,index,fields,done,today):
     entry={'date':date,'session_index':index,'sport':sport,'session_name':session.get('name'),
         'planned_minutes':session.get('minutes',0),'effort':effort,'rpe':rpe,'symptoms':cleaned,
         'heart_rate_issue':hr,'note':str(fields.get('note') or '')[:1000],
-        'actual_minutes':actual[ordinal].get('minutes'),'context':context(d,date,sport,session)}
+        'actual_minutes':completion.get('minutes'),'context':context(d,date,sport,session)}
     if old:
         d.setdefault('feedback_edits',[]).append(copy.deepcopy(old))
         if old.get('adapted'):entry['adapted']=old['adapted']

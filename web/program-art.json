@@ -422,6 +422,23 @@
       "source": "user-supplied-sheet",
       "width": 443,
       "height": 267
+    },
+    {
+      "id": "test-assessment",
+      "title": "Cycling assessment",
+      "phases": [
+        "assessment"
+      ],
+      "subjects": [
+        "cycling",
+        "test"
+      ],
+      "style": "photorealistic",
+      "file": "/web/sports/test-assessment.jpg",
+      "focal": [
+        72,
+        50
+      ]
     }
   ],
   "rotation": "Choose relevant artwork on opening the view; keep it stable during use."

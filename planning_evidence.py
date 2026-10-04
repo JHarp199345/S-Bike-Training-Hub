@@ -40,7 +40,7 @@ def calendar(d,load,done,workouts,today,start,days=7):
             projection={k:projection.get(k) for k in ('date','sessions','alerts','confidence','goal_basis','assumptions')} | {'metrics':[{k:r.get(k) for k in ('key','unit','before','after','session_dose','dose_unit','goal','expected','over_limit','limit')} for r in projections[date]['metrics'] if not r['key'].startswith('lift_') or r.get('over_limit')]}
         import coach
         marked=coach.mark_missed(d,date,coach.attach_completions(d,date,[dict(s) for s in sessions],[dict(x) for x in done.get(date,[])]),today)
-        rows.append({'date':date,'sessions':[{'id':sid(date,i,s),'index':i,'prescription':s,'missed':bool(marked[i].get('missed')),'missed_reason':marked[i].get('missed_reason'),'context':progression.context(d,date,s['sport'],s),'execution_hold':s['sport']=='run' and gate['status']!='open_for_review'} for i,s in enumerate(sessions)],
+        rows.append({'date':date,'sessions':[{'id':sid(date,i,s),'index':i,'prescription':s,'explanation':__import__('session_explanations').describe(d,date,i,s),'missed':bool(marked[i].get('missed')),'missed_reason':marked[i].get('missed_reason'),'context':progression.context(d,date,s['sport'],s),'execution_hold':s['sport']=='run' and gate['status']!='open_for_review'} for i,s in enumerate(sessions)],
                      'completed':done.get(date,[]),'projection':projection,
                      'checkin':d.get('checkins',{}).get(date),'feedback':[x for x in d.get('training_feedback',{}).values() if x.get('date')==date]})
     return {'start':start,'days':days,'as_of':today,'calendar':rows,

@@ -475,6 +475,8 @@ def week(d, date, done=None):
                                           "name": p.get("sport", "").title(), "steps": [],
                                           "note": p.get("note") or "", "workout": p.get("workout")}] if p.get("sport") else [])
         sessions = copy.deepcopy(sessions)
+        import session_explanations
+        for n, session in enumerate(sessions):session["explanation"] = session_explanations.describe(d,k,n,session)
         actual = copy.deepcopy((done or {}).get(k, []))
         attach_completions(d, k, sessions, actual)
         mark_missed(d, k, sessions)

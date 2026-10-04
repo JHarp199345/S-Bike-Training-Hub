@@ -96,7 +96,7 @@ Then **Build my program**: the hub drafts a program toward your goal that you ca
 
 The hub keeps the numbers; your assistant plans with you. It works with any app that supports MCP servers: Claude Desktop, Claude Code, and others, including local models.
 
-- **Claude Desktop:** use MCP **1.6.1 (69 tools)** with this updated app. Download the `.mcpb` bundle from the [latest release](https://github.com/JHarp199345/S-Bike-Training-Hub/releases), then **Settings → Extensions → Advanced settings → Install extension**. Leave the hub address at `http://127.0.0.1:8729`.
+- **Claude Desktop:** use MCP **1.7.0 (70 tools)** with this updated app. Download the `.mcpb` bundle from the [latest release](https://github.com/JHarp199345/S-Bike-Training-Hub/releases), then **Settings → Extensions → Advanced settings → Install extension**. Leave the hub address at `http://127.0.0.1:8729`.
 - **Claude Code:** `claude mcp add --scope user s-bike-hub -- "$PWD/.venv/bin/python" "$PWD/mcp_server.py"` (on Windows: `.venv\Scripts\python.exe`).
 - **Other MCP apps:** point them at `mcp_server.py` with the `.venv` Python.
 
@@ -182,3 +182,7 @@ The training models are provisional estimates calibrated by your own reports, no
 ## Credits and license
 
 Built by JHarp199345 with [Claude](https://claude.com) as co-author. The running-load block model was worked out by JHarp199345 with ChatGPT, then built into the hub with Claude. Map data © OpenStreetMap contributors; full credits in [docs/how-it-works.md](docs/how-it-works.md#credits). [MIT license](LICENSE).
+
+### Workout reports and purpose
+
+Completed lifting sessions support **Too easy**, **As intended**, and **Too hard** reports in Today and Plan, with visible save confirmation. Today shows the saved workout steps; Plan explains the workout’s purpose, phase and neighboring sessions. Test cards explain what each assessment measures, how it runs and what to record afterward. During check-ins the assistant reviews explanations against the saved plan and forecasts, updating only stale or misleading text. Explanation updates preserve the workout dose and recovery rules.

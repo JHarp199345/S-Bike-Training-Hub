@@ -1209,6 +1209,11 @@ async def coach_api(bridge, method, path, p, body):
             return js({"policy":(d.get("training_block") or {}).get("progression"),
                        "decisions":d.get("progression_decisions",[])[-12:],
                        "active_symptoms":progression.active_symptoms(d,coach.today())})
+        if p == "/api/coach/session-explanation" and method == b"POST":
+            import session_explanations
+            result=session_explanations.update(d,date,req.get("session_index"),req.get("text"),req.get("context_token"))
+            if result["changed"]:coach.save(d)
+            return js(result)
         if p == "/api/coach/session-report":
             import progression
             if method == b"POST":
