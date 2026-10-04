@@ -2,9 +2,9 @@
   "manifest_version": "0.3",
   "name": "s-bike-hub",
   "display_name": "S-Bike Training Hub",
-  "version": "1.6.1",
+  "version": "1.7.0",
   "description": "Coach from your smart-bike training hub: check-ins, plans, rides, lifting, workouts and training load for bike, run and swim.",
-  "long_description": "Use the current local Hub through 69 tools: reviewed programs and calendar edits, load forecasts, running calibration, cross-sport training rules, check-in attention lists, and recorded race predictions. Requires the matching updated Hub app. Athlete files stay local; returned context follows the external AI provider\u2019s policies.",
+  "long_description": "Use the current local Hub through 70 tools: reviewed programs and calendar edits, load forecasts, running calibration, cross-sport training rules, check-in attention lists, reviewed workout explanations, and recorded race predictions. Requires the matching updated Hub app. Athlete files stay local; returned context follows the external AI provider\u2019s policies.",
   "author": {
     "name": "JHarp199345",
     "url": "https://github.com/JHarp199345"

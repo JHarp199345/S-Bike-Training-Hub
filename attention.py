@@ -76,5 +76,6 @@ def items(d, load, done, workouts, today, days=7):
     return {"as_of": today, "days": days, "items": out,
             "summary": "Nothing needs changing: the plan stands." if not out else
                        f"{len(out)} thing{'s' if len(out) != 1 else ''} to go through with the athlete, most urgent first.",
-            "routine": "Go through the items in order: propose the lightest fix, preview it, apply it once the athlete "
+            "explanation_review": __import__("session_explanations").review(d,today,days),
+            "routine": "Check session explanations against the saved phase, nearby workouts and forecasts; update only stale or misleading text with update_session_explanation. Leave accurate text unchanged. Go through the items in order: propose the lightest fix, preview it, apply it once the athlete "
                        "agrees, and say what changed and why. The hub changes nothing here by itself."}

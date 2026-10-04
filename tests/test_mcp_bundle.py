@@ -47,7 +47,7 @@ async def main():
     return out
    try:
     await rpc(1,'initialize',{'protocolVersion':'2025-06-18','capabilities':{},'clientInfo':{'name':'installation-test','version':'1'}})
-    assert len((await rpc(2,'tools/list',{}))['tools'])==69
+    assert len((await rpc(2,'tools/list',{}))['tools'])==70
     await tool(3,'get_program')
     before=(base/'coach.json').read_bytes()
     preview=await tool(4,'preview_program',{'fields':fields}); assert len(preview['starter']['candidates'])==3
@@ -82,9 +82,17 @@ async def main():
     assert rows[0]['hold']==6 and rows[0]['failure'] is True,rows
     assert rows[1]['seconds']==20,rows
 
+    context=(await tool(22,'get_training_calendar',{'days':1}))['calendar'][0]['sessions'][0]
+    unchanged=coach.load(base/'coach.json')['plans'][coach.today()]['sessions'][0].copy()
+    updated=await tool(23,'update_session_explanation',{'date':coach.today(),'session_index':0,'text':'Easy work supports this recovery week.','context_token':context['explanation']['context_token']})
+    assert updated['changed']
+    stored=coach.load(base/'coach.json')['plans'][coach.today()]['sessions'][0].copy();stored.pop('coaching_context')
+    assert stored==unchanged,'Explanation update changed the workout dose'
+    repeat=await tool(24,'update_session_explanation',{'date':coach.today(),'session_index':0,'text':'Easy work supports this recovery week.','context_token':context['explanation']['context_token']});assert not repeat['changed']
+
     proc.stdin.close(); await asyncio.wait_for(proc.wait(),5); assert proc.returncode==0,(await proc.stderr.read()).decode()
    finally:
     if proc.returncode is None: proc.kill(); await proc.wait()
     server.close(); await server.wait_closed()
- print('PASS installable bundle: stock runtime, 69 tools, read/preview/apply/check-in/progress; isolated athlete data')
+ print('PASS installable bundle: stock runtime, 70 tools, read/preview/apply/check-in/progress; isolated athlete data')
 if __name__=='__main__': asyncio.run(main())
