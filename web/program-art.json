@@ -439,6 +439,33 @@
         72,
         50
       ]
+    },
+    {
+      "id": "morning-diagnostic-sunrise",
+      "title": "Morning diagnostic \u00b7 sunrise",
+      "phases": [
+        "assessment"
+      ],
+      "subjects": [
+        "morning-diagnostic"
+      ],
+      "style": "photorealistic",
+      "file": "/web/sports/morning-diagnostic-sunrise.jpg",
+      "focal": [
+        85,
+        50
+      ],
+      "subject_box": [
+        0.74,
+        0.07,
+        0.94,
+        0.93
+      ],
+      "layouts": [
+        "wide-guidance"
+      ],
+      "width": 2172,
+      "height": 724
     }
   ],
   "rotation": "Choose relevant artwork on opening the view; keep it stable during use."
