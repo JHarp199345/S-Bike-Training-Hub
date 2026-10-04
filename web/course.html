@@ -83,7 +83,7 @@
 <div class="ctl"><button id="dn">− EASIER</button><button id="up">+ HARDER</button></div>
 <button id="menubtn" aria-label="Menu">☰</button><a id="mapbtn" href="/ride" aria-label="Map view">🗺</a><button id="pausebtn" type="button" aria-label="Pause the workout" hidden>⏸</button>
 <button id="fullscreenride" type="button" aria-label="Full screen" title="Full screen">⛶</button>
-<div id="menu" hidden><div class="looks"><button data-look-pick="modern">MODERN</button><button data-look-pick="pixel">8-BIT</button></div><button id="formsbtn">Forms…</button><div id="awake" class="sub2" role="status">Tap Full screen to focus and keep the screen awake.</div><button id="endbtn">End course</button><a href="/coach">Coach</a><a href="/ride">Ride view</a><div id="drawer" style="all:unset;display:block"></div></div>
+<button id="ftpend" hidden style="position:absolute;bottom:90px;left:50%;transform:translateX(-50%);z-index:10;padding:12px 18px;background:#233f63;color:white;border:1px solid #66afff;border-radius:12px">End ramp · cool down</button><div id="menu" hidden><div class="looks"><button data-look-pick="modern">MODERN</button><button data-look-pick="pixel">8-BIT</button></div><button id="formsbtn">Forms…</button><div id="awake" class="sub2" role="status">Tap Full screen to focus and keep the screen awake.</div><button id="endbtn">End course</button><a href="/coach">Coach</a><a href="/ride">Ride view</a><div id="drawer" style="all:unset;display:block"></div></div>
 <div class="dlg" id="formsdlg" hidden><div class="dlgbox">
  <b>YOUR FORMS</b><div class="sub2">Time on the lit road evolves you, in this order. The rider on the bike always starts.</div>
  <ol id="formlist"></ol><div class="sub2">Add an animal</div><div class="addgrid" id="addgrid"></div>
@@ -195,6 +195,17 @@ function workoutCourse(wk){
 }
 async function poll(){
   try{ const r=await fetch('/status'); if(r.status===401){ location.href='/pair'; return; } st=await r.json(); }catch(e){ return; }
+  if(st.test){
+    const test=st.test;
+    course={id:'ftp-test',name:'FTP ramp test',length_m:1e7,profile:[[0,0,0],[1e7,0,0]],parts:[],gates:[],ftp_test:true};courseId='ftp-test';
+    $('start').hidden=true;$('mapbtn').hidden=true;$('resumebtn').hidden=true;$('pausebtn').hidden=true;
+    $('ftpend').hidden=test.phase==='cool-down';
+    $('endbtn').textContent=test.phase==='cool-down'?'Return to Coach (cool-down continues)':'End ramp · cool down';
+    lastD=test.elapsed*WK_SPEED;lastT=performance.now();speed=st.cadence>0?WK_SPEED:0;
+    Overlays.update(st);return;
+  }
+  $('ftpend').hidden=true;
+  if(course?.ftp_test){course=null;courseId=null;banner('FTP TEST COMPLETE',6000);}
   const wk=st.workout && !st.route ? st.workout : null;
   if(wk){
     const id='wk:'+wk.name+':'+wk.total;
@@ -330,7 +341,8 @@ $('menubtn').onclick=e=>{ e.stopPropagation(); $('menu').hidden=!$('menu').hidde
 document.addEventListener('click',e=>{ if(!$('menu').contains(e.target)) $('menu').hidden=true; });
 $('resumebtn').onclick=async()=>{ const r=await fetch('/api/workout/resume',{method:'POST'}).catch(()=>null); if(r&&r.ok){ courseId=null; course=null; pausedShown=false; } poll(); };
 $('pausebtn').onclick=async()=>{ await fetch('/api/workout/pause',{method:'POST',body:'{}'}).catch(()=>{}); poll(); };
-$('endbtn').onclick=async()=>{ await fetch(course?.workout?'/erg/off':'/api/route/stop',{method:'POST'}).catch(()=>{}); location.href='/coach'; };
+$('ftpend').onclick=async()=>{await fetch('/ftp/stop',{method:'POST'});poll();};
+$('endbtn').onclick=async()=>{ if(st?.test){if(st.test.phase!=='cool-down'){await fetch('/ftp/stop',{method:'POST'});poll();return;}location.href='/coach#today';return;} await fetch(course?.workout?'/erg/off':'/api/route/stop',{method:'POST'}).catch(()=>{}); location.href='/coach'; };
 $('go').onclick=async()=>{ $('startmsg').textContent='Building your course…';
   const r=await fetch('/api/course/start',{method:'POST',body:'{}'}).catch(()=>null);
   if(!r||!r.ok){ $('startmsg').textContent='Could not start - is the bike connected?'; return; }

@@ -234,6 +234,9 @@ async def serve(bridge, port=8729, lan=True):
             return
         if path == b"/status":
             body, ctype = json.dumps(bridge.status()).encode(), "application/json"
+        elif path == b"/ftp/preview":
+            from ftptest import RampTest
+            body, ctype = json.dumps(RampTest.preview(bridge.profile["ftp"])).encode(), "application/json"
         elif path.startswith(b"/history"):
             # The live graph: points after ?since=<epoch seconds> (all ten minutes without it).
             from urllib.parse import parse_qs, urlsplit

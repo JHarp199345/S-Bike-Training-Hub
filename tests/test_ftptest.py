@@ -56,6 +56,18 @@ async def main():
     te = ride_test(200, stop_at=420)
     check(f"stopped after 7 min of ramp: result from the best minute so far ({te.result} W)", te.result and te.result < 200)
 
+    te = RampTest(180, 0); te.update(300, 90, 80)
+    for t in range(301, 305): te.update(t, 0, 0)
+    check("brief zero readings do not end the ramp", te.phase == "ramp")
+    te.update(305, 100, 80)
+    for t in range(306, 312): te.update(t, 0, 0)
+    check("stopping completely for five seconds starts cool-down", te.phase == "cool-down" and "stopped" in te.reason)
+    p = RampTest.preview(180)
+    check("preview uses controller warm-up and first ramp step", p["warm_w"] == RampTest(180, 0).warm_w and p["start_w"] == RampTest(180, 0).start_w)
+    te = RampTest(180, 0); te.phase, te.phase_at, te.best_1min = "ramp", 300, 264
+    te.finish(600, "test limit")
+    check("forecast frozen before test and compared with actual result", te.comparison()["prediction"]["predicted_ftp"] == 180 and te.comparison()["error_w"] == 18)
+
     # In the bridge: result is saved, workouts and the up-shift guard rescale.
     br = make_bridge(); br.profile = rider.load(); br.args.upshift_cap_w = None
     br.ftp_test_start()

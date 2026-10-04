@@ -251,7 +251,7 @@ async function poll(){
   try{ const r=await fetch('/status'); if(r.status===401){ location.href='/pair'; return; } st=await r.json(); lastOk=Date.now(); }
   catch(e){ return; }
   // a watts-and-cadence workout with no route: there's nothing for a map to follow - it rides in the game view
-  if(st.workout && !st.route && !st.test){ location.replace('/course'); return; }
+  if(st.test || (st.workout && !st.route)){ location.replace('/course'); return; }
   if(ovMounted && PHONE.matches) Overlays.update(st,{profile:route?.profile, name:route?.name, hint:st.focus?.hint});
   const r=st.route;
   const wb=st.wbal, wtag=wb&&wb.pct<95?` <small style="color:${wb.pct<25?'var(--bad)':wb.pct<50?'var(--warn)':'var(--text2)'}">· W′ ${Math.max(0,wb.pct)}%</small>`:'';

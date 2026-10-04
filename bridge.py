@@ -1263,6 +1263,7 @@ class Bridge:
         self.erg.workout = None
         self.test = RampTest(self.profile["ftp"], now)
         self.test_applied = False
+        self._save_ftp_forecast()
         # ERG's "cadence under 55 -> ease off" guard would cap the ramp before he
         # reaches their limit; the test has its own end (under 50 rpm for 10 s).
         self.erg.min_cadence = 45
@@ -1270,12 +1271,23 @@ class Bridge:
         self.event(f"FTP test started: 5 min warm-up at {self.test.warm_w} W, then the ramp from "
                    f"{self.test.start_w} W, +10 W a minute until you can't hold it")
 
+    def _save_ftp_forecast(self):
+        # Saved beside the ride, never in the public repository. Preserve the pre-test estimate.
+        try:
+            path = Path(self.csv_path).with_suffix(".ftp-test.json")
+            path.write_text(json.dumps(self.test.comparison(), indent=2), encoding="utf-8")
+        except OSError as ex:
+            log.warning(f"Could not save FTP forecast: {ex}")
+
     def ftp_test_stop(self):
         if self.test and self.test.phase in ("warm-up", "ramp"):
             self.test.finish(time.monotonic(), "stopped with the button")
 
     def ftp_test_tick(self, now, power, cadence):
+        before = self.test.phase
         tgt = self.test.update(now, power, cadence)
+        if before != self.test.phase or (self.test.phase == "cool-down" and not self.test_applied):
+            self._save_ftp_forecast()
         if self.test.result and not self.test_applied:
             self.test_applied = True
             old = self.profile["ftp"]

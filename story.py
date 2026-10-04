@@ -292,7 +292,12 @@ def build(path):
                                      f"{stats['avg_w']} W avg · {stats['kcal']} kcal", "", challenge,
                                  "", "Ridden on my own offline bike bridge 🛠"])
 
-    return {"ride": path.stem, "stats": stats, "zones": zone_list, "highlights": highlights, "pbs": pbs,
+    forecast = None
+    try:
+        forecast = json.loads(path.with_suffix(".ftp-test.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        pass
+    return {"ride": path.stem, "ftp_forecast": forecast, "stats": stats, "zones": zone_list, "highlights": highlights, "pbs": pbs,
             "best_efforts": best_efforts, "compare": compare, "streak": streak, "week": week, "fitness": fit,
             "route": route, "ghost": ghost, "workout": workout, "ftp_test": ftp_test,
             "title": title, "caption": caption, "challenge": challenge, "adherence": adh, "focus": foc,

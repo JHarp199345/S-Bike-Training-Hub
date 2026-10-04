@@ -190,3 +190,11 @@ Completed lifting sessions support **Too easy**, **As intended**, and **Too hard
 ### Update history
 
 Open **What’s new** in the Coach header for dated release milestones, artwork, and links to the wiki. **Check for updates** reads the public GitHub update list; optional automatic checks run when you open the Hub, at most twice a day. They send no athlete records and never install updates automatically. Older installs need to update once to gain this checker.
+
+### FTP ramp test preview
+
+On Today, the FTP test shows its power prescription and a target graph. **Ride it** opens a preview with Hub, bike, and watch/sensor subscription indicators; starting opens the game view. The watch indicator means a device is receiving power or cadence, not that the Hub is receiving heart rate. Record on your watch and import its completed activity afterward.
+
+The test warms up for five minutes, raises the target by 10 W each minute, and finishes with five minutes easy. Sustained low power or cadence, five seconds of stopped pedaling during the ramp, or **End ramp · cool down** ends the ramp. The existing minimum four-minute ramp and best-minute FTP calculation still apply.
+
+A baseline result forecast is frozen before starting and saved beside the ride as `.ftp-test.json`, together with the actual result and error. The ride story exposes this comparison for post-workout analysis. This first forecast uses the current FTP estimate; it is not independent evidence that the recovery or performance model is calibrated. Its estimated ending does not limit the test duration.

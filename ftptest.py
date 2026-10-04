@@ -30,9 +30,31 @@ class RampTest:
         self.phase, self.phase_at = WARMUP, now
         self.window = collections.deque()       # (t, watts) for the rolling 60 s average
         self.best_1min = 0.0
-        self.low_cad_since = self.low_pow_since = None
+        self.low_cad_since = self.low_pow_since = self.stopped_since = None
+        self.started_at = now
+        self.prediction = self.preview(estimate)
         self.result = None                      # FTP in watts, once the ramp ends
         self.reason = ""
+
+    @staticmethod
+    def preview(estimate):
+        """Same prescription as the controller; prediction is frozen before testing."""
+        warm = max(60, round(estimate * 0.5 / 5) * 5)
+        start = max(70, round(estimate * 0.55 / 10) * 10)
+        cool = max(50, round(estimate * 0.45 / 5) * 5)
+        peak = round(estimate / 0.75)
+        minutes = max(4, int(max(0, peak - start) // 10) + 1)
+        return {"warmup_s": 300, "warm_w": warm, "start_w": start,
+                "increment_w": 10, "step_s": 60, "cooldown_s": 300, "cool_w": cool,
+                "predicted_ftp": estimate, "predicted_peak_w": peak,
+                "predicted_ramp_minutes": minutes, "basis": "Current FTP estimate only",
+                "confidence": "Low: a baseline forecast, not an independently validated prediction",
+                "blocks": [[300, warm]] + [[60, start + 10 * i] for i in range(minutes)] + [[300, cool]]}
+
+    def comparison(self):
+        return {"prediction": self.prediction, "actual_ftp": self.result,
+                "error_w": self.result - self.prediction["predicted_ftp"] if self.result is not None else None,
+                "reason": self.reason}
 
     def target(self, now):
         t = now - self.phase_at
@@ -57,10 +79,13 @@ class RampTest:
                 self.best_1min = max(self.best_1min, sum(p for _, p in self.window) / len(self.window))
             tgt = self.target(now)
             self.low_cad_since = (self.low_cad_since or now) if 0 < cadence < 50 else None
+            self.stopped_since = (self.stopped_since if self.stopped_since is not None else now) if cadence <= 0 and power <= 0 else None
             into_step = t % self.step
             weak = power < 0.85 * tgt and into_step >= 20
             self.low_pow_since = (self.low_pow_since or now) if weak else None
-            if self.low_cad_since and now - self.low_cad_since >= 10:
+            if self.stopped_since is not None and now - self.stopped_since >= 5:
+                self.finish(now, "pedaling stopped for 5 seconds")
+            elif self.low_cad_since and now - self.low_cad_since >= 10:
                 self.finish(now, "cadence fell under 50 rpm")
             elif self.low_pow_since and now - self.low_pow_since >= 15:
                 self.finish(now, f"couldn't hold {tgt} W")
@@ -84,7 +109,9 @@ class RampTest:
     def status(self, now):
         t = now - self.phase_at
         s = {"phase": self.phase, "target": self.target(now), "best_1min": round(self.best_1min),
-             "result": self.result, "reason": self.reason, "estimate": self.estimate}
+             "result": self.result, "reason": self.reason, "estimate": self.estimate,
+             "elapsed": max(0, int(now - self.started_at)), "protocol": self.prediction,
+             "comparison": self.comparison()}
         if self.phase == WARMUP:
             s["left"] = int(self.warmup - t)
         elif self.phase == RAMP:

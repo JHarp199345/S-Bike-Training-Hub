@@ -122,7 +122,12 @@ const Overlays = (() => {
         ${cue ? `<div class="ov-hint">🎯 ${esc(cue)}</div>` : ''}${gap ? `<div class="ov-hint">👻 ${gap}</div>` : ''}`;
       if (cue && cue !== last.cue) jump('route', 6); last.cue = cue;
     }
-    if (wk) {
+    if(st.test){
+      avail.add('workout');const t=st.test,p=t.protocol;
+      cards.workout.innerHTML=`<h4>FTP TEST · ${esc(t.phase.toUpperCase())}</h4><div class="ov-grid"><div><b>${t.target??'–'}</b><span>TARGET W</span></div><div><b>${mmss(t.left??t.step_left)}</b><span>${t.phase==='ramp'?'NEXT +10 W':'STAGE LEFT'}</span></div><div><b>${t.best_1min}</b><span>BEST MINUTE W</span></div></div><p>${t.result?`FTP estimate: ${t.result} W · forecast error ${t.comparison.error_w>0?'+':''}${t.comparison.error_w} W`:t.phase==='cool-down'?'Test ended too early for an FTP result.':`Forecast ${t.estimate} W FTP · estimate only`}</p><p>${esc(t.reason||'End ramp · cool down when you cannot continue.')}</p><div class="ov-blocks">${(p?.blocks||[]).map(b=>`<i style="flex:${b[0]};height:${Math.max(18,b[1]/Math.max(...p.blocks.map(x=>x[1]))*100)}%"></i>`).join('')}</div>`;
+      if(last.testPhase!==t.phase)jump('workout',86400);last.testPhase=t.phase;
+    }
+    else if (wk) {
       avail.add('workout');
       const blocks = wk.blocks || [], nxt = blocks[wk.step];               // blocks are [seconds, watts]; step is 1-based
       cards.workout.innerHTML = `<h4>WORKOUT · ${esc(wk.name.toUpperCase())}</h4>
