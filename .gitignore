@@ -64,3 +64,16 @@ music.tmp
 
 # Local Claude continuation specs; never publish with the app.
 /.claude-handoff/
+
+# Your music and the library built from it (index, cover art, tempo) stay on this computer; never shared
+music/
+music_library.json
+music_library.tmp
+music_cache/
+*.mp3
+*.m4a
+*.flac
+*.wav
+*.aiff
+*.ogg
+*.opus
