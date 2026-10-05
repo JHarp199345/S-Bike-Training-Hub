@@ -85,6 +85,15 @@ async def main():
    state['training_feedback']={'2026-10-01:0':{**event,'date':'2026-10-01'}};coach.save(state)
    code,cal=await api('/api/coach/calendar?days=1');assert code==200 and cal['active_symptoms'][0]['location']=='shoulder'
    event['symptoms']=[];event['heart_rate_issue']=True;assert progression.feedback(state,event)['decision']=='regression_candidate'
+   # Capacity demand scenarios do not alter athlete state or grant clearance.
+   before=(base/'coach.json').read_bytes()
+   code,cap=await api('/api/coach/capacity-review',{'demands':[{'sport':'run','distance_m':5000,'duration_min':25}]})
+   assert code==200 and cap['mode']=='capacity' and cap['demands'][0]['confidence']=='provisional',(code,cap)
+   assert len(cap['tolerance_trends'])==4 and (base/'coach.json').read_bytes()==before
+   code,cap=await api('/api/coach/capacity-review',{'demands':[{'sport':'run','duration_min':-1}]})
+   assert code==400 and (base/'coach.json').read_bytes()==before
+   code,cap=await api('/api/coach/capacity-followup',{'date':TODAY,'session_index':0,'recovery':'good'})
+   assert code==400 and (base/'coach.json').read_bytes()==before
    # Tool contracts advertise the new workflow and conservative storage side effects.
    tools={t['name']:t for t in mcp_server.handle({'id':1,'method':'tools/list'})['tools']}
    assert tools['apply_program']['inputSchema']['required']==['draft_id']

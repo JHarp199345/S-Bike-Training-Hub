@@ -184,7 +184,7 @@
  <a href="/milestones">🎖 Streaks &amp; milestones</a>
  <a href="/posts">📣 Ride posts</a>
  <a href="/workouts">🛠 Workout builder</a>
- <a href="/fitness">📈 Fitness &amp; form</a>
+ <a href="/coach#fitness">📈 Fitness &amp; form</a>
  <a href="/panel">⚙︎ Full panel</a>
  <div class="sub" style="margin-top:14px">Map © OpenStreetMap contributors · Protomaps · Mapzen terrain · MapLibre</div>
 </div>
@@ -216,7 +216,7 @@ function at(d){ // [lon,lat,heading] at d metres, from the route geometry
 
 async function loadRoute(id){
   route=await (await fetch('/api/route/'+id)).json(); rid=id; cum=[0];
-  if(route.source==='course'){ location.replace('/course'); return; }   // a made-up course has no place on a map: it's the game's
+  if(route.source==='course'){ route=null; cum=[]; banner('Virtual course · choose game scenery for a landscape'); return; }   // a made-up course has no place on a map: it's the game's
   for(let i=1;i<route.points.length;i++) cum.push(cum[i-1]+hav(route.points[i-1],route.points[i]));
   const line={type:'Feature',geometry:{type:'LineString',coordinates:route.points}};
   const add=()=>{ for(const s of ['r-all','r-done']) if(map.getLayer(s)) map.removeLayer(s);
@@ -251,7 +251,7 @@ async function poll(){
   try{ const r=await fetch('/status'); if(r.status===401){ location.href='/pair'; return; } st=await r.json(); lastOk=Date.now(); }
   catch(e){ return; }
   // a watts-and-cadence workout with no route: there's nothing for a map to follow - it rides in the game view
-  if(st.test || (st.workout && !st.route)){ location.replace('/course'); return; }
+  // Presentation never changes the workout or redirects the chosen scenery.
   if(ovMounted && PHONE.matches) Overlays.update(st,{profile:route?.profile, name:route?.name, hint:st.focus?.hint});
   const r=st.route;
   const wb=st.wbal, wtag=wb&&wb.pct<95?` <small style="color:${wb.pct<25?'var(--bad)':wb.pct<50?'var(--warn)':'var(--text2)'}">· W′ ${Math.max(0,wb.pct)}%</small>`:'';
@@ -263,7 +263,7 @@ async function poll(){
   syncDrawer(); showPB(st.pb);
   if(!r){ if(route) clearRoute(); $('left').textContent=st.distance.toFixed(1); $('leftl').textContent='KM';
     $('ghost').hidden=true; ghostD=null; setGraph(true, false); $('swap').hidden=true;
-    banner(st.bike?'Free ride · <a href="/plan">plan a route on real roads →</a>':'Bike asleep - pedal to wake it · <a href="/plan">plan a route →</a>');
+    banner(st.test?'FTP test · '+st.test.phase:st.workout?'Workout · '+st.workout.name+' · '+(st.workout.watts||st.erg||'')+' W':st.bike?'Free ride · <a href="/plan">plan a route on real roads →</a>':'Bike asleep - pedal to wake it · <a href="/plan">plan a route →</a>');
     return; }
   if(r.id!==rid) await loadRoute(r.id);
   $('swap').hidden=false; if(!graphChosen) setGraph(false, false);
@@ -377,7 +377,7 @@ function syncDrawer(){ if(!st||$('drawer').hidden) return;
   $('ergw').textContent=ergW+' W';
   $('erg').textContent=st.erg?'ERG off - back to hills':'Hold '+ergW+' W'; $('erg').className=st.erg?'on':'';
   $('ergstate').textContent=st.workout?`Workout: ${st.workout.name} · ${st.workout.watts} W`:st.erg?`Holding ${st.erg} W · auto-shift paused`:'';
-  $('end').hidden=!st.route;
+  $('end').hidden=!(st.route||st.workout||st.test);$('end').textContent=st.test?'End ramp · cool down':st.workout?'End workout':'End route';
   const names=(st.workouts||[]).join('|'); if($('wpick').dataset.names!==names){ $('wpick').dataset.names=names;
     $('wpick').innerHTML=`<optgroup label="Workouts">${st.workouts.map((n,i)=>`<option value="${i}">${n}</option>`).join('')}</optgroup>
       <optgroup label="Tests"><option value="t:ftp">FTP ramp test</option><option value="t:big_gear">Big-gear test (3 min at 50-60 rpm)</option></optgroup>`; }
@@ -394,7 +394,7 @@ $('wgo').onclick=async()=>{ const v=$('wpick').value;
   if(v==='t:ftp') return post('/ftp/start');
   if(v==='t:big_gear'){ await fetch('/api/coach/test',{method:'POST',body:JSON.stringify({test:'big_gear'})}).catch(()=>{}); return poll(); }
   post('/workout/'+v); };
-$('end').onclick=async()=>{ if(!confirm('End this route?')) return; await post('/api/route/stop'); clearRoute(); $('drawer').hidden=true; };
+$('end').onclick=async()=>{ if(!confirm(st?.test?'End ramp and cool down?':st?.workout?'End this workout?':'End this route?')) return; await post(st?.test?'/ftp/stop':st?.workout?'/erg/off':'/api/route/stop'); clearRoute(); $('drawer').hidden=true; };
 $('fs').onclick=$('fullscreenride').onclick=async()=>{keepAwake();$('drawer').hidden=true;
   try{if(document.fullscreenElement||document.webkitFullscreenElement)await(document.exitFullscreen?.()||document.webkitExitFullscreen?.());
     else if(document.documentElement.requestFullscreen)await document.documentElement.requestFullscreen({navigationUI:'hide'});
@@ -433,4 +433,4 @@ function setGraph(on, chosen){ document.body.classList.toggle('graph',on); $('sw
   if(chosen) graphChosen=true; requestAnimationFrame(()=>graph.draw()); }
 $('swap').addEventListener('pointerdown',e=>{ e.stopPropagation(); setGraph(!document.body.classList.contains('graph'),true); });
 poll(); setInterval(poll,500); requestAnimationFrame(frame);
-</script></body></html>
+</script><script src="/web/ride-navigation.js"></script></body></html>

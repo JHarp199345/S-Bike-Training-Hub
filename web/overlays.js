@@ -135,6 +135,7 @@ const Overlays = (() => {
         <div><b>${mmss(wk.left)}</b><span>TOTAL LEFT</span></div></div>
         <div class="ov-blocks">${blocks.map((b, i) => `<i class="${i + 1 === wk.step ? 'now' : i + 1 < wk.step ? 'done' : ''}" style="flex:${b[0]};height:${Math.max(18, Math.min(100, b[1] / (Math.max(...blocks.map(x => x[1])) || 1) * 100))}%"></i>`).join('')}</div>
         <div class="ov-hint">${nxt ? `Next: ${nxt[1]} W for ${mmss(nxt[0])}` : 'Last block'}</div>
+        ${wk.prescribed_band?`<div class="ov-hint">Planned range: ${wk.prescribed_band[0]}–${wk.prescribed_band[1]} W · ERG target ${wTarget} W${Number.isFinite(extra.effort?.avgWatts)?' · 5 s average '+Math.round(extra.effort.avgWatts)+' W':''}</div>`:''}
         ${wk.adjustment?`<div class="ov-hint">Adapted from ${wk.adjustment.anchor_watts} W sustained · ${wk.adjustment.scope} ×${wk.adjustment.scale}</div>`:''}`;
       if (wk.step !== last.step && last.step != null) jump('workout', 6); last.step = wk.step;
     } else last.step = null;

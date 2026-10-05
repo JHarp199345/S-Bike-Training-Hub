@@ -264,6 +264,14 @@ def projected_loads(d, today, dates, load=None, done=None, workouts=None):
         if sport=="swim":
             doses["engine"]=(swim.get((date,index)) or {}).get("cardio_points")
             doses["muscle"]=mins*.05  # loads.score's existing swim-to-leg contribution
+        if sport=="run" and s.get("run_recipe"):
+            import run_workouts
+            exposure=run_workouts.exposure(s["run_recipe"],load.get("profile") or {})
+            if exposure.get("impact_points") is not None:
+                doses["impact"]=exposure["impact_points"]
+                basis.append(exposure["basis"]+"; "+" ".join(exposure["assumptions"]))
+            else:
+                basis.append("Running geometry is incomplete; duration-based impact remains provisional. "+" ".join(exposure["unknown"]))
         planned_steps=None
         if sport=="bike" and s.get("workout") in saved:
             w=saved[s["workout"]]; ftp=(load.get("profile") or {}).get("ftp")

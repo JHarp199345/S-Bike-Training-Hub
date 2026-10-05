@@ -220,6 +220,8 @@ class Erg:
         blocks = workout.get("blocks") or []
         adaptive = len(blocks) > 1 and (blocks[1].get("type") == "ramp" or
                                       blocks[0].get("label", "").lower() in ("warm-up", "warmup"))
+        if workout.get("adaptive") is False:adaptive = False
+        bands = [[s.get("watts_low"), s.get("watts_high")] if s.get("watts_low") is not None else None for s in workout["steps"]]
         windows, t = [], 0.0
         for block in blocks:
             duration = float(block.get("minutes") or 0) * 60
@@ -231,7 +233,7 @@ class Erg:
                 windows.append((t, t + duration))
             t += duration
         self.workout = {"name": workout["name"], "steps": steps, "started": now, "active": 0.0, "last": now,
-                        "adaptive": adaptive, "planned_steps": list(steps), "scale": 1.0,
+                        "adaptive": adaptive, "prescribed_bands": bands, "planned_steps": list(steps), "scale": 1.0,
                         "segment_index": 0, "adjustments": [], "ramp_windows": windows,
                         "easy_program": max(p for _, p in steps) <= .75 * self.ftp}
         self.segment_samples.clear()
@@ -256,6 +258,7 @@ class Erg:
                 easy = source.startswith("workout ") and watts <= .75 * ftp
                 ramping = any(a <= elapsed < z for a, z in w.get("ramp_windows", []))
                 return {"name": w["name"], "step": i + 1, "steps": len(w["steps"]), "watts": watts,
+                        "prescribed_band": (w.get("prescribed_bands") or [None]*len(w["steps"]))[i],
                         "step_left": int(t + d - elapsed), "left": int(total - elapsed),
                         "elapsed": round(elapsed, 1), "total": int(total),          # the game view draws the workout ahead
                         "paused": getattr(self, "paused", False), "auto_paused": getattr(self, "auto_paused", False),
@@ -275,7 +278,7 @@ class Erg:
 
     def adaptive_state(self):
         w = self.workout or {}
-        return {k: w[k] for k in ("adaptive", "planned_steps", "scale", "segment_index", "adjustments", "ramp_windows", "easy_program") if k in w}
+        return {k: w[k] for k in ("adaptive", "prescribed_bands", "planned_steps", "scale", "segment_index", "adjustments", "ramp_windows", "easy_program") if k in w}
 
     def _adapt_segment(self, old, new):
         w = self.workout

@@ -10,9 +10,20 @@ const draftStage=p=>p.stage||p.kind||'build';
 function workspaceDirty(message='Draft changed — review before applying.'){
  workspaceRevision++;workspaceReview=null;programDraft=null;$('programaccept').disabled=true;$('programdraft').innerHTML='';$('programmessage').textContent=message;
 }
+function workspaceCapacityFields(){
+ return Object.keys(phaseSports).flatMap(s=>{const row={...(workspaceBaseGoal.capacity_demands||[]).find(g=>g.sport===s),sport:s,label:phaseSports[s]};for(const key of ['distance_m','duration_min','weekly_minutes']){const el=$('capacity-'+s+'-'+key);if(el?.value)row[key]=Number(el.value);else if(el)delete row[key];}return ['distance_m','duration_min','weekly_minutes','weight_kg','power_w'].some(k=>row[k]!=null)?[row]:[];});
+}
+function workspaceCapacityInputs(goals=[]){
+ $('programcapacity').innerHTML=Object.entries(phaseSports).map(([s,name])=>{const g=goals.find(x=>x.sport===s)||{};return `<fieldset><legend>${esc(name)}</legend>${(s==='gym'?[['duration_min','Session duration (minutes)'],['weekly_minutes','Weekly training goal (minutes)']]:[['distance_m','Goal distance (meters)'],['duration_min','Goal duration (minutes)'],['weekly_minutes','Weekly training goal (minutes)']]).map(([k,t])=>`<label>${t}<input class="lfield" id="capacity-${s}-${k}" type="number" min="0.01" step="any" value="${esc(g[k]??'')}"></label>`).join('')}</fieldset>`;}).join('');
+ $('programcapacity').querySelectorAll('input').forEach(el=>el.oninput=()=>workspaceDirty());
+}
+function capacityHistoryHtml(trends=[]){
+ return `<details><summary>Calibration history · background evidence</summary><p class="sub">Estimated energy rate is one signal. Recovery reports and comparable sport-specific work are reviewed together.</p>${trends.map(t=>{const rows=t.series.filter(x=>x.kcal_per_hour!=null);const max=Math.max(1,...rows.map(x=>x.kcal_per_hour));const points=rows.map((x,i)=>({x:20+i*260/Math.max(1,rows.length-1),y:90-x.kcal_per_hour/max*70,row:x}));return `<article><h4>${esc(phaseSports[t.sport]||t.sport)} · ${esc(t.signal)}</h4>${rows.length?`<svg class="capacity-history-graph" viewBox="0 0 300 112" role="img" aria-label="${esc(t.sport)} estimated energy rate history"><path d="M20 20V92H285" fill="none" stroke="#667584"/><polyline points="${points.map(p=>p.x+','+p.y).join(' ')}" fill="none" stroke="#64b4ff" stroke-width="2"/>${points.map(p=>`<circle cx="${p.x}" cy="${p.y}" r="3" fill="${p.row.negative_report||p.row.delayed_recovery==='difficult'?'#ffac62':p.row.clean_followup?'#70dca1':'#64b4ff'}"><title>${esc(p.row.date)} · ${esc(p.row.kcal_per_hour)} kcal/hour · recovery ${esc(p.row.delayed_recovery||'unknown')}</title></circle>`).join('')}<text x="20" y="108" fill="#a9b8c5" font-size="9">${esc(rows[0].date)} → ${esc(rows.at(-1).date)} · up to ${Math.round(max)} kcal/hour</text></svg>`:'<p>No energy readings available.</p>'}<p class="sub">${esc(t.why)}</p><p class="sub">${esc(t.notice)}</p><details><summary>Comparison assumptions</summary><p class="sub">${esc(t.assumptions)}</p></details></article>`;}).join('')}</details>`;
+}
+function workspaceCapacityHtml(c){if(!c)return '';return `<section class="capacity-review"><h3>Capacity toward your goal</h3><p>${esc(c.notice)}</p>${c.demands.map(x=>`<article><h4>${esc(x.target.label)}</h4><p>Goal: ${x.target.distance_m?esc(x.target.distance_m)+' m · ':''}${x.target.duration_min?esc(x.target.duration_min)+' minutes':''}${x.target.weekly_minutes?' · '+esc(x.target.weekly_minutes)+' min/week':''}</p><p>Recent evidence: ${x.observed.sessions} sessions · longest ${esc(x.observed.longest_minutes??'unknown')} min · farthest ${esc(x.observed.farthest_m??'unknown')} m.</p><p>${esc(x.explanation)}</p><p>${esc(x.next_step)}. ${esc(x.tolerance)}</p><details><summary>Estimated demand and assumptions</summary>${x.energy?`<p>${x.energy.gross_kcal?'Estimated gross energy: '+esc(x.energy.gross_kcal)+' kcal. ':''}${esc(x.energy.formula||'')}</p>`:''}${x.mechanical?`<p>${esc(x.mechanical.meaning)} ${x.mechanical.impact_points?'Estimated impact: '+esc(x.mechanical.impact_points)+' points.':''}</p>`:''}<ul>${[...x.assumptions,...x.unknown].map(a=>`<li>${esc(a)}</li>`).join('')}</ul></details></article>`).join('')}${capacityHistoryHtml(c.tolerance_trends)}</section>`;}
 function workspaceFields(){
  const event=$('programpath').value==='event';
- const fields={...workspaceBaseGoal,goal:$('programgoal').value,target:event?$('programtarget').value:null,start:$('programstart').value,
+ const fields={...workspaceBaseGoal,capacity_demands:workspaceCapacityFields(),goal:$('programgoal').value,target:event?$('programtarget').value:null,start:$('programstart').value,
  horizon_days:Number($('programhorizon').value),sport:$('programsport').value,outcome:$('programoutcome').value,hours:Number($('programhours').value),focus:$('programfocus').value,
  entry:$('programentry').value,assessment:$('programassessment').value,starter_enabled:$('programstarter').checked,starter_level:$('programstarterlevel').value,starter_equipment:$('programstarterequipment').value,strength_anchors:workspaceAnchors(),neutral_forecast:$('programneutral').checked,
  priorities:Object.fromEntries(Object.keys(phaseSports).map(s=>[s,$('programmode-'+s).value])),
@@ -24,7 +35,7 @@ function workspacePriorities(priorities){
  $('programpriorities').querySelectorAll('select').forEach(el=>el.onchange=()=>{const s=el.id.replace('programmode-','');workspacePhases.forEach(p=>{p.modes[s]=el.value;});workspaceDirty();workspaceRender();});
 }
 function workspaceSetFields(goal){
- workspaceBaseGoal=draftCopy(goal||{});workspaceRenderAnchors(goal?.strength_anchors||[]);$('programneutral').checked=goal?.neutral_forecast!==false;$('programstarter').checked=false;$('programstarterlevel').value='easy';
+ workspaceCapacityInputs(goal?.capacity_demands||[]);workspaceBaseGoal=draftCopy(goal||{});workspaceRenderAnchors(goal?.strength_anchors||[]);$('programneutral').checked=goal?.neutral_forecast!==false;$('programstarter').checked=false;$('programstarterlevel').value='easy';
  const today=day?.date||new Date().toLocaleDateString('en-CA');
  $('programstart').value=goal?.start&&goal.start>today?goal.start:today;$('programstart').min=today;
  $('programgoal').value=goal?.goal||'';$('programtarget').value=goal?.target||'';$('programpath').value=goal?.target?'event':'ongoing';
@@ -146,7 +157,7 @@ function workspaceReviewHtml(r){
  <p class="sub">${esc(changes.workout_policy)}</p>
  ${changes.conflicts.length?'<h4>Workout conflicts to review</h4><ul>'+changes.conflicts.map(c=>`<li>${esc(c.date)} · ${esc(phaseSports[c.sport])}: ${esc(c.reason)}</li>`).join('')+'</ul>':''}
  <details><summary>Proposed session placement by sport</summary><p>${Object.entries(counts).map(([s,n])=>`${esc(phaseSports[s]||s)}: ${n} slots`).join(' · ')}</p><p class="sub">Placement counts are not training doses. New load changes cannot be estimated until durations, intensity and workout details are prescribed. Existing projected loads remain available on the active calendar.</p></details>
- ${workspaceStarterHtml(r.starter)}${macroHtml(r.weeks)}</section>`;
+ ${workspaceCapacityHtml(r.capacity_review)}${workspaceStarterHtml(r.starter)}${macroHtml(r.weeks)}</section>`;
 }
 $('programopen').onclick=openProgram;$('rulesprogramopen').onclick=openProgram;$('rulesphaseopen').onclick=()=>openPhaseEditor();
 $('programrevise').onclick=workspaceRevise;$('programsuggest').onclick=workspaceSuggest;

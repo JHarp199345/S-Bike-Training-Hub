@@ -27,7 +27,9 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           bash setup-linux.sh --no-bike --no-start
-          pip install -r requirements.txt
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
+          .venv/bin/python -m pip check
+          maps/tools/pmtiles/pmtiles --help
       - name: Install (Windows - setup.ps1, as a person would run it)
         if: runner.os == 'Windows'
         shell: pwsh
@@ -52,6 +54,10 @@ jobs:
           cat hub.log
       - name: Every test
         run: python tests/run_all.py
+      - name: Browser calculation and interaction tests
+        shell: bash
+        run: |
+          for test in tests/test_*.js; do node "$test"; done
       - name: Failed tests, as annotations
         if: failure()
         shell: bash

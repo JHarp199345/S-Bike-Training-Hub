@@ -60,13 +60,13 @@ def today():
     return dt.date.today().isoformat()
 
 
-def _num(v, lo, hi):
+def _num(v, lo, hi, precision=0):
     if v in (None, ""):
         return None
     v = float(v)
     if not lo <= v <= hi:
         raise ValueError(f"{v:g} is outside {lo}-{hi}")
-    return round(v)
+    return round(v, precision) if precision else round(v)
 
 
 def record(d, date, fields):
@@ -186,7 +186,7 @@ def set_plan(d, date, verdict_=None, note=None, workout=None, focus_=None, sport
     return p
 
 
-def set_sessions(d, date, sessions, _trusted=False):
+def set_sessions(d, date, sessions, _trusted=False, draft=False):
     """Replace the day's ordered sessions. Each session can carry a compact workout outline."""
     if not isinstance(sessions, list) or len(sessions) > 5:
         raise ValueError("sessions must be a list of at most five")
@@ -194,8 +194,8 @@ def set_sessions(d, date, sessions, _trusted=False):
     for item in sessions:
         if not isinstance(item, dict) or item.get("sport") not in SPORTS:
             raise ValueError(f"session sport is one of {', '.join(SPORTS)}")
-        minutes = int(item.get("minutes", 0))
-        if not 0 <= minutes <= 600:
+        minutes = _num(item.get("minutes", 0), 0, 600, 4) if item.get("sport") in ("ride","swim","run") else int(item.get("minutes", 0))
+        if minutes is None or not 0 <= minutes <= 600:
             raise ValueError("session minutes is 0-600")
         steps = item.get("steps") or []
         if not isinstance(steps, list) or len(steps) > 30:
@@ -205,6 +205,20 @@ def set_sessions(d, date, sessions, _trusted=False):
                  "steps": [str(step)[:160] for step in steps],
                  "note": str(item.get("note") or "")[:300],
                  "workout": str(item.get("workout") or "")[:120] or None}
+        if item.get("route_id"):
+            if item["sport"] != "ride": raise ValueError("Routes require cycling sessions")
+            import routes, re
+            if not isinstance(item["route_id"],str) or not re.fullmatch(r"[a-zA-Z0-9_-]{1,120}",item["route_id"]): raise ValueError("Choose a saved route")
+            try: entry["route_id"] = routes.load(item["route_id"]).id
+            except (OSError,ValueError,KeyError): raise ValueError("Saved route is unavailable")
+        if item.get("typed_workout"):
+            typed=item["typed_workout"]
+            if not isinstance(typed,dict):raise ValueError("typed_workout must be an object")
+            repeats=int(typed.get("repeats") or 1)
+            if not 1<=repeats<=10:raise ValueError("Repeated blocks must be 1–10")
+            entry["typed_workout"]={k:str(typed.get(k) or "")[:6000] for k in ("warmup","main","cooldown")}
+            entry["typed_workout"]["repeats"]=repeats
+        if item.get("skipped_id") in d.get("skipped_workouts",{}):entry["skipped_id"]=item["skipped_id"]
         if item.get("focus"):
             import focus
             entry["focus"]=focus.check(item["focus"])
@@ -216,12 +230,18 @@ def set_sessions(d, date, sessions, _trusted=False):
             checked=[]
             for step in power:
                 if not isinstance(step,dict):raise ValueError("Power step must be an object")
-                minutes_=_num(step.get("minutes"),1/60,360)
+                minutes_=_num(step.get("minutes"),1/60,360,4)
                 if minutes_ is None:raise ValueError("Power step needs duration")
                 row={"minutes":minutes_}
                 for field,lo,hi in (("watts",0,1500),("pct",0,250),("rpm",21,200)):
                     if step.get(field) is not None:row[field]=_num(step[field],lo,hi)
                 if ("watts" in row)==("pct" in row):raise ValueError("Power step needs exactly one of watts or pct")
+                if step.get("watts_low") is not None or step.get("watts_high") is not None:
+                    lo=_num(step.get("watts_low"),20,1500);hi=_num(step.get("watts_high"),20,1500)
+                    if lo is None or hi is None or "watts" not in row or not lo<=row["watts"]<=hi:raise ValueError("Invalid prescribed power band")
+                    row.update(watts_low=lo,watts_high=hi)
+                for key in ("label","section"):
+                    if step.get(key):row[key]=str(step[key])[:80]
                 checked.append(row)
             if abs(sum(x["minutes"] for x in checked)-minutes)>.1:raise ValueError("Power steps must match planned duration")
             entry["bike_plan"]={"power_steps":checked,"basis":str(snapshot.get("basis") or "Saved planned power stages")[:600]}
@@ -230,6 +250,20 @@ def set_sessions(d, date, sessions, _trusted=False):
             if not isinstance(cadence,list) or len(cadence)!=2 or not all(isinstance(v,(int,float)) and 20<v<=200 for v in cadence) or cadence[0]>cadence[1]:
                 raise ValueError("Cadence must be an ordered two-value rpm range")
             entry["cadence"]=list(cadence)
+        if item.get("swim_recipe") is not None:
+            if item["sport"]!="swim":raise ValueError("Swim recipes require a swim session")
+            import swim_workouts
+            entry["swim_recipe"]=swim_workouts.validate_recipe(item["swim_recipe"])
+        if item.get("run_recipe") is not None:
+            if item["sport"] != "run": raise ValueError("Running recipes require running sessions")
+            import run_workouts
+            entry["run_recipe"] = run_workouts.validate(item["run_recipe"])
+            recipe = entry["run_recipe"]
+            if minutes + .01 < recipe["minutes"] or recipe["time_complete"] and abs(minutes-recipe["minutes"]) > .05:
+                raise ValueError("Session duration must match the written running stages")
+        if item.get("workout_import_id"):
+            import workout_imports
+            entry["workout_import_id"]=workout_imports.identifier(item["workout_import_id"])
         if item["sport"] == "swim" and item.get("swim_profile"):
             import programming
             if item["swim_profile"] not in programming.SWIM_PROFILE_IDS:
@@ -248,9 +282,19 @@ def set_sessions(d, date, sessions, _trusted=False):
                     entry["swim_plan"][key]={k:float(mix.get(k,0)) for k in allowed}
         if item["sport"] == "gym" and item.get("lifts"):            # planned lifts (lifting.py): checked, and the rider's rules apply
             import lifting
-            entry["lifts"] = item["lifts"] if _trusted else lifting.clean(d, item["lifts"])
+            entry["lifts"] = item["lifts"] if _trusted else lifting.clean(d, item["lifts"], draft=draft)
             if item.get("override"):
                 entry["override"] = str(item["override"])[:300]
+        if item.get("library_id"):
+            import workout_library
+            ident=workout_library.identifier(item["library_id"])
+            if ident not in d.get("workout_library",{}):raise ValueError("Library workout not found")
+            entry["library_id"]=ident
+        if item.get("workout_goals"):
+            import workout_library
+            entry["workout_goals"]=workout_library.clean_goals(item["sport"],item["workout_goals"])
+        for key in ("goal_request_id","goal_comparison"):
+            if item.get(key):entry[key]=item[key]
         clean.append(entry)
     p = d["plans"].setdefault(date, {})
     p["sessions"] = clean
@@ -448,6 +492,38 @@ def missed_days(d, start, end, done=None, as_of=None):
     return out
 
 
+def session_action(d, date, index, action):
+    """Skip without losing the plan; delete only unperformed scheduled work."""
+    import copy, uuid
+    plan=d.get("plans",{}).get(date) or {}
+    items=plan.get("sessions") or []
+    if date < today() or not isinstance(index,int) or not 0 <= index < len(items):
+        raise ValueError("Select an unperformed workout today or later")
+    item=items[index]
+    # Indexed reports and actual workouts must never be shifted or discarded.
+    logs=(d.get("lifting") or {}).get("logs",[])
+    has_actual=any(x.get("date")==date for x in logs) or any(k.startswith(date+":") for k in d.get("training_feedback",{}))
+    if item.get("completion") or has_actual:
+        raise ValueError("Keep completed workouts and their reports; edit the recorded workout instead")
+    if action=="skip":
+        if item.get("skipped_id"):return plan
+        ident=uuid.uuid4().hex
+        d.setdefault("skipped_workouts",{})[ident]={"date":date,"session":copy.deepcopy(item)}
+        # Zero-dose placeholder keeps all session indices stable; the original is recoverable.
+        items[index]={"sport":"rest","minutes":0,"name":item.get("name","Workout"),"steps":[],"note":"Skipped by athlete; original workout retained for restore.","workout":None,"skipped_id":ident}
+    elif action=="restore":
+        saved=d.get("skipped_workouts",{}).get(item.get("skipped_id"))
+        if not saved:raise ValueError("No skipped workout to restore")
+        items[index]=copy.deepcopy(saved["session"])
+    elif action=="delete":
+        if any(x.get("completion") for x in items):raise ValueError("Cannot shift a day with completed workouts")
+        d.setdefault("removed_workouts",[]).append({"date":date,"session":copy.deepcopy(item)})
+        items.pop(index)
+    else:raise ValueError("action is skip, restore, or delete")
+    plan["updated"]=dt.datetime.now().isoformat(timespec="minutes")
+    return plan
+
+
 def record_missed(d, date, index, reason, note=""):
     """The athlete says why a session didn't happen. Kept for the coach and the Sunday review."""
     if reason not in MISS_REASONS:
@@ -543,10 +619,11 @@ def split_to_blocks(parts):
         if m <= 0:
             continue
         label = {"label": str(p["label"])[:40]} if p.get("label") else {}   # names the part in the report
+        if p.get("section"):label["section"] = str(p["section"])[:80]
         if p["kind"] == "ramp":
-            blocks.append({"type": "ramp", "minutes": m, "from": p.get("from", 50), "to": p.get("to", 75), **label})
+            blocks.append({"type": "ramp", "minutes": m, **({"from_watts":p["from_watts"],"to_watts":p["to_watts"]} if "from_watts" in p else {"from":p.get("from",50),"to":p.get("to",75)}), **label})
         elif p.get("watts"):
-            blocks.append({"type": "steady", "minutes": m, "watts": int(p["watts"]), **label})
+            blocks.append({"type": "steady", "minutes": m, "watts": int(p["watts"]), **({"watts_low":p["watts_low"],"watts_high":p["watts_high"]} if p.get("watts_low") is not None else {}), **label})
         else:
             blocks.append({"type": "steady", "minutes": m, "pct": int(p.get("pct", 60)), **label})
     return blocks

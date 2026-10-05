@@ -31,9 +31,10 @@ import places
 import ideas
 
 HERE = Path(__file__).resolve().parent
-MAPS = Path(__import__("os").environ.get("S_BIKE_MAPS") or HERE / "maps")     # made by setup.sh
+from map_paths import locate as map_folder
+MAPS = map_folder()
 WEB = HERE / "web"
-TYPES = {".mjs": "text/javascript", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg",
+TYPES = {".mjs": "text/javascript", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg", ".glb": "model/gltf-binary",
          ".html": "text/html; charset=utf-8", ".json": "application/json", ".map": "application/json"}
 
 _maps = None
@@ -217,11 +218,20 @@ async def handle(bridge, method, path, body, host):
     from urllib.parse import parse_qs, urlsplit
     if p == "/dashboard" and parse_qs(urlsplit(path).query).get("embedded", [""])[0] != "1":
         return 302, "text/plain", b"Open the Fitness Dashboard in Coach", {"Location": "/coach#fitness"}
+    if p == "/course":
+        return 302, "text/plain", b"Open unified ride screen", {"Location": "/ride?view=game"}
+    if p in ("/ride/map", "/ride/game"):
+        name = "ride.html" if p.endswith("map") else "course.html"
+        return 200, TYPES[".html"], (WEB / name).read_bytes(), {}
+    if p == "/ride":
+        return 200, TYPES[".html"], (WEB / "ride-hub.html").read_bytes(), {}
+    if p == "/api/map/status":
+        return 200, "application/json", json.dumps({"engine": (MAPS / "web/maplibre/maplibre-gl.mjs").exists(), "maps": bool(list((MAPS / "map").glob("*.pmtiles"))), "routing": (MAPS / "brouter/segments4").is_dir()}).encode(), {}
     if p in ("/ride", "/plan", "/fitness", "/workouts", "/milestones", "/coach", "/course", "/dashboard", "/welcome"):
         return 200, TYPES[".html"], (WEB / f"{p[1:]}.html").read_bytes(), {}
-    if p.startswith("/web/") and p.endswith((".js", ".css", ".svg", ".png", ".jpg", ".json")):
+    if p.startswith("/web/") and p.endswith((".js", ".css", ".svg", ".png", ".jpg", ".json", ".glb")):
         f = (WEB / p[5:]).resolve()
-        if f.parent not in (WEB.resolve(), (WEB / "sprites").resolve(), (WEB / "vendor").resolve(), (WEB / "sports").resolve()) or not f.exists():
+        if f.parent not in (WEB.resolve(), (WEB / "sprites").resolve(), (WEB / "vendor").resolve(), (WEB / "sports").resolve(), (WEB / "graveyard").resolve(), (WEB / "graveyard/Textures").resolve()) or not f.exists():
             return 404, "text/plain", b"not found", {}
         return 200, TYPES[f.suffix], f.read_bytes(), {}
     if p.startswith("/lib/"):
@@ -1026,6 +1036,86 @@ async def coach_api(bridge, method, path, p, body):
         date = req.get("date") or date
         if not __import__("re").fullmatch(r"\d{4}-\d{2}-\d{2}", date):
             return js({"error": "date is YYYY-MM-DD"}, 400)
+        if p == "/api/coach/workout-goals":
+            import workout_library
+            if method==b"POST":
+                item=workout_library.save_goal(d,req);coach.save(d)
+                return js({'goal':item})
+            return js({'goals':workout_library.goal_requests(d,(q.get('date') or [None])[0])})
+        if p == "/api/coach/workout-goals/preview" and method==b"POST":
+            import workout_library
+            return js(workout_library.compare(req.get('sport'),req.get('goals'),req.get('session') or {}))
+        if p == "/api/coach/run/preview" and method == b"POST":
+            import run_workouts
+            result = run_workouts.parse(req.get('fields'),req.get('repeats',1),req.get('mode','run_walk'))
+            if result['valid']:
+                result['exposure'] = run_workouts.exposure(result,bridge.profile)
+            return js(result)
+        if p == "/api/coach/workout-library":
+            import workout_library
+            if method==b"POST":
+                if req.get('workout_import_id'):
+                    import workout_imports
+                    workout_imports.get(rides.parent,req['workout_import_id'])
+                    if req.get('source_reviewed') is not True:raise ValueError('Review the source before keeping this workout')
+                item=workout_library.save_template(d,req);coach.save(d)
+                return js({'workout':item})
+            items=workout_library.listing(d,(q.get('sport') or [None])[0],q.get('favorites')==['1'],done_by_day(rides.parent,d))
+            offset=max(0,min(1000,int((q.get('offset') or ['0'])[0])));limit=max(1,min(50,int((q.get('limit') or ['30'])[0])))
+            summaries=[]
+            for item in items[offset:offset+limit]:
+                session=item['session'];summary={k:session[k] for k in ('sport','name','minutes','workout_goals') if k in session}
+                summaries.append({**{k:item[k] for k in ('id','favorite','origin','created','updated','response_count')},'session':summary,'responses':item['responses'][-3:]})
+            return js({'workouts':summaries,'total':len(items),'offset':offset,'next_offset':offset+limit if offset+limit<len(items) else None,'goals':workout_library.goal_requests(d),
+                       'review':'Preferences and recorded responses guide selection; check current capacity, phase and whole-calendar load before reuse. Missing responses remain unknown.'})
+        if p.startswith('/api/coach/workout-library/') and method==b'GET':
+            import workout_library
+            item=workout_library.get(d,p.rsplit('/',1)[1]);item['responses']=workout_library.responses(d,item,done_by_day(rides.parent,d))
+            return js({'workout':item,'review':'Review exact details and current phase/load before scheduling; responses describe the original sessions.'})
+        if p == "/api/coach/workout-library/favorite" and method==b"POST":
+            import workout_library
+            if req.get('id'):
+                item=workout_library.get(d,req['id'])
+                if not isinstance(req.get('favorite'),bool):raise ValueError('Favorite must be true or false')
+                d['workout_library'][item['id']]['favorite']=req['favorite'];item['favorite']=req['favorite']
+            else:item=workout_library.keep(d,date,req.get('index'),favorite=req.get('favorite',True))
+            coach.save(d);return js({'workout':item})
+        if p == "/api/coach/workout-import-capabilities" and method==b"GET":
+            import workout_imports
+            return js(workout_imports.capabilities())
+        if p == "/api/coach/workout-import" and method==b"POST":
+            import workout_imports
+            return js(await asyncio.to_thread(workout_imports.upload,rides.parent,req))
+        if p == "/api/coach/workout-imports" and method==b"GET":
+            import workout_imports
+            docs=[]
+            for f in sorted(workout_imports.folder(rides.parent).glob('*/draft.json'),key=lambda f:f.stat().st_mtime,reverse=True)[:50]:
+                try:
+                    item=json.loads(f.read_text());docs.append({k:item[k] for k in ('id','name','status')})
+                except (ValueError,OSError,KeyError):continue
+            return js({'imports':docs})
+        if p.startswith("/api/coach/workout-import/") and method==b"GET":
+            import workout_imports,base64
+            pieces=p.split('/');ident=pieces[4]
+            if len(pieces)==7 and pieces[5]=='page':
+                raw=workout_imports.get_page(rides.parent,ident,int(pieces[6]))
+                return 200,'image/png',raw,{'Cache-Control':'no-store'}
+            if len(pieces)==6 and pieces[5]=='source':
+                raw,mime=workout_imports.source(rides.parent,ident)
+                return 200,mime,raw,{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}
+            if len(pieces)!=5:raise ValueError('Unknown import view')
+            doc=workout_imports.get(rides.parent,ident)
+            if q.get('visual')==['1']:
+                page=int((q.get('page') or ['1'])[0]);doc={**doc,'image':base64.b64encode(workout_imports.get_page(rides.parent,ident,page)).decode(),'image_page':page}
+            return js(doc)
+        if p == "/api/coach/swim/preview" and method==b"POST":
+            import swim_workouts
+            fields=swim_workouts.split_sections(req['text']) if 'text' in req else req.get('fields') or {}
+            result=swim_workouts.parse(fields,req.get('repeats',1),req.get('unit','yd'),req.get('pool_length'))
+            if req.get('minutes') is not None and float(req['minutes'])+.02<result['sendoff_minutes']:
+                result['issues'].append(f"Timed sets already occupy {result['sendoff_minutes']:g} minutes; increase or clarify total session time")
+                result['valid']=False
+            return js({**result,'fields':fields})
         if p == "/api/coach/week":
             return js({"week": coach.week(d, date, done_by_day(rides.parent, d))})
         if p == "/api/coach/artwork":
@@ -1068,6 +1158,8 @@ async def coach_api(bridge, method, path, p, body):
                        "lifting": lifting_today(d, date, rides.parent),
                        "weekly": weekly_due(d, date, rides.parent),
                        "training_feedback":d.get("training_feedback",{}),
+                       "workout_goals":__import__("workout_library").goal_requests(d,date),
+                       "library_favorites":[i["id"] for i in d.get("workout_library",{}).values() if i.get("favorite")],
                        "training_block": __import__("training_block").forecast(
                            d, date, done_by_day(rides.parent, d), load_state(rides.parent), d["checkins"].get(date), bridge.workouts)})
         if p == '/api/coach/journal':
@@ -1147,13 +1239,24 @@ async def coach_api(bridge, method, path, p, body):
             recovery.observe_checkin(d,date,c)
             coach.save(d); _load_cache["key"] = None
             return js({"flag": f, **with_systems(coach.day(d, date), rides.parent)})
+        if p == "/api/coach/capacity-followup":
+            if method!=b'POST':return js({'error':'Use POST to record a delayed recovery report'},405)
+            import capacity_planning
+            result=capacity_planning.record_followup(d,date,req.get('session_index'),req,done_by_day(rides.parent,d),coach.today())
+            coach.save(d)
+            return js({'followup':result,'notice':'Report saved. No capacity limit, hold or workout changed.'})
+        if p == "/api/coach/capacity-review":
+            import capacity_planning
+            if method not in (b'GET', b'POST'):return js({'error':'Use GET or a read-only POST scenario'},405)
+            if method==b'POST' and set(req)-{'demands'}:raise ValueError('Capacity review accepts only demands; it never saves')
+            return js(capacity_planning.review(d,load_state(rides.parent),coach.today(),req.get('demands') if method==b'POST' else None,__import__('onboarding').current(rides.parent)))
         if p == "/api/coach/program-builder":
             import program_builder, training_block
             gate=training_block.running_gate(d,load_state(rides.parent),d['checkins'].get(coach.today()))
             if method == b"GET":
                 goal=d.get('program_goal');phases=d.get('phase_profiles',[])
                 weeks=program_builder.macro_weeks(phases,program_builder.P.date(goal['start']),max(program_builder.P.date(goal.get('end') or goal.get('target') or phases[-1]['end']),program_builder.P.date(phases[-1]['end'])),goal['focus'],goal['sport'],gate['status']!='open_for_review',goal['hours'],d.get('plans'),goal.get('schedule_options')) if goal and phases else []
-                return js({'goal':goal,'phases':phases,'weeks':weeks,'events':d.get('events',[]),'running_hold':gate['status']!='open_for_review','last_application':(d.get('program_apply_receipts') or [None])[-1],'capabilities':{'reviewed_drafts':True,'calendar_evidence':True}})
+                return js({'goal':goal,'phases':phases,'weeks':weeks,'events':d.get('events',[]),'running_hold':gate['status']!='open_for_review','last_application':(d.get('program_apply_receipts') or [None])[-1],'capacity_review':__import__('capacity_planning').review(d,load_state(rides.parent),coach.today(),athlete=__import__('onboarding').current(rides.parent)),'capabilities':{'reviewed_drafts':True,'calendar_evidence':True,'capacity_planning':True}})
             action=req.get('action','preview')
             if action not in ('preview','accept'):raise ValueError('action is preview or accept')
             import program_drafts
@@ -1173,6 +1276,8 @@ async def coach_api(bridge, method, path, p, body):
                 proposal['strength_anchors']=req.get('strength_anchors') or []
                 proposal['neutral_forecast']=req.get('neutral_forecast',True)
                 proposal['starter']=starter_programs.build(d,proposal,onboarding.current(rides.parent),load_state(rides.parent),done_by_day(rides.parent,d),bridge.workouts,today=coach.today())
+            import capacity_planning
+            proposal['capacity_review']=capacity_planning.review(d,load_state(rides.parent),coach.today(),proposal['capacity_demands'],__import__('onboarding').current(rides.parent))
             return js(program_drafts.store(rides.parent,proposal,state_revision))
         if p in ('/api/coach/calendar','/api/coach/reading-evidence'):
             import planning_evidence
@@ -1296,7 +1401,12 @@ async def coach_api(bridge, method, path, p, body):
                     gate=training_block.running_gate(d,load_state(rides.parent),d["checkins"].get(coach.today()))
                     if gate["status"]!="open_for_review":raise ValueError("Running stays unscheduled: "+"; ".join(gate["reasons"] or ["mechanical metrics and preparatory checks need review"]))
                 if "sessions" in req:
+                    if any(x.get('library_id') or x.get('goal_request_id') for x in req['sessions']) and done_by_day(rides.parent,d).get(date):raise ValueError('Keep completed workouts when reusing library prescriptions')
                     coach.set_sessions(d, date, req["sessions"])
+                    import workout_library
+                    for i,source in enumerate(req['sessions']):
+                        if source.get('workout_goals') or source.get('goal_request_id'):workout_library.attach_goals(d,date,i,source)
+                        if source.get('library_id'):workout_library.keep(d,date,i)
             except (focus.BadFocus, ValueError, TypeError) as e:
                 return js({"error": str(e)}, 400)
             coach.save(d)
@@ -1420,17 +1530,102 @@ async def coach_api(bridge, method, path, p, body):
             prof = rider.load(rides.parent / "profile.json")
             return js(programming.programming(d, prof, sport, _dt.date.fromisoformat(date), rd, st.get("headline"), caps,
                                                swim_profile=(q.get("swim_profile") or [req.get("swim_profile")])[0], activities=st.get("activities")))
+        if p == "/api/coach/route/plan" and method == b"POST":
+            import routes, copy, math, training_block, re
+            rid = req.get("route_id")
+            if not isinstance(rid,str) or not re.fullmatch(r"[a-zA-Z0-9_-]{1,120}",rid): raise ValueError("Choose a saved route")
+            try: route = routes.load(rid)
+            except (OSError,ValueError,KeyError): raise ValueError("Saved route is unavailable")
+            minutes = float(req.get("minutes", 45))
+            if not math.isfinite(minutes) or not 1 <= minutes <= 600:
+                raise ValueError("Choose a planned duration of 1–600 minutes")
+            candidate = copy.deepcopy(d)
+            items = copy.deepcopy(training_block.sessions(candidate["plans"].get(date) or {}))
+            items = [s for s in items if s.get("sport") != "rest"]
+            items.append({"sport":"ride", "name":route.name, "minutes":minutes, "route_id":route.id,
+                          "note":f"Route ride · {route.length/1000:.1f} km. Duration is a planning target; terrain and pace change actual time."})
+            coach.set_sessions(candidate, date, items, draft=True)
+            coach.save(candidate)
+            capture_program_forecast(bridge, rides, candidate)
+            return js({"sessions":candidate["plans"][date]["sessions"]})
+        if p == "/api/coach/workout-capabilities":
+            return js({"section_aware_saving":True,"repeated_blocks":True,"session_actions":True,"cycling_power_parser":True,"swim_parser":True})
+        if p == "/api/coach/session/action" and method == b"POST":
+            index=req.get("index")
+            originals=(d.get("plans",{}).get(date) or {}).get("sessions") or []
+            if req.get("action")=="restore" and isinstance(index,int) and 0<=index<len(originals):
+                saved=d.get("skipped_workouts",{}).get(originals[index].get("skipped_id"),{}).get("session",{})
+                if saved.get("sport")=="run":
+                    import training_block
+                    gate=training_block.running_gate(d,load_state(rides.parent),d["checkins"].get(coach.today()))
+                    if gate["status"]!="open_for_review":raise ValueError("Running remains gated; review load and readiness before restoring")
+            # Refuse changes to a day containing imported actual exercise as well.
+            if done_by_day(rides.parent,d).get(date):raise ValueError("Keep completed workouts; edit their reports instead")
+            coach.session_action(d,date,index,req.get("action"))
+            coach.save(d)
+            capture_program_forecast(bridge,rides,d)
+            return js({"ok":True})
         if p == "/api/coach/session/add" and method == b"POST":
+            if req.get("run_recipe") is not None and req.get("sport") != "run":
+                raise ValueError("Choose Running for a running recipe")
+            if req.get("swim_recipe") is not None:
+                if req.get("sport") != "swim":raise ValueError("Choose Swimming for a swim recipe")
+                if req.get('workout_import_id'):
+                    import workout_imports
+                    workout_imports.get(rides.parent,req['workout_import_id'])
+                    if req.get('source_reviewed') is not True:raise ValueError('Compare the extracted text with the source and confirm it before saving')
+                if req.get('index') is not None and done_by_day(rides.parent,d).get(date):raise ValueError('Keep completed workouts; edit their reports instead')
+                import swim_workouts
+                candidate=swim_workouts.add(d,date,req)
+                import workout_library
+                at=req.get('index') if req.get('index') is not None else len(candidate['plans'][date]['sessions'])-1
+                workout_library.attach_goals(candidate,date,at,req);workout_library.keep(candidate,date,at,favorite=req.get('favorite'))
+                coach.save(candidate)
+                capture_program_forecast(bridge,rides,candidate)
+                return js({'sessions':candidate['plans'][date]['sessions']})
+            if req.get("ride_blocks") is not None:
+                if req.get("index") is not None and done_by_day(rides.parent,d).get(date):
+                    raise ValueError("Keep completed workouts; edit their reports instead")
+                import ride_workouts,workouts
+                candidate,wid=ride_workouts.add(d,date,req)
+                try:
+                    import workout_library
+                    at=req.get('index') if req.get('index') is not None else len(candidate['plans'][date]['sessions'])-1
+                    workout_library.attach_goals(candidate,date,at,req);workout_library.keep(candidate,date,at,favorite=req.get('favorite'))
+                    coach.save(candidate)
+                except Exception:
+                    workouts.delete(wid)
+                    raise
+                bridge.reload_workouts()
+                capture_program_forecast(bridge,rides,candidate)
+                return js({"sessions":candidate["plans"][date]["sessions"],"workout":wid})
             if req.get("sport")=="run":
                 import training_block
                 gate=training_block.running_gate(d,load_state(rides.parent),d["checkins"].get(coach.today()))
                 if gate["status"]!="open_for_review":raise ValueError("Running stays unscheduled: "+"; ".join(gate["reasons"] or ["metrics and preparatory checks need review"]))
+            if req.get('run_recipe') is not None:
+                if req.get('index') is not None and done_by_day(rides.parent,d).get(date):
+                    raise ValueError('Keep completed workouts; edit their reports instead')
+                import run_workouts,workout_library
+                candidate,at = run_workouts.add(d,date,req)
+                workout_library.attach_goals(candidate,date,at,req)
+                workout_library.keep(candidate,date,at,favorite=req.get('favorite'))
+                coach.save(candidate);capture_program_forecast(bridge,rides,candidate)
+                return js({'sessions':candidate['plans'][date]['sessions']})
             # add one session to a day from the Plan tab's + buttons (a plain list; the AI can refine it)
             p_ = d["plans"].get(date) or {}
             cur = list(p_.get("sessions") or ([{"sport": p_["sport"], "minutes": p_.get("minutes") or 0, "name": p_["sport"].title()}] if p_.get("sport") else []))
-            cur.append({"sport": req.get("sport"), "minutes": int(req.get("minutes") or 30), "name": req.get("name") or str(req.get("sport")).title(),
-                        "steps": req.get("steps") or [], "note": req.get("note") or "", "swim_profile": req.get("swim_profile"), "swim_plan":req.get("swim_plan"), "bike_plan":req.get("bike_plan"), "cadence":req.get("cadence"), "focus":req.get("focus"), "workout":req.get("workout"), "lifts":req.get("lifts")})
-            coach.set_sessions(d, date, cur)
+            manual_minutes=req.get('minutes')
+            if not manual_minutes and req.get('sport')=='gym' and req.get('lifts'):
+                import lifting
+                manual_minutes=lifting.estimate_minutes(lifting.clean(d,req['lifts'],draft=bool(req.get('draft'))))
+            cur.append({"sport": req.get("sport"), "minutes": int(manual_minutes or 30), "name": req.get("name") or str(req.get("sport")).title(),
+                        "steps": req.get("steps") or [], "note": req.get("note") or "", "swim_profile": req.get("swim_profile"), "swim_plan":req.get("swim_plan"), "bike_plan":req.get("bike_plan"), "cadence":req.get("cadence"), "focus":req.get("focus"), "workout":req.get("workout"), "lifts":req.get("lifts"), "typed_workout":req.get("typed_workout")})
+            coach.set_sessions(d, date, cur, draft=bool(req.get("draft")))
+            if req.get('typed_workout'):
+                import workout_library
+                at=len(d['plans'][date]['sessions'])-1
+                workout_library.attach_goals(d,date,at,req);workout_library.keep(d,date,at,favorite=req.get('favorite'))
             coach.save(d)
             capture_program_forecast(bridge,rides,d)
             return js({"sessions": d["plans"][date]["sessions"]})
@@ -1473,8 +1668,14 @@ async def coach_api(bridge, method, path, p, body):
             if method != b"POST":
                 return js({"error": "not found"}, 404)
             if sub == "/plan":
+                if (req.get('typed_workout') or req.get('workout_goals')) and done_by_day(rides.parent,d).get(date):raise ValueError('Keep completed workouts; edit their actual reports instead')
                 pl = lifting.set_session(d, date, req.get("lifts"), req.get("name"), req.get("minutes"), req.get("index"),
-                                         req.get("note"), draft=bool(req.get("draft")), override=req.get("override"))
+                                         req.get("note"), draft=bool(req.get("draft")), override=req.get("override"),typed_workout=req.get("typed_workout"))
+                if req.get('typed_workout') or req.get('workout_goals'):
+                    import workout_library
+                    at=req.get('index')
+                    if at is None:at=next(i for i,x in enumerate(pl['sessions']) if x['sport']=='gym')
+                    workout_library.attach_goals(d,date,at,req);workout_library.keep(d,date,at,favorite=req.get('favorite'))
                 coach.save(d)
                 capture_program_forecast(bridge,rides,d)
                 gym = [s_ for s_ in pl["sessions"] if s_.get("lifts")]
@@ -1545,7 +1746,7 @@ async def coach_api(bridge, method, path, p, body):
         if p == "/api/coach/split/save" and method == b"POST":
             blocks = coach.split_to_blocks(req["parts"])
             wid = workouts.save({"id": req.get("id"), "name": req.get("name") or "Timed workout",
-                                 "note": req.get("note") or "", "blocks": blocks})
+                                 "note": req.get("note") or "", "blocks": blocks, "adaptive":req.get("adaptive")})
             bridge.reload_workouts()
             if req.get("plan"):
                 coach.set_plan(d, date, workout=wid); coach.save(d)

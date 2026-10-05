@@ -1,0 +1,30 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><link rel="stylesheet" href="/web/theme.css"><script src="/web/theme.js"></script><meta name="viewport" content="width=device-width, initial-scale=1"><title>Rest & calendar preview</title><link rel="stylesheet" href="/web/workout-format.css"><style>body{background:#09121d;color:#eef5ff;font:16px system-ui;margin:30px auto;max-width:1100px;padding:0 20px}button{background:#17344c;color:white;border:1px solid #487798;border-radius:8px;padding:8px 14px;cursor:pointer}nav{display:flex;gap:8px;margin:15px 0}.icons{display:flex;gap:24px;flex-wrap:wrap;margin:24px 0}.sporticon{display:inline-block;width:36px;height:32px;vertical-align:middle;background-repeat:no-repeat}.wds{display:inline-flex}.duration-badge{position:absolute;top:-5px;right:-9px;background:#16344b;border-radius:8px;padding:1px 4px;font-size:10px}.icons div{text-align:center;font-size:12px}.icons small{display:block;margin-top:8px}.rest-card{margin-bottom:18px}</style><h1>Rest & calendar</h1><p>Layout preview · example readings, not your training record.</p><nav><button id="day">Daytime</button><button id="night">Evening</button></nav><div id="rest"></div><div class="icons" id="icons"></div><script src="/web/rest-card.js"></script><script>const CALENDAR_ICON_CELLS={"bike":[131,58,222,191],"swim":[482,114,243,135],"run":[830,60,213,193],"gym":[1181,58,233,195],"arms":[149,328,202,175],"rest":[525,333,152,165],"mobility":[865,318,155,190],"test":[1223,318,187,192],"projected":[144,579,193,146],"weekly":[522,571,168,161],"daily":[854,561,187,178],"journal":[1198,578,216,155],"completed":[177,811,133,132],"missed":[525,810,156,128],"skipped":[875,811,132,131],"warning":[1222,809,148,132]};
+function calendarStatus(s){const kind=s.skipped_id?'skipped':s.completion||s.completed?'completed':s.missed?'missed':null;return kind?`<span class="calendar-status" title="${kind}" aria-label="${kind}">${sportIcon(kind)}</span>`:'';}
+function calendarActivity(s){return sportIcon(s.explanation?.test?'test':s.sport==='gym'&&/\b(arms|biceps|triceps)\b/i.test(s.name||'')?'arms':s.sport);}
+function sportIcon(sport){
+  const fresh=CALENDAR_ICON_CELLS[sport==='ride'?'bike':sport];
+  if(fresh){const [x,y,w,h]=fresh;return `<span class="sporticon sporticon-${sport}" style="background-image:url('/web/calendar-icons-v3.png');background-size:${1536/w*100}% ${1024/h*100}%;background-position:${x/(1536-w)*100}% ${y/(1024-h)*100}%" aria-hidden="true"></span>`;}
+
+  const cell=ICON_CELLS[sport==='ride'?'bike':sport];
+  if(cell){const [x,y,w,h]=cell;return `<span class="sporticon sporticon-${sport}" style="background-size:${1367/w*100}% ${1151/h*100}%;background-position:${x/(1367-w)*100}% ${y/(1151-h)*100}%" aria-hidden="true"></span>`;}
+  const paths={
+    swim:'<path d="M2 9c3 0 3-3 6-3s3 3 6 3 3-3 8-3M2 16c3 0 3-3 6-3s3 3 6 3 3-3 8-3"/>',
+    bike:'<circle cx="5" cy="17" r="4"/><circle cx="19" cy="17" r="4"/><path d="m5 17 5-10 5 10H5l4-7h8l2 7M8 7h4m4-4h3l-2 7"/>',
+    gym:'<path d="M8 12h8M3 8v8m3-10v12m12-12v12m3-10v8M3 12h3m12 0h3"/>',
+    run:'<circle cx="15" cy="4" r="2" fill="currentColor" stroke="none"/><path d="m6 10 4-3 4 3 5 1m-8-3-3 6 5 3-3 5m-2-8-4 6H2m12-10 2 5h5"/>',
+    walk:'<circle cx="13" cy="4" r="2" fill="currentColor" stroke="none"/><path d="m7 11 4-3 4 4 4 1m-8-5-1 7 5 7m-5-7-4 7"/>',
+    rest:'<path d="M20 15A9 9 0 0 1 9 3a9 9 0 1 0 11 12Z"/>',
+    test:'<path d="M9 3h6m-5 0v7l-6 9a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2l-6-9V3M8 15h8"/>',
+    completed:'<path d="m12 2 3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1Z" fill="currentColor" stroke="none"/>',
+    other:'<circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/>'
+  };
+  const kind=sport==='ride'?'bike':paths[sport]?sport:'other';
+  return `<svg class="sporticon sporticon-${kind}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${paths[kind]}</svg>`;
+}
+
+const s={sport:'rest',name:'Rest & recovery',note:'Give the areas that worked hard a quieter day. Your next check-in helps guide the return to training.'};
+const r={date:'2026-10-04',morning:{date:'2026-10-04',sleep_min:480,hrv:{ms:52},resting_hr:{bpm:58}},checkin:{sleep:7}};
+function show(hour){document.getElementById('rest').innerHTML=RestCard.render(s,r,new Date(2026,9,4,hour));}
+document.getElementById('day').onclick=()=>show(12);document.getElementById('night').onclick=()=>show(22);show(12);
+document.getElementById('icons').innerHTML=['ride','swim','run','gym','arms','rest','projected','weekly','completed','missed','skipped','warning'].map(k=>`<div>${sportIcon(k)}<small>${k}</small></div>`).join('');
+</script></html>

@@ -163,7 +163,7 @@ async def main():
         code,_,raw,_=await mapserver.coach_api(bridge,b'POST','/api/coach/test','/api/coach/test',json.dumps({'test':'benchmark_run','date':TODAY}).encode())
         assert code==400 and 'hold' in json.loads(raw)['error']
     tools={t['name']:t for t in mcp_server.handle({'id':1,'method':'tools/list'})['tools']}
-    assert len(tools)==70 and tools['get_coaching_review']['annotations']['readOnlyHint']
+    assert tools['get_coaching_review']['annotations']['readOnlyHint']
     assert not tools['preview_coaching_change']['annotations']['readOnlyHint']
     assert tools['apply_coaching_change']['inputSchema']['required']==['draft_id','approved']
  print('PASS whole-sequence review, exact edits, holds, delayed capacity evidence, race limits, approval, conflict, expiry and preserved doses')

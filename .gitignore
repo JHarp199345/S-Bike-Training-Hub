@@ -54,3 +54,6 @@ bike_setup.tmp
 bike_profiles_local/
 s-bike-hub.sh
 test-results.txt
+
+# Private source documents and unreviewed workout drafts
+workout-imports/

@@ -13,6 +13,8 @@ PURPOSE={
  'taper':('Final preparation','Ease accumulated fatigue and prepare for the event.','gold','running')}
 
 def propose(d,fields,today,gate):
+    import capacity_planning
+    capacity_demands=capacity_planning.goals(fields.get('capacity_demands'))
     start=P.date(fields.get('start') or today)
     target=P.date(fields['target']) if fields.get('target') else start+dt.timedelta(days=int(fields.get('horizon_days',84)))
     span=(target-start).days
@@ -94,7 +96,7 @@ def propose(d,fields,today,gate):
     macro_end=max(target,P.date(phases[-1]['end']))
     changed=review_changes(d,phases,start,macro_end)
     event_target=target.isoformat() if fields.get('target') else None
-    return {'goal':goal,'sport':sport,'outcome':outcome,'start':start.isoformat(),'target':event_target,'end':macro_end.isoformat(),'horizon_days':span,
+    return {'planning_mode':'capacity','capacity_demands':capacity_demands,'goal':goal,'sport':sport,'outcome':outcome,'start':start.isoformat(),'target':event_target,'end':macro_end.isoformat(),'horizon_days':span,
             'hours':hours,'budget_mode':budget_mode,'long_term_goal':long_term_goal,'focus':focus,'entry':entry,'assessment':assessment,'priorities':priorities,'schedule_options':options,'changes':changed,'phases':phases,'weeks':macro_weeks(phases,start,macro_end,focus,sport,restricted,hours,d.get('plans'),options),'running_hold':restricted,
             'notice':'Phase dates are planning checkpoints, not clearance dates. Running restrictions remain in force across every phase. Sunday reviews can revise the remaining program. '+('Starting training time is reviewed weekly and may grow when forecasts, responses and availability support it.' if budget_mode=='starting_budget' else 'Available time is the most a week will use: the program starts well below it and builds toward it for the peak, as reviews and forecasts allow.')}
 
@@ -119,7 +121,7 @@ def accept(d,proposal):
         history.append({'replaced_from':proposal['start'],'goal':copy.deepcopy(d.get('program_goal')),'phases':copy.deepcopy(d.get('phase_profiles',[])),'weeks':copy.deepcopy(d.get('program_macro_weeks',[]))})
     d['program_history']=history[-20:]
     d['phase_profiles']=scratch['phase_profiles']
-    d['program_goal']={k:v for k,v in proposal.items() if k not in ('phases','weeks','changes','starter')}
+    d['program_goal']={k:v for k,v in proposal.items() if k not in ('phases','weeks','changes','starter','capacity_review')}
     if proposal.get('starter'):
         starter=proposal['starter']
         import lifting

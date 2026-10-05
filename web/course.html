@@ -1,7 +1,7 @@
 <!doctype html><html><head><meta charset="utf-8"><title>S-Bike Training Hub · Course</title>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#1a1030">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+
 <style>
  /* The course: a ride planned without a map route, as an 8-bit side-scroller. The hills are the workout
     (course.py); the lit road is the day's focus - inside both the cadence and watt ranges, you ride it. */
@@ -83,7 +83,7 @@
 <div class="ctl"><button id="dn">− EASIER</button><button id="up">+ HARDER</button></div>
 <button id="menubtn" aria-label="Menu">☰</button><a id="mapbtn" href="/ride" aria-label="Map view">🗺</a><button id="pausebtn" type="button" aria-label="Pause the workout" hidden>⏸</button>
 <button id="fullscreenride" type="button" aria-label="Full screen" title="Full screen">⛶</button>
-<button id="ftpend" hidden style="position:absolute;bottom:90px;left:50%;transform:translateX(-50%);z-index:10;padding:12px 18px;background:#233f63;color:white;border:1px solid #66afff;border-radius:12px">End ramp · cool down</button><div id="menu" hidden><div class="looks"><button data-look-pick="modern">MODERN</button><button data-look-pick="pixel">8-BIT</button></div><button id="formsbtn">Forms…</button><div id="awake" class="sub2" role="status">Tap Full screen to focus and keep the screen awake.</div><button id="endbtn">End course</button><a href="/coach">Coach</a><a href="/ride">Ride view</a><div id="drawer" style="all:unset;display:block"></div></div>
+<button id="ftpend" hidden style="position:absolute;bottom:90px;left:50%;transform:translateX(-50%);z-index:10;padding:12px 18px;background:#233f63;color:white;border:1px solid #66afff;border-radius:12px">End ramp · cool down</button><div id="menu" hidden><div class="looks"><button data-look-pick="modern">MODERN</button><button data-look-pick="pixel">8-BIT</button></div><button id="formsbtn">Forms…</button><div id="awake" class="sub2" role="status">Tap Full screen to focus and keep the screen awake.</div><button id="endbtn">End course</button><nav aria-label="Hub navigation"><a href="/coach#today">Today</a> · <a href="/coach#plan">Training plan</a> · <a href="/plan">Plan a ride</a> · <a href="/coach#fitness">Fitness</a> · <a href="/coach#progress">Progress</a> · <a href="/panel">Settings</a></nav><a href="/ride?view=map">Real map scenery</a><div id="drawer" style="all:unset;display:block"></div></div>
 <div class="dlg" id="formsdlg" hidden><div class="dlgbox">
  <b>YOUR FORMS</b><div class="sub2">Time on the lit road evolves you, in this order. The rider on the bike always starts.</div>
  <ol id="formlist"></ol><div class="sub2">Add an animal</div><div class="addgrid" id="addgrid"></div>
@@ -94,7 +94,7 @@
  <button id="resumebtn" type="button" hidden></button>
  <div class="sub" id="startsub">The hills are your workout. Stay inside your cadence and watt ranges to ride the lit road and evolve:
   bike → unicorn → gorilla → panda → dragon.</div>
- <button id="go">▶ START A COURSE</button>
+ <button id="go">▶ START A COURSE</button><button id="explore-haunted" type="button" hidden>Explore scenery · no workout</button>
  <div class="sub" id="startmsg"></div>
 </div>
 <script>
@@ -169,6 +169,7 @@ function sprite(name,frame,x,y,scale){ const rows=SPR[name][frame];
     g.fillStyle=PAL[ch]; g.fillRect(Math.round(x+c*scale),Math.round(y+r*scale),scale,scale); } }
 
 // ── state ──
+const chosenScene=new URLSearchParams(location.search).get('scene');if(chosenScene==='pixel'){LOOK='pixel';document.body.dataset.look=LOOK;}else if(chosenScene==='game'||chosenScene==='haunted'){LOOK='modern';}if(chosenScene==='haunted'){$('start').querySelector('h1').textContent='HAUNTED GRAVEYARD';$('startsub').textContent='Ride past moonlit gravestones and drifting ghosts. Your workout watts or route hills still guide the effort. A winding 3D course through crypts, moonlit woods and haunted encounters.';}
 let st=null, course=null, courseId=null, shownD=0, lastD=0, lastT=performance.now(), speed=0, shownV=0, prevFrame=0;
 let game={onRoad:0, form:0, off:0, gates:{}, cleared:0, missed:0, streak:0};
 let effortSamples=[], effortKey=null, gameEffort=null;
@@ -216,7 +217,7 @@ async function poll(){
     $('pausebtn').hidden=false; $('pausebtn').textContent=wk.paused?'▶':'⏸'; $('pausebtn').classList.toggle('on',!!wk.paused);
     if(wk.paused||wk.auto_paused){ if(!pausedShown){ banner(wk.paused?'PAUSED\nTAP ▶ TO GO ON':'PAUSED\nPEDAL TO GO ON',86400000); pausedShown=true; } }
     else if(pausedShown){ banner('GO!',900); pausedShown=false; }
-    lastD=wk.elapsed*WK_SPEED; lastT=performance.now(); speed=WK_SPEED;
+    lastD=wk.elapsed*WK_SPEED; lastT=performance.now(); speed=wk.paused||wk.auto_paused?0:WK_SPEED;
     step(1); render.hud(); return;
   }
   $('pausebtn').hidden=true;
@@ -232,7 +233,7 @@ async function poll(){
     if(c && !c.error){ course=c; courseId=c.id; game={onRoad:0,form:0,off:0,gates:{},cleared:0,missed:0,streak:0}; loadGame(); shownD=rt.done_m; }
     else { course=null; courseId=null; }
   }
-  $('start').hidden=!!(rt && course);
+  $('start').hidden=!!(rt && course)||!!window.HauntedWorld?.diagnostics().preview;
   if(rt && course){
     lastD=rt.done_m; lastT=performance.now(); speed=(st.speed||0)/3.6;
     step(1); render.hud();
@@ -289,10 +290,10 @@ const render={
     // smooth motion: the scenery moves at an eased speed every frame; the once-a-second position from the bridge
     // only nudges that speed (a gentle pull toward where it predicts you are), so nothing ever snaps
     const fdt=Math.min(0.1,(t-(prevFrame||t))/1000); prevFrame=t;
-    if(course && st?.route){ const target=lastD+speed*Math.min((t-lastT)/1000,2), err=target-shownD;
+    if(course && (st?.route||st?.workout||st?.test)){ const target=lastD+speed*Math.min((t-lastT)/1000,2), err=target-shownD;
       if(Math.abs(err)>60) shownD=target;                                    // a big jump (resume, new course): just go there
       const want=Math.max(0, speed+err*0.6); shownV+=(want-shownV)*Math.min(1,fdt*3); shownD+=shownV*fdt; }
-    try{ (LOOK==='pixel'?render.pixel:MODERN.draw)(t); }catch(e){ console.error(e); }
+    try{ if(chosenScene==='haunted'){ window.HauntedWorld?.update({time:t,distance:shownD,cadence:st?.cadence||0,active:!!(st?.route||st?.workout||st?.test),paused:!!(st?.workout?.paused||st?.workout?.auto_paused)}); }else{(LOOK==='pixel'?render.pixel:MODERN.draw)(t);} }catch(e){ console.error(e); }
     requestAnimationFrame(render.frame);
   },
   pixel(t){
@@ -342,7 +343,7 @@ document.addEventListener('click',e=>{ if(!$('menu').contains(e.target)) $('menu
 $('resumebtn').onclick=async()=>{ const r=await fetch('/api/workout/resume',{method:'POST'}).catch(()=>null); if(r&&r.ok){ courseId=null; course=null; pausedShown=false; } poll(); };
 $('pausebtn').onclick=async()=>{ await fetch('/api/workout/pause',{method:'POST',body:'{}'}).catch(()=>{}); poll(); };
 $('ftpend').onclick=async()=>{await fetch('/ftp/stop',{method:'POST'});poll();};
-$('endbtn').onclick=async()=>{ if(st?.test){if(st.test.phase!=='cool-down'){await fetch('/ftp/stop',{method:'POST'});poll();return;}location.href='/coach#today';return;} await fetch(course?.workout?'/erg/off':'/api/route/stop',{method:'POST'}).catch(()=>{}); location.href='/coach'; };
+$('endbtn').onclick=async()=>{ if(st?.test){if(st.test.phase!=='cool-down'){await fetch('/ftp/stop',{method:'POST'});poll();return;}window.top.location.href='/coach#today';return;} await fetch(course?.workout?'/erg/off':'/api/route/stop',{method:'POST'}).catch(()=>{}); window.top.location.href='/coach'; };
 $('go').onclick=async()=>{ $('startmsg').textContent='Building your course…';
   const r=await fetch('/api/course/start',{method:'POST',body:'{}'}).catch(()=>null);
   if(!r||!r.ok){ $('startmsg').textContent='Could not start - is the bike connected?'; return; }
@@ -394,8 +395,8 @@ $('formssave').onclick=async()=>{ if(!draft.length){ $('formsmsg').textContent='
   const r=await fetch('/api/course/forms',{method:'POST',body:JSON.stringify({forms:draft})}).catch(()=>null);
   if(!r||!r.ok){ $('formsmsg').textContent='Could not save.'; return; }
   await loadAnimals(); if(course) render.hud(); $('formsdlg').hidden=true; };
-</script><script src="/web/course-modern.js?v=3"></script><script src="/web/overlays.js?v=6"></script>
-<script>document.querySelectorAll('[data-look-pick]').forEach(b=>b.onclick=e=>{ e.stopPropagation(); setLook(b.dataset.lookPick); }); setLook(LOOK);
+</script><script src="/web/course-modern.js?v=3"></script><script type="module" src="/web/course-haunted.js"></script><script src="/web/ride-navigation.js"></script><script src="/web/overlays.js?v=6"></script>
+<script>document.querySelectorAll('[data-look-pick]').forEach(b=>b.onclick=e=>{ e.stopPropagation(); if(window.parent!==window){window.parent.postMessage({type:'hub-ride-view',view:b.dataset.lookPick==='pixel'?'pixel':'game'},location.origin);}else{location.href='/ride?view='+(b.dataset.lookPick==='pixel'?'pixel':'game');} }); setLook(LOOK);
 // start once everything above has loaded (the overlays come in after the page's own script)
 Overlays.mount(document.body);
 loadAnimals().then(()=>{ poll(); setInterval(poll,1000); });</script>

@@ -37,7 +37,7 @@ def workout_watts(workout, ftp):
     steps = []
     for s in workout["steps"]:
         w = s["watts"] if "watts" in s else round(s["pct"] / 100 * ftp / 5) * 5
-        steps.append({"minutes": s["minutes"], "watts": w})
+        steps.append({**{k:v for k,v in s.items() if k!="pct"}, "watts": w})
     return {**workout, "steps": steps}
 
 

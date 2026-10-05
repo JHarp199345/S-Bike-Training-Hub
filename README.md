@@ -80,7 +80,7 @@ powershell -ExecutionPolicy Bypass -File setup.ps1 -NoBike   # no smart bike
 
 Setup creates the Python environment, installs what it needs and makes a launcher: **S-Bike Hub** on your Desktop on macOS and Windows, `./s-bike-hub.sh` on Linux. Your browser opens the hub at <http://127.0.0.1:8729>, starting with the **welcome page**.
 
-On Windows and Linux the route planner and 3D maps aren't set up yet; everything else is. Installing on all three systems is tested on every push. A real smart bike has been tested on macOS; on Windows and Linux the bike bridge installs and starts, but hasn't been ridden yet.
+Linux setup now installs the route planner and 3D map tools; regional data downloads ask first. Java is required for route planning. Use `--no-maps` to skip map tools. Windows map setup and physical bike/watch verification on Linux and Windows remain pending. Automated installation and simulated-device tests run in GitHub Actions.
 
 ### 2. Tell it about you
 
@@ -191,10 +191,40 @@ Completed lifting sessions support **Too easy**, **As intended**, and **Too hard
 
 Open **What’s new** in the Coach header for dated release milestones, artwork, and links to the wiki. **Check for updates** reads the public GitHub update list; optional automatic checks run when you open the Hub, at most twice a day. They send no athlete records and never install updates automatically. Older installs need to update once to gain this checker.
 
-### FTP ramp test preview
 
-On Today, the FTP test shows its power prescription and a target graph. **Ride it** opens a preview with Hub, bike, and watch/sensor subscription indicators; starting opens the game view. The watch indicator means a device is receiving power or cadence, not that the Hub is receiving heart rate. Record on your watch and import its completed activity afterward.
+### Write or import a swim workout
 
-The test warms up for five minutes, raises the target by 10 W each minute, and finishes with five minutes easy. Sustained low power or cadence, five seconds of stopped pedaling during the ramp, or **End ramp · cool down** ends the ramp. The existing minimum four-minute ramp and best-minute FTP calculation still apply.
+Use **Add workout → Swimming** to enter warm-up, pre-set/drills, named main sets, and cool-down. The preview totals yards or meters and preserves repetitions, strokes, equipment, send-offs and fixed rest. `6 × 50 kick @ 1:10` means starting a 50 every 70 seconds; it does not mean resting 70 seconds. Enter the full session time when some sets have no timed interval.
 
-A baseline result forecast is frozen before starting and saved beside the ride as `.ftp-test.json`, together with the actual result and error. The ride story exposes this comparison for post-workout analysis. This first forecast uses the current FTP estimate; it is not independent evidence that the recovery or performance model is calibrated. Its estimated ending does not limit the test duration.
+**Import workout file** reads PNG/JPEG/WebP images, screenshots, PDFs (up to six pages), and UTF-8 text or Markdown. The local reader keeps the original and fills the workout fields directly. Those fields are the editable transcription: compare distances, repetitions, units and times with **View original**, then press **Continue**. Swimming shows one structured preview; **Edit workout** reopens the fields. Handwritten workouts can be uploaded, but recognition may need corrections or your AI assistant's visual review. With permission to read that source, the assistant can use `get_workout_import` to inspect a page, then `preview_swim_workout` before saving an approved prescription. Imports are drafts, not completed workouts, and never record activity load by themselves.
+
+#### A swim resource the creator uses
+
+[GoSwimFast's training hub](https://goswimfast.com/training) offers a workout library and a generator. The Hub's creator uses it occasionally for structured swim workouts when he does not want to write one from scratch. This is an independent personal recommendation, not an official integration or a claim of partnership. Bring a workout you are permitted to use into the Hub, then review it against your own program and current condition.
+
+
+### One ride screen, your choice of scenery
+
+**Ride view** keeps Today, the training plan, Plan a ride, Fitness, Progress and Settings accessible. Choose real 3D maps, the animal game, its 8-bit version, or the 3D haunted graveyard from **Scenery**; check **Default** to remember the view in this browser. Changing scenery preserves the active workout or route. Workout watts or route grades still drive the bike; the scenery does not create a second workout or recorder.
+
+In **Plan a ride**, save or import a route, select **Show**, choose a training date and planned duration, then **Add route to training plan**. That prescription contributes to projected load. Riding a route or power workout uses the existing Hub recording pipeline; imported watch recordings are reconciled with bridge recordings to avoid counting the same ride twice. Route time is a planning target, not a guaranteed completion time.
+
+The graveyard is a winding 3D course with a following rider camera, crypts, moonlit woods, ghosts and scripted roadside encounters. Kenney’s CC0 Graveyard Kit supplies reusable scenery and character animations; Three.js renders them locally. **Explore scenery** runs a visual tour without starting or recording a workout. See [asset credits](web/graveyard/CREDITS.md).
+
+### Structured running entry
+
+Choose **Running** and a **Run / walk**, **Steady run / jog**, or **Speed intervals** format. The examples fit running rather than lifting. Enter stages such as `6 x (2 minutes jog zone 2 / 1 minute walk)`; the local parser preserves their order and builds an AI-free preview. Optional targets include distance, steps, a personal watch zone, and a heart-rate range.
+
+Distance-only stages need time or pace to estimate steps. Impact exposure uses the existing Hub model when distance, time and body weight are available; otherwise it remains incomplete or uses the forecast's explicitly provisional duration prior. Assumed cadence is identified. These prescriptions remain subject to the current running gate and completed workouts are protected. The MCP source exposes `preview_run_workout`, `save_run_workout`, and `schedule_route_workout`.
+
+### Live previews, workout goals and favorites
+
+Previews do not require AI. Cycling keeps its text fields and effort graph together; the parser recalculates after typing pauses. Swimming follows **upload or write → review fields → Continue → preview**, with **Edit workout**, **Save for later**, and **Add to plan** as separate actions. Uploaded source files stay local unless a connected AI client explicitly requests them through its tools.
+
+Strength accepts an optional **total external weight moved** target in pounds or kilograms. Its preview totals sets × reps × entered weight across warm-up, main work and cool-down; unilateral sets count both sides when specified. Static holds and body weight are excluded from moved weight. Session time is optional for strength and is estimated for scheduling when omitted. Total moved weight checks volume; it does not replace the existing effort, tempo, muscle-region and recovery calculations.
+
+Swimming can have distance and time goals. Cycling can have time, an average-power range for main work or the whole session, distance, and energy goals. Interval lengths may vary; average power is duration-weighted. A power prescription alone cannot verify road distance or metabolic calories, so those targets remain unresolved until an appropriate model or observations are available. Goal differences and unresolved targets require explicit review before saving.
+
+**Save goal brief without a workout** stores a dated request for a coach or assistant to design or reuse suitable work within the current phase. It carries no projected or recorded activity load. A saved prescription can resolve its brief. **Save for later** hearts a workout in the private library without scheduling it; workouts added through the creator are also kept for reuse. Heart buttons on scheduled workouts keep favorites. Library entries show explicit effort reports, original completion records when matched, and delayed recovery feedback when available. Missing feedback is shown as unknown. Edited prescriptions and repeated dates do not silently inherit another workout’s response.
+
+The MCP server provides compact `get_workout_library` listings, `get_library_workout` details, `get_workout_goals`, `save_workout_goal`, `preview_workout_goals`, `save_library_workout`, and `favorite_workout`. Its coaching routine considers compatible favorites before inventing every workout, previews goal differences and whole-calendar load, and preserves the current program’s recovery and taper purpose. Preference is not readiness clearance. These tools are in the local source; installed extension bundles need rebuilding/reloading to expose new tools.

@@ -489,6 +489,8 @@ def analyse(acts, prof, today=None, meta=None, feet_reports=None, daily_steps=No
                        "date": dt.date.fromtimestamp(a["start"]).isoformat(),
                        "start": dt.datetime.fromtimestamp(a["start"]).strftime("%H:%M"),
                        "minutes": round(a["minutes"], 1), "km": round(a["distance_m"] / 1000, 2),
+                       "calories_kcal": (a.get("session") or {}).get("total_calories"),
+                       "calories_basis": "watch-reported total (active/resting split unknown)" if (a.get("session") or {}).get("total_calories") is not None else None,
                        "avg_hr": _avg_hr(a), "descent_m": round(a.get("descent_m") or 0),
                        **{x: round(s[x], 1) for x in SYSTEMS},
                        **({"swim_exposure": a.pop("_swim_exposure")} if "_swim_exposure" in a else {}),

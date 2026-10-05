@@ -180,8 +180,12 @@ function lines(el,days,series){ const W=600,H=220,P=28; const n=days.length; if(
   g+=`<text x="${P}" y="${H-6}" font-size="13" fill="var(--muted)">${esc(days[0].date.slice(5))}</text><text x="${W-P}" y="${H-6}" font-size="13" fill="var(--muted)" text-anchor="end">${esc(days[n-1].date.slice(5))}</text>`;
   g+=`<text x="4" y="${y(hi)+4}" font-size="13" fill="var(--muted)">${Math.round(hi)}</text>`;
   el.setAttribute('viewBox',`0 0 ${W} ${H}`); el.innerHTML=g; }
+let dashboardLoading=false;
 async function load(){
-  const [L,T,F]=await Promise.all(['/api/load','/api/coach/today','/api/coach/lifting'].map(u=>fetch(u).then(r=>r.json()).catch(()=>({}))));
+  if(dashboardLoading)return;
+  dashboardLoading=true;
+  try{
+  const [L,T,F,W]=await Promise.all(['/api/load','/api/coach/today','/api/coach/lifting','/api/coach/weekly'].map(async u=>{const r=await fetch(u,{cache:'no-store'});if(!r.ok)throw new Error('Readings could not load');return r.json();}));
   $('loading').hidden=true;
   // verdicts
   const rd=L.readiness||T.systems||{}, lvl=v=>`<div class="lv ${v}">${v||'–'}</div>`;
@@ -224,8 +228,13 @@ async function load(){
   rowsC.push(crow('Swim block',sw.reference_units?Math.round(sw.reference_units)+' units':'–',sw.reference_from||'awaiting swims',null));
   for(const r of lrows) rowsC.push(crow(`Lifting block · ${r.name}`,`${r.reference} pts`,r.reference_from,null));
   $('calib').innerHTML=`<table><tr><th>Model</th><th class="r">Value</th><th>Learned from</th><th class="r">Confidence</th></tr>${rowsC.join('')}</table>`;
+  let updated=$('dashboard-updated');if(!updated){updated=document.createElement('p');updated.id='dashboard-updated';updated.className='sub';updated.setAttribute('role','status');$('verdicts').before(updated);}const latestWeekly=Object.keys(W.answered||{}).sort().at(-1);updated.textContent='Readings updated '+new Date().toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit',second:'2-digit'})+' · '+(T.date||'today')+(latestWeekly?' · Latest weekly review: '+latestWeekly:' · No weekly review saved yet');
+  }finally{dashboardLoading=false;}
 }
-load().catch(e=>{$('loading').hidden=false;$('loading').textContent='Some readings could not load. Reload the dashboard to retry.';});
+function refreshDashboard(){return load().catch(()=>{$('loading').hidden=false;$('loading').textContent='Latest readings could not load. The previous view is retained; retry when the Hub is reachable.';});}
+addEventListener('message',e=>{if(e.origin===location.origin&&e.source===parent&&e.data?.type==='hub-data-updated')refreshDashboard();});
+addEventListener('visibilitychange',()=>{if(!document.hidden)refreshDashboard();});
+refreshDashboard();setInterval(refreshDashboard,60000);
 </script><script>(()=>{const $=id=>document.getElementById(id); let data=null, range=90, hover=null;
 const fmt=d=>new Date(d+'T12:00').toLocaleDateString(undefined,{month:'short',day:'numeric'});
 async function load(){ data=await (await fetch('/api/fitness')).json(); show(); body(); }
@@ -363,6 +372,7 @@ $('cycling-c').addEventListener('mousemove',at); $('cycling-c').addEventListener
 $('cycling-c').addEventListener('mouseleave',()=>{hover=null;draw();});
 document.querySelectorAll('.fitness-history [data-d]').forEach(b=>b.onclick=()=>{ range=+b.dataset.d; document.querySelectorAll('.fitness-history [data-d]').forEach(x=>x.classList.toggle('on',x===b)); draw(); });
 document.querySelector('.fitness-history').addEventListener('toggle',()=>{draw();sysdraw();dmgdraw();if(bl)aero();});
+addEventListener('message',e=>{if(e.origin===location.origin&&e.source===parent&&e.data?.type==='hub-data-updated')load().catch(()=>{});});
 addEventListener('resize',()=>{ draw(); sysdraw(); dmgdraw(); if(bl) aero(); }); load(); setInterval(load,60000);
 })();</script><script>
 if(new URLSearchParams(location.search).get('embedded')==='1'){

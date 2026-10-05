@@ -142,15 +142,15 @@ def _resize(session,minutes):
     s=copy.deepcopy(session);delta=minutes-s['minutes']
     if s.get('workout') or s.get('test') or s['sport'] not in ('ride','swim'):return None
     text=s.get('steps') or []
-    ids=[i for i,x in enumerate(text) if re.match(r'^\d+ min',x) and any(w in x.lower() for w in ('aerobic','endurance'))]
+    ids=[i for i,x in enumerate(text) if re.match(r'^\d+(?:\.\d+)? min',x) and any(w in x.lower() for w in ('aerobic','endurance'))]
     if not ids:return None
-    i=ids[0];value=int(text[i].split()[0])+delta
+    i=ids[0];value=float(text[i].split()[0])+delta
     if value<=0:return None
     if s.get('bike_plan'):
         steps=s['bike_plan']['power_steps']
         if len(steps)<3 or steps[1]['minutes']+delta<=0:return None
         steps[1]['minutes']+=delta
-    text[i]=re.sub(r'^\d+',str(value),text[i]);s['minutes']=minutes
+    text[i]=re.sub(r'^\d+(?:\.\d+)?',f'{value:g}',text[i]);s['minutes']=minutes
     return s
 
 

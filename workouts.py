@@ -38,8 +38,13 @@ def _num(v, lo, hi, what):
 
 def flatten(blocks):
     """Blocks -> [{"minutes", "pct"}] steady steps, in order."""
+    if not isinstance(blocks, list) or not 1 <= len(blocks) <= 200:
+        raise BadWorkout("Use 1–200 workout blocks")
     steps = []
     for i, b in enumerate(blocks, 1):
+        if not isinstance(b, dict):
+            raise BadWorkout("Each block must be an object")
+        start_index = len(steps)
         kind = b.get("type")
         if kind == "steady" and b.get("watts") is not None:        # a fixed target in watts
             steps.append({"minutes": _num(b.get("minutes"), 1 / 60, 300, f"Block {i} time"),
@@ -49,12 +54,13 @@ def flatten(blocks):
                           "pct": round(_num(b.get("pct"), 20, 250, f"Block {i} intensity"))})
         elif kind == "ramp":
             mins = _num(b.get("minutes"), 0.5, 120, f"Block {i} time")
-            a = _num(b.get("from"), 20, 250, f"Block {i} start")
-            z = _num(b.get("to"), 20, 250, f"Block {i} end")
-            n = RAMP_STAGES
+            absolute = "from_watts" in b or "to_watts" in b
+            a = _num(b.get("from_watts" if absolute else "from"), 20, 1500 if absolute else 250, f"Block {i} start")
+            z = _num(b.get("to_watts" if absolute else "to"), 20, 1500 if absolute else 250, f"Block {i} end")
+            n = min(120, max(2, round(mins * 4))) if absolute else RAMP_STAGES
             for k in range(n):
-                pct = a + (z - a) * (k + 1) / n               # finish exactly at the interval's floor
-                steps.append({"minutes": mins / n, "pct": round(pct)})
+                pct = a + (z - a) * (k / (n - 1) if absolute else (k + 1) / n)               # finish exactly at the interval's floor
+                steps.append({"minutes": mins / n, "watts" if absolute else "pct": round(pct)})
         elif kind == "intervals":
             times = int(_num(b.get("times"), 1, 50, f"Block {i} repeats"))
             on, off = b.get("on") or {}, b.get("off") or {}
@@ -67,15 +73,28 @@ def flatten(blocks):
                                   "pct": round(_num(off.get("pct"), 20, 250, f"Block {i} rest intensity"))})
         else:
             raise BadWorkout(f"Block {i}: unknown kind {kind!r}")
+        for step in steps[start_index:]:
+            for key in ("label", "section"):
+                if b.get(key):step[key] = str(b[key])[:80]
+            if "watts_low" in b or "watts_high" in b:
+                if kind != "steady" or "watts" not in step:
+                    raise BadWorkout("Power bands belong to steady watt targets")
+                low = _num(b.get("watts_low"), 20, 1500, "Band minimum")
+                high = _num(b.get("watts_high"), low, 1500, "Band maximum")
+                if not low <= step["watts"] <= high:
+                    raise BadWorkout("The target must lie inside its power band")
+                step.update(watts_low=low, watts_high=high)
     # merge neighbours at the same intensity so the ride shows fewer, longer steps
     merged = []
     for s in steps:
-        if merged and merged[-1].get("pct") == s.get("pct") and merged[-1].get("watts") == s.get("watts"):
+        if merged and {k:v for k,v in merged[-1].items() if k!="minutes"} == {k:v for k,v in s.items() if k!="minutes"}:
             merged[-1]["minutes"] += s["minutes"]
         else:
             merged.append(dict(s))
     for s in merged:
         s["minutes"] = round(s["minutes"], 4)
+    if len(merged)>200:
+        raise BadWorkout("Maximum 200 power stages; split this workout")
     if not merged:
         raise BadWorkout("Add at least one block")
     if sum(s["minutes"] for s in merged) > MAX_MINUTES:
@@ -140,6 +159,7 @@ def save(data, folder=None):
             wid, n = f"{base}-{n}", n + 1
     Path(folder).mkdir(exist_ok=True)
     out = {"name": name, "note": str(data.get("note") or "")[:300], "blocks": blocks, "steps": steps}
+    if data.get("adaptive") is False:out["adaptive"] = False
     tmp = Path(folder) / f".{wid}.tmp"
     tmp.write_text(json.dumps(out, indent=1))
     tmp.replace(Path(folder) / f"{wid}.json")

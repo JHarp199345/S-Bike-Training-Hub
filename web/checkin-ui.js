@@ -1,0 +1,36 @@
+/* Check-in presentation helpers. Ratings describe reports, never medical clearance. */
+(function(root){
+  const escape=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const names={legs:'Leg soreness',feet:'Feet / lower-leg soreness',shoulders:'Shoulder soreness',breathing:'Breathing difficulty',sleep:'Sleep quality',week:'Overall week effort'};
+  const scales={legs:'1 = fresh, 10 = extremely sore',feet:'1 = comfortable, 10 = very sore',shoulders:'1 = comfortable, 10 = very sore',breathing:'1 = normal and easy, 10 = unusually difficult',sleep:'1 = very poor, 10 = very restful'};
+  function requestId(){return root.crypto?.randomUUID?.()||'checkin-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);}
+  function hasWeeklyAnswer(body){return ['legs','feet','shoulders','week','hops_left','hops_right','run_response','note'].some(k=>body[k]!=null&&body[k]!=='')||Object.keys(body.lift||{}).length>0||Object.keys(body.progress||{}).length>0;}
+  function matchesWeekly(saved,body){if(!saved)return false;return Object.entries(body).filter(([k,v])=>k!=='sunday'&&!(typeof v==='object'&&!Object.keys(v).length)).every(([k,v])=>typeof v==='object'?Object.entries(v).every(([a,b])=>saved[k]?.[a]===b):saved[k]===v);}
+  function chart(entries,key){const points=entries.slice().reverse().map(([date,v],i)=>({date,value:v[key],x:20+i*260/Math.max(1,entries.length-1)}));if(points.filter(p=>Number.isFinite(p.value)).length<2)return '';let last=null;const shapes=[];for(const p of points){if(!Number.isFinite(p.value)){last=null;continue;}p.y=85-(p.value-1)*7;if(last)shapes.push(`<path d="M${last.x},${last.y} L${p.x},${p.y}" stroke="currentColor" fill="none"/>`);shapes.push(`<circle cx="${p.x}" cy="${p.y}" r="3"><title>${escape(p.date)}: ${p.value}/10</title></circle>`);last=p;}
+    return `<figure class="weekly-response-chart"><figcaption>${escape(names[key])} · reported 1–10</figcaption><svg viewBox="0 0 300 108" role="img" aria-label="${escape(names[key])} across recent weekly reports"><text x="2" y="24">10</text><text x="8" y="89">1</text>${shapes.join('')}<text x="20" y="105">${escape(points[0].date)}</text><text x="280" y="105" text-anchor="end">${escape(points.at(-1).date)}</text></svg></figure>`;
+  }
+  function weeklyHeader(answered,due){
+    const dates=Object.keys(answered||{}).sort(),latest=dates.at(-1);
+    const period=due?.week?.join(' → ')||(latest?'Week ending '+latest:'Your weekly training journal');
+    return `<div class="weekly-review-hero"><span class="weekly-kicker">REFLECT · RECOVER · BUILD</span><h2>Your week,<br>in perspective.</h2><p>${escape(period)}</p><span class="weekly-saved-pill">${due?.questions?'Weekly review ready':latest?'✓ Review saved':'A place for your progress'}</span></div>`;
+  }
+  function history(answered,selected){
+    const entries=Object.entries(answered||{}).sort(([a],[b])=>b.localeCompare(a));
+    if(!entries.length)return '<div class="weekly-empty"><h3>Your story starts here.</h3><p>Your weekly reports, notes, and response graphs will stay together here after you save your first review.</p></div>';
+    const [latestDate,latest]=entries[0];
+    const highlights=`<div class="weekly-highlights"><article><span>Latest review</span><strong>${escape(latestDate)}</strong><small>Week ending</small></article><article><span>Reported week effort</span><strong>${latest.week!=null?escape(latest.week)+'/10':'Not reported'}</strong><small>1 easy · 10 too much</small></article><article><span>Reviews saved</span><strong>${entries.length}</strong><small>Your feedback builds this history</small></article></div>`;
+    const graphs=['week','legs','feet','shoulders'].map(k=>chart(entries.slice(0,12),k)).join('');
+    let month='';
+    const album=entries.map(([date,v])=>{
+      const heading=date.slice(0,7)!==month?`<h3 class="weekly-month">${escape(new Date(date+'T12:00').toLocaleDateString(undefined,{month:'long',year:'numeric'}))}</h3>`:'';month=date.slice(0,7);
+      const ratings=Object.keys(names).filter(k=>v[k]!=null).map(k=>`<div class="weekly-rating"><span>${escape(names[k])}</span><strong>${escape(v[k])}<small>/10</small></strong></div>`).join('');
+      const regions=Object.entries(v.lift||{}).map(([k,n])=>`<span class="weekly-region-chip">${escape(k.replaceAll('_',' '))} <strong>${escape(n)}/10</strong></span>`).join('');
+      const comparisons=Object.entries(v.progress||{}).map(([k,n])=>`<div class="weekly-comparison"><span class="weekly-response-${escape(n)}" aria-hidden="true">${{better:'↑',same:'↔',worse:'↓'}[n]||'·'}</span><div><strong>${escape(({bike:'Cycling',run:'Running',swim:'Swimming',gym:'Strength'})[k]||k)}</strong><p>${escape({better:'Felt easier',same:'Felt about the same',worse:'Felt harder'}[n]||n)} compared with earlier, similar training.</p></div></div>`).join('');
+      const extras=['hops_left','hops_right'].filter(k=>v[k]!=null).map(k=>`<p>${escape(k==='hops_left'?'Left':'Right')} pain-free hops: ${escape(v[k])}</p>`).join('')+(v.run_response?`<p>Lower-leg pulling: ${escape({resolved:'resolved in normal activity',pulling:'still pulls',not_tested:'not retested'}[v.run_response])}</p>`:'');
+      return `${heading}<details class="weekly-history-entry" ${date===selected?'open':''}><summary><span><small>WEEK ENDING</small><strong>${escape(date)}</strong></span><span class="weekly-entry-effort">${v.week!=null?'Effort '+escape(v.week)+'/10':'Saved review'} <span aria-hidden="true">⌄</span></span></summary><div class="weekly-entry-body"><div class="weekly-rating-grid">${ratings}</div>${regions?'<h4>After lifting · soreness</h4><div class="weekly-region-list">'+regions+'</div>':''}${comparisons?'<h4>How similar sessions felt</h4>'+comparisons:''}${extras}${v.note?'<h4>Your reflection</h4><blockquote class="weekly-history-note">'+escape(v.note)+'</blockquote>':''}<p class="sub">Reported on ${escape(v.date||date)}</p></div></details>`;
+    }).join('');
+    return `${highlights}<div class="weekly-response-section"><h3>Training response graphs</h3>${graphs?'<p class="sub">Your ratings across recent weeks. Higher means more soreness or effort; compare with your training. Blank answers stay blank.</p><div class="weekly-response-grid">'+graphs+'</div>':'<p class="sub">Your first review is recorded. Graphs appear when the same question has answers in at least two weekly reports.</p>'}</div><h3>Weekly journal</h3>${album}`;
+  }
+  function thankYou(kind,warning){const modal=document.getElementById('checkin-thanks');document.getElementById('checkin-thanks-message').textContent=`Your ${kind} check-in is saved locally. You can close this window or this page.`;document.getElementById('checkin-thanks-warning').textContent=warning||'';document.getElementById('checkin-saved-notice').textContent=`✓ ${kind==='weekly'?'Weekly':'Daily'} check-in saved. Thank you. Keep at it.`;document.getElementById('checkin-saved-notice').hidden=false;if(!modal.open)modal.showModal();}
+  root.CheckinUI={names,scales,requestId,hasWeeklyAnswer,matchesWeekly,history,weeklyHeader,thankYou};
+})(globalThis);

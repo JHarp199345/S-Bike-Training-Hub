@@ -466,6 +466,34 @@
       ],
       "width": 2172,
       "height": 724
+    },
+    {
+      "id": "rest-hammock-day",
+      "title": "Daytime rest \u00b7 hammock",
+      "phases": [],
+      "subjects": [
+        "rest-day"
+      ],
+      "style": "photorealistic",
+      "file": "/web/sports/rest-hammock-day.png",
+      "focal": [
+        75,
+        50
+      ]
+    },
+    {
+      "id": "rest-sky-night",
+      "title": "Evening rest \u00b7 stars",
+      "phases": [],
+      "subjects": [
+        "rest-night"
+      ],
+      "style": "photorealistic",
+      "file": "/web/sports/rest-sky-night.png",
+      "focal": [
+        75,
+        50
+      ]
     }
   ],
   "rotation": "Choose relevant artwork on opening the view; keep it stable during use."

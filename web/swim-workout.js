@@ -1,0 +1,10 @@
+(function(root){
+'use strict';
+const E=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const clock=s=>Math.floor(s/60)+':'+String(Math.round(s%60)).padStart(2,'0');
+function render(p,preview=false){
+ const groups=[];for(const s of p.sets||[]){let g=groups.at(-1);if(!g||g.name!==s.group||g.section!==s.section){g={name:s.group,section:s.section,sets:[]};groups.push(g);}g.sets.push(s);}
+ return `<div class="swim-recipe"><header><h3>${preview?'Swim preview':'Swim workout'} · ${Number(p.total_distance).toLocaleString()} ${E(p.unit)}</h3><p class="sub">${p.pool_length?E(p.pool_length)+' '+E(p.unit)+' pool · ':''}Timed send-off slots: ${p.sendoff_minutes} min${p.all_sendoffs?'':' · other sets untimed'}</p></header><div class="swim-distance-chart" role="img" aria-label="Swim distance by set">${groups.map((g,i)=>`<i style="flex:${g.sets.reduce((n,s)=>n+s.distance_m,0)};background:${g.section==='warmup'?'#fb923c':g.section==='cooldown'?'#22d3ee':['#a78bfa','#facc15','#fb923c'][i%3]}" title="${E(g.name)}"></i>`).join('')}</div>${groups.map(g=>`<section class="swim-set swim-${g.section}"><header><h4>${E(g.name)}</h4><b>${(Math.round(g.sets.reduce((n,s)=>n+s.distance_m,0)/(p.unit==='yd'?.9144:1)*100)/100).toLocaleString()} ${E(p.unit)}</b></header>${g.sets.map(s=>`<div class="swim-set-line"><b>${s.repetitions>1?s.repetitions+' × ':''}${s.distance} ${E(s.unit)}</b> · ${E(s.description)}${s.notes?.length?'<p class="sub">'+s.notes.map(E).join(' · ')+'</p>':''}${s.sendoff_seconds!=null?`<small>Send off every ${clock(s.sendoff_seconds)} · start-to-start, not fixed rest</small>`:s.rest_seconds!=null?`<small>Rest ${s.rest_seconds} seconds after each repetition</small>`:'<small>Timing not specified</small>'}</div>`).join('')}</section>`).join('')}${(p.notes||[]).map(n=>'<p class="sub">'+E(n)+'</p>').join('')}${preview?(p.issues||[]).map(n=>'<p class="note">'+E(n)+'</p>').join('')+(p.warnings||[]).map(n=>'<p class="sub">'+E(n)+'</p>').join(''):''}</div>`;
+}
+root.SwimWorkout={render};if(typeof module!=='undefined')module.exports=root.SwimWorkout;
+})(typeof window!=='undefined'?window:globalThis);

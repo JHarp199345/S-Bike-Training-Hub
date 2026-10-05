@@ -1,0 +1,11 @@
+Built-in image generation workflow.
+
+Today cycle portrait: portrait 2:3 indoor stationary cycling, athlete fully inside right third, dawn mountain window, quiet navy left two-thirds and bottom third for controls, no text.
+
+Today recovery guidance: wide 3:2 gentle seated mobility in calm home, athlete in right third, quiet navy left two-thirds, dawn mountain light, no text.
+
+Approved sheet regenerations: extract the indicated panel only, preserve subject, viewpoint, posture, lighting and orientation; remove white gutters and other panels. Strength/watch, coastal cycling, road runner, deadlift, corrected cockpit.
+
+Trail and squat use deterministic crops of the user supplied corrected sheet. No misoriented cockpit variants included.
+
+Recovery wide v2: preserve original person and scene; camera farther away, entire person in rightmost 30% and middle horizontal band, expand quiet room for a 3.2:1 Today card.

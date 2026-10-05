@@ -22,7 +22,8 @@ from pathlib import Path
 
 import routes
 
-MAPS = Path(__import__("os").environ.get("S_BIKE_MAPS") or Path(__file__).resolve().parent / "maps")
+from map_paths import locate as map_folder
+MAPS = map_folder()
 BROUTER = MAPS / "tools" / "brouter" / "brouter-1.7.10"
 PORT = 17777
 PROFILE = "fastbike"            # road bike, avoids unpaved; "trekking" is gentler, "fastbike-lowtraffic" quieter

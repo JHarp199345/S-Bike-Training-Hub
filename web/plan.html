@@ -55,7 +55,7 @@
 <div class="region"><button id="ca">California</button><button id="fr">France</button></div>
 <div id="side">
  <div id="grab" title="Show / hide"></div>
- <h1>Plan a ride</h1><div class="sub">Real roads and hills, planned on this Mac. <a href="/ride">Ride view</a> · <a href="/panel">Panel</a></div>
+ <h1>Plan a ride</h1><div class="sub">Real roads and hills, planned on this computer. <a href="/coach#plan">Training plan</a> · <a href="/coach#today">Today</a> · <a href="/ride">Ride view</a> · <a href="/panel">Panel</a></div>
  <div class="search"><input id="q" type="text" placeholder="🔍  Find a town or mountain - Paris, Malibu, Ventoux…" autocomplete="off">
   <div id="hits" hidden></div></div>
  <div class="tabs"><button id="tab-ab" class="on">A → B</button><button id="tab-loop">By distance</button><button id="tab-area">Area</button></div>
@@ -81,7 +81,7 @@
  </div>
  <div id="climbbox" hidden><h2>Climbs on <span id="climbroute"></span> · training</h2>
   <div class="sub">Tick what you want on today's ride. A time goal turns into watts for auto-shift to steer to; efforts shift you straight into a big gear.</div>
-  <div id="climblist"></div>
+  <div class="row" style="gap:12px;flex-wrap:wrap;margin:14px 0"><label>Training date <input id="route-date" type="date"></label><label>Planned minutes <input id="route-minutes" type="number" min="1" max="600" value="45" style="width:90px"></label><button id="route-schedule">Add route to training plan</button></div><div id="route-schedule-msg" class="sub" role="status"></div><div id="climblist"></div>
   <button id="sesssave" class="go">Use for today's ride</button><div id="sessmsg" class="sub"></div></div>
  <h2>Ideas · famous rides</h2>
  <div class="idtabs"><button data-reg="California" class="on">California</button><button data-reg="France">France</button></div>
@@ -219,7 +219,7 @@ async function save(ride){
   $('msg').textContent='Saved.'; loadSaved(); if(ride) rideRoute(j.id); else showClimbs(j.id);
 }
 $('save').onclick=()=>save(false); $('saveride').onclick=()=>save(true);
-async function rideRoute(id){ await fetch('/api/route/start/'+id,{method:'POST'}); location.href='/ride'; }
+async function rideRoute(id){try{const r=await fetch('/api/route/start/'+id,{method:'POST'});const j=await r.json();if(!r.ok)throw Error(j.error||'Could not start route');location.href='/ride';}catch(e){$('msg').textContent=e.message;}}
 async function loadSaved(){
   const list=await (await fetch('/api/routes')).json(), box=$('saved');
   if(!list.length){ box.textContent='None yet.'; return; } box.innerHTML='';
@@ -240,7 +240,7 @@ let climbRoute=null;
 const mmss=x=>`${Math.floor(x/60)}:${String(Math.round(x%60)).padStart(2,'0')}`;
 const secsOf=t=>{ const m=String(t).trim().match(/^(\d+)(?::(\d{1,2}))?$/); return m?(+m[1])*60+(m[2]!==undefined?+m[2]:0):null; };   // "10:30" or "10" (minutes)
 async function showClimbs(id){ const [c,today]=await Promise.all([fetch(`/api/route/${id}/climbs`).then(r=>r.json()), fetch('/api/coach/today').then(r=>r.json())]);
-  climbRoute=c; $('climbbox').hidden=false; $('climbroute').textContent=c.name; $('sessmsg').textContent='';
+  $('route-date').value=today.date; $('route-schedule-msg').textContent=''; climbRoute=c; $('climbbox').hidden=false; $('climbroute').textContent=c.name; $('sessmsg').textContent='';
   const have=(today.plan?.session?.route_id===id)?today.plan.session.segments:[];
   if(!c.climbs.length){ $('climblist').innerHTML='<div class="sub" style="margin:8px 0">No steady climbs on this route (3%+ for 300 m+). Efforts can still go anywhere - ask the coach.</div>'; $('sesssave').hidden=true; return; }
   $('sesssave').hidden=false;
@@ -251,6 +251,7 @@ async function showClimbs(id){ const [c,today]=await Promise.all([fetch(`/api/ro
       <div class="row"><label><input type="checkbox" class="tg" ${g?'checked':''}> Time goal</label><input type="text" class="tv" value="${mmss(goal)}"></div>
       <div class="row"><label><input type="checkbox" class="ef" ${e?'checked':''}> Efforts</label><input type="number" class="en" value="${e?.count||3}" min="1" max="10"> ×
         <input type="number" class="es" value="${e?.on_s||15}" min="5" max="600"> s at <input type="number" class="ew" value="${e?.watts||Math.round(c.ftp*1.1/5)*5}" min="50" max="800"> W</div></div>`; }).join(''); }
+$('route-schedule').onclick=async()=>{if(!climbRoute)return;const b=$('route-schedule');b.disabled=true;try{const r=await fetch('/api/coach/route/plan',{method:'POST',body:JSON.stringify({route_id:climbRoute.id,date:$('route-date').value,minutes:Number($('route-minutes').value)})});const j=await r.json();if(!r.ok)throw Error(j.error||'Could not schedule route');$('route-schedule-msg').textContent='Added to the training plan. Its planned load is included in the Hub.';}catch(e){$('route-schedule-msg').textContent=e.message;}finally{b.disabled=false;}};
 $('sesssave').onclick=async()=>{ if(!climbRoute) return; const segs=[];
   document.querySelectorAll('#climblist .climb').forEach(el=>{ const n=+el.dataset.n;
     if(el.querySelector('.tg').checked){ const sec=secsOf(el.querySelector('.tv').value); if(sec) segs.push({type:'climb_time',climb:n,seconds:sec}); }
@@ -259,5 +260,5 @@ $('sesssave').onclick=async()=>{ if(!climbRoute) return; const segs=[];
   const r=await fetch('/api/coach/session',{method:'POST',body:JSON.stringify({route_id:climbRoute.id,segments:segs})}); const j=await r.json();
   $('sessmsg').textContent=!r.ok?j.error:segs.length?`Set for today: ${j.session.segments.map(s=>s.type==='climb_time'?`${s.name} in ${mmss(s.seconds)}`:`efforts ${s.name} at km ${(s.at_m/1000).toFixed(1)}`).join(' · ')}. Ride this route and the bike does the rest.`
     +((j.session.warnings||[]).length?` Heads-up: ${j.session.warnings.join(' · ')}.`:''):'Cleared - no training on this route today.'; };
-loadSaved(); loadIdeas(); showPts();
+loadSaved(); loadIdeas(); showPts(); const requestedRoute=new URLSearchParams(location.search).get('route');if(requestedRoute&&/^[a-zA-Z0-9_-]{1,120}$/.test(requestedRoute))showClimbs(requestedRoute).catch(e=>{$('msg').textContent='Saved route could not load.';});
 </script></body></html>

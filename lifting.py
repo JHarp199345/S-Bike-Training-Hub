@@ -267,11 +267,13 @@ def clean(d, lifts, unit=None, draft=False):
                     "equipment": str(x.get("equipment") or known.get("equipment") or "")[:80],
                     "kind": kind, "style": style, "sets": sets, "reps": reps, "seconds": secs, "weight": w, "unit": u,
                     "tempo": tempo, "hold": hold, "per_side": bool(x.get("per_side", known.get("per_side", False))),
-                    "regions": shares, "scored": bool(kind and shares)})
+                    "regions": shares, "scored": bool(kind and shares),
+                    "block": str(x.get("block") or "")[:80], "block_repeats": max(1,min(10,int(x.get("block_repeats") or 1))),
+                    "section": x.get("section") if x.get("section") in ("warmup", "main", "cooldown") else "main"})
     return out
 
 
-def set_session(d, date, lifts, name=None, minutes=None, index=None, note=None, draft=False, override=None):
+def set_session(d, date, lifts, name=None, minutes=None, index=None, note=None, draft=False, override=None, typed_workout=None):
     """Put a gym session on the day's plan (replacing the day's gym session at `index`, or the first gym session,
     or adding one). If that session was already checked off, its load is recalculated with the new scoring."""
     import coach
@@ -281,6 +283,7 @@ def set_session(d, date, lifts, name=None, minutes=None, index=None, note=None, 
                                            if p.get("sport") else []))
     new = {"sport": "gym", "minutes": int(minutes or estimate_minutes(ls)), "name": (name or "Strength")[:80], "steps": [],
            "note": (note or "")[:300], "workout": None, "lifts": ls}
+    if typed_workout is not None:new["typed_workout"]=typed_workout
     gyms = [i for i, s in enumerate(sessions) if s.get("sport") == "gym"]
     at = index if index is not None and 0 <= index < len(sessions) else (gyms[0] if gyms else None)
     old = sessions[at]["name"] if at is not None else None
@@ -599,7 +602,8 @@ def log(d, date, done, rpe, wellness, session_index=None, compare_last=None, ove
         pts.append(p_)
         rows.append({"name": x["name"], "done": True, "weight": w, "unit": x["unit"], "reps": reps, "sets": sets,
                      "seconds": secs, "hold": hold, "failure": fail or None, "tempo": x.get("tempo"), "points": round(p_, 1), "why": why, **det,
-                     "style": x.get("style"), "regions": x.get("regions") or {}})
+                     "style": x.get("style"), "regions": x.get("regions") or {},
+                     "section": a.get("section") if a.get("section") in ("warmup","main","cooldown") else x.get("section", "main"), "per_side": x.get("per_side", False)})
     entry = {"date": date, "session": sess["name"], "rpe": rpe, "wellness": wellness, "lifts": rows,
              "points_total": round(total, 1), "regions": {r: round(v, 1) for r, v in reg.items()},
              "leg_points": round(sum(v for r, v in reg.items() if r in LEG_REGIONS), 1),
