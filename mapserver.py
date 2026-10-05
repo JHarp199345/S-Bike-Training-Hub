@@ -221,6 +221,11 @@ async def handle(bridge, method, path, body, host):
     if p == "/course":
         return 302, "text/plain", b"Open unified ride screen", {"Location": "/ride?view=game"}
     if p in ("/ride/map", "/ride/game"):
+        query = parse_qs(urlsplit(path).query)
+        if query.get("embedded", [""])[0] != "1":
+            view = "map" if p.endswith("map") else query.get("scene", ["game"])[0]
+            if view not in ("map", "game", "pixel", "haunted"): view = "game"
+            return 302, "text/plain", b"Open shared ride screen", {"Location": "/ride?view=" + view}
         name = "ride.html" if p.endswith("map") else "course.html"
         return 200, TYPES[".html"], (WEB / name).read_bytes(), {}
     if p == "/ride":
@@ -288,6 +293,35 @@ async def handle(bridge, method, path, body, host):
         import fitness
         data = await asyncio.get_running_loop().run_in_executor(None, fitness.summary, HERE / "rides")
         return 200, "application/json", json.dumps(data).encode(), {}
+    if p == "/api/ride/menu" and method == b"GET":
+        import ride_library
+        data = await asyncio.to_thread(ride_library.listing, bridge)
+        return 200, "application/json", json.dumps(data).encode(), {"Cache-Control": "no-store"}
+    if p == "/api/ride/menu/start" and method == b"POST":
+        import ride_library
+        try:
+            req=json.loads(body or b"{}")
+            if not isinstance(req,dict) or req.get('kind') not in ('workout','route'): raise ValueError()
+        except ValueError:
+            return 400,"application/json",b'{"error":"Choose a saved route or ERG workout."}',{}
+        status=bridge.status()
+        if status.get('workout') or status.get('route') or status.get('test'):
+            return 409,"application/json",b'{"error":"Finish the active ride before starting another."}',{}
+        if not status.get('bike') or status.get('no_bike'):
+            return 409,"application/json",b'{"error":"Connect the bike first. You can still preview rides."}',{}
+        data=await asyncio.to_thread(ride_library.listing,bridge)
+        if data['guidance'].get('not_ready') or data['guidance'].get('review_required'):
+            return 409,"application/json",b'{"error":"Review current cycling load and readiness in Fitness before starting."}',{}
+        items=data['workouts'] if req['kind']=='workout' else data['routes']
+        if not any(x['id']==req.get('id') for x in items):
+            return 404,"application/json",b'{"error":"This saved ride is no longer available."}',{}
+        # Recheck after the background calculation so a concurrent launch cannot be overwritten.
+        status=bridge.status()
+        if status.get('workout') or status.get('route') or status.get('test'):
+            return 409,"application/json",b'{"error":"Another ride has already started."}',{}
+        from urllib.parse import quote
+        launch='/api/workouts/start/' if req['kind']=='workout' else '/api/route/start/'
+        return await handle(bridge,method,launch+quote(req['id'],safe=''),b'{}',host)
     if p.startswith("/api/workouts"):
         import workouts
         ftp = bridge.profile["ftp"]
@@ -1133,6 +1167,8 @@ async def coach_api(bridge, method, path, p, body):
             if method == b"POST":
                 if req.get("action")=="begin_decline":
                     recovery.approve_decline(d,rem,coach.today(),req.get("note", ""))
+                elif req.get("action")=="run_test":
+                    recovery.record_run_test(d,req.get("step"),req,rem,coach.today())
                 else:
                     recovery.record_check(d,req,coach.today())
                 coach.save(d);_load_cache["key"]=None

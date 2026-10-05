@@ -1,6 +1,31 @@
 {
-  "latest": "app-2026-10-03-art-history",
+  "latest": "app-2026-10-05-run-walk-test",
   "entries": [
+    {
+      "id": "app-2026-10-05-run-walk-test",
+      "date": "2026-10-05",
+      "version": "App update",
+      "title": "A run-walk test for coming back to running",
+      "changes": [
+        "At 60% of a running hold, a three-day test: a short run-walk, then how walking feels the next day, then stairs. A good result offers to start winding the hold down; anything else tries again in a week.",
+        "End on the ride screen now ends the whole ride: the workout and the route together.",
+        "Music settings show only what works today: Plex, OpenSubsonic and your own music files. Apple Music and iBroadcast are marked as not available yet.",
+        "Fixed: video playback no longer builds up in memory, and Apple Music no longer repeats its event handlers.",
+        "The Hub now tells you when an update is out (checked at most twice a day; you can turn it off here)."
+      ],
+      "image": "/web/sports/phase-recovery.jpg"
+    },
+    {
+      "id": "mcp-v1.8.0",
+      "date": "2026-10-05",
+      "version": "MCP 1.8.0",
+      "title": "The run-walk test for your assistant",
+      "changes": [
+        "Added run_walk_test: your assistant can walk you through the three days and record each answer.",
+        "Assistant instructions match the new test and the End-ride behaviour."
+      ],
+      "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/mcp-v1.8.0"
+    },
     {
       "id": "app-2026-10-03-art-history",
       "date": "2026-10-03",
@@ -132,6 +157,28 @@
         "During the following week it grew into a shared place for coaching, multisport load, recovery and program planning."
       ],
       "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/commit/97395bd"
+    }
+  ],
+  "in_the_works": [
+    {
+      "title": "Your music folder",
+      "detail": "Choose a music folder once and the Hub streams it on the ride screen, with no server to set up and no reselecting files after a reload."
+    },
+    {
+      "title": "Apple Music and iBroadcast",
+      "detail": "Waiting on the Hub's app registration with each service."
+    },
+    {
+      "title": "Programs that adapt to you",
+      "detail": "Recovery and progression driven by your measured response and check-ins rather than fixed waits, across every sport you train."
+    },
+    {
+      "title": "Lifting built on joints and movement directions",
+      "detail": "Three full-body sessions (A, B, C) covering every joint action and direction, repeated and progressed for 4-6 weeks."
+    },
+    {
+      "title": "Likes, dislikes and learned rules",
+      "detail": "Thumbs up or down on exercises after a workout; exercises you keep skipping come up less."
     }
   ]
 }

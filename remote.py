@@ -22,7 +22,9 @@ FILE = Path(__file__).resolve().parent / "remote.json"      # PIN and paired tok
 COOKIE = "sbikeremote"
 MAC_ONLY = (b"/stop",)
 # Connecting Strava (the OAuth callback comes back to 127.0.0.1) and its keys: this Mac only.
-MAC_ONLY_PREFIXES = (b"/strava/", b"/api/strava/app", b"/api/strava/forget")
+MAC_ONLY_PREFIXES = (b"/strava/", b"/api/strava/app", b"/api/strava/forget",
+                     b"/api/music/settings", b"/api/music/connect", b"/api/music/forget",
+                     b"/api/music/apple", b"/api/music/plex")
 MAX_FAILS, LOCKOUT = 5, 60.0                                  # 5 wrong PINs -> a minute's wait
 
 _fails = []                                                   # times of recent wrong PINs

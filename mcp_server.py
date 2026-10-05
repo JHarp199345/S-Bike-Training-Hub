@@ -19,7 +19,7 @@ import urllib.error
 import urllib.request
 
 BASE = __import__("os").environ.get("S29_HUB_URL", "http://127.0.0.1:8729")   # tests point this at a scratch server
-VERSION = "1.7.0"
+VERSION = "1.8.0"
 
 
 class HubError(Exception):
@@ -257,6 +257,12 @@ def t_programming(a):
 
 def t_swim_settings(a):
     return call("/api/coach/programming/swim", {k: a[k] for k in ("mix", "drill_share", "follow_event", "profile_id") if k in a})
+
+
+def t_run_test(a):
+    if not a.get("step"):
+        return call("/api/coach/run-progression").get("run_test")
+    return call("/api/coach/run-progression", {"action": "run_test", **a})
 
 
 def t_weekly(a):
@@ -661,6 +667,19 @@ TOOLS = [
             "additionalProperties": {"type": "number", "minimum": 0}},
        drill_share=INT("Percent of the session that is drill-then-swim", 15, 30), follow_event={"type": "boolean"},
        profile_id=STR("Preferred reusable swim profile; auto chooses by phase, load, recent work and Sunday response", enum=["auto","balanced","event-technique","event-endurance","race-pace","speed-skills","maintenance","kick-emphasis","recovery"])), t_swim_settings),
+    ("run_walk_test", "The run-walk test at 60% of a running plateau: day 1 a short run-walk (about 15 min: 1 min easy "
+     "running, 1-2 min walking, ~5 min of running; stop if pain reaches 5/10), day 2 how walking feels, day 3 how "
+     "stairs feel (or walking without stairs). No step = the status (not due, ready with anything missing, in "
+     "progress, or the last verdict). Steps: run_walk {brisk_walk_ok (a brisk 30-min walk without rising "
+     "discomfort), completed, pain_max 0-10}; walk {walk_feel 0-10, morning_pain, night_pain}; stairs {used_stairs, "
+     "stairs_feel 0-10, pain_lasting}. Entry needs today's check-in: hops 10 on each leg, feet and legs 3 or less. "
+     "A good test offers the reviewed early decline (the athlete confirms); anything else retries in 7 days. Ask "
+     "for each answer; never assume.",
+     S(step=STR("Which step to record (leave out for the status)", enum=["run_walk", "walk", "stairs"]),
+       brisk_walk_ok={"type": "boolean"}, completed={"type": "boolean"}, pain_max=INT("Worst pain during the run-walk, 0-10", 0, 10),
+       walk_feel=INT("How walking felt, 0 fine - 10 very painful", 0, 10), morning_pain={"type": "boolean"}, night_pain={"type": "boolean"},
+       used_stairs={"type": "boolean"}, stairs_feel=INT("How stairs (or walking) felt, 0-10", 0, 10), pain_lasting={"type": "boolean"},
+       note=STR("Their words")), t_run_test),
     ("record_weekly_checkin", "The Sunday check-in (get_today shows 'weekly' when it's due - Sunday through Tuesday): a "
      "look back at the week, asking only about what it held. legs (after riding), feet and hops per leg (after running), "
      "shoulders (after swimming), each muscle group the week's lifting worked (lift: {region: 1-10}), and the week "

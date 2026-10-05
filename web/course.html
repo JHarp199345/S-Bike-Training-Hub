@@ -77,13 +77,25 @@
  .start h1{font:18px/1.4 var(--px);margin:0;color:#ffd23f;text-shadow:3px 3px 0 #000}
  .start button{background:#2f855a;font-size:13px;padding:18px 22px}
  .start .sub{color:#c9b8ff;max-width:420px}
+html[data-embedded="true"] .ride-tools{display:none}
+/* Controls stay modern and readable in every scenery, including 8-bit. */
+ .ride-tools{position:fixed;right:16px;top:calc(12px + env(safe-area-inset-top));display:flex;align-items:center;gap:12px;z-index:9}
+ .ride-tools #menubtn,.ride-tools #fullscreenride,.ride-tools #pausebtn{position:static;width:54px;height:54px;padding:10px;display:grid;place-items:center;border:1px solid #ffffff70;border-radius:14px;background:rgba(16,27,39,.7);font:800 27px system-ui;color:#fff;cursor:pointer;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 4px 18px #0003}
+ .ride-tools #menubtn,.ride-tools #fullscreenride,.ride-tools #pausebtn{display:flex;align-items:center;justify-content:center;padding:0;box-sizing:border-box;line-height:1}.ride-tools svg{display:block;flex:none;width:30px;height:30px;fill:none;stroke:currentColor;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+ .ride-tools button:hover{background:rgba(45,72,95,.85)}.ride-tools button:focus-visible,#menu button:focus-visible{outline:3px solid #9fd3ff;outline-offset:3px}
+ #menu{top:calc(80px + env(safe-area-inset-top));right:16px;width:min(360px,calc(100vw - 32px));box-sizing:border-box;max-height:calc(100dvh - 104px);overflow:auto;scrollbar-width:thin;background:rgba(16,27,39,.83);backdrop-filter:blur(22px) saturate(140%);-webkit-backdrop-filter:blur(22px) saturate(140%);border:1px solid #ffffff55;border-radius:20px;padding:18px;gap:12px;box-shadow:0 16px 48px #0006;font:15px/1.5 system-ui}
+ #menu button{font:600 15px/1.4 system-ui!important;border:1px solid #ffffff40;border-radius:12px;padding:12px!important;min-height:46px;background:rgba(255,255,255,.1)!important;box-shadow:none}
+ #menu .looks button[aria-pressed="true"]{background:rgba(87,167,212,.32)!important;color:#fff!important;border-color:#9fd3ff}
+ #menu a{font:14px/1.7 system-ui;color:#badeff}#menu #mapbtn{position:static;display:block;padding:8px 0;border:0;border-radius:0;background:none;font:14px/1.7 system-ui;text-decoration:underline}
+ #menu nav{display:flex;flex-wrap:wrap;gap:7px}#menu .sub2{font:14px/1.5 system-ui;margin:0}
+ body{--ov-strip-right:156px}.hud{padding-right:156px}body:has(#pausebtn:not([hidden])){--ov-strip-right:222px}body:has(#pausebtn:not([hidden])) .hud{padding-right:222px}
+ @media(max-width:500px){.ride-tools{right:10px;gap:8px}.ride-tools #menubtn,.ride-tools #fullscreenride,.ride-tools #pausebtn{width:48px;height:48px}.ride-tools svg{width:27px;height:27px}#menu{right:10px;top:72px}}
 </style><link rel="stylesheet" href="/web/overlays.css?v=4"><link rel="stylesheet" href="/web/theme.css"><script src="/web/theme.js"></script></head><body>
 <canvas id="cv"></canvas>
 <div id="banner"></div>
 <div class="ctl"><button id="dn">− EASIER</button><button id="up">+ HARDER</button></div>
-<button id="menubtn" aria-label="Menu">☰</button><a id="mapbtn" href="/ride" aria-label="Map view">🗺</a><button id="pausebtn" type="button" aria-label="Pause the workout" hidden>⏸</button>
-<button id="fullscreenride" type="button" aria-label="Full screen" title="Full screen">⛶</button>
-<button id="ftpend" hidden style="position:absolute;bottom:90px;left:50%;transform:translateX(-50%);z-index:10;padding:12px 18px;background:#233f63;color:white;border:1px solid #66afff;border-radius:12px">End ramp · cool down</button><div id="menu" hidden><div class="looks"><button data-look-pick="modern">MODERN</button><button data-look-pick="pixel">8-BIT</button></div><button id="formsbtn">Forms…</button><div id="awake" class="sub2" role="status">Tap Full screen to focus and keep the screen awake.</div><button id="endbtn">End course</button><nav aria-label="Hub navigation"><a href="/coach#today">Today</a> · <a href="/coach#plan">Training plan</a> · <a href="/plan">Plan a ride</a> · <a href="/coach#fitness">Fitness</a> · <a href="/coach#progress">Progress</a> · <a href="/panel">Settings</a></nav><a href="/ride?view=map">Real map scenery</a><div id="drawer" style="all:unset;display:block"></div></div>
+<div class="ride-tools" aria-label="Ride controls"><button id="pausebtn" type="button" aria-label="Pause the workout" hidden>⏸</button><button id="fullscreenride" type="button" aria-label="Full screen" title="Full screen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></svg></button><button id="menubtn" aria-label="Ride menu" aria-expanded="false" aria-controls="menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18M3 12h18M3 19h18"/></svg></button></div>
+<button id="ftpend" hidden style="position:absolute;bottom:90px;left:50%;transform:translateX(-50%);z-index:10;padding:12px 18px;background:#233f63;color:white;border:1px solid #66afff;border-radius:12px">End ramp · cool down</button><div id="menu" hidden><button id="setup-ride-menu">Ride setup · view, media, workout</button><div class="looks"><button data-look-pick="modern">MODERN</button><button data-look-pick="pixel">8-BIT</button></div><button id="formsbtn">Forms…</button><div id="awake" class="sub2" role="status">Tap Full screen to focus and keep the screen awake.</div><button id="endbtn">End course</button><nav aria-label="Hub navigation"><a href="/coach#today">Today</a> · <a href="/coach#plan">Training plan</a> · <a href="/plan">Plan a ride</a> · <a href="/coach#fitness">Fitness</a> · <a href="/coach#progress">Progress</a> · <a href="/panel">Settings</a></nav><a id="mapbtn" href="/ride?view=map">Real map scenery</a><div id="drawer" style="all:unset;display:block"></div></div>
 <div class="dlg" id="formsdlg" hidden><div class="dlgbox">
  <b>YOUR FORMS</b><div class="sub2">Time on the lit road evolves you, in this order. The rider on the bike always starts.</div>
  <ol id="formlist"></ol><div class="sub2">Add an animal</div><div class="addgrid" id="addgrid"></div>
@@ -338,7 +350,10 @@ requestAnimationFrame(render.frame);
 // ── controls ──
 function shiftGear(d,btn){ navigator.vibrate?.(d>0?[25]:[15,40,15]); fetch('/gear/'+d,{method:'POST'}).catch(()=>{}); }
 $('up').onclick=()=>shiftGear(1); $('dn').onclick=()=>shiftGear(-1);
-$('menubtn').onclick=e=>{ e.stopPropagation(); $('menu').hidden=!$('menu').hidden; };
+$('menubtn').onclick=e=>{e.stopPropagation();$('menu').hidden=!$('menu').hidden;$('menubtn').setAttribute('aria-expanded',String(!$('menu').hidden));};
+$('setup-ride-menu').onclick=e=>{e.stopPropagation();$('menu').hidden=true;$('menubtn').setAttribute('aria-expanded','false');if(window.parent!==window)window.parent.postMessage({type:'hub-ride-setup'},location.origin);else location.href='/ride?view='+(chosenScene||'game')+'&setup=1';};
+window.addEventListener('message',e=>{if(e.origin!==location.origin||e.source!==window.parent||e.data?.type!=='hub-course-action')return;if(e.data.action==='forms')$('formsbtn').click();if(e.data.action==='pause'&&st?.workout)$('pausebtn').click();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){$('menu').hidden=true;$('menubtn').setAttribute('aria-expanded','false');}});
 document.addEventListener('click',e=>{ if(!$('menu').contains(e.target)) $('menu').hidden=true; });
 $('resumebtn').onclick=async()=>{ const r=await fetch('/api/workout/resume',{method:'POST'}).catch(()=>null); if(r&&r.ok){ courseId=null; course=null; pausedShown=false; } poll(); };
 $('pausebtn').onclick=async()=>{ await fetch('/api/workout/pause',{method:'POST',body:'{}'}).catch(()=>{}); poll(); };
@@ -371,7 +386,7 @@ async function toggleFullscreen(){
     else $('awake').textContent='Full screen needs browser support; use its full screen or home-screen mode.';}
   catch(e){$('awake').textContent='Full screen was blocked by the browser. Tap ⛶ to retry.';}
 }
-$('fullscreenride').onclick=e=>{e.stopPropagation();$('menu').hidden=true;toggleFullscreen();};
+$('fullscreenride').onclick=e=>{e.stopPropagation();$('menu').hidden=true;if(window.parent!==window){keepAwake();window.parent.postMessage({type:'hub-ride-fullscreen'},location.origin);}else toggleFullscreen();};
 const fullscreenLabel=()=>{const on=!!(document.fullscreenElement||document.webkitFullscreenElement);$('fullscreenride').setAttribute('aria-label',on?'Exit full screen':'Full screen');$('fullscreenride').title=on?'Exit full screen':'Full screen';};
 document.addEventListener('fullscreenchange',fullscreenLabel);document.addEventListener('webkitfullscreenchange',fullscreenLabel);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')keepAwake();else{wake?.release();wakeVideo?.pause();}});

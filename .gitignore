@@ -57,3 +57,10 @@ test-results.txt
 
 # Private source documents and unreviewed workout drafts
 workout-imports/
+
+# Private music connections; never included in the public app or MCP bundle.
+music.json
+music.tmp
+
+# Local Claude continuation specs; never publish with the app.
+/.claude-handoff/

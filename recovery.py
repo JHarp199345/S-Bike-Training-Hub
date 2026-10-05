@@ -85,10 +85,12 @@ def status(d, remodel=None, today=None):
     if remodel.get('score') is None: reasons.append('Mechanical running load is unavailable')
     elif remodel['score']>=remodel.get('threshold_blocks',1.5): reasons.append('Mechanical running load is still at or above its planning limit')
     if min_days and (elapsed is None or elapsed<min_days): reasons.append(f'Personal minimum wait: {min_days} days since the latest run')
-    if not repeated or not set(CHECK_KINDS)<=kinds: reasons.append('Repeated comfortable strength, balance and loading checks with dated next-day responses are still needed')
+    if not repeated or not set(CHECK_KINDS)<=kinds: reasons.append('A good run-walk test at 60% of the plateau, or repeated comfortable strength, balance and loading checks with dated next-day responses, is still needed')
+    rt=run_test_status(d,remodel,today)
+    test_ok=bool(rt.get('last') and rt['last']['verdict']=='good' and (today-_date(rt['last']['finished'])).days<=7)
     review_ok=(remodel.get('phase')=='plateau' and progress is not None and progress>=PROTECTED_FRACTION
-               and repeated and {'strength','balance'}<=kinds and not poor_today)
-    return {'protected_fraction':PROTECTED_FRACTION,'plateau_progress':progress,
+               and ((repeated and {'strength','balance'}<=kinds) or test_ok) and not poor_today)
+    return {'protected_fraction':PROTECTED_FRACTION,'plateau_progress':progress,'run_test':rt,
             'review_eligible':review_ok,'run_eligible':not reasons,'run_reasons':reasons,
             'minimum_run_days':min_days,'days_since_run':elapsed,'successful_checks':len(good),
             'latest_setback':bad or None,'checks':checks[-12:], 'reviews':state.get('reviews',[])[-6:],
@@ -96,9 +98,133 @@ def status(d, remodel=None, today=None):
             'note':'Passing a check never automatically ends the plateau, erases blocks, or clears running.'}
 
 
+# ── the run-walk test at the 60% checkpoint (the athlete's protocol, 2026-10-05) ──────────────────────────────
+# Day 1 a short run-walk; day 2 (24 h) how walking feels; day 3 (48 h) how stairs feel (or walking, without stairs).
+# Built to common return-to-running guidance: before the first run, a brisk 30-min walk and 10 single-leg hops without
+# rising discomfort; a first session of ~5 min of running broken up with walking; morning or night pain, or pain past
+# 48 h, means step back, while slight discomfort gone within 24 h is acceptable; pain during the run stays below 5/10
+# (Silbernagel et al. 2007 pain-monitoring model). A good test OFFERS the reviewed early decline - never automatic.
+RUN_TEST_STEPS = ('run_walk', 'walk', 'stairs')
+RUN_TEST_RETRY_DAYS = 7
+RUN_TEST_SESSION = {'minutes': 15, 'pattern': '1 min easy running, then 1-2 min walking, on the flat',
+                    'running_minutes': 5, 'stop_if_pain': 5}
+
+
+def _checkpoint(remodel, today):
+    days, left = remodel.get('plateau_days'), remodel.get('plateau_remaining_days')
+    if not days or left is None or remodel.get('phase') != 'plateau':
+        return None, None
+    served = days - left
+    return round(max(0, min(1, served / days)), 2), (today + dt.timedelta(days=max(0, round(PROTECTED_FRACTION * days - served)))).isoformat()
+
+
+def _entry_ok(checkin, fields):
+    hl, hr = checkin.get('hops_left'), checkin.get('hops_right')
+    hops = min(hl, hr) if hl is not None and hr is not None else checkin.get('hops')
+    why = []
+    if hops is None or hops < 10:
+        why.append('10 pain-free single-leg hops on each leg (today\'s check-in)')
+    for k in ('feet', 'legs'):
+        if checkin.get(k) is None or checkin[k] > 3:
+            why.append(f'{k} at 3/10 or lower today')
+    if fields.get('brisk_walk_ok') is not True:
+        why.append('a brisk 30-minute walk without discomfort rising, during or after')
+    return why
+
+
+def run_test_status(d, remodel=None, today=None):
+    """Where the run-walk test stands: not due yet, ready to start (or what's missing), in progress, or done."""
+    today = _date(today or dt.date.today()); key = today.isoformat(); remodel = remodel or {}
+    state = (d.get('run_progression') or {})
+    tests = state.get('run_tests') or []
+    cur = next((t for t in reversed(tests) if not t.get('verdict')), None)
+    last = next((t for t in reversed(tests) if t.get('verdict')), None)
+    progress, due = _checkpoint(remodel, today)
+    out = {'session': RUN_TEST_SESSION, 'progress': progress, 'checkpoint_date': due, 'last': last}
+    if cur:
+        nxt = next(s for s in RUN_TEST_STEPS if s not in cur['steps'])
+        prev = max(cur['steps'].values(), key=lambda x: x['date'])['date']
+        out.update(stage='in_progress', test=cur, next_step=nxt,
+                   next_date=(_date(prev) + dt.timedelta(days=1)).isoformat())
+        return out
+    if last and last['verdict'] != 'good' and key < last['retry_from']:
+        out.update(stage='retry_wait', retry_from=last['retry_from'])
+        return out
+    if progress is None:
+        out.update(stage='not_applicable')
+    elif progress < PROTECTED_FRACTION:
+        out.update(stage='not_due')
+    else:
+        import journal
+        checkin = journal.effective((d.get('checkins') or {}).get(key) or {})
+        out.update(stage='ready', missing=_entry_ok(checkin, {'brisk_walk_ok': True}))
+    return out
+
+
+def record_run_test(d, step, fields, remodel=None, today=None):
+    """One step of the test. run_walk: {brisk_walk_ok, completed, pain_max (0-10)}; walk: {walk_feel (0-10),
+    morning_pain, night_pain}; stairs: {used_stairs, stairs_feel (0-10), pain_lasting}. Returns the test."""
+    import journal
+    today = _date(today or dt.date.today()); key = today.isoformat()
+    state = d.setdefault('run_progression', {}); tests = state.setdefault('run_tests', [])
+    st = run_test_status(d, remodel, today)
+    num = lambda k, lo=0, hi=10: max(lo, min(hi, float(fields[k]))) if fields.get(k) is not None else None
+    if step == 'run_walk':
+        if st['stage'] != 'ready':
+            raise ValueError({'not_due': f"the run-walk test opens at 60% of the plateau ({st.get('checkpoint_date')})",
+                              'retry_wait': f"the next try is from {st.get('retry_from')}", 'in_progress': 'a test is already under way',
+                              'not_applicable': 'no running plateau to test'}.get(st['stage'], 'not available'))
+        checkin = journal.effective((d.get('checkins') or {}).get(key) or {})
+        missing = _entry_ok(checkin, fields)
+        if missing:
+            raise ValueError('Before the run-walk: ' + '; '.join(missing))
+        for k in ('completed',):
+            if not isinstance(fields.get(k), bool): raise ValueError(k + ' must be true or false')
+        test = {'id': key, 'started': key, 'steps': {'run_walk': {'date': key, 'completed': fields['completed'],
+                'pain_max': num('pain_max'), 'note': str(fields.get('note') or '')[:500]}}}
+        tests.append(test)
+        if not fields['completed'] or (num('pain_max') or 0) >= RUN_TEST_SESSION['stop_if_pain']:
+            _verdict(test, key)
+        return test
+    if st['stage'] != 'in_progress' or st['next_step'] != step:
+        raise ValueError(f"the next step is {st.get('next_step') or 'the run-walk'}")
+    test = st['test']
+    prev = max(test['steps'].values(), key=lambda x: x['date'])['date']
+    if key <= prev:
+        raise ValueError(f'{step} is checked the day after the previous step ({st["next_date"]})')
+    if step == 'walk':
+        for k in ('morning_pain', 'night_pain'):
+            if not isinstance(fields.get(k), bool): raise ValueError(k + ' must be true or false')
+        test['steps']['walk'] = {'date': key, 'walk_feel': num('walk_feel'), 'morning_pain': fields['morning_pain'],
+                                 'night_pain': fields['night_pain'], 'note': str(fields.get('note') or '')[:500]}
+        if fields['morning_pain'] or fields['night_pain']:
+            _verdict(test, key)
+    else:
+        if not isinstance(fields.get('pain_lasting'), bool): raise ValueError('pain_lasting must be true or false')
+        test['steps']['stairs'] = {'date': key, 'used_stairs': bool(fields.get('used_stairs', True)), 'stairs_feel': num('stairs_feel'),
+                                   'pain_lasting': fields['pain_lasting'], 'note': str(fields.get('note') or '')[:500]}
+        _verdict(test, key)
+    return test
+
+
+def _verdict(test, key):
+    r, w, s = (test['steps'].get(x) or {} for x in RUN_TEST_STEPS)
+    why = []
+    if not r.get('completed'): why.append('the run-walk was not completed')
+    if (r.get('pain_max') or 0) >= RUN_TEST_SESSION['stop_if_pain']: why.append(f"pain reached {r.get('pain_max'):g}/10 during the run-walk")
+    if w.get('morning_pain'): why.append('morning pain the next day')
+    if w.get('night_pain'): why.append('pain at night')
+    if w and (w.get('walk_feel') or 0) > 2: why.append(f"walking felt {w['walk_feel']:g}/10 the next day")
+    if s and (s.get('stairs_feel') or 0) > 2: why.append(f"{'stairs' if s.get('used_stairs') else 'walking'} felt {s['stairs_feel']:g}/10 two days on")
+    if s.get('pain_lasting'): why.append('pain lasting past 48 hours')
+    good = not why and bool(s)
+    test.update(verdict='good' if good else 'retry', finished=key, why=why or ['no morning pain, and walking and stairs comfortable'],
+                retry_from=(_date(key) + dt.timedelta(days=RUN_TEST_RETRY_DAYS)).isoformat())
+
+
 def approve_decline(d, remodel, today=None, note=''):
     today=_date(today or dt.date.today()); s=status(d,remodel,today)
-    if not s['review_eligible']: raise ValueError('Review requires at least 60% of the plateau and repeated comfortable strength/balance checks with next-day responses')
+    if not s['review_eligible']: raise ValueError('Review requires at least 60% of the plateau and a good run-walk test, or repeated comfortable strength/balance checks with next-day responses')
     if any(r['date']==today.isoformat() for r in (d.get('run_progression') or {}).get('reviews',[])):
         raise ValueError('A review is already recorded today')
     r={'date':today.isoformat(),'action':'begin_decline','score':remodel['score'],

@@ -12,7 +12,7 @@ import mapserver
 import remote
 
 PAGE = """<!doctype html><html><head><meta charset="utf-8"><title>S-Bike Hub</title>
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/web/music.css">
 <style>
  :root{color-scheme:dark}
  [hidden]{display:none!important}
@@ -117,6 +117,8 @@ PAGE = """<!doctype html><html><head><meta charset="utf-8"><title>S-Bike Hub</ti
   <div class="pin" id="pin"></div></div></div>
  <button id="forget">Forget paired phones &amp; new PIN</button></div>
 <ul id="log"></ul>
+<details><summary>Music connections</summary><div id="hub-music-settings"></div></details>
+<script type="module" src="/web/music-settings.js"></script>
 <script>
 const $=id=>document.getElementById(id);
 function flag(el,on,yes,no){el.textContent=on?yes:no;el.className=on?'on':'off'}
@@ -215,12 +217,33 @@ async def serve(bridge, port=8729, lan=True):
         try:
             res = remote.handle(peer, method, path, headers, body) if lan else None
             if res is None:
+                import music
+                res = await music.handle(bridge, method, path.decode(errors="replace"), body,
+                                         headers.get(b"host", b"127.0.0.1:8729").decode(), headers, peer)
+            if res is None:
                 res = await mapserver.handle(bridge, method, path.decode(errors="replace"), body,
                                              headers.get(b"host", b"127.0.0.1:8729").decode())
         except Exception as e:
             res = 500, "application/json", json.dumps({"error": str(e)}).encode(), {}
         if res is not None:
             code, ctype, payload, extra = res
+            import music
+            if isinstance(payload, music.StreamBody):
+                # Keep the bike event loop responsive and memory bounded during music playback.
+                hdrs = b"".join(k.encode() + b": " + v.encode() + b"\r\n" for k, v in extra.items())
+                writer.write(b"HTTP/1.1 " + str(code).encode() + (b" Partial Content" if code == 206 else b" OK")
+                             + b"\r\nContent-Type: " + ctype.encode() + b"\r\n" + hdrs
+                             + b"Connection: close\r\n\r\n")
+                try:
+                    while chunk := await asyncio.to_thread(payload.read):
+                        writer.write(chunk)
+                        await writer.drain()
+                except (OSError, ConnectionError, asyncio.CancelledError):
+                    pass
+                finally:
+                    payload.close()
+                    writer.close()
+                return
             reason = {200: b"OK", 204: b"No Content", 302: b"Found", 400: b"Bad Request", 401: b"Unauthorized",
                       403: b"Forbidden", 404: b"Not Found", 422: b"Unprocessable", 500: b"Error"}.get(code, b"OK")
             hdrs = b"".join(k.encode() + b": " + v.encode() + b"\r\n" for k, v in extra.items())

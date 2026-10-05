@@ -140,6 +140,7 @@
  #gamebtn{position:absolute;top:calc(var(--pad) + env(safe-area-inset-top));right:calc(var(--pad) + 58px);z-index:4;width:48px;height:48px;
    display:flex;align-items:center;justify-content:center;font-size:22px;text-decoration:none;border-radius:14px}
  body{--ov-bg:var(--glass);--ov-fg:var(--text);--ov-dim:var(--text2);--ov-ok:var(--good);--ov-off:var(--warn);--ov-accent:var(--accent)}
+html[data-embedded="true"] #menu,html[data-embedded="true"] #gamebtn,html[data-embedded="true"] #fullscreenride{display:none}
 </style><link rel="stylesheet" href="/web/overlays.css?v=4"><link rel="stylesheet" href="/web/theme.css"><script src="/web/theme.js"></script><script src="/web/overlays.js?v=6"></script></head><body>
 <div id="map"></div>
 <div class="hud pg">
@@ -368,7 +369,9 @@ for(const el of PAGES.flat()){
   el.addEventListener('click',e=>{ if(!PHONE.matches||e.target.closest('button,a')) return; showPage(page+1,true); });
 }
 // ---- Drawer: auto-shift, climbing, ERG, full screen, end route. ----
-$('menu').onclick=()=>{ $('drawer').hidden=false; syncDrawer(); loadFocus(); };
+function openBikeControls(){ $('drawer').hidden=false; syncDrawer(); loadFocus(); }
+$('menu').onclick=openBikeControls;
+addEventListener('message',e=>{if(e.source===window.parent&&e.origin===location.origin&&e.data?.type==='hub-map-controls')openBikeControls();});
 $('close').onclick=()=>$('drawer').hidden=true;
 function syncDrawer(){ if(!st||$('drawer').hidden) return;
   $('auto').textContent='Auto-shift: '+(st.auto?'on':'off'); $('auto').className=st.auto?'on':'';
@@ -395,7 +398,7 @@ $('wgo').onclick=async()=>{ const v=$('wpick').value;
   if(v==='t:big_gear'){ await fetch('/api/coach/test',{method:'POST',body:JSON.stringify({test:'big_gear'})}).catch(()=>{}); return poll(); }
   post('/workout/'+v); };
 $('end').onclick=async()=>{ if(!confirm(st?.test?'End ramp and cool down?':st?.workout?'End this workout?':'End this route?')) return; await post(st?.test?'/ftp/stop':st?.workout?'/erg/off':'/api/route/stop'); clearRoute(); $('drawer').hidden=true; };
-$('fs').onclick=$('fullscreenride').onclick=async()=>{keepAwake();$('drawer').hidden=true;
+$('fs').onclick=$('fullscreenride').onclick=async()=>{keepAwake();$('drawer').hidden=true;if(window.parent!==window){window.parent.postMessage({type:'hub-ride-fullscreen'},location.origin);return;}
   try{if(document.fullscreenElement||document.webkitFullscreenElement)await(document.exitFullscreen?.()||document.webkitExitFullscreen?.());
     else if(document.documentElement.requestFullscreen)await document.documentElement.requestFullscreen({navigationUI:'hide'});
     else if(document.documentElement.webkitRequestFullscreen)document.documentElement.webkitRequestFullscreen();

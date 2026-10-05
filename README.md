@@ -48,6 +48,14 @@ Jordan stopped at 40 minutes, tired, and said so. After eight days without runni
 
 To make your own copy of this journey: `python3 tools/demo/journey.py` (Linux, needs `faketime` and Playwright; `--from week06` replays from a save point).
 
+## Ride views and personal media
+
+The ride screen uses one **Ride.** header and glass menu across the real map, animal game, 8-bit game, haunted graveyard, and personal Plex video view. Use the hamburger to choose your view, music or video, and a saved ERG workout or route. Workout targets stay the same when scenery changes. The menu orders rides using today's schedule, calculated load estimates, and recorded starts; these comparisons are guidance, not a readiness guarantee.
+
+Personal media connections are in **Settings → Music connections**. Local audio files work without an account and stay in your browser. Plex and OpenSubsonic have personal-library connections; iBroadcast requires publisher app registration, and Apple Music requires the publisher's MusicKit setup plus the listener's subscription. These service integrations need live account verification before release. Plex video currently supports direct browser-playable MP4/WebM files, not transcoding or its licensed streaming catalog.
+
+See [personal media setup and privacy](docs/PERSONAL-MEDIA.md) for account setup, supported formats, and what stays local.
+
 ## Set it up
 
 You need **Python 3.11+**.
