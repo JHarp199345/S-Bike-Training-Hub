@@ -7,7 +7,7 @@ window.addEventListener('hub-ride-status',e=>{status=e.detail;const s=status,wor
   if(cue&&cue!==lastCue){expandUntil=Date.now()+7000;lastCue=cue;}
   $('watch-metrics').classList.toggle('expanded',pinned||Date.now()<expandUntil);
   $('watch-power').textContent=s.power===undefined?'—':s.power;
-  $('watch-hr').textContent=s.hr>0?s.hr:(s.cadence??'—');$('watch-hr-unit').textContent=s.hr>0?'bpm':'rpm';$('watch-time').textContent=work?.elapsed!==undefined?`${Math.floor(work.elapsed/60)}:${String(Math.floor(work.elapsed%60)).padStart(2,'0')}`:s.elapsed||'—';
+  $('watch-hr').textContent=s.hr>0?s.hr:(s.cadence??'—');$('watch-hr-unit').textContent=s.hr>0?'bpm':'rpm';$('watch-time').textContent=work?.elapsed!==undefined?`${Math.floor(work.elapsed/60)}:${String(Math.floor(work.elapsed%60)).padStart(2,'0')}`:s.bike?s.elapsed||'—':'—';
   $('watch-cue').textContent=target?`Target ${Math.round(target)} W${step?' · '+step:''}`:s.bike?'Free ride · '+(s.cadence||0)+' rpm':'Bike disconnected · preview';
 });
 $('watch-metrics').onclick=()=>{pinned=!pinned;$('watch-metrics').setAttribute('aria-pressed',String(pinned));$('watch-metrics').classList.toggle('expanded',pinned||Date.now()<expandUntil);};

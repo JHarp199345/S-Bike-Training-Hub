@@ -16,7 +16,7 @@ def main():
     s.MAX_TICKETS = 50
     first = s.issue("plex", {"id": "x", "resource": "/x"}, ttl=10)
     for i in range(80):
-        s.issue("ibroadcast", {"id": str(i), "resource": "/t"})
+        s.issue("plex", {"id": str(i), "resource": "/t"})
     check(f"past the cap the oldest go ({len(s.tickets)} kept of 82 issued)", len(s.tickets) <= 50 and first not in s.tickets)
     print("ALL PASS" if ok else "SOME FAILED"); return ok
 

@@ -1,10 +1,9 @@
 """Music account contracts and real HTTP range playback, without personal accounts."""
 import sys, pathlib
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
-import asyncio, hashlib, io, json, tempfile, threading, time, unittest
+import asyncio, io, json, tempfile, threading, time, unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from types import SimpleNamespace
-from urllib.parse import parse_qs, urlsplit
 from unittest.mock import patch
 import music
 
@@ -19,16 +18,21 @@ class MusicTests(unittest.TestCase):
         self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup)
         self.store=music.Store(self.tmp.name)
 
-    def test_subsonic_credentials_and_disconnect(self):
-        self.store.configure({'provider':'subsonic','server':'http://127.0.0.1:4533','username':'athlete','password':'unique-private-password'})
-        with patch('music.request_json',return_value={'subsonic-response':{'status':'ok','playlists':{'playlist':[{'id':'p','name':'Ride'}]}}}) as call:
-            self.assertEqual(self.store.playlists('subsonic')[0]['name'],'Ride')
-            params=parse_qs(urlsplit(call.call_args.args[0]).query)
-            self.assertNotIn('p',params);self.assertEqual(params['t'][0],hashlib.md5(('unique-private-password'+params['s'][0]).encode()).hexdigest())
-        self.assertNotIn('unique-private-password',json.dumps(self.store.public()))
-        self.store.tickets['old']=('subsonic',{},time.time()+100)
-        self.store.forget('subsonic');self.assertFalse(self.store.tickets)
-        self.assertEqual(self.store.file.stat().st_mode & 0o777,0o600)
+    def test_plex_credentials_and_disconnect(self):
+        self.store.configure({'provider':'plex','server':'http://127.0.0.1:32400','token':'unique-private-token'})
+        self.assertTrue(self.store.public()['providers']['plex']['connected'])
+        self.assertNotIn('unique-private-token',json.dumps(self.store.public()))
+        self.store.tickets['old']=('plex',{},time.time()+100)
+        self.store.forget('plex');self.assertFalse(self.store.tickets)
+        if sys.platform != "win32":
+            self.assertEqual(self.store.file.stat().st_mode & 0o777,0o600)
+        else:
+            self.assertTrue(self.store.file.is_file(), "Windows must persist credentials; Unix permission bits do not represent its ACLs")
+
+    def test_only_apple_music_and_plex_are_offered(self):
+        self.assertEqual(set(self.store.public()['providers']),{'apple','plex'})
+        for gone in ('ibroadcast','subsonic'):
+            with self.assertRaises(music.MusicError):self.store.configure({'provider':gone,'server':'https://music.example.com'})
 
     def test_plex_video_browsing_does_not_start_rides_or_accept_paths(self):
         self.store.save({'plex':{'server':'http://localhost:32400','token':'private'}})
@@ -48,30 +52,14 @@ class MusicTests(unittest.TestCase):
             self.assertEqual(opened.call_args.args[1]['Range'],'bytes=0-4')
             self.assertNotIn('private',opened.call_args.args[0])
 
-    def test_ibroadcast_refresh_uses_track_id_and_current_token(self):
-        self.store.save({'ibroadcast':{'client_id':'app','access_token':'old','refresh_token':'refresh','expires_at':0}})
-        lib={'tracks':{'map':{'title':0,'artist_id':1,'length':2,'file':3},'99':['Song',2,60,'/file/song.mp3']},
-             'artists':{'map':{'name':0},'2':['Artist']},'playlists':{'map':{'name':0,'tracks':1},'3':['Ride',[99]]},'expires':2000000000}
-        def reply(url,headers=None,data=None,form=False):
-            if '/token' in url:return {'access_token':'fresh','refresh_token':'next','expires_in':3600}
-            self.assertEqual(headers['Authorization'],'Bearer fresh')
-            return {'user':{'id':7}} if 'api.ibroadcast' in url else {'library':lib}
-        with patch('music.request_json',side_effect=reply):
-            tracks=self.store.tracks('ibroadcast','3')['tracks'];self.assertEqual(tracks[0]['title'],'Song')
-            with patch('music.open_remote',return_value=Response()) as opened:
-                stream=self.store.stream(tracks[0]['url'].split('/')[-1])[2];stream.close()
-                q=parse_qs(urlsplit(opened.call_args.args[0]).query)
-                self.assertEqual(q['file_id'],['99']);self.assertEqual(q['Signature'],['fresh'])
-
     def test_auth_qr_expiration_and_poll_interval(self):
-        self.store.save({'ibroadcast':{'client_id':'app'}})
-        with patch('music.request_json',return_value={'device_code':'secret','verification_uri_complete':'https://www.ibroadcast.com/device?code=ABCD','user_code':'ABCD','expires_in':30,'interval':5}):
-            card=self.store.connect('ibroadcast')
-            self.assertIn('<svg',card['qr']);self.assertNotIn('device_code',card)
-        with patch('music.build_opener') as opener:
-            self.assertEqual(self.store.connect_poll('ibroadcast'),{'pending':True});opener.assert_not_called()
-        self.store.pending['ibroadcast']['expires_at']=0
-        with self.assertRaises(music.MusicError) as err:self.store.connect_poll('ibroadcast')
+        with patch('music.request_json',return_value={'id':42,'code':'ABCD','expiresIn':30}):
+            card=self.store.connect('plex')
+            self.assertIn('<svg',card['qr']);self.assertTrue(card['url'].startswith('https://app.plex.tv/'))
+        with patch('music.request_json') as call:
+            self.assertEqual(self.store.connect_poll('plex'),{'pending':True});call.assert_not_called()
+        self.store.pending['plex']['expires_at']=0
+        with self.assertRaises(music.MusicError) as err:self.store.connect_poll('plex')
         self.assertEqual(err.exception.code,410)
         with self.assertRaises(music.MusicError):music.Store.connection_card('https://evil.example/signin','',3,'plex')
 

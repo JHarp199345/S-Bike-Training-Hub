@@ -29,7 +29,7 @@ async def main():
   bridge=SimpleNamespace(csv_path=str(base/'rides'/'scratch.csv'),profile={'ftp':180},workouts=[])
   async def api(path,data=None):return await mapserver.coach_api(bridge,b'POST' if data is not None else b'GET',path,path,json.dumps(data).encode() if data is not None else b'')
   with patch.object(mapserver,'capture_program_forecast'),patch.object(mapserver,'done_by_day',return_value={}):
-   code,_,body,_=await api('/api/coach/workout-library');assert code==200 and len(json.loads(body)['workouts'])==1,body
+   code,_,body,_=await api('/api/coach/workout-library');assert code==200 and len([w for w in json.loads(body)['workouts'] if w['origin']!='starter'])==1,body
    code,_,body,_=await api('/api/coach/workout-library/favorite',{'id':item['id'],'favorite':False});assert code==200
    assert coach.load(base/'coach.json')['plans']==before
    code,_,body,_=await api('/api/coach/workout-goals');assert json.loads(body)['goals'][0]['status']=='needs_workout'
@@ -39,7 +39,7 @@ async def main():
    after=coach.load(base/'coach.json');session=after['plans']['2026-10-06']['sessions'][0]
    assert session['library_id'] and session['minutes']>0 and session['goal_comparison']['checks'][0]['matches']
    assert after['workout_goal_requests'][brief['id']]['status']=='workout_created'
-   assert len(after['workout_library'])==1,after['workout_library']
+   assert len([i for i in after['workout_library'].values() if i['origin']!='starter'])==1,'one athlete workout expected'
    # Reports attach to one dated use; reusing or hearting never creates a second activity.
    after['training_feedback']={'2026-10-06:0':{'effort':'as_intended','session_name':'Strength draft'}}
    after['capacity_followups']={'2026-10-06:0':{'recovery':'good','reported_on':'2026-10-08'}}

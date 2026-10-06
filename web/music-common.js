@@ -26,7 +26,9 @@ export async function applePlaylists() {
   while(path && rows.length<5000){const d=await kit.api.music(path);rows.push(...appleRows(d));path=d?.data?.next||d?.next;}
   return rows.map(v=>({id:v.id,name:v.attributes?.name||'Playlist'}));
 }
-export const names={plex:'Plex',apple:'Apple Music',ibroadcast:'iBroadcast',subsonic:'OpenSubsonic',local:'Music from this computer'};
+export const names={library:'Your music folder',apple:'Apple Music',plex:'Plex',local:'Files from this device'};
+// A song fits at its tempo or half of it (174 BPM = one beat per pedal stroke at 87 rpm); within 2 rpm of the band counts.
+export function cadenceOf(bpm,band){if(!bpm||!band)return null;const mid=(band[0]+band[1])/2,fit=Math.abs(bpm/2-mid)<Math.abs(bpm-mid)?bpm/2:bpm;return {rpm:Math.round(fit),fits:fit>=band[0]-2&&fit<=band[1]+2};}
 
 export class Queue {
   constructor(random=Math.random){this.random=random;this.items=[];this.index=-1;this.shuffle=false;this.history=[];this.bag=[];}

@@ -6,6 +6,12 @@ A free, local training hub for cycling, swimming, running and strength. It keeps
 
 <p align="center"><img src="docs/journey/today.jpg" width="880" alt="The Coach's Today page: the day's verdict, check-in and workouts"></p>
 
+## App 1.8.1 · current release
+
+This release brings the typed cycling builder and private music library together with clearer recorded-workout displays. Completed and partial activity totals remain visible even without a matching plan; recorded time is separate from prescribed time. Unfinished media connections are labeled **in progress** in the app.
+
+The bundled assistant remains **MCP 1.8.0**; these app improvements do not change its protocol. See [release notes](docs/releases/APP-1.8.1.md) for scope and platform verification.
+
 ## What a 12-week program looks like
 
 Meet Jordan: a fictional 36-year-old training four hours a week for a first sprint triathlon. Everything below is the real hub, run day by day with a simulated athlete:
@@ -52,7 +58,7 @@ To make your own copy of this journey: `python3 tools/demo/journey.py` (Linux, n
 
 The ride screen uses one **Ride.** header and glass menu across the real map, animal game, 8-bit game, haunted graveyard, and personal Plex video view. Use the hamburger to choose your view, music or video, and a saved ERG workout or route. Workout targets stay the same when scenery changes. The menu orders rides using today's schedule, calculated load estimates, and recorded starts; these comparisons are guidance, not a readiness guarantee.
 
-Personal media connections are in **Settings → Music connections**. Local audio files work without an account and stay in your browser. Plex and OpenSubsonic have personal-library connections; iBroadcast requires publisher app registration, and Apple Music requires the publisher's MusicKit setup plus the listener's subscription. These service integrations need live account verification before release. Plex video currently supports direct browser-playable MP4/WebM files, not transcoding or its licensed streaming catalog.
+Personal media is in **Settings → Music connections**. On macOS, choose your music folder and the ride screen's **Library** shows songs, albums and artists, with cover art and available tempo estimates. **Workout Tempo** suggests songs that fit your cadence band; it does not change the workout. The Hub reads existing files locally; files you deliberately drop onto the upload area are added without overwriting existing songs. Saved-folder selection on Linux/Windows is **in progress**; **Playlists → Files from this device** provides browser-local music instead. Apple Music publisher setup, iBroadcast/OpenSubsonic connections, and live-account Plex playback verification are **in progress**. Plex video currently supports browser-playable personal MP4/WebM files, without transcoding, subtitles or watch progress.
 
 See [personal media setup and privacy](docs/PERSONAL-MEDIA.md) for account setup, supported formats, and what stays local.
 
@@ -104,7 +110,7 @@ Then **Build my program**: the hub drafts a program toward your goal that you ca
 
 The hub keeps the numbers; your assistant plans with you. It works with any app that supports MCP servers: Claude Desktop, Claude Code, and others, including local models.
 
-- **Claude Desktop:** use MCP **1.7.0 (70 tools)** with this updated app. Download the `.mcpb` bundle from the [latest release](https://github.com/JHarp199345/S-Bike-Training-Hub/releases), then **Settings → Extensions → Advanced settings → Install extension**. Leave the hub address at `http://127.0.0.1:8729`.
+- **Claude Desktop:** use MCP **1.8.0** with this updated app. Download the `.mcpb` bundle from the [latest release](https://github.com/JHarp199345/S-Bike-Training-Hub/releases), then **Settings → Extensions → Advanced settings → Install extension**. Leave the hub address at `http://127.0.0.1:8729`.
 - **Claude Code:** `claude mcp add --scope user s-bike-hub -- "$PWD/.venv/bin/python" "$PWD/mcp_server.py"` (on Windows: `.venv\Scripts\python.exe`).
 - **Other MCP apps:** point them at `mcp_server.py` with the `.venv` Python.
 
@@ -213,7 +219,7 @@ Use **Add workout → Swimming** to enter warm-up, pre-set/drills, named main se
 
 ### One ride screen, your choice of scenery
 
-**Ride view** keeps Today, the training plan, Plan a ride, Fitness, Progress and Settings accessible. Choose real 3D maps, the animal game, its 8-bit version, or the 3D haunted graveyard from **Scenery**; check **Default** to remember the view in this browser. Changing scenery preserves the active workout or route. Workout watts or route grades still drive the bike; the scenery does not create a second workout or recorder.
+**Ride view** keeps Today, the training plan, Plan a ride, Fitness, Progress and Settings accessible. Choose real 3D maps, the animal game, its 8-bit version, or the 3D haunted graveyard from the **Ride menu**; check **Default** to remember the view in this browser. Changing scenery preserves the active workout or route. Workout watts or route grades still drive the bike; the scenery does not create a second workout or recorder.
 
 In **Plan a ride**, save or import a route, select **Show**, choose a training date and planned duration, then **Add route to training plan**. That prescription contributes to projected load. Riding a route or power workout uses the existing Hub recording pipeline; imported watch recordings are reconciled with bridge recordings to avoid counting the same ride twice. Route time is a planning target, not a guaranteed completion time.
 

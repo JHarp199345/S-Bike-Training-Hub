@@ -1,13 +1,12 @@
 """Personal music connections. No athlete data or trainer commands are used here.
 
-Plex, iBroadcast and OpenSubsonic streams are proxied in bounded chunks so
-account credentials never appear in audio URLs sent to the browser. Apple
+Plex streams are proxied in bounded chunks so account credentials never appear
+in audio or video URLs sent to the browser. Your own music folder is served by musiclibrary.py. Apple
 Music playback stays in Apple's official MusicKit JS player.
 """
 # Copyright © 2026 S-Bike Training Hub contributors.
 import asyncio
 import base64
-import hashlib
 import ipaddress
 import json
 import os
@@ -21,7 +20,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, quote, urlencode, urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
-PROVIDERS = ("plex", "apple", "ibroadcast", "subsonic")
+PROVIDERS = ("plex", "apple")
 UA = "S-Bike-Training-Hub-Music/1.0"
 MAX_JSON = 32_000_000
 _stores = {}
@@ -101,13 +100,6 @@ class StreamBody:
         self.response.close()
 
 
-def decode_table(table):
-    table = table or {}
-    mapping = table.get("map", {})
-    return {str(k): {name: row[i] for name, i in mapping.items() if isinstance(i, int) and 0 <= i < len(row)}
-            for k, row in table.items() if k != "map" and isinstance(row, list)}
-
-
 class Store:
     def __init__(self, base):
         self.file = Path(base) / "music.json"
@@ -135,8 +127,6 @@ class Store:
 
     def config(self, provider):
         d = self.load().get(provider, {}).copy()
-        if provider == "ibroadcast":
-            d["client_id"] = os.environ.get("HUB_IBROADCAST_CLIENT_ID") or d.get("client_id", "")
         if provider == "apple":
             d["developer_token"] = os.environ.get("HUB_APPLE_MUSIC_DEVELOPER_TOKEN") or d.get("developer_token", "")
         return d
@@ -145,12 +135,10 @@ class Store:
         out = {}
         for p in PROVIDERS:
             c = self.config(p)
-            ready = bool(c.get("developer_token")) if p == "apple" else bool(c.get("client_id")) if p == "ibroadcast" else True
-            connected = bool(c.get("access_token")) if p == "ibroadcast" else bool(c.get("server") and (c.get("token") or c.get("api_key") or c.get("password"))) if p != "apple" else False
-            out[p] = {"ready": ready, "connected": connected, "server": c.get("server", ""),
-                      "username": c.get("username", ""), "label": c.get("label", ""),
-                      "has_secret": bool(c.get("token") or c.get("api_key") or c.get("password")),
-                      "auth_mode": "api_key" if c.get("api_key") else "password"}
+            ready = bool(c.get("developer_token")) if p == "apple" else True
+            connected = bool(c.get("server") and c.get("token")) if p == "plex" else False
+            out[p] = {"ready": ready, "connected": connected, "server": c.get("server", ""), "label": c.get("label", ""),
+                      "has_secret": bool(c.get("token"))}
         return {"providers": out}
 
     def configure(self, req):
@@ -160,19 +148,13 @@ class Store:
         d = self.load()
         old = d.get(p, {})
         c = old.copy()
-        fields = {"plex": ("server", "token"), "apple": ("developer_token",),
-                  "ibroadcast": ("client_id",), "subsonic": ("server", "username", "password", "api_key")}[p]
+        fields = {"plex": ("server", "token"), "apple": ("developer_token",)}[p]
         for k in fields:
             v = str(req.get(k, "")).strip()
             if len(v) > 12000:
                 raise MusicError("That setting is too long.")
             if v:
                 c[k] = server_url(v) if k == "server" else v
-        if p == "subsonic":
-            if req.get("auth_mode") == "api_key":
-                c.pop("password", None); c.pop("username", None)
-            else:
-                c.pop("api_key", None)
         if p == "apple" and c.get("developer_token"):
             try:
                 token = c["developer_token"]
@@ -183,10 +165,7 @@ class Store:
                 raise MusicError("Enter a current signed Apple Music developer token.") from None
         # Changing a server invalidates any credentials unless replacements were supplied.
         if c.get("server") != old.get("server"):
-            for secret in ("token", "password", "api_key"):
-                if not str(req.get(secret, "")).strip(): c.pop(secret, None)
-        if p == "ibroadcast" and c.get("client_id") != old.get("client_id"):
-            for k in ("access_token", "refresh_token", "expires_at"): c.pop(k, None)
+            if not str(req.get("token", "")).strip(): c.pop("token", None)
         d[p] = c; self.save(d)
         self.invalidate(p)
         return self.public()
@@ -199,31 +178,9 @@ class Store:
         if p not in PROVIDERS: raise MusicError("Choose a listed music source.")
         d = self.load(); c = d.pop(p, {})
         # Keep publisher settings, remove the athlete's account access.
-        if p == "ibroadcast" and c.get("client_id"): d[p] = {"client_id": c["client_id"]}
         if p == "apple" and c.get("developer_token"): d[p] = {"developer_token": c["developer_token"]}
         self.save(d); self.invalidate(p)
-        if p == "ibroadcast" and c.get("refresh_token"):
-            try: request_json("https://oauth.ibroadcast.com/revoke", data={"refresh_token": c["refresh_token"], "client_id": c.get("client_id", "")}, form=True)
-            except MusicError: pass
         return self.public()
-
-    def subsonic(self, method, params=None, stream=False):
-        c = self.config("subsonic")
-        if not c.get("server"): raise MusicError("Connect your music server in Settings first.")
-        args = {"v": "1.16.1", "c": "S-Bike-Training-Hub", "f": "json", **(params or {})}
-        if c.get("api_key"): args["apiKey"] = c["api_key"]
-        elif c.get("username") and c.get("password"):
-            salt = secrets.token_hex(12)
-            args.update(u=c["username"], s=salt, t=hashlib.md5((c["password"] + salt).encode()).hexdigest())
-        else: raise MusicError("Enter your music server's account or API key in Settings.")
-        base = c["server"].removesuffix("/rest")
-        url = base + "/rest/" + method + ".view?" + urlencode(args)
-        if stream: return url, {}
-        d = request_json(url).get("subsonic-response", {})
-        if d.get("status") != "ok":
-            code = d.get("error", {}).get("code")
-            raise MusicError("Music server access failed. Check your account and server permissions.", 401 if code in (40, 41, 42, 43, 44, 50) else 502)
-        return d
 
     def plex(self, path):
         c = self.config("plex")
@@ -265,62 +222,16 @@ class Store:
     def plex_part(key):
         return bool(re.fullmatch(r"/library/parts/[A-Za-z0-9_./%+-]+", key)) and ".." not in key
 
-    def ib_token(self, force=False):
-        c = self.config("ibroadcast")
-        if not c.get("access_token"): raise MusicError("Connect iBroadcast in Settings first.")
-        if force or float(c.get("expires_at", 0)) < time.time() + 60:
-            result = request_json("https://oauth.ibroadcast.com/token", data={"grant_type": "refresh_token", "refresh_token": c.get("refresh_token", ""), "client_id": c.get("client_id", "")}, form=True)
-            self.save_ib_token(result)
-            c = self.config("ibroadcast")
-        return c["access_token"]
-
-    def save_ib_token(self, result):
-        if not result.get("access_token"): raise MusicError("iBroadcast authorization did not finish. Connect again.", 401)
-        d = self.load(); c = d.setdefault("ibroadcast", {})
-        c.update(access_token=result["access_token"], expires_at=time.time() + float(result.get("expires_in", 3600)))
-        if result.get("refresh_token"): c["refresh_token"] = result["refresh_token"]
-        self.save(d); self.cache.pop("ibroadcast", None)
-
-    def ib(self, mode, library=False, extra=None):
-        payload = {"mode": mode, "client": "S-Bike-Training-Hub", "version": "1.0", "device_name": "Hub ride player", "user_agent": UA, **(extra or {})}
-        url = "https://library.ibroadcast.com/" if library else "https://api.ibroadcast.com/"
-        for attempt in range(2):
-            try: d = request_json(url, {"Authorization": "Bearer " + self.ib_token(force=bool(attempt))}, payload)
-            except MusicError as e:
-                if e.code == 401 and not attempt: continue
-                raise
-            if d.get("authenticated") is False and not attempt: continue
-            if d.get("result") is False or d.get("authenticated") is False:
-                raise MusicError("iBroadcast access failed. Reconnect your account.", 401)
-            return d
-
-    def ib_library(self):
-        cached = self.cache.get("ibroadcast")
-        if cached and cached[0] > time.time(): return cached[1]
-        raw = self.ib("library", library=True).get("library", {})
-        lib = {k: decode_table(raw.get(k)) for k in ("tracks", "artists", "playlists", "albums")}
-        lib["expires"] = raw.get("expires", int(time.time()))
-        self.cache["ibroadcast"] = (time.time() + 120, lib)
-        return lib
-
     def playlists(self, p):
-        if p == "subsonic":
-            items = self.subsonic("getPlaylists").get("playlists", {}).get("playlist", [])
-            return [{"id": str(v["id"]), "name": v.get("name", "Playlist"), "count": v.get("songCount")} for v in items]
         if p == "plex":
             items = self.plex("/playlists?playlistType=audio").get("Metadata", [])
             return [{"id": str(v["ratingKey"]), "name": v.get("title", "Playlist"), "count": v.get("leafCount")} for v in items if v.get("playlistType") == "audio"]
-        if p == "ibroadcast":
-            return [{"id": k, "name": v.get("name", "Playlist"), "count": len(v.get("tracks", []))} for k, v in self.ib_library()["playlists"].items()]
         raise MusicError("Choose a connected music source.")
 
     def tracks(self, p, pid):
         # Resolve only a real playlist from this account; never accept arbitrary URLs.
         if pid not in {v["id"] for v in self.playlists(p)}: raise MusicError("That playlist is no longer available.", 404)
-        if p == "subsonic":
-            songs = self.subsonic("getPlaylist", {"id": pid}).get("playlist", {}).get("entry", [])
-            items = [(str(v["id"]), v.get("title", "Track"), v.get("artist", ""), v.get("duration", 0), None) for v in songs if not v.get("isDir")]
-        elif p == "plex":
+        if p == "plex":
             songs = self.plex("/playlists/" + quote(pid, safe="") + "/items").get("Metadata", [])
             items = []
             for v in songs:
@@ -330,12 +241,7 @@ class Store:
                     if self.plex_part(key):
                         items.append((str(v["ratingKey"]), v.get("title", "Track"), v.get("grandparentTitle", ""), v.get("duration", 0) / 1000, key))
         else:
-            lib = self.ib_library(); items = []
-            for tid in lib["playlists"][pid].get("tracks", []):
-                v = lib["tracks"].get(str(tid))
-                if v and not v.get("trashed"):
-                    artist = lib["artists"].get(str(v.get("artist_id")), {}).get("name", "")
-                    items.append((str(tid), v.get("title", "Track"), artist, v.get("length", 0), v.get("file")))
+            raise MusicError("Choose a connected music source.")
         out = []
         for tid, title, artist, duration, resource in items[:5000]:
             ticket = self.issue(p, {"id": tid, "resource": resource})
@@ -361,17 +267,8 @@ class Store:
         item = self.tickets.get(ticket)
         if not item or item[2] < time.time(): raise MusicError("This music queue expired. Select the playlist again.", 404)
         p, track, _ = item
-        if p == "subsonic": url, h = self.subsonic("stream", {"id": track["id"]}, stream=True)
-        elif p == "plex":
-            c = self.config(p); url = c["server"] + track["resource"]; h = {"X-Plex-Token": c["token"]}
-        else:
-            status = self.ib("status"); lib = self.ib_library(); c = self.config(p)
-            resource = lib["tracks"].get(track["id"], {}).get("file", "")
-            if not re.fullmatch(r"/[A-Za-z0-9_./-]+", resource) or ".." in resource:
-                raise MusicError("That track has no playable file.", 422)
-            args = {"Expires": lib["expires"], "Signature": c["access_token"], "file_id": track["id"],
-                    "user_id": status.get("user", {}).get("id"), "platform": "S-Bike-Training-Hub", "version": "1.0"}
-            url = "https://streaming.ibroadcast.com" + resource + "?" + urlencode(args); h = {}
+        if p != "plex": raise MusicError("This music queue expired. Select the playlist again.", 404)
+        c = self.config(p); url = c["server"] + track["resource"]; h = {"X-Plex-Token": c["token"]}
         if range_header:
             if not re.fullmatch(r"bytes=\d*-\d*", range_header): raise MusicError("Unsupported playback range.", 416)
             h["Range"] = range_header
@@ -385,12 +282,6 @@ class Store:
         return r.status, mime, StreamBody(r), extra
 
     def connect(self, p):
-        if p == "ibroadcast":
-            c = self.config(p)
-            if not c.get("client_id"): raise MusicError("iBroadcast is awaiting the Hub's app registration. Local music is available now.", 424)
-            d = request_json("https://oauth.ibroadcast.com/device/code?" + urlencode({"client_id": c["client_id"], "scope": "user.library:read user.account:read"}))
-            self.pending[p] = {**d, "expires_at": time.time() + d.get("expires_in", 600), "next_poll": time.time() + d.get("interval", 5)}
-            return self.connection_card(d.get("verification_uri_complete") or d["verification_uri"], d.get("user_code", ""), d.get("interval", 5), "ibroadcast")
         if p == "plex":
             d = self.load(); c = d.setdefault(p, {}); c.setdefault("client_id", str(uuid.uuid4())); self.save(d)
             pin = request_json("https://plex.tv/api/v2/pins?strong=true", self.plex_headers(c), data={})
@@ -402,7 +293,7 @@ class Store:
     @staticmethod
     def connection_card(url, code, interval, provider):
         host = urlsplit(url).hostname
-        if urlsplit(url).scheme != "https" or host not in ({"app.plex.tv"} if provider == "plex" else {"ibroadcast.com", "www.ibroadcast.com", "oauth.ibroadcast.com", "login.ibroadcast.com"}):
+        if urlsplit(url).scheme != "https" or host != "app.plex.tv":
             raise MusicError("The service returned an unexpected sign-in address.", 502)
         import qr
         return {"url": url, "code": code, "interval": max(3, int(interval)), "qr": qr.svg(url)}
@@ -424,24 +315,7 @@ class Store:
             d = self.load(); d.setdefault(p, {})["account_token"] = r["authToken"]; self.save(d)
             self.pending.pop(p, None)
             return {"connected": True, "servers": self.plex_servers()}
-        c = self.config(p)
-        # Device flow uses 400/429 for pending; inspect only OAuth error codes.
-        data = urlencode({"grant_type": "device_code", "device_code": pending["device_code"], "client_id": c["client_id"]}).encode()
-        req = Request("https://oauth.ibroadcast.com/token", data=data, headers={"Content-Type": "application/x-www-form-urlencoded", "User-Agent": UA})
-        try:
-            with build_opener(NoRedirect()).open(req, timeout=15) as r: result = json.loads(r.read(65536))
-        except HTTPError as e:
-            try: err = json.loads(e.read(65536)).get("error")
-            except ValueError: err = None
-            if err in ("authorization_pending", "slow_down"):
-                if err == "slow_down":
-                    pending["interval"] = pending.get("interval", 5) + 5
-                    pending["next_poll"] = time.time() + pending["interval"]
-                return {"pending": True}
-            self.pending.pop(p, None); raise MusicError("iBroadcast sign-in was declined or expired. Connect again.", 401) from None
-        except (URLError, OSError, ValueError): raise MusicError("Could not check the music sign-in. Try again.", 502) from None
-        self.save_ib_token(result); self.pending.pop(p, None)
-        return {"connected": True}
+        raise MusicError("Use this source's connection form.")
 
     def plex_servers(self):
         c = self.config("plex")
@@ -468,6 +342,38 @@ class Store:
         return self.public()
 
 
+def library_request(method, p, q):
+    """Your music folder as a library (musiclibrary.py): listing, cover art, files with seeking, folder choice."""
+    import musiclibrary as lib
+    if p == "/api/music/library" and method == b"GET": return json_response(lib.library())
+    if p.startswith("/api/music/library/art/") and method == b"GET":
+        f = lib.art_path(p.rsplit("/", 1)[1])
+        if not f: raise MusicError("No cover art.", 404)
+        return 200, "image/png" if f.suffix == ".png" else "image/jpeg", f.read_bytes(), {"Cache-Control": "max-age=86400"}
+    if p.startswith("/api/music/library/file/") and method == b"GET":
+        f = lib.file_for(p.rsplit("/", 1)[1])
+        if not f: raise MusicError("That song isn't in your music folder any more.", 404)
+        try: code, mime, body, extra = lib.open_range(f, q.get("_range", ""))
+        except ValueError: raise MusicError("Unsupported playback range.", 416) from None
+        return code, mime, StreamBody(body), extra
+    if p == "/api/music/library/rescan" and method == b"POST": lib.scan(); return json_response({"scanning": True})
+    if p == "/api/music/folder/choose" and method == b"POST":
+        chosen = lib.choose_folder()
+        return json_response({"folder": chosen, "cancelled": chosen is None})
+    tracks = lib.library()["tracks"]
+    if p == "/api/music/playlists":
+        albums = {}
+        for t in tracks: albums.setdefault(t["album"], []).append(t)
+        rows = [{"id": "all", "name": "All songs", "count": len(tracks)}]
+        rows += [{"id": "album:" + a, "name": a, "count": len(ts)} for a, ts in sorted(albums.items(), key=lambda x: x[0].lower())]
+        return json_response({"playlists": rows})
+    if p == "/api/music/tracks":
+        pl = q.get("playlist", "all")
+        pick = tracks if pl == "all" else [t for t in tracks if "album:" + t["album"] == pl]
+        return json_response({"tracks": [{**t, "url": "/api/music/library/file/" + t["id"]} for t in pick]})
+    raise MusicError("Unknown music request.", 404)
+
+
 def store_for(bridge):
     base = Path(bridge.csv_path).resolve().parent.parent if getattr(bridge, "csv_path", None) else Path(__file__).resolve().parent
     with _stores_lock:
@@ -484,7 +390,7 @@ async def handle(bridge, method, path, body, host, headers=None, peer=None):
     headers = headers or {}
     p = urlsplit(path).path
     # Setup and all credential-bearing responses are available only on this computer.
-    admin = p.startswith(("/api/music/settings", "/api/music/connect", "/api/music/forget", "/api/music/apple", "/api/music/plex"))
+    admin = p.startswith(("/api/music/settings", "/api/music/connect", "/api/music/forget", "/api/music/apple", "/api/music/plex", "/api/music/folder", "/api/music/library/rescan"))
     if admin and (not remote.is_local(peer) or urlsplit("http://" + host).hostname not in ("localhost", "127.0.0.1", "::1")):
         return json_response({"error": "Connect music accounts on the computer running the Hub."}, 403)
     origin = headers.get(b"origin", b"").decode()
@@ -493,6 +399,11 @@ async def handle(bridge, method, path, body, host, headers=None, peer=None):
     if headers.get(b"sec-fetch-site") == b"cross-site": return json_response({"error": "Open music controls from the Hub."}, 403)
     s = store_for(bridge)
     q = {k: v[0] for k, v in parse_qs(urlsplit(path).query).items()}
+    if p.startswith(("/api/music/library", "/api/music/folder/choose")) or (p in ("/api/music/playlists", "/api/music/tracks") and q.get("provider") == "library"):
+        q["_range"] = headers.get(b"range", b"").decode()
+        try: return await asyncio.to_thread(library_request, method, p, q)
+        except MusicError as e: return json_response({"error": str(e)}, e.code)
+        except ValueError as e: return json_response({"error": str(e)}, 400)
     def operation():
         with s.lock:
             req = {}
@@ -501,6 +412,14 @@ async def handle(bridge, method, path, body, host, headers=None, peer=None):
                 try: req = json.loads(body or b"{}")
                 except ValueError: raise MusicError("Could not read music settings.") from None
                 if not isinstance(req, dict): raise MusicError("Could not read music settings.")
+            if p == "/api/music/folder" and method == b"GET":
+                import musicfolder
+                return json_response(musicfolder.listing())
+            if p == "/api/music/folder/open" and method == b"POST":
+                import musicfolder
+                try: musicfolder.reveal()
+                except ValueError as e: raise MusicError(str(e)) from None
+                return json_response({"opened": True})
             if p == "/api/music/settings":
                 if method == b"GET": return json_response(s.public())
                 if method == b"POST": return json_response(s.configure(req))
@@ -517,14 +436,6 @@ async def handle(bridge, method, path, body, host, headers=None, peer=None):
             elif p == "/api/music/tracks" and method == b"GET": return json_response(s.tracks(q.get("provider"), q.get("playlist")))
             elif p == "/api/music/video" and method == b"GET": return json_response(s.video(q.get("parent", ""), q.get("offset", 0)))
             elif p.startswith("/api/music/stream/") and method == b"GET": return s.stream(p.rsplit("/", 1)[1], headers.get(b"range", b"").decode())
-            elif p == "/api/music/history" and method == b"POST":
-                if req.get("provider") != "ibroadcast" or req.get("event") not in ("play", "skip"): raise MusicError("Unknown music event.")
-                track = str(req.get("track", ""))
-                if track not in s.ib_library()["tracks"]: raise MusicError("Unknown track.")
-                stamp = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
-                event = req["event"]
-                s.ib("status", extra={"history": [{"day": stamp[:10], "plays": {track: 1} if event == "play" else {}, "detail": {track: [{"event": event, "ts": stamp}]}}]})
-                return json_response({"ok": True})
             else: return json_response({"error": "Unknown music request."}, 404)
             return json_response({"error": "Method not allowed."}, 405)
     try: return await asyncio.to_thread(operation)

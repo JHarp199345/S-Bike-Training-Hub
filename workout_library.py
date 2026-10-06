@@ -15,7 +15,8 @@ SPORTS = ('gym', 'swim', 'ride', 'run', 'other')
 GOALS = {
     'gym': {'weight_moved': (1, 1000000), 'minutes': (1, 600)},
     'swim': {'distance': (25, 30000), 'minutes': (1, 600)},
-    'ride': {'minutes': (1, 600), 'distance_km': (.1, 500), 'power_low': (20, 1500), 'power_high': (20, 1500), 'energy_kcal': (1, 10000)},
+    'ride': {'minutes': (1, 600), 'distance_km': (.1, 500), 'power_low': (20, 1500), 'power_high': (20, 1500),
+             'cadence_low': (30, 200), 'cadence_high': (30, 200), 'energy_kcal': (1, 10000)},
     'run': {'minutes': (1, 600), 'distance_km': (.1, 100), 'steps': (1, 200000), 'zone': (1,5), 'hr_low': (30,240), 'hr_high': (30,240)},
     'other': {'minutes': (1, 600)},
 }
@@ -60,6 +61,10 @@ def clean_goals(sport, goals):
             raise ValueError('Enter both ends of the power range')
         if out.get('power_low', 0) > out.get('power_high', 1500):
             raise ValueError('The power range must go from lower to higher watts')
+        if ('cadence_low' in out) != ('cadence_high' in out):
+            raise ValueError('Enter both ends of the cadence range')
+        if out.get('cadence_low', 0) > out.get('cadence_high', 200):
+            raise ValueError('The cadence range must go from lower to higher rpm')
         out['power_scope'] = goals.get('power_scope', 'main')
         if out['power_scope'] not in ('main', 'session'):
             raise ValueError('Power goals cover main work or the whole session')
@@ -133,6 +138,12 @@ def compare(sport, goals, session):
             total = sum(s['minutes'] for s in chosen)
             if total:
                 values['average_watts'] = sum(s['minutes'] * s['watts'] for s in chosen) / total
+        with_rpm = [s for s in chosen if s.get('rpm') is not None]       # stages without a written rpm don't count
+        if with_rpm:
+            total = sum(s['minutes'] for s in with_rpm)
+            values['average_cadence'] = sum(s['minutes'] * s['rpm'] for s in with_rpm) / total
+            if len(with_rpm) < len(chosen):
+                values['cadence_basis'] = f'Averaged over the {len(with_rpm)} of {len(chosen)} stages with a written rpm.'
         if steps and all(s.get('watts') is not None for s in steps):
             stats['external_work_kj'] = round(sum(s['watts'] * s['minutes'] * 60 / 1000 for s in steps), 2)
         if 'distance_km' in goals:
@@ -152,7 +163,17 @@ def compare(sport, goals, session):
         checks.append({'metric': 'average_watts', 'scope': goals['power_scope'], 'goal_low': goals['power_low'], 'goal_high': goals['power_high'],
                        'calculated': round(got, 2) if got is not None else None,
                        'matches': goals['power_low'] <= got <= goals['power_high'] if got is not None else None})
-    if any(c['calculated'] is None for c in checks):
+    if 'cadence_low' in goals:
+        got = values.get('average_cadence')
+        check = {'metric': 'average_cadence', 'scope': goals['power_scope'], 'goal_low': goals['cadence_low'], 'goal_high': goals['cadence_high'],
+                 'calculated': round(got, 1) if got is not None else None,
+                 'matches': goals['cadence_low'] <= got <= goals['cadence_high'] if got is not None else None}
+        if values.get('cadence_basis'):
+            check['note'] = values['cadence_basis']
+        if got is None:          # no rpm written in the stages: the range becomes the ride's cadence target instead
+            check['note'] = 'No rpm in the written stages, so this range is saved as the ride’s cadence target.'
+        checks.append(check)
+    if any(c['calculated'] is None and not c.get('note') for c in checks):
         unresolved.append('Some targets cannot yet be verified from these workout details.')
     return {'goals': goals, 'checks': checks, 'totals': stats, 'unresolved': list(dict.fromkeys(unresolved)),
             'requires_review': bool(unresolved) or any(c['matches'] is False for c in checks),
@@ -326,3 +347,60 @@ def save_template(d, req):
     item['uses'] = copy.deepcopy(d.get('workout_library', {}).get(ident, {}).get('uses', []))
     d.setdefault('workout_library', {})[ident] = item
     return copy.deepcopy(item)
+
+# The seven starter rides from the old block builder, now plain-English workouts in the library. Each is
+# (name, purpose, [(section, kind, ...)]) in % of FTP; they're written out in watts at the athlete's FTP when added.
+STARTER_RIDES = (
+    ('Zone 2 · 60 min', 'Easy aerobic base.', [('warmup', 'ramp', 10, 40, 60), ('main', 'steady', 40, 62), ('cooldown', 'steady', 10, 45)]),
+    ('Sweet spot 3×10', 'Sustained work just under threshold.', [('warmup', 'ramp', 10, 40, 70), ('main', 'reps', 3, 10, 90, 5, 50), ('cooldown', 'steady', 10, 45)]),
+    ('Threshold 2×20', 'Long efforts at threshold.', [('warmup', 'ramp', 12, 40, 75), ('main', 'reps', 2, 20, 97, 8, 50), ('cooldown', 'steady', 10, 45)]),
+    ('VO2max 5×3', 'Short hard efforts.', [('warmup', 'ramp', 12, 40, 75), ('main', 'reps', 5, 3, 112, 3, 50), ('cooldown', 'steady', 10, 45)]),
+    ('Over-unders 12×(1+1)', 'Alternating just over and under threshold.', [('warmup', 'ramp', 10, 40, 75), ('main', 'reps', 12, 1, 105, 1, 90), ('cooldown', 'steady', 10, 45)]),
+    ('Cadence builder', 'High-rpm spin-ups at easy watts.', [('warmup', 'steady', 10, 50), ('main', 'reps', 6, 1, 60, 2, 50, (110, 120)), ('cooldown', 'steady', 10, 50)]),
+    ('Recovery spin · 30 min', 'Very easy spinning.', [('main', 'steady', 30, 45)]),
+)
+LABELS = {'warmup': 'Warm-up', 'main': 'Main work', 'cooldown': 'Cool-down'}
+
+
+def starter_ride(name, purpose, parts, ftp):
+    """One starter as the coach form would send it: typed text, parsed blocks, minutes."""
+    w = lambda pct: max(20, round(pct / 100 * ftp))
+    unit = lambda m: f"{m:g} minute{'s' if m != 1 else ''}"
+    text, blocks = {'warmup': [], 'main': [], 'cooldown': []}, []
+    for section, kind, *a in parts:
+        label = LABELS[section]
+        if kind == 'ramp':
+            m, lo, hi = a
+            text[section].append(f"{unit(m)} ramping from {w(lo)} to {w(hi)} watts")
+            blocks.append({'type': 'ramp', 'minutes': m, 'from_watts': w(lo), 'to_watts': w(hi), 'label': 'Ramp', 'section': section})
+        elif kind == 'steady':
+            m, pct = a
+            text[section].append(f"{unit(m)} at {w(pct)} watts")
+            blocks.append({'type': 'steady', 'minutes': m, 'watts': w(pct), 'label': label, 'section': section})
+        else:
+            n, on, on_pct, off, off_pct, *rpm = a
+            cad = {'rpm_low': rpm[0][0], 'rpm_high': rpm[0][1]} if rpm else {}
+            words = f", {rpm[0][0]}-{rpm[0][1]} rpm" if rpm else ""
+            text[section].append(f"{n} x {unit(on)} at {w(on_pct)} watts{words} with {unit(off)} at {w(off_pct)} watts between intervals")
+            for i in range(n):
+                blocks.append({'type': 'steady', 'minutes': on, 'watts': w(on_pct), **cad, 'label': f'Work {i + 1}', 'section': section})
+                if i < n - 1:
+                    blocks.append({'type': 'steady', 'minutes': off, 'watts': w(off_pct), 'label': f'Recovery {i + 1}', 'section': section})
+    minutes = sum(b['minutes'] for b in blocks)
+    fields = {k: '\n'.join(v) for k, v in text.items()}
+    steps = [f"{s}: {t}" for s, t in fields.items() if t]
+    return {'sport': 'ride', 'name': name, 'minutes': minutes, 'note': purpose + f' Written at FTP {ftp} W.',
+            'typed_workout': {**fields, 'repeats': 1}, 'steps': steps, 'ride_blocks': blocks}
+
+
+def add_starter_rides(d, ftp):
+    """Once per athlete: the starter rides join the library (origin 'starter'). Returns how many were added."""
+    if d.get('starter_rides_added'):
+        return 0
+    added = 0
+    for name, purpose, parts in STARTER_RIDES:
+        item = save_template(d, starter_ride(name, purpose, parts, ftp))
+        d['workout_library'][item['id']]['origin'] = 'starter'
+        added += 1
+    d['starter_rides_added'] = now()
+    return added

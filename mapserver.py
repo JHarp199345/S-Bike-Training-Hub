@@ -232,11 +232,15 @@ async def handle(bridge, method, path, body, host):
         return 200, TYPES[".html"], (WEB / "ride-hub.html").read_bytes(), {}
     if p == "/api/map/status":
         return 200, "application/json", json.dumps({"engine": (MAPS / "web/maplibre/maplibre-gl.mjs").exists(), "maps": bool(list((MAPS / "map").glob("*.pmtiles"))), "routing": (MAPS / "brouter/segments4").is_dir()}).encode(), {}
-    if p in ("/ride", "/plan", "/fitness", "/workouts", "/milestones", "/coach", "/course", "/dashboard", "/welcome"):
+    if p == "/workouts":                 # the old block builder is gone: workouts are written on the coach page
+        return 302, "text/plain", b"Write a workout on the coach page", {"Location": "/coach#write-ride"}
+    if p in ("/ride", "/plan", "/fitness", "/milestones", "/coach", "/course", "/dashboard", "/welcome"):
         return 200, TYPES[".html"], (WEB / f"{p[1:]}.html").read_bytes(), {}
+    if p == "/manifest.webmanifest":
+        return 200, "application/manifest+json", (WEB / "manifest.webmanifest").read_bytes(), {"Cache-Control": "max-age=3600"}
     if p.startswith("/web/") and p.endswith((".js", ".css", ".svg", ".png", ".jpg", ".json", ".glb")):
         f = (WEB / p[5:]).resolve()
-        if f.parent not in (WEB.resolve(), (WEB / "sprites").resolve(), (WEB / "vendor").resolve(), (WEB / "sports").resolve(), (WEB / "graveyard").resolve(), (WEB / "graveyard/Textures").resolve()) or not f.exists():
+        if f.parent not in (WEB.resolve(), (WEB / "sprites").resolve(), (WEB / "vendor").resolve(), (WEB / "sports").resolve(), (WEB / "graveyard").resolve(), (WEB / "graveyard/Textures").resolve(), (WEB / "icons").resolve()) or not f.exists():
             return 404, "text/plain", b"not found", {}
         return 200, TYPES[f.suffix], f.read_bytes(), {}
     if p.startswith("/lib/"):
@@ -1094,6 +1098,7 @@ async def coach_api(bridge, method, path, p, body):
                     if req.get('source_reviewed') is not True:raise ValueError('Review the source before keeping this workout')
                 item=workout_library.save_template(d,req);coach.save(d)
                 return js({'workout':item})
+            if workout_library.add_starter_rides(d,bridge.profile["ftp"]):coach.save(d)     # the old builder's starters, once
             items=workout_library.listing(d,(q.get('sport') or [None])[0],q.get('favorites')==['1'],done_by_day(rides.parent,d))
             offset=max(0,min(1000,int((q.get('offset') or ['0'])[0])));limit=max(1,min(50,int((q.get('limit') or ['30'])[0])))
             summaries=[]

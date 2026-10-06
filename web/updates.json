@@ -1,6 +1,21 @@
 {
-  "latest": "app-2026-10-05-run-walk-test",
+  "latest": "app-v1.8.1",
   "entries": [
+    {
+      "id": "app-v1.8.1",
+      "date": "2026-10-05",
+      "version": "App 1.8.1",
+      "title": "Your music library and clearer workout records",
+      "changes": [
+        "Added a private music folder library with songs, albums, artists, cover art and available tempo estimates. macOS has a native folder picker; other systems can use files from their browser.",
+        "Unified cycling creation in the typed workout builder, including watt ranges, cadence ranges, time targets and reusable starter rides.",
+        "Recorded and partial workouts show actual time separately from planned time; imported activity totals remain visible without a matching prescription.",
+        "Fixed music setup refresh and idle video timing; unavailable integrations are explicitly marked in progress.",
+        "Added browser and home-screen app icons and corrected the Windows credential-permissions test."
+      ],
+      "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/app-v1.8.1",
+      "image": "/web/icons/sbt-hex-1024.png"
+    },
     {
       "id": "app-2026-10-05-run-walk-test",
       "date": "2026-10-05",
@@ -9,7 +24,7 @@
       "changes": [
         "At 60% of a running hold, a three-day test: a short run-walk, then how walking feels the next day, then stairs. A good result offers to start winding the hold down; anything else tries again in a week.",
         "End on the ride screen now ends the whole ride: the workout and the route together.",
-        "Music settings show only what works today: Plex, OpenSubsonic and your own music files. Apple Music and iBroadcast are marked as not available yet.",
+        "Your music folder and files from this device are available. Plex needs live-account verification; Apple Music, iBroadcast and OpenSubsonic connection setup are in progress.",
         "Fixed: video playback no longer builds up in memory, and Apple Music no longer repeats its event handlers.",
         "The Hub now tells you when an update is out (checked at most twice a day; you can turn it off here)."
       ],
@@ -161,12 +176,12 @@
   ],
   "in_the_works": [
     {
-      "title": "Your music folder",
-      "detail": "Choose a music folder once and the Hub streams it on the ride screen, with no server to set up and no reselecting files after a reload."
+      "title": "Apple Music",
+      "detail": "Waiting on the Hub's Apple Music developer setup."
     },
     {
-      "title": "Apple Music and iBroadcast",
-      "detail": "Waiting on the Hub's app registration with each service."
+      "title": "Plex, iBroadcast and OpenSubsonic connections",
+      "detail": "Plex still needs live-account playback verification. iBroadcast needs publisher registration; OpenSubsonic connection setup is not exposed in the current interface."
     },
     {
       "title": "Programs that adapt to you",

@@ -10,7 +10,16 @@ function power(text){
  if(low<20||high>1500||high<low)throw Error('Use an ordered power target between 20 and 1500 W.');
  return {watts:Math.round((low+high)/2),...(high!==low?{watts_low:low,watts_high:high}:{}),match:m[0]};
 }
-function steady(text,section,label){const times=text.match(new RegExp(number+'\\s*'+unit+'\\b','ig'))||[],powers=text.match(new RegExp(number+'\\s*(?:(?:-|to)\\s*'+number+'\\s*)?(?:watts?|w)\\b','ig'))||[];if(times.length>1||powers.length>1)throw Error('Separate each timed stage with a new line, semicolon or “then”.');const t=time(text),p=power(text);if(!t)throw Error('Add a duration in minutes or seconds.');if(!p)throw Error('Add a watt target, including for recovery.');if(t.minutes<1/60||t.minutes>300)throw Error('Each stage must last 1 second to 300 minutes.');return {type:'steady',minutes:t.minutes,...p,match:undefined,label,section};}
+// An optional cadence for a stage: "at 90 rpm" or "85-95 rpm".
+function cadence(text){
+ const all=text.match(new RegExp(number+'\\s*(?:(?:-|to)\\s*'+number+'\\s*)?rpm\\b','ig'))||[];
+ if(all.length>1)throw Error('Give one cadence per stage.');
+ const m=new RegExp(number+'\\s*(?:(?:-|to)\\s*'+number+'\\s*)?rpm\\b','i').exec(text);if(!m)return {};
+ const low=+m[1],high=m[2]?+m[2]:low;
+ if(low<30||high>200||high<low)throw Error('Use an ordered cadence between 30 and 200 rpm.');
+ return {rpm_low:low,rpm_high:high};
+}
+function steady(text,section,label){const times=text.match(new RegExp(number+'\\s*'+unit+'\\b','ig'))||[],powers=text.match(new RegExp(number+'\\s*(?:(?:-|to)\\s*'+number+'\\s*)?(?:watts?|w)\\b','ig'))||[];if(times.length>1||powers.length>1)throw Error('Separate each timed stage with a new line, semicolon or “then”.');const t=time(text),p=power(text);if(!t)throw Error('Add a duration in minutes or seconds.');if(!p)throw Error('Add a watt target, including for recovery.');if(t.minutes<1/60||t.minutes>300)throw Error('Each stage must last 1 second to 300 minutes.');return {type:'steady',minutes:t.minutes,...p,...cadence(text),match:undefined,label,section};}
 function parse(fields,repeats=1,enteredMinutes){
  const blocks=[],issues=[],warnings=[],declared=[];repeats=Number(repeats);
  if(!Number.isInteger(repeats)||repeats<1||repeats>10)issues.push('Repeat count must be 1–10.');
@@ -48,7 +57,7 @@ function parse(fields,repeats=1,enteredMinutes){
      if(/\bramp(?:ing)?\b/i.test(line)){
       const t=time(line);if(!t||!ramp)throw Error('Write a ramp with its duration and start/end watts, e.g. “8 minutes ramping from 160 to 80 watts”.');
       if(t.minutes<.5||t.minutes>120||+ramp[1]<20||+ramp[1]>1500||+ramp[2]<20||+ramp[2]>1500)throw Error('Ramps need 30 seconds–120 minutes and 20–1500 W endpoints.');
-      sectionBlocks.push({type:'ramp',minutes:t.minutes,from_watts:+ramp[1],to_watts:+ramp[2],label:section==='cooldown'?'Cool-down ramp':'Ramp',section});
+      sectionBlocks.push({type:'ramp',minutes:t.minutes,from_watts:+ramp[1],to_watts:+ramp[2],...cadence(line),label:section==='cooldown'?'Cool-down ramp':'Ramp',section});
      }else{
       // Multiple durations/targets in one sentence cannot silently become one stage.
       const times=line.match(new RegExp(number+'\\s*'+unit+'\\b','ig'))||[];
@@ -76,7 +85,8 @@ function parse(fields,repeats=1,enteredMinutes){
 }
 function render(p){
  const max=Math.max(1,...p.blocks.flatMap(b=>[b.watts_high||b.watts||b.from_watts,b.to_watts||0]));
- const summary=b=>b.type==='ramp'?`${b.from_watts} → ${b.to_watts} W`:b.watts_low!=null?`${b.watts_low}–${b.watts_high} W · target ${b.watts} W`:`${b.watts} W`;
+ const rpm=b=>b.rpm_low!=null?` · ${b.rpm_low===b.rpm_high?b.rpm_low:b.rpm_low+'–'+b.rpm_high} rpm`:'';
+ const summary=b=>(b.type==='ramp'?`${b.from_watts} → ${b.to_watts} W`:b.watts_low!=null?`${b.watts_low}–${b.watts_high} W · target ${b.watts} W`:`${b.watts} W`)+rpm(b);
  return `<section class="ride-parse-preview"><h3>${p.complete?'Ride timeline':'Partial timeline — clarify below'} · ${+p.minutes.toFixed(2)} minutes${p.complete?'':' resolved'}</h3><p class="sub">Power ranges keep their bounds. ERG uses the midpoint as a single target; ramps follow their start and end watts. Targets are fixed watts, independent of FTP changes.</p><div class="ride-parse-chart" role="img" aria-label="Cycling power timeline">${p.blocks.map(b=>`<div style="flex:${b.minutes};--stage-color:${b.section==='warmup'?'#fb923c':b.section==='cooldown'?'#22d3ee':'#facc15'}" title="${esc(b.label)}: ${+b.minutes.toFixed(2)} min, ${esc(summary(b))}"><i style="height:${Math.max(8,100*(b.watts||Math.max(b.from_watts,b.to_watts))/max)}%;${b.type==='ramp'?`clip-path:polygon(0 ${100*(1-b.from_watts/Math.max(b.from_watts,b.to_watts))}%,100% ${100*(1-b.to_watts/Math.max(b.from_watts,b.to_watts))}%,100% 100%,0 100%)`:''}"></i></div>`).join('')}</div><ol>${p.blocks.map(b=>`<li><b>${esc(b.label)}</b> · ${+b.minutes.toFixed(2)} min · ${esc(summary(b))}</li>`).join('')}</ol>${p.warnings.map(s=>`<p class="note">${esc(s)}</p>`).join('')}${p.issues.map(s=>`<p class="note">${esc(s)}</p>`).join('')}${p.mismatch&&p.complete?'<button type="button" id="manual-use-duration">Use calculated total</button>':''}</section>`;
 }
 const api={parse,render};root.RideParser=api;if(typeof module!=='undefined')module.exports=api;

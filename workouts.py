@@ -84,6 +84,12 @@ def flatten(blocks):
                 if not low <= step["watts"] <= high:
                     raise BadWorkout("The target must lie inside its power band")
                 step.update(watts_low=low, watts_high=high)
+            if "rpm_low" in b or "rpm_high" in b:             # a written cadence for the stage (shown; ERG holds the watts)
+                if kind not in ("steady", "ramp"):
+                    raise BadWorkout("Cadence belongs to steady or ramp stages")
+                low = _num(b.get("rpm_low"), 30, 200, "Cadence minimum")
+                high = _num(b.get("rpm_high"), low, 200, "Cadence maximum")
+                step.update(rpm=round((low + high) / 2), rpm_low=round(low), rpm_high=round(high))
     # merge neighbours at the same intensity so the ride shows fewer, longer steps
     merged = []
     for s in steps:

@@ -83,6 +83,8 @@ def allowed(peer, headers, path):
     if is_local(peer):
         return True
     p = path.split(b"?")[0]
+    if p == b"/manifest.webmanifest" or (p.startswith(b"/web/icons/") and b".." not in p):
+        return True                     # the app icon: home screens fetch it without the pairing cookie
     return paired(headers) and p not in MAC_ONLY and not p.startswith(MAC_ONLY_PREFIXES)
 
 

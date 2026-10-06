@@ -240,6 +240,10 @@ def set_sessions(d, date, sessions, _trusted=False, draft=False):
                     lo=_num(step.get("watts_low"),20,1500);hi=_num(step.get("watts_high"),20,1500)
                     if lo is None or hi is None or "watts" not in row or not lo<=row["watts"]<=hi:raise ValueError("Invalid prescribed power band")
                     row.update(watts_low=lo,watts_high=hi)
+                if step.get("rpm_low") is not None or step.get("rpm_high") is not None:
+                    lo=_num(step.get("rpm_low"),30,200);hi=_num(step.get("rpm_high"),30,200)
+                    if lo is None or hi is None or lo>hi:raise ValueError("Invalid prescribed cadence range")
+                    row.update(rpm_low=lo,rpm_high=hi)
                 for key in ("label","section"):
                     if step.get(key):row[key]=str(step[key])[:80]
                 checked.append(row)

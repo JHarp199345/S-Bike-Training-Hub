@@ -65,6 +65,9 @@ music.tmp
 # Local Claude continuation specs; never publish with the app.
 /.claude-handoff/
 
+# a stray session file some code writes when given ":memory:" as a path
+:memory:*
+
 # Your music and the library built from it (index, cover art, tempo) stay on this computer; never shared
 music/
 music_library.json

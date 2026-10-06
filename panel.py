@@ -67,7 +67,7 @@ PAGE = """<!doctype html><html><head><meta charset="utf-8"><title>S-Bike Hub</ti
  .qr svg{width:100%;height:100%;display:block}
  @media (max-width:520px){.qrrow{flex-direction:column;align-items:flex-start}}
 </style><link rel="stylesheet" href="/web/theme.css"><script src="/web/theme.js"></script></head><body>
-<h1>S-Bike Hub</h1><div class="sub" style="margin-bottom:6px"><a href="/ride" style="color:var(--info)">🗺 Ride view</a> · <a href="/plan" style="color:var(--info)">Plan a ride</a> · <a href="/fitness" style="color:var(--info)">📈 Fitness</a> · <a href="/workouts" style="color:var(--info)">🛠 Workouts</a> · <a href="/posts" style="color:var(--info)">📣 Posts</a> · <a href="/milestones" style="color:var(--info)">🎖 Streaks</a> · <a href="/coach" style="color:var(--info)">🧭 Coach</a></div><div class="sub" id="sub">Starting…</div>
+<h1>S-Bike Hub</h1><div class="sub" style="margin-bottom:6px"><a href="/ride" style="color:var(--info)">🗺 Ride view</a> · <a href="/plan" style="color:var(--info)">Plan a ride</a> · <a href="/fitness" style="color:var(--info)">📈 Fitness</a> · <a href="/coach#write-ride" style="color:var(--info)">🛠 Write a workout</a> · <a href="/posts" style="color:var(--info)">📣 Posts</a> · <a href="/milestones" style="color:var(--info)">🎖 Streaks</a> · <a href="/coach" style="color:var(--info)">🧭 Coach</a></div><div class="sub" id="sub">Starting…</div>
 <div class="dots">
  <div class="dot"><b>BIKE</b><span id="bike">–</span></div>
  <div class="dot"><b>WATCH</b><span id="watch">–</span></div>
@@ -193,6 +193,21 @@ setInterval(()=>{ const m=g.summary(); document.getElementById('gavg').textConte
 </script></body></html>"""
 
 
+# The SBT hex: the icon when the Hub is added to a tablet or phone home screen, and in the browser tab.
+APP_ICON = (b'<link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/web/icons/sbt-hex-tab.svg" type="image/svg+xml">'
+            b'<link rel="apple-touch-icon" href="/web/icons/apple-touch-icon.png"><meta name="apple-mobile-web-app-title" content="SBT Hub Hex">'
+            b'<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="theme-color" content="#0d0f14">')
+
+
+def with_app_icon(ctype, body):
+    if not ctype.startswith("text/html") or b'rel="manifest"' in body:
+        return body
+    for tag in (b"</head>", b"</HEAD>"):
+        if tag in body:
+            return body.replace(tag, APP_ICON + tag, 1)
+    return body
+
+
 async def serve(bridge, port=8729, lan=True):
     async def handle(reader, writer):
         try:
@@ -207,6 +222,27 @@ async def serve(bridge, port=8729, lan=True):
             headers[k.strip().lower()] = v.strip()
         body = b""
         n = int(headers.get(b"content-length", b"0") or 0)
+        if method == b"POST" and path.startswith(b"/api/music/folder/upload"):
+            # music files: streamed to the athlete's music folder, never held in memory; this computer only
+            import musicfolder, remote as _remote
+            from urllib.parse import parse_qs, urlsplit
+            peer0 = writer.get_extra_info("peername")
+            host = headers.get(b"host", b"").decode().split(":")[0]
+            if not _remote.is_local(peer0) or host not in ("localhost", "127.0.0.1", "[::1]", "::1") \
+                    or headers.get(b"sec-fetch-site") == b"cross-site":
+                code, out = 403, {"error": "Add music on the computer running the Hub."}
+            else:
+                try:
+                    name = parse_qs(urlsplit(path.decode(errors="replace")).query).get("name", [""])[0]
+                    code, out = 200, {"saved": await musicfolder.receive(reader, n, name), "folder": musicfolder.listing()}
+                    import musiclibrary; musiclibrary.scan()            # the new song shows up in the library
+                except (ValueError, OSError) as e:
+                    code, out = 400, {"error": str(e)}
+            payload = json.dumps(out).encode()
+            writer.write(b"HTTP/1.1 " + str(code).encode() + b" OK\r\nContent-Type: application/json\r\nCache-Control: no-store\r\nContent-Length: "
+                         + str(len(payload)).encode() + b"\r\nConnection: close\r\n\r\n" + payload)
+            await writer.drain(); writer.close()
+            return
         if 0 < n <= 20_000_000:                       # up to 20 MB: GPX uploads, planning requests
             try:
                 body = await reader.readexactly(n)
@@ -249,6 +285,7 @@ async def serve(bridge, port=8729, lan=True):
             hdrs = b"".join(k.encode() + b": " + v.encode() + b"\r\n" for k, v in extra.items())
             if "Cache-Control" not in extra:
                 hdrs += b"Cache-Control: no-store\r\n"
+            payload = with_app_icon(ctype, payload)
             writer.write(b"HTTP/1.1 " + str(code).encode() + b" " + reason + b"\r\nContent-Type: " + ctype.encode()
                          + b"\r\n" + hdrs + b"Content-Length: " + str(len(payload)).encode()
                          + b"\r\nConnection: close\r\n\r\n" + payload)
@@ -343,6 +380,7 @@ async def serve(bridge, port=8729, lan=True):
             return
         else:
             body, ctype = PAGE.encode(), "text/html; charset=utf-8"
+        body = with_app_icon(ctype, body)
         writer.write(b"HTTP/1.1 200 OK\r\nContent-Type: " + ctype.encode()
                      + b"\r\nCache-Control: no-store\r\nContent-Length: " + str(len(body)).encode()
                      + b"\r\nConnection: close\r\n\r\n" + body)
