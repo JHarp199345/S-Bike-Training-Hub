@@ -34,11 +34,9 @@ ZONES = [(0.55, "Z1", "Recovery", "#6b7280"), (0.75, "Z2", "Endurance", "#3b82f6
 
 
 def _events(path):
-    ev = Path(path).with_name(Path(path).stem + "_events.csv")
-    try:
-        return [(r["time"], r["event"]) for r in csv.DictReader(open(ev, newline=""))]
-    except (OSError, KeyError):
-        return []
+    # Share the tolerant, recording-bounded event reader used by adherence.
+    import adherence
+    return [(t.isoformat(), e) for t, e in adherence._events(path)]
 
 
 def _fmt_min(m):

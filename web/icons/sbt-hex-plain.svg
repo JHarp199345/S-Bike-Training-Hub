@@ -540,5 +540,5 @@
     <polygon points="452.5,241.0 404.9,320.9 452.5,302.2 491.6,307.3" fill="#eafcff" fill-opacity=".85"/>
   </g>
   <text x="512" y="640" text-anchor="middle" font-family="'Avenir Next','Avenir','Futura','Helvetica Neue',Arial,sans-serif" font-weight="800" font-size="300" letter-spacing="4.0" fill="url(#gold)" stroke="#4a300c" stroke-width="5.0" paint-order="stroke" filter="url(#lift)">SBT</text>
-
+  
 </svg>

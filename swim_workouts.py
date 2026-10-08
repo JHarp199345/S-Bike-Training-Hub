@@ -66,7 +66,7 @@ def parse(fields,repeats=1,distance_unit='yd',pool_length=None):
      if sendoff is not None and rest_seconds is not None:raise ValueError('Choose a send-off or fixed rest, not both')
      if rest_seconds is not None and not 0<=rest_seconds<=600:raise ValueError('Rest must be 0–600 seconds')
     except ValueError as e:issues.append(str(e)+': '+chunk);continue
-    stroke=next((v for pattern,v in ((r'\b(?:free(?:style)?|front crawl)\b','free'),(r'\bback(?:stroke)?\b','back'),(r'\bbreast(?:stroke)?\b','breast'),(r'\b(?:fly|butterfly)\b','fly'),(r'\b(?:IM|medley)\b','medley')) if re.search(pattern,description,re.I)),'choice')
+    stroke=next((v for pattern,v in ((r'\b(?:free(?:style)?|front crawl|fs)\b','free'),(r'\b(?:back(?:stroke)?|bs)\b','back'),(r'\bbreast(?:stroke)?\b','breast'),(r'\b(?:fly|butterfly)\b','fly'),(r'\b(?:IM|medley)\b','medley')) if re.search(pattern,description,re.I)),'choice')
     work='kick' if re.search(r'\bkick\b',description,re.I) else 'pull' if re.search(r'\bpull\b',description,re.I) else 'drill' if re.search(r'\bdrill\b',description,re.I) or 'drill' in group['label'].lower() else 'swim'
     item={'section':section,'group':group['label'],'repetitions':count,'distance':distance,'unit':u,'distance_m':round(count*distance*(.9144 if u=='yd' else 1),4),'stroke':stroke,'work':work,'equipment':[name for name in ('board','buoy','paddles','fins','snorkel') if re.search(r'\b'+name+r'\b',description,re.I)],'sendoff_seconds':sendoff,'rest_seconds':rest_seconds,'description':description[:400],'notes':[]}
     if pool_length and u==distance_unit and abs(distance/pool_length-round(distance/pool_length))>.01:warnings.append('A set is not a whole number of pool lengths: '+chunk)
@@ -117,3 +117,23 @@ def add(d,date,req):
  else:sessions[index]=entry
  coach.set_sessions(candidate,date,sessions)
  return candidate
+
+
+def recording_draft(activity):
+ """FIT-detected strokes form a draft, never a statement of actual drills or kick."""
+ pool=activity.get('pool_length_m');measured=activity.get('distance_m') or 0
+ if not pool:return {'text':'','unit':'yd','warnings':['Pool length was not recorded; enter distance and sets.'],'groups':[]}
+ yards=pool/.9144
+ u='yd' if abs(yards-round(yards))<.01 else 'm';size=yards if u=='yd' else pool
+ labels={0:'free',1:'back',2:'breast',3:'fly',4:'drill (identify the drill or kick)',5:'choice (verify strokes)',6:'IM'}
+ groups=[]
+ for x in activity.get('swim_lengths',[]):
+  if x.get('length_type')!=1:continue
+  stroke=x.get('swim_stroke');label=labels.get(stroke,'choice (stroke not recorded)')
+  if not groups or groups[-1]['stroke']!=stroke:groups.append({'stroke':stroke,'label':label,'lengths':0,'distance':0,'seconds':0})
+  g=groups[-1];g['lengths']+=1;g['distance']+=size;g['seconds']+=x.get('total_timer_time') or 0
+ text='\n'.join(f"{g['distance']:g} {g['label']}" for g in groups)
+ detected=sum(g['distance'] for g in groups)*(.9144 if u=='yd' else 1)
+ warnings=['Detected strokes can be wrong. Identify drill and kick sections; verify every distance before approving.']
+ if abs(detected-measured)>max(1,pool/2):warnings.append(f'Detected lengths total {detected/(.9144 if u=="yd" else 1):g} {u}; watch session total is {measured/(.9144 if u=="yd" else 1):g} {u}. Correct the missing or miscounted lengths.')
+ return {'text':text,'unit':u,'pool_length':size,'groups':groups,'warnings':warnings,'detected_distance_m':detected,'recorded_distance_m':measured,'source':'watch-detected draft; unapproved'}

@@ -22,8 +22,11 @@ Planning takes a few seconds, so it runs in a worker thread; the bike link
 never waits for it.
 """
 import asyncio
+import os
 import itertools
 import json
+import threading
+import weakref
 from pathlib import Path
 
 import routes
@@ -832,6 +835,7 @@ async def posts_api(bridge, method, path, p, body):
 
 
 _load_cache = {"key": None, "data": None}
+_load_cache_lock = threading.RLock()
 
 
 def load_state(base):
@@ -840,9 +844,21 @@ def load_state(base):
     base = Path(base)
     files = list((base / "activities").glob("*")) + list((base / "rides").glob("ride_*.csv")) + [base / "profile.json", base / "coach.json"]
     key = tuple(sorted((str(f), f.stat().st_mtime_ns, f.stat().st_size) for f in files if f.exists())) + (str(__import__("datetime").date.today()),)
-    if _load_cache["key"] != key:
-        _load_cache["data"], _load_cache["key"] = loads.summary(base), key
-    return _load_cache["data"]
+    with _load_cache_lock:
+        if _load_cache["key"] != key:
+            _load_cache["data"], _load_cache["key"] = loads.summary(base), key
+        return _load_cache["data"]
+
+
+def freeze_report(base, d, record, date, kind, session=None):
+    """Attach the frozen 3-day/28-day work context to a report just saved. Never blocks the report itself."""
+    try:
+        import lifting, report_snapshots
+        report_snapshots.freeze(record, load_state(base), lifting.state(d)["logs"], d.get("training_feedback"),
+                                date, kind, session)
+    except Exception as e:                               # a snapshot problem must not lose the athlete's report
+        record.pop("snapshot", None)
+        print(f"report snapshot skipped: {e}")
 
 
 def weekly_due(d, date, base):
@@ -951,6 +967,32 @@ def done_by_day(base, d=None):
                 matching = [matching[peers.index(x)]] if peers.index(x) < len(matching) else []
             x["load"] = {k: round(sum(a.get(k) or 0 for a in matching), 1) for k in ("engine", "impact", "muscle")}
             x["km"] = round(sum(a.get("km") or 0 for a in matching), 2)
+            x['activity_ids']=[a['id'] for a in matching]
+            if len(matching)==1:
+                x['date']=day
+                x['activity_id']=matching[0]['id']
+                for field in ('calories_kcal','calories_basis','avg_hr','steps','drift_pct'):
+                    if matching[0].get(field) is not None:x[field]=matching[0][field]
+                x['distance_m']=matching[0].get('km',0)*1000
+                annotation=(d or {}).get('activity_workouts',{}).get(x['activity_id'])
+                if annotation:x['workout_details']=annotation
+        # A single recorded bike session can carry the workout's intended duration,
+        # even when it was created in the ride builder rather than the calendar.
+        bikes = [x for x in out[day] if x["sport"] == "bike"]
+        if len(bikes) == 1:
+            import adherence
+            candidates = []
+            for recording in (Path(base) / "rides").glob("ride_" + day + "_*.csv"):
+                try:
+                    score = adherence.for_ride(recording)
+                    if score:
+                        candidates.append(score)
+                except (OSError, ValueError, KeyError, TypeError):
+                    continue
+            if len(candidates) == 1:
+                score = candidates[0]
+                bikes[0]["planned_minutes"] = score["minutes"]
+                bikes[0]["workout_name"] = score["workout"]
     return out
 
 
@@ -960,10 +1002,12 @@ def calibration_view(d, rides, running_cleared_in=None):
     try:
         st = load_state(rides.parent)
         est = st.get("calibration_estimates") or {}
+        active=(st.get('running_response') or {}).get('active')
+        if active:est={k:v for k,v in est.items() if k!='block'}
         # benchmark runs on the plan: taken well (the two mornings after) -> the block may grow
         acts = {a["date"]: a for a in st.get("activities", []) if a["sport"] == "run"}
         rem = ((st.get("systems") or {}).get("impact", {}).get("tissue") or {}).get("remodeling") or {}
-        for day, plan_ in d.get("plans", {}).items():
+        for day, plan_ in ({} if active else d.get("plans", {})).items():
             if plan_.get("test") == "benchmark_run" and day in acts and rem.get("reference_points"):
                 # Grade on a copy: a benchmark proposes capacity; it never grants it on a read.
                 proposed = __import__('copy').deepcopy(d)
@@ -974,14 +1018,14 @@ def calibration_view(d, rides, running_cleared_in=None):
                     d.setdefault('benchmarks', {}).setdefault('runs', {})[day] = result
                     coach.save(d)
         # running calibrations on the plan: the athlete's own test sets the block once its eight-day watch is over
-        for day, run_day in calibration.match_runs(d, acts).items():
+        for day, run_day in ({} if active else calibration.match_runs(d, acts)).items():
             if run_day:
                 end = (__import__("datetime").date.fromisoformat(run_day) + __import__("datetime").timedelta(days=calibration.CAL_WATCH_DAYS)).isoformat()
                 others = sorted(k for k in acts if run_day < k <= end)
                 if calibration.run_calibration(d, day, acts[run_day], d.get("checkins", {}), coach.today(), others, run_day):
                     coach.save(d)
                     _load_cache["key"] = None
-        bench = calibration.benchmark_expectation(d, coach.today(), rem["reference_points"]) if rem.get("reference_points") else None
+        bench = calibration.benchmark_expectation(d, coach.today(), rem["reference_points"]) if not active and rem.get("reference_points") else None
         return {"capacities": est, "due": calibration.due(est, running_cleared=(running_cleared_in == 0)), "benchmark": bench,
                 "calibration_runs": calibration.calibration_runs(d, acts),
                 "benchmarks": dict(sorted(((d.get("benchmarks") or {}).get("runs") or {}).items())[-5:]),
@@ -1055,7 +1099,47 @@ def capture_program_forecast(bridge, rides, d=None):
     return {"saved_dates":saved,"training_block":f}
 
 
+_coach_locks = weakref.WeakKeyDictionary()
+_background_reports = {"/api/coach/today", "/api/coach/lifting", "/api/coach/weekly"}
+
+
 async def coach_api(bridge, method, path, p, body):
+    """Serialize coaching reads/writes; reports must not stall bike telemetry.
+
+    Today's report can persist forecasts/skill evidence. Keep its transaction
+    ahead of subsequent check-ins, even when its HTTP client disconnects.
+    Bridge control callbacks are replayed on the bike's event loop.
+    """
+    loop = asyncio.get_running_loop()
+    lock = _coach_locks.setdefault(loop, asyncio.Lock())
+    async with lock:
+        if method != b"GET" or p not in _background_reports:
+            return await _coach_api(bridge, method, path, p, body)
+        import copy
+        view = copy.copy(bridge)
+        view.profile = copy.deepcopy(bridge.profile)
+        view.workouts = copy.deepcopy(bridge.workouts)
+        events, refresh = [], []
+        if hasattr(bridge, "event"):
+            view.event = events.append
+        if hasattr(bridge, "refresh_focus"):
+            view.refresh_focus = lambda force=False: refresh.append(force)
+        def report():
+            return asyncio.run(_coach_api(view, method, path, p, body))
+        task = asyncio.create_task(asyncio.to_thread(report))
+        try:
+            return await asyncio.shield(task)
+        except asyncio.CancelledError:
+            await task
+            raise
+        finally:
+            for event in events:
+                bridge.event(event)
+            if refresh:
+                bridge.refresh_focus(force=any(refresh))
+
+
+async def _coach_api(bridge, method, path, p, body):
     """The Coach page and the hub command: check-ins, the diagnostic, today's plan, time-split workouts."""
     import coach
     import workouts
@@ -1074,6 +1158,68 @@ async def coach_api(bridge, method, path, p, body):
         date = req.get("date") or date
         if not __import__("re").fullmatch(r"\d{4}-\d{2}-\d{2}", date):
             return js({"error": "date is YYYY-MM-DD"}, 400)
+        if p == '/api/coach/activity-report' and method==b'GET':
+            import activity_reports, loads
+            ident=(q.get('activity_id') or [''])[0]
+            def read_report():
+                activity=activity_reports.read_activity(rides.parent,ident)
+                scored=next((a for a in load_state(rides.parent).get('activities',[]) if a['id']==ident),{})
+                return activity_reports.build(activity,scored,d,done_by_day(rides.parent,d))
+            return js(await asyncio.to_thread(read_report))
+        if p == '/api/coach/rechecks' and method == b'GET':
+            import report_protocol
+            rr = sorted((d.get('report_rechecks') or {}).values(), key=lambda r: r['created'], reverse=True)
+            return js({'open': report_protocol.open_rechecks(d), 'recent': rr[:10], 'holds': {k: v for k, v in report_protocol.holds(d, coach.today()).items() if k != 'open'},
+                       'red_flags': report_protocol.RED_FLAGS})
+        if p == '/api/coach/recheck' and method == b'POST':
+            import report_protocol
+            r = report_protocol.answer(d, req.get('id'), req)
+            coach.save(d); _load_cache['key'] = None
+            return js(r)
+        if p == '/api/coach/load-outlook' and method == b'GET':
+            import planning_load, rider
+            horizon = max(7, min(42, int((q.get('days') or ['21'])[0])))
+            prof = rider.load(rides.parent / 'profile.json')
+            return js(await asyncio.to_thread(lambda: planning_load.outlook(d, load_state(rides.parent), prof, coach.today(), horizon, done_by_day(rides.parent, d))))
+        if p == '/api/coach/profile/estimates' and method == b'POST':
+            import rider
+            prof = rider.load(rides.parent / 'profile.json')
+            for k, lo, hi in (('vo2max', 15, 95), ('hr_rest', 30, 120), ('hr_max', 120, 230)):
+                if req.get(k) is not None:
+                    v = float(req[k])
+                    if not lo <= v <= hi: raise ValueError(f'{k} must be {lo}-{hi}')
+                    prof[k] = round(v, 1) if k == 'vo2max' else int(v)
+            prof['estimates_source'] = str(req.get('source') or 'wearable estimate')[:80]
+            rider.save(prof); _load_cache['key'] = None
+            return js({k: prof.get(k) for k in ('vo2max', 'hr_rest', 'hr_max', 'estimates_source')})
+        if p == '/api/coach/profile/weight' and method == b'POST':
+            import rider
+            w = float(req.get('weight'))
+            kg = w * 0.45359237 if req.get('unit', 'lb') == 'lb' else w
+            prof = rider.set_weight(rider.load(rides.parent / 'profile.json'), kg, req.get('from') or coach.today())
+            _load_cache['key'] = None
+            return js({'weight_kg': prof['weight_kg'], 'weight_history': prof['weight_history']})
+        if p == '/api/coach/report-snapshots/preview' and method == b'GET':
+            import report_snapshots, lifting
+            return js(await asyncio.to_thread(lambda: report_snapshots.preview(d, load_state(rides.parent), lifting.state(d)['logs'])))
+        if p == '/api/coach/report-snapshots/apply' and method == b'POST':
+            import report_snapshots, lifting, datetime as _dt
+            result = report_snapshots.apply(d, load_state(rides.parent), lifting.state(d)['logs'], req.get('token'))
+            receipt = result.pop('receipt')
+            if result['applied']:
+                folder = rides.parent / 'backups'; folder.mkdir(exist_ok=True)
+                path = folder / f"report-snapshots-{_dt.datetime.now().strftime('%Y%m%d-%H%M%S')}.json"
+                path.write_text(json.dumps(receipt, indent=1, default=str))
+                coach.save(d)
+                result['receipt'] = str(path.relative_to(rides.parent))
+            return js(result)
+        if p == '/api/coach/work-rate' and method == b'GET':
+            import work_rate, lifting
+            def read_work_rate():
+                lifts = lifting.state(d)
+                return work_rate.build(load_state(rides.parent), lifts['logs'], d.get('checkins'),
+                                       d.get('weekly'), d.get('training_feedback'), lifts.get('followups'), date)
+            return js(await asyncio.to_thread(read_work_rate))
         if p == "/api/coach/workout-goals":
             import workout_library
             if method==b"POST":
@@ -1147,6 +1293,33 @@ async def coach_api(bridge, method, path, p, body):
             if q.get('visual')==['1']:
                 page=int((q.get('page') or ['1'])[0]);doc={**doc,'image':base64.b64encode(workout_imports.get_page(rides.parent,ident,page)).decode(),'image_page':page}
             return js(doc)
+        if p == '/api/coach/swim/recording' and method==b'POST':
+            import loads,swim_workouts
+            activity=next((a for a in loads.gather(rides.parent/'activities',rides) if a['id']==req.get('activity_id') and a['sport']=='swim'),None)
+            if activity is None:return js({'error':'Choose an imported swim activity'},400)
+            return js({'activity_id':activity['id'],**swim_workouts.recording_draft(activity)})
+        if p == '/api/coach/recorded-swim' and method==b'POST':
+            import re,swim_workouts
+            activity=next((a for a in load_state(rides.parent).get('activities',[]) if a['id']==req.get('activity_id') and a['sport']=='swim'),None)
+            if activity is None:return js({'error':'Choose one imported swim activity'},400)
+            fields=swim_workouts.split_sections(req['text']) if 'text' in req else req.get('fields') or {}
+            recipe=swim_workouts.parse(fields,req.get('repeats',1),req.get('unit','yd'),req.get('pool_length'))
+            measured=(activity.get('km') or 0)*1000
+            written=sum(x['distance_m'] for x in recipe.get('sets',[]))
+            differs=bool(measured and abs(written-measured)>max(30,measured*.03))
+            annotation={'fields':fields,'recipe':recipe,'text':str(req.get('text') or ''),'summary':str(req.get('summary') or '')[:600],
+                        'source':'athlete-reported workout details','recorded_distance_m':measured,
+                        'written_distance_m':round(written,2),'distance_difference':differs,
+                        'load_basis':'Watch-recorded load unchanged; these details add no second workout or load.'}
+            if re.search(r'identify the drill|stroke not recorded|verify strokes',str(fields),re.I):
+                recipe['issues'].append('Identify or explicitly label unknown drill/stroke sections before approving')
+                recipe['valid']=False
+            if not req.get('save'):return js(annotation)
+            if not recipe['valid']:return js({'error':'Clarify the swim sets before saving','preview':annotation},400)
+            if differs and not req.get('distance_difference_reviewed'):return js({'error':'Written distance differs from the watch; confirm a partial or corrected transcription','preview':annotation},400)
+            d.setdefault('activity_workouts',{})[activity['id']]=annotation
+            coach.save(d)
+            return js({'saved':True,'activity_id':activity['id'],'details':annotation})
         if p == "/api/coach/swim/preview" and method==b"POST":
             import swim_workouts
             fields=swim_workouts.split_sections(req['text']) if 'text' in req else req.get('fields') or {}
@@ -1167,18 +1340,20 @@ async def coach_api(bridge, method, path, p, body):
             return js(capture_program_forecast(bridge,rides,d))
         if p == "/api/coach/run-progression":
             import recovery
-            rem=((load_state(rides.parent).get("systems") or {}).get("impact") or {}).get("tissue") or {}
-            rem=rem.get("remodeling") or {}
+            st=load_state(rides.parent)
+            rem=__import__('running_response').progression_input(st)
             if method == b"POST":
                 if req.get("action")=="begin_decline":
+                    if rem.get("response_model"):raise ValueError("Block plateau review is retired; use the running response review")
                     recovery.approve_decline(d,rem,coach.today(),req.get("note", ""))
                 elif req.get("action")=="run_test":
                     recovery.record_run_test(d,req.get("step"),req,rem,coach.today())
                 else:
                     recovery.record_check(d,req,coach.today())
                 coach.save(d);_load_cache["key"]=None
-                rem=((((load_state(rides.parent).get("systems") or {}).get("impact") or {}).get("tissue") or {}).get("remodeling") or {})
-            return js(recovery.status(d,rem,coach.today()))
+                st=load_state(rides.parent)
+                rem=__import__('running_response').progression_input(st)
+            return js(recovery.status(d,__import__("running_response").progression_input(st),coach.today()))
         if p == "/api/coach/today":
             evaluate_skills(bridge, d, rides)
             lr = coach.last_ride(rides, d=d)
@@ -1186,7 +1361,7 @@ async def coach_api(bridge, method, path, p, body):
                 lr["rpe"] = (d["ratings"].get(lr["id"]) or {}).get("rpe")
             try:
                 rem = (load_state(rides.parent)["systems"]["impact"]["tissue"] or {}).get("remodeling") or {}
-                cleared = rem.get("cleared_to_run_in_days")
+                cleared = None if (load_state(rides.parent).get("running_response") or {}).get("active") else rem.get("cleared_to_run_in_days")
             except Exception:
                 cleared = None
             cal = calibration_view(d, rides, cleared)
@@ -1280,6 +1455,52 @@ async def coach_api(bridge, method, path, p, body):
             recovery.observe_checkin(d,date,c)
             coach.save(d); _load_cache["key"] = None
             return js({"flag": f, **with_systems(coach.day(d, date), rides.parent)})
+        if p == '/api/coach/running-response':
+            import running_response
+            if method not in (b'GET',b'POST'):return js({'error':'Use GET or reviewed POST'},405)
+            if date!=coach.today():raise ValueError('Running response reviews current evidence only')
+            action=req.get('action') if method==b'POST' else 'review'
+            if action not in ('review','preview','apply','feedback'):raise ValueError('Response action is review, preview, apply or feedback')
+            allowed={'action','context_token','direction','note'} if action=='feedback' else {'action'} if action!='apply' else {'action','draft_id','approved'}
+            if set(req)-allowed:raise ValueError('Model parameters are fitted from evidence, not a supplied desired score')
+            def run_response_review():
+                state=load_state(rides.parent)
+                if action=='feedback':
+                    result=running_response.record_feedback(d,state,coach.today(),req)
+                    coach.save(d);_load_cache['key']=None
+                    return {'saved':True,'feedback':result,'notice':'Saved as calibration evidence. No score, curve, clearance or workout changed.'}
+                if action=='apply':
+                    result=running_response.apply(d,state,rides.parent,coach.today(),req.get('draft_id'),req.get('approved'))
+                    _load_cache['key']=None
+                    return {'application':result,'response':load_state(rides.parent).get('running_response')}
+                fn=running_response.preview if action=='preview' else running_response.review
+                return fn(d,state,rides.parent,coach.today())
+            try:return js(await asyncio.to_thread(run_response_review))
+            except __import__('program_drafts').Conflict as e:return js({'error':str(e)},409)
+        if p == '/api/coach/recovery-curve':
+            import recovery_calibration
+            if method not in (b'GET', b'POST'):return js({'error':'Use GET or reviewed POST'},405)
+            if date != coach.today():raise ValueError('Recovery fitting reviews current evidence only')
+            action=req.get('action') if method==b'POST' else 'review'
+            if action not in ('review','preview','apply'):raise ValueError('Recovery action is review, preview or apply')
+            allowed={'action'} if action!='apply' else {'action','draft_id','approved'}
+            if set(req)-allowed:raise ValueError('Recovery rate is fitted from evidence, not supplied as a desired number')
+            if action!='review' and os.environ.get('HUB_RECOVERY_LEARNING')!='1':
+                return js({'status':'paused','notice':'Recovery-curve learning is paused for research review; the curve keeps its starting values. Review stays available.'},423)
+            # Keep bounded fitting and file reads off the bike telemetry loop;
+            # the outer coaching lock protects evidence through save/read-back.
+            def run_recovery_review():
+                state=load_state(rides.parent)
+                if (state.get('running_response') or {}).get('active'):
+                    return {'status':'superseded','response':state['running_response'],'notice':'Use get_running_response and preview/apply_running_response_model; old block time-scale fitting is retired.'}
+                if action=='apply':
+                    result=recovery_calibration.apply(d,state,rides.parent,coach.today(),req.get('draft_id'),req.get('approved'))
+                    _load_cache['key']=None
+                    return {'application':result, 'review':recovery_calibration.review(d,load_state(rides.parent),rides.parent,coach.today())}
+                fn=recovery_calibration.preview if action=='preview' else recovery_calibration.review
+                return fn(d,state,rides.parent,coach.today())
+            try:return js(await asyncio.to_thread(run_recovery_review))
+            except __import__('program_drafts').Conflict as e:return js({'error':str(e)},409)
         if p == "/api/coach/capacity-followup":
             if method!=b'POST':return js({'error':'Use POST to record a delayed recovery report'},405)
             import capacity_planning
@@ -1369,6 +1590,10 @@ async def coach_api(bridge, method, path, p, body):
             if method == b"POST":
                 entry=progression.report(d,date,int(req.get("session_index",0)),req,done_by_day(rides.parent,d),coach.today())
                 entry["assessment"]=progression.feedback(d,entry)
+                freeze_report(rides.parent,d,entry,date,"workout",entry.get("activity_id"))
+                import report_protocol
+                rc=report_protocol.on_report(d,"workout",date,entry,date)
+                if rc:entry["recheck"]=rc["id"]
                 coach.save(d)
                 _load_cache["key"] = None
                 progression.daily_adapt(d,coach.today(),done_by_day(rides.parent,d),load_state(rides.parent),bridge.workouts)
@@ -1384,13 +1609,16 @@ async def coach_api(bridge, method, path, p, body):
             if existing:return js({**coach.day(d,date),'saved':True,'journal_entry':existing})
             previous=copy.deepcopy(d['checkins'].get(date))
             c = coach.record(d, date, req)
+            freeze_report(rides.parent,d,c,date,"checkin")
+            import report_protocol
+            report_protocol.on_report(d,"checkin",date,c,date)
             entry=journal_album.append(d,date,c,journal_album.capture(d,date),previous,request_id)
             coach.save(d)  # Persist the report and album entry before any derived calculations.
             _load_cache["key"] = None
             if req.get('defer_refresh'):
                 return js({**coach.day(d,date),'saved':True,'journal_entry':entry,'refresh_pending':True})
             # Other clients retain the complete synchronous update.
-            return await coach_api(bridge,method,'/api/coach/checkin/refresh','/api/coach/checkin/refresh',json.dumps({'date':date,'request_id':entry.get('request_id')}).encode())
+            return await _coach_api(bridge,method,'/api/coach/checkin/refresh','/api/coach/checkin/refresh',json.dumps({'date':date,'request_id':entry.get('request_id')}).encode())
         if p == "/api/coach/checkin/refresh" and method == b"POST":
             import copy
             entries=[e for e in d.get('journal_entries',[]) if e['date']==date]
@@ -1403,7 +1631,7 @@ async def coach_api(bridge, method, path, p, body):
             try:
                 import progression
                 st=load_state(rides.parent)
-                readings={'headline':st.get('headline'),'day':next((x for x in st.get('days',[]) if x['date']==date),None)}
+                readings={'headline':st.get('headline'),'running_response':st.get('running_response'),'day':next((x for x in st.get('days',[]) if x['date']==date),None)}
                 if st.get('systems'):
                     import loads
                     readings['readiness']=loads.readiness(st,c)
@@ -1474,8 +1702,12 @@ async def coach_api(bridge, method, path, p, body):
                 if req.get('test')=='benchmark_run':
                     if date<coach.today():raise ValueError('Schedule a future benchmark, not a past one')
                     projection=TB.projected_loads(d,coach.today(),[date],load_state(rides.parent),done_by_day(rides.parent,d),bridge.workouts).get(date) or {}
-                    reading=next((m for m in projection.get('metrics',[]) if m['key']=='run_mechanical'),{})
-                    if reading.get('after') is None or reading['after']>=1.5:raise ValueError('Benchmark forecast is unknown or exceeds the running planning limit; review its dose and spacing first')
+                    # The symptom / functional / personal-wait gate above still
+                    # protects scheduling. Inspect the active model's own units;
+                    # its advisory estimate has no fitted block limit.
+                    active=(load_state(rides.parent).get('running_response') or {}).get('active')
+                    reading=next((m for m in projection.get('metrics',[]) if m['key']==('run_response' if active else 'run_mechanical')),{})
+                    if reading.get('after') is None or not active and reading['after']>=1.5:raise ValueError('Benchmark forecast is unknown or exceeds the running planning limit; review its dose and spacing first')
             except ValueError as e:
                 return js({"error": str(e)}, 400)
             coach.save(d)
@@ -1677,6 +1909,7 @@ async def coach_api(bridge, method, path, p, body):
                 import training_block
                 sun = req.get("sunday") or (weekly.sunday_for(__import__("datetime").date.fromisoformat(date)) or __import__("datetime").date.fromisoformat(date)).isoformat()
                 out = weekly.record(d, sun, req)
+                freeze_report(rides.parent, d, out, sun, "weekly")
                 coach.save(d)
                 _load_cache["key"] = None
                 gate = training_block.running_gate(d, load_state(rides.parent), d["checkins"].get(sun))
@@ -1708,6 +1941,18 @@ async def coach_api(bridge, method, path, p, body):
                 return js(lifting.summary(d, ctx=ctx))
             if method != b"POST":
                 return js({"error": "not found"}, 404)
+            if sub == "/preview":
+                import strength_workouts
+                return js(strength_workouts.preview(d, req))
+            if sub == "/sled-preview":
+                import strength_workouts
+                return js(strength_workouts.sled_preview(req))
+            if sub == "/hr-windows":
+                import strength_workouts, loads
+                activity=next((a for a in loads.gather(rides.parent/'activities',rides) if a['id']==req.get('activity_id')),None)
+                if activity is None:return js({'error':'Choose an imported activity ID'},400)
+                return js({'activity_id':activity['id'],'sport':activity['sport'],'minutes':activity['minutes'],
+                           **strength_workouts.hr_windows(activity['records'])})
             if sub == "/plan":
                 if (req.get('typed_workout') or req.get('workout_goals')) and done_by_day(rides.parent,d).get(date):raise ValueError('Keep completed workouts; edit their actual reports instead')
                 pl = lifting.set_session(d, date, req.get("lifts"), req.get("name"), req.get("minutes"), req.get("index"),
@@ -1724,12 +1969,29 @@ async def coach_api(bridge, method, path, p, body):
             if sub == "/evaluate":
                 return js(lifting.evaluate(d, req.get("lifts"), ctx=ctx))
             if sub == "/log":
-                entry = lifting.log(d, date, req.get("done"), req.get("rpe", 7), req.get("wellness", 7),
-                                    req.get("session_index"), req.get("compare_last"), req.get("override"), ctx)
+                gyms=[s for s in d.get('plans',{}).get(date,{}).get('sessions',[]) if s.get('sport')=='gym' and s.get('lifts')]
+                index=req.get('session_index',0)
+                if not isinstance(index,int) or not 0<=index<len(gyms):raise ValueError('Choose a saved gym session')
+                prior=next((l for l in reversed(lifting.state(d)['logs']) if l['date']==date and l['session']==gyms[index]['name']),{})
+                inputs=prior.get('inputs') or {}
+                if req.get('text') or req.get('fields'):
+                    import strength_workouts
+                    req=dict(req,done=strength_workouts.actuals(d,req,date))
+                if req.get('done') is not None and inputs.get('done'):
+                    if len(req['done'])!=len(inputs['done']):raise ValueError('One report per saved exercise')
+                    req=dict(req,done=[{**old,**new} for old,new in zip(inputs['done'],req['done'])])
+                source_id = req.get("source_activity_id",prior.get('source_activity_id'))
+                if source_id and not any(a.get("id") == source_id and a.get("sport") == "gym" and a.get("date") == date
+                                         for a in load_state(rides.parent).get("activities", [])):
+                    return js({"error": "Choose a gym activity imported on this date"}, 400)
+                entry = lifting.log(d, date, req.get("done",inputs.get("done")), req.get("rpe",inputs.get("rpe")), req.get("wellness",inputs.get("wellness")),
+                                    req.get("session_index"), req.get("compare_last"), req.get("override"), ctx,
+                                    source_activity_id=source_id)
                 coach.save(d)
                 return js({"log": {k: v for k, v in entry.items() if k != "inputs"}})
             if sub == "/followup":
                 f = lifting.followup(d, req.get("log_date"), req.get("ratings"), req.get("compare"), req.get("note"))
+                freeze_report(rides.parent, d, f, f.get("date") or coach.today(), "lift_followup")
                 coach.save(d)
                 return js({"followup": f, "recovery": lifting.model(d)})
             if sub == "/rules":

@@ -420,7 +420,7 @@
     <polygon points="470.0,258.4 436.4,314.8 470.0,301.6 497.6,305.2" fill="#eafcff" fill-opacity=".85"/>
   </g>
   <text x="512" y="544" text-anchor="middle" font-family="'Avenir Next','Avenir','Futura','Helvetica Neue',Arial,sans-serif" font-weight="800" font-size="189" letter-spacing="3.2" fill="url(#gold)" stroke="#4a300c" stroke-width="4.0" paint-order="stroke" filter="url(#lift)">SBT</text>
-
+  
   <g font-family="'Avenir Next','Avenir','Futura','Helvetica Neue',Arial,sans-serif" text-anchor="middle" filter="url(#lift)">
     <line x1="248" y1="582" x2="776" y2="582" stroke="url(#gold)" stroke-width="4.0" stroke-linecap="round"/>
     <text x="512" y="634" font-size="40.0" font-weight="700" letter-spacing="4.0" fill="url(#gold)">STATIONARY BIKE</text>

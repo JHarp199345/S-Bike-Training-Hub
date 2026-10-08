@@ -368,6 +368,20 @@ def main():
         check("bad dates refused", True)
     wi = loads.walking_inputs([{"sport": "run", "date": "2026-09-23", "steps": 3618}], {"2026-09-23": 13943, "2026-09-24": 8013}, prof)
     check(f"walking = the day's steps minus run steps ({wi['steps']})", wi["steps"] == {"2026-09-23": 10325, "2026-09-24": 8013})
+    # Exact lift-to-watch link counts HR, minutes and mechanical detail once.
+    start = dt.datetime(2026, 10, 6, 1).timestamp()
+    acts = [{"id": "first-gym", "sport": "gym", "start": start, "minutes": 23.2,
+             "records": [{"t": start, "hr": 120}]},
+            {"id": "second-gym", "sport": "gym", "start": start + 3600, "minutes": 10, "records": []}]
+    logged = {"date": "2026-10-06", "source_activity_id": "first-gym", "leg_points": 18.5}
+    before_hr = list(acts[0]["records"])
+    linked = loads.attach_lift_activity(acts, logged)
+    check("matching actual lifts enrich one watch activity, preserving HR and duration",
+          linked and len(acts) == 2 and acts[0]["lift_muscle"] == 18.5 and acts[0]["minutes"] == 23.2
+          and acts[0]["records"] == before_hr and "lift_muscle" not in acts[1])
+    check("wrong-day and wrong-ID links cannot suppress unrelated gym loads",
+          not loads.attach_lift_activity(acts, dict(logged, date="2026-10-05"))
+          and not loads.attach_lift_activity(acts, dict(logged, source_activity_id="absent")))
     print("ALL PASS" if ok else "SOME FAILED")
     return ok
 

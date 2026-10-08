@@ -206,8 +206,16 @@ function workoutCourse(wk){
   profile.push([Math.round(d),+e.toFixed(1),0]);
   return {id:'wk:'+wk.name+':'+wk.total, name:wk.name, length_m:Math.round(d), profile, parts, gates, form_minutes:5, workout:true, signature:JSON.stringify(wk.blocks)};
 }
+let pollBusy=false;
 async function poll(){
-  try{ const r=await fetch('/status'); if(r.status===401){ location.href='/pair'; return; } st=await r.json(); }catch(e){ return; }
+  if(pollBusy)return;
+  pollBusy=true;
+  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),8000);
+  try{await pollStatus(controller.signal);}catch(e){/* Retry on the next tick; keep the current scenery. */}
+  finally{clearTimeout(timeout);pollBusy=false;}
+}
+async function pollStatus(signal){
+  try{ const r=await fetch('/status',{signal}); if(r.status===401){ location.href='/pair'; return; } if(!r.ok)return;st=await r.json(); }catch(e){ return; }
   if(st.test){
     const test=st.test;
     course={id:'ftp-test',name:'FTP ramp test',length_m:1e7,profile:[[0,0,0],[1e7,0,0]],parts:[],gates:[],ftp_test:true};courseId='ftp-test';
@@ -241,7 +249,7 @@ async function poll(){
   $('mapbtn').hidden=!(st.route && course?.map_route); $('endbtn').textContent='End course';   // the map only for a real road
   const rt=st.route;
   if(rt && rt.id!==courseId){
-    const c=await (await fetch('/api/course/'+rt.id)).json().catch(()=>null);
+    const c=await (await fetch('/api/course/'+rt.id,{signal})).json().catch(()=>null);
     if(c && !c.error){ course=c; courseId=c.id; game={onRoad:0,form:0,off:0,gates:{},cleared:0,missed:0,streak:0}; loadGame(); shownD=rt.done_m; }
     else { course=null; courseId=null; }
   }

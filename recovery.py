@@ -62,6 +62,7 @@ def successful(c, today):
 def status(d, remodel=None, today=None):
     today = _date(today or dt.date.today()); key=today.isoformat(); remodel=remodel or {}
     state=d.get('run_progression') or {}
+    response_model=bool(remodel.get('response_model'))
     days=remodel.get('plateau_days'); left=remodel.get('plateau_remaining_days')
     progress=max(0,min(1,1-left/days)) if days and left is not None else None
     checks=sorted([c for c in state.get('checks',[]) if c['date']<=key],key=lambda c:c['date'])
@@ -72,7 +73,7 @@ def status(d, remodel=None, today=None):
           and (today-_date(c['date'])).days<=7]
     repeated=len({c['date'] for c in good})>=2
     kinds={c['kind'] for c in good}
-    last_run=max((e['date'] for e in remodel.get('components',[]) if e.get('raw_blocks',0)>0),default=None)
+    last_run=remodel.get('last_run_date') if response_model else max((e['date'] for e in remodel.get('components',[]) if e.get('raw_blocks',0)>0),default=None)
     if last_run: good=[c for c in good if c['date']>last_run]; kinds={c['kind'] for c in good}; repeated=len({c['date'] for c in good})>=2
     min_days=state.get('minimum_run_days',MIN_RUN_DAYS)
     elapsed=(today-_date(last_run)).days if last_run else None
@@ -82,10 +83,11 @@ def status(d, remodel=None, today=None):
                 or current.get('hops') is not None and current['hops']<=3 or current.get('gut')=='no')
     reasons=[]
     if poor_today:reasons.append("Today's check-in does not support progression")
-    if remodel.get('score') is None: reasons.append('Mechanical running load is unavailable')
-    elif remodel['score']>=remodel.get('threshold_blocks',1.5): reasons.append('Mechanical running load is still at or above its planning limit')
+    if not response_model:
+        if remodel.get('score') is None: reasons.append('Mechanical running load is unavailable')
+        elif remodel['score']>=remodel.get('threshold_blocks',1.5): reasons.append('Mechanical running load is still at or above its planning limit')
     if min_days and (elapsed is None or elapsed<min_days): reasons.append(f'Personal minimum wait: {min_days} days since the latest run')
-    if not repeated or not set(CHECK_KINDS)<=kinds: reasons.append('A good run-walk test at 60% of the plateau, or repeated comfortable strength, balance and loading checks with dated next-day responses, is still needed')
+    if not repeated or not set(CHECK_KINDS)<=kinds: reasons.append('Repeated comfortable strength, balance and loading checks with dated next-day responses are still needed')
     rt=run_test_status(d,remodel,today)
     test_ok=bool(rt.get('last') and rt['last']['verdict']=='good' and (today-_date(rt['last']['finished'])).days<=7)
     review_ok=(remodel.get('phase')=='plateau' and progress is not None and progress>=PROTECTED_FRACTION
@@ -94,8 +96,9 @@ def status(d, remodel=None, today=None):
             'review_eligible':review_ok,'run_eligible':not reasons,'run_reasons':reasons,
             'minimum_run_days':min_days,'days_since_run':elapsed,'successful_checks':len(good),
             'latest_setback':bad or None,'checks':checks[-12:], 'reviews':state.get('reviews',[])[-6:],
-            'stage':'running review' if not reasons else 'awaiting metrics' if remodel.get('score') is None else 'preparatory checks' if remodel.get('phase')!='plateau' or progress is not None and progress>=PROTECTED_FRACTION else 'protected recovery',
-            'note':'Passing a check never automatically ends the plateau, erases blocks, or clears running.'}
+            'stage':'running review' if not reasons else 'functional response checks' if response_model else 'awaiting metrics' if remodel.get('score') is None else 'preparatory checks' if remodel.get('phase')!='plateau' or progress is not None and progress>=PROTECTED_FRACTION else 'protected recovery',
+            'model': 'reported response' if response_model else 'legacy blocks',
+            'note':'Functional response checks remain separate from the advisory running estimate.' if response_model else 'Passing a check never automatically ends the plateau, erases blocks, or clears running.'}
 
 
 # ── the run-walk test at the 60% checkpoint (the athlete's protocol, 2026-10-05) ──────────────────────────────
@@ -140,6 +143,7 @@ def run_test_status(d, remodel=None, today=None):
     cur = next((t for t in reversed(tests) if not t.get('verdict')), None)
     last = next((t for t in reversed(tests) if t.get('verdict')), None)
     progress, due = _checkpoint(remodel, today)
+    if remodel.get('response_model'):progress,due=PROTECTED_FRACTION,key
     out = {'session': RUN_TEST_SESSION, 'progress': progress, 'checkpoint_date': due, 'last': last}
     if cur:
         nxt = next(s for s in RUN_TEST_STEPS if s not in cur['steps'])
@@ -264,8 +268,11 @@ def comparisons(d, load, today=None):
     current={k:(systems.get(system) or {}).get(field) for k,system,field in (
         ('cardio_fatigue','engine','fatigue'),('cardio_conditioning','engine','fitness'),
         ('impact_fatigue','impact','fatigue'),('muscle_fatigue','muscle','fatigue'))}
-    current.update(run_mechanical=(tissue.get('remodeling') or {}).get('score'),
-                   run_recent=(tissue.get('event') or {}).get('score'),
+    response=load.get('running_response') or {}
+    if response.get('active'):
+        estimate=response['estimate'];current['run_response']=(estimate['low']+estimate['high'])/2
+    current.update(run_mechanical=None if response.get('active') else (tissue.get('remodeling') or {}).get('score'),
+                   run_recent=None if response.get('active') else (tissue.get('event') or {}).get('score'),
                    swim_recovery=(load.get('swim_recovery') or {}).get('score'),
                    mechanical=((load.get('headline') or {}).get('mechanical') or {}).get('ratio'))
     regions=(load.get('lifting') or {}).get('regions') or {}

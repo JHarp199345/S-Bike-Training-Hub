@@ -9,6 +9,7 @@ MODELS = {
  'cardio_conditioning': ('engine','loads.py','C_next = C_previous × exp(-1/42) + daily_dose × (1-exp(-1/42))','A weighted load history, not a direct measurement of improved performance.'),
  'impact_fatigue': ('impact','loads.py','acute_next = acute_previous × (1-2/8) + impact_dose × 2/8','Impact dose uses body-weight/speed/step proxies; it does not measure tissue damage.'),
  'muscle_fatigue': ('muscle','loads.py','acute_next = acute_previous × (1-2/8) + muscle_dose × 2/8','Shared leg demand proxy; different sports contribute without making shoulder and leg load identical.'),
+ 'run_response': ('impact','running_response.py','R_next = baseline + (R_previous-baseline) × exp(-1/tau) + fitted_gain × recorded_exposure; dated leg reports anchor R; endpoints preserve unknown same-day ordering','Advisory leg-fatigue estimate fitted from reported response. Feet are separate observations, not inferred bone healing. No fitted tolerance band or clearance threshold.'),
  'run_mechanical': ('impact','damage.py','new_blocks = (run_impact / block_reference) × overlap_multiplier(existing_blocks); plateau → decline → tail','Custom recovery assumptions and reported responses; no validated injury-clearance time.'),
  'run_recent': ('impact','damage.py','sum(raw_run_blocks × age_kernel); age_kernel = (0.6, 1, 0.85, 0.6, 0.3)','Separate short response, not the accumulated recovery curve.'),
  'swim_recovery': ('swim','swimload.py','pull exposure / fitted reference; fast decay + 0.10 history contribution; overlap on new work','Stroke/pace/effort/equipment estimates and a personal fitted reference; not measured shoulder force.'),
@@ -55,11 +56,17 @@ def explain(d,load,done,workouts,today,date,metric):
     if model is None:raise ValueError('Choose a metric from: '+', '.join(MODELS)+' or lift_<region>')
     dates(date,1,today)
     system,source,formula,meaning=model
+    active=(load.get('running_response') or {}).get('active')
+    if active and metric in ('run_mechanical','run_recent'):
+        meaning='Retired legacy reading; retained for historical inspection. Use run_response for the active model.'
+    if active and metric=='mechanical':
+        formula='max(leg/limit, swim_blocks/block_limit, lifting_blocks/block_limit); running response displayed separately'
     forecast=B.projected_loads(d,today,[date],load,done,workouts).get(date) if date>=today else None
     reading=next((r for r in (forecast or {}).get('metrics',[]) if r['key']==metric),None)
     systems=load.get('systems') or {}
     baseline=load.get('swim_recovery') if system=='swim' else load.get('lifting') if system=='lifting' else load.get('headline') if system=='shared' else systems.get(system)
     if metric=='run_mechanical':baseline=((systems.get('impact') or {}).get('tissue') or {}).get('remodeling')
+    if metric=='run_response':baseline=load.get('running_response')
     if metric=='run_recent':baseline=((systems.get('impact') or {}).get('tissue') or {}).get('event')
     activities=[a for a in load.get('activities',[]) if a.get('date','')<=min(date,today) and (system in ('engine','muscle','shared') or system=='impact' and a.get('sport') in ('run','walk') or system=='swim' and a.get('sport')=='swim' or system=='lifting' and a.get('sport')=='gym')]
     activities=sorted(activities,key=lambda a:(a.get('date',''),a.get('id','')))
@@ -75,6 +82,9 @@ def explain(d,load,done,workouts,today,date,metric):
                'swim_half_life_days':swimload.HALF_LIFE_DAYS,'swim_history_half_life_days':swimload.HISTORY_HALF_LIFE_DAYS,
                'swim_history_fraction':swimload.HISTORY_FRACTION,'swim_stroke_factors':swimload.STROKE_FACTOR,
                'fin_kick_prior':swimload.FIN_KICK_FACTOR,'lifting_default_reference':lifting.DEFAULT_REF}
+    if active:
+        constants['retired_legacy_running_constants']={k:constants.pop(k) for k in ('run_event_kernel','run_tail_days')}
+        constants['running_response_parameters']=load['running_response']['parameters']
     return {'metric':metric,'date':date,'as_of':today,'reading':reading,'current_baseline':baseline,
             'definition':meaning,'formula':formula,'constants':constants,'profile_inputs':profile,
             'recorded_contributors':contributors,'omitted_older_activities':max(0,len(activities)-20),'truncated_baseline_lists':trimmed,

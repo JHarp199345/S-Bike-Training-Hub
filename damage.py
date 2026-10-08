@@ -304,7 +304,7 @@ def learn_block(dates, doses, reports, runs, start_reference, since=None, **kw):
 
 
 def remodeling_response(dates, doses, usual_week=None, weight_kg=70.0, feet_reports=None, walking=None, block=None, reviews=None,
-                        runs=None, learn_since=None, start_block=None, reset_before=None):
+                        runs=None, learn_since=None, start_block=None, reset_before=None, recovery_curve=None):
     """Provisional blocks: 5 days/block plateau, 3 days/block decline (to 20%), then a ~4-month remodeling tail.
     walking: {"steps": {date: steps walked outside runs}, "pts_per_step", "severity"} - daily walking adds blocks
     above the day's free steps; it extends the plateau (5 days/block) instead of restarting it.
@@ -319,6 +319,9 @@ def remodeling_response(dates, doses, usual_week=None, weight_kg=70.0, feet_repo
     if not dates:
         return None
     doses = list(doses)
+    import recovery_calibration
+    curve = recovery_calibration.parameters(recovery_curve)
+    plateau_per_block, decline_per_block, tail_days = curve["plateau_days_per_block"], curve["decline_days_per_block"], curve["tail_days"]
     reports = feet_reports or {}
     def high_report(value):
         if isinstance(value, dict):
@@ -352,7 +355,7 @@ def remodeling_response(dates, doses, usual_week=None, weight_kg=70.0, feet_repo
     learned = []
     if runs:                           # and the runs themselves teach how big it is (learn_block)
         reference, learned = learn_block(dates, doses, reports, runs, reference, since=learn_since, usual_week=usual_week,
-                                         weight_kg=weight_kg, reviews=reviews)
+                                         weight_kg=weight_kg, reviews=reviews, recovery_curve=recovery_curve)
 
     def adjust(j,stop,plateau_len):
         """Only reports after the mechanical plateau adjust the decline duration.
@@ -360,6 +363,7 @@ def remodeling_response(dates, doses, usual_week=None, weight_kg=70.0, feet_repo
         Reports during the plateau still inform the immediate training decision,
         but cannot shorten or lengthen the accumulated-load curve.
         """
+        if recovery_curve: return 0.0, 0  # one pooled profile; do not fit each session again
         observations = [reports[dates[k]] for k in range(j+1,min(stop,len(dates)))
                         if dates[k] in reports and k-j > plateau_len]
         high = low = 0
@@ -371,8 +375,8 @@ def remodeling_response(dates, doses, usual_week=None, weight_kg=70.0, feet_repo
     def remaining(level,age,plateau,descent):
         if age<=plateau: return level
         if age<=plateau+descent: return level*(1-.8*(age-plateau)/descent)
-        if age>=plateau+descent+TAIL_DAYS: return 0.0
-        return level*.2*math.exp(-5*(age-plateau-descent)/TAIL_DAYS)
+        if age>=plateau+descent+tail_days: return 0.0
+        return level*.2*math.exp(-5*(age-plateau-descent)/tail_days)
 
     walking = walking or {}
     wsteps = walking.get("steps") or {}
@@ -415,10 +419,10 @@ def remodeling_response(dates, doses, usual_week=None, weight_kg=70.0, feet_repo
             # Days already served count: the plateau still owed from before, plus 5 days per block this run added
             # (run, a day passes, run again as 2 blocks: 4 + 10 = 14 days). Scales with the load, no cap.
             owed=max(0.0,anchor_day+plateau-i) if anchor_level>0 else 0.0
-            adjustment,n=adjust(i,stop,owed+5*added)
+            adjustment,n=adjust(i,stop,owed+plateau_per_block*added)
             used+=n
-            plateau=max(1,owed+5*added)
-            descent=max(1,3*level+adjustment)
+            plateau=max(1,owed+plateau_per_block*added)
+            descent=max(1,decline_per_block*level+adjustment)
             anchor_day,anchor_level=i,level
             events.append({"date":dates[i],"raw_blocks":round(raw,2),
                            "incoming_multiplier":round(multiplier,2),
@@ -452,12 +456,12 @@ def remodeling_response(dates, doses, usual_week=None, weight_kg=70.0, feet_repo
             if added > 0:
                 if level < 0.01:                          # nothing carried: walking starts its own small block
                     anchor_day, anchor_level = i, added
-                    plateau, descent = max(1, 5 * added), max(1, 3 * added)
+                    plateau, descent = max(1, plateau_per_block * added), max(1, decline_per_block * added)
                 else:                                     # on top of what's there: raise it, push the plateau out
                     f = level / anchor_level
                     anchor_level += added / f
                     # 5 days per block walked, but never more plateau left than 5 days per block now carried
-                    anchor_day = min(anchor_day + 5 * added, i + 5 * (level + added) - plateau)
+                    anchor_day = min(anchor_day + plateau_per_block * added, i + plateau_per_block * (level + added) - plateau)
                 level += added
             walk_rows.append({"date": dates[i], **{k: v for k, v in wd.items() if k != "points"},
                               "raw_blocks": round(w * walking["pts_per_step"] / reference, 3),
@@ -468,7 +472,7 @@ def remodeling_response(dates, doses, usual_week=None, weight_kg=70.0, feet_repo
             # A reviewed transition changes time, not the amount of carried load.
             review_log.append({"date":review["date"],"action":"begin_decline","score":round(level,2),"protected_fraction":.60})
             review_origin=(anchor_day,anchor_level,plateau,descent)
-            anchor_day,anchor_level,plateau,descent=i,level,0.0,max(1,3*level)
+            anchor_day,anchor_level,plateau,descent=i,level,0.0,max(1,decline_per_block*level)
         if review and review["action"]=="restore_plateau" and review_origin is not None:
             j,original,p,decline=review_origin
             original_remaining=remaining(original,i-j,p,decline)
@@ -486,7 +490,7 @@ def remodeling_response(dates, doses, usual_week=None, weight_kg=70.0, feet_repo
     hops={"last":reports[last_hop]["hops"] if last_hop else None,"date":last_hop,"needed":HOP_CLEAR,
           "fresh":bool(last_hop) and _days_between(last_hop,dates[-1])<HOP_FRESH_DAYS,
           "history":[{"date":k,"hops":reports[k]["hops"]} for k in hop_days[-14:]]}
-    end = int(anchor_day + plateau + descent + TAIL_DAYS) + 2          # through the end of the tail
+    end = int(anchor_day + plateau + descent + tail_days) + 2          # through the end of the tail
     projection=rows[len(doses):max(len(doses) + 1, end)]
     below=0 if current<1.5 else next((i+1 for i,r in enumerate(projection)
                                      if r["score"]<1.5),None)
@@ -495,7 +499,7 @@ def remodeling_response(dates, doses, usual_week=None, weight_kg=70.0, feet_repo
     return {"score":current,"history":rows[:len(doses)],"projection":projection,
             "plateau_days":round(plateau,1),"descent_days":round(descent,1),
             "reviewed_transitions":review_log,
-            "tail_days":TAIL_DAYS,
+            "tail_days":tail_days, "recovery_curve":curve,
             "plateau_remaining_days":round(max(0,anchor_day+plateau-(len(doses)-1)),1),
             "below_threshold_in_days":below,"threshold_blocks":1.5,
             "phase":rows[len(doses)-1]["phase"],"tail_run_limit":round(1.5*TAIL_RUN_FACTOR,2),
@@ -566,14 +570,14 @@ def run(doses, base, p, adapt_gain=ADAPT_GAIN):
 
 
 def model(dates, doses, usual_week=None, weight_kg=70.0, feet_reports=None, run_doses=None, walking=None, block=None, reviews=None,
-          runs=None, learn_since=None, start_block=None, reset_before=None):
+          runs=None, learn_since=None, start_block=None, reset_before=None, recovery_curve=None):
     """dates: consecutive ISO days; doses: impact points per day. Returns each tissue's backlog today,
     its history, and a no-more-running projection."""
     if not dates:
         return None
     doses = list(doses)
     remodeling = remodeling_response(dates, run_doses if run_doses is not None else doses, usual_week, weight_kg,
-                                     feet_reports, walking, block, reviews, runs, learn_since, start_block, reset_before)
+                                     feet_reports, walking, block, reviews, runs, learn_since, start_block, reset_before, recovery_curve)
     event = event_response(dates, doses, usual_week, weight_kg, remodeling)
     base = base_capacity(usual_week, weight_kg)
     n = len(dates)

@@ -33,7 +33,7 @@ def revision(d, base, profile, workouts, today):
         for p in candidates:
             if p.is_file() and p.suffix.lower() in ('.json','.fit','.tcx','.csv'):
                 stat=p.stat();files.append((str(p.relative_to(base)),stat.st_size,stat.st_mtime_ns))
-    code={n:hashlib.sha256((Path(__file__).parent/n).read_bytes()).hexdigest() for n in ('program_builder.py','starter_programs.py','training_block.py','loads.py','damage.py','swimload.py','lifting.py','phaseblend.py','progression.py','coaching_review.py','calibration.py')}
+    code={n:hashlib.sha256((Path(__file__).parent/n).read_bytes()).hexdigest() for n in ('program_builder.py','starter_programs.py','training_block.py','loads.py','damage.py','swimload.py','lifting.py','phaseblend.py','progression.py','coaching_review.py','calibration.py','recovery_calibration.py','running_response.py','response_model.py')}
     return digest({'model_code':code,'today':today,'coach':{k:v for k,v in d.items() if k not in DERIVED},
                    'profile':profile,'workouts':workouts,'files':sorted(files)})
 

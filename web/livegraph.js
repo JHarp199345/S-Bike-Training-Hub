@@ -26,11 +26,17 @@ export class LiveGraph {
     canvas.addEventListener('mouseleave', off); canvas.addEventListener('touchend', () => setTimeout(off, 1500));
     addEventListener('resize', () => this.draw());
   }
-  start(every = 1000) { this.poll(); this.timer = setInterval(() => this.poll(), every); return this; }
-  stop() { clearInterval(this.timer); }
+  start(every = 1000) { this.stop(); this.poll(); this.timer = setInterval(() => this.poll(), every); return this; }
+  stop() { clearInterval(this.timer); this.controller?.abort(); }
   async poll() {
+    if(this.controller)return;
+    const controller=new AbortController();this.controller=controller;
+    const timeout=setTimeout(()=>controller.abort(),8000);
     try {
-      const j = await (await fetch('/history?since=' + this.last)).json();
+      const response=await fetch('/history?since=' + this.last,{signal:controller.signal});
+      if(!response.ok)return;
+      const j = await response.json();
+      if(controller.signal.aborted)return;
       this.ftp = j.ftp || this.ftp; this.band = j.band || this.band; this.watts = j.watts || null;
       this.skew = j.now - Date.now() / 1000;                       // Mac clock vs this device's
       for (const p of j.points) if (!this.pts.length || p[0] > this.pts[this.pts.length - 1][0]) this.pts.push(p);
@@ -38,6 +44,7 @@ export class LiveGraph {
       const cut = j.now - this.window; while (this.pts.length && this.pts[0][0] < cut) this.pts.shift();
       this.now = j.now; this.draw();
     } catch (e) { /* the page shows its own connection state */ }
+    finally { clearTimeout(timeout);if(this.controller===controller)this.controller=null; }
   }
   summary() { // averages over the window: watts, cadence while pedalling
     const w = this.pts.map(p => p[1]), rpm = this.pts.map(p => p[2]).filter(x => x > 0);

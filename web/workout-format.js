@@ -15,7 +15,9 @@
  }
  function totals(lifts){
   let kg=0,seconds=0,unknownWeight=0,unknownTime=0,assumed=0;
-  for(const x of lifts.filter(x=>x.name&&x.done!==false)){
+  for(const original of lifts.filter(x=>x.name&&x.done!==false)){
+  for(const detail of original.set_details||[original]){
+   if(detail.done===false)continue;const x={...original,...detail,sets:original.set_details?1:original.sets};
    const sets=num(x.sets),reps=num(x.reps),secs=num(x.seconds),w=num(x.weight),sides=x.per_side?2:1;
    if(sets===null||sets<=0){unknownTime++;unknownWeight++;continue;}
    const count=sets*sides;
@@ -27,13 +29,24 @@
    }else if(secs!==null&&secs>0){seconds+=count*secs;}
    else{unknownTime++;unknownWeight++;}
   }
+  }
   return {kg,seconds,unknownWeight,unknownTime,assumed};
  }
  function metrics(lifts,actual=false){
   const t=totals(lifts),unit=lifts.find(x=>x.unit)?.unit==='kg'?'kg':'lb',weight=t.kg/(unit==='kg'?1:.45359237);
   return `<div class="wf-metrics"><div><span>External weight moved${t.unknownWeight?' · partial':''}</span><strong>${weight.toLocaleString(undefined,{maximumFractionDigits:0})} ${unit}</strong></div><div><span>Active time${t.assumed||t.unknownTime?' · estimated':''}</span><strong>${Math.floor(t.seconds/60)}m ${Math.round(t.seconds%60)}s</strong></div></div><p class="wf-footnote">Sets × reps × entered external weight; static holds and body weight are excluded from weight moved. Active time includes holds, excludes rest${t.assumed?'; unspecified tempo uses the Hub’s 4 seconds per rep estimate':''}.${t.unknownWeight?' Some working weights are missing; the weight total is incomplete.':''}${t.unknownTime?' Some exercise durations are missing.':''}${actual?' Based on logged details.':''}</p>`;
  }
- function exercise(x){return `<li><div><b>${E(x.name)}</b><span>${E(x.sets??'—')} × ${x.seconds?E(x.seconds)+' s':E(x.rep_range||x.reps||'—')}${x.per_side?' per side':''}${x.weight!=null?' · '+E(x.weight)+' '+E(x.unit||'lb'):''}${x.tempo?' · tempo '+E(x.tempo):''}${x.hold?' · '+E(x.hold)+' s hold per rep':''}${x.rest_seconds?' · rest '+E(x.rest_seconds)+' s':''}</span>${x.how?`<small>${E(x.how)}</small>`:''}</div></li>`;}
+ function setTable(x){
+  const rows=x.set_details||Array.from({length:x.sets||1},()=>({...x,sets:1}));
+  const hasReps=rows.some(a=>a.reps??x.reps);
+  return `<div style="overflow-x:auto"><table class="wf-set-table"><thead><tr><th>Set</th><th>${hasReps?'Reps':'Time'}</th><th>Weight</th><th>Weight moved</th><th>Time under tension</th><th>Effort</th></tr></thead><tbody>${rows.map((a,i)=>{const r={...x,...a,sets:1},t=totals([r]),v=r.reps&&r.weight!=null?r.reps*r.weight*(r.per_side?2:1):null;return `<tr><td>${i+1}${r.done===false?' · skipped':''}</td><td>${E(r.reps??(r.seconds!=null?r.seconds+' s':'—'))}</td><td>${r.weight!=null?E(r.weight)+' '+E(r.unit||'lb'):'—'}</td><td>${v!=null?E(v)+' '+E(r.unit||'lb'):'—'}</td><td>${Math.round(t.seconds)} s${t.assumed?' · estimate':''}</td><td>${r.rpe!=null?E(r.rpe)+'/10':'—'}</td></tr>`;}).join('')}</tbody></table></div>`;
+ }
+ function sledInfo(x){
+  const s=x.sled;if(!s)return '';const r=s.resistance_estimate;
+  return `<div class="wf-sled-dose"><p><b>${E(s.model||'Sled')}</b> · magnets ${E(s.front_level??'—')}/${E(s.rear_level??'—')}${s.distance_m?' · '+(s.distance_m/.9144).toLocaleString(undefined,{maximumFractionDigits:0})+' yd total':''}</p>${s.seconds_low&&s.seconds_high?`<p>${E(s.seconds_low)}–${E(s.seconds_high)} seconds per trip · ${E(s.duration_basis||'duration estimated')}</p>`:''}${x.comfort?`<p>Reported response: ${E(x.comfort.replaceAll('_',' '))}.</p>`:''}${r?`<p>Estimated pace ${E(r.speed_mph_low)}–${E(r.speed_mph_high)} mph. Friction-sled weight equivalent: ${r.equivalent_weight_lb_low!=null&&r.equivalent_weight_lb_high!=null?E(r.equivalent_weight_lb_low)+'–'+E(r.equivalent_weight_lb_high)+' lb':r.equivalent_weight_lb_high!=null?'up to approximately '+E(r.equivalent_weight_lb_high)+' lb at the faster end; slower end outside the chart':'outside the published chart range'}.</p><p class="wf-footnote">${E(r.basis)} <a href="https://www.torquefitness.com/pages/tank-faq" target="_blank" rel="noopener">Torque chart</a></p>`:''}${x.load_range?`<p>Estimated strength load ${E(x.load_range.points_low)}–${E(x.load_range.points_high)} points; ${E(x.points)} points logged. ${E(x.load_range.basis)}.</p>`:''}</div>`;
+ }
+ function exercise(x){return `<li><div><b>${E(x.name)}</b><span>${E(x.sets??'—')} sets${x.reps?' × '+E(x.reps)+' reps':''}${x.per_side?' per side':''}${x.weight!=null?' · '+E(x.weight)+' '+E(x.unit||'lb'):''}${x.tempo?' · tempo '+E(x.tempo):''}${x.hold?' · '+E(x.hold)+' s hold per rep':''}</span>${x.how?`<small>${E(x.how)}</small>`:''}${setTable(x)}${sledInfo(x)}</div></li>`;}
+
  function render(session,options={}){
   if(session.sport==='run'&&session.run_recipe&&root.RunWorkout)return root.RunWorkout.render(session.run_recipe);
   if(session.sport==='swim'&&session.swim_recipe&&root.SwimWorkout)return root.SwimWorkout.render(session.swim_recipe);
@@ -58,6 +71,6 @@
   });
   const label=box.querySelector('[data-wf-total]');label.textContent=value?`${value.points_total} strength points${value.unscored?.length?' · incomplete estimate':' · estimate'}. Section points may differ slightly from the total due to rounding; they are not extra load. Unrecorded preparation or recovery work is excluded.`:'Load could not be retrieved. Weight and active-time totals remain available.';
  }
- root.WorkoutFormat={render,totals,section,stepSection,organize};
+ root.WorkoutFormat={render,totals,section,stepSection,organize,setTable,sledInfo};
  if(typeof module!=='undefined')module.exports=root.WorkoutFormat;
 })(typeof window!=='undefined'?window:globalThis);

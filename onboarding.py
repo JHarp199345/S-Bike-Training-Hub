@@ -85,6 +85,13 @@ def apply(base, form):
     elif age:
         p["hr_max"] = round(208 - 0.7 * age)
         done.append(f"maximum heart rate {p['hr_max']} (estimated from age)")
+    if form.get("vo2max"):                                          # the wearable's estimate: starting capacities only
+        v = float(form["vo2max"])
+        if not 15 <= v <= 95:
+            raise ValueError("VO2max 15-95")
+        p["vo2max"] = round(v, 1)
+        p["estimates_source"] = "wearable estimate (welcome setup)"
+        done.append(f"VO2max {p['vo2max']} (from your watch, for starting capacities)")
     p["return_to_run"] = bool(form.get("return_to_run"))          # coming back from a running injury: the careful protocol
     rs = running_start(form)
     if rs:
@@ -169,5 +176,5 @@ def running_start(form):
 def current(base):
     import rider
     p = rider.load(Path(base) / "profile.json")
-    return {k: p.get(k) for k in ("weight_kg", "age", "hr_rest", "hr_max", "sports", "experience", "start_state",
+    return {k: p.get(k) for k in ("weight_kg", "age", "hr_rest", "hr_max", "vo2max", "sports", "experience", "start_state",
                                   "smart_bike", "onboarded", "ftp", "return_to_run", "running_start")}

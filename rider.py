@@ -32,6 +32,29 @@ def set_ftp(p, watts, source):
     return p
 
 
+def set_weight(p, kg, date=None):
+    """Record a new body weight from `date` on. The earlier weight stays in weight_history, so energy for past
+    sessions keeps using what the athlete weighed then."""
+    kg = float(kg)
+    if not 30 <= kg <= 300:
+        raise ValueError("Body weight must be 30-300 kg")
+    date = date or dt.date.today().isoformat()
+    hist = p.setdefault("weight_history", [])
+    if not hist and p.get("weight_kg"):
+        hist.append({"from": "0001-01-01", "kg": float(p["weight_kg"])})     # everything before this change
+    hist[:] = [h for h in hist if h["from"] != date] + [{"from": date, "kg": round(kg, 1)}]
+    hist.sort(key=lambda h: h["from"])
+    p["weight_kg"] = round(kg, 1)
+    save(p)
+    return p
+
+
+def weight_on(weight_kg, history, date):
+    """The body weight in effect on `date` (ISO), from the dated history; else the current weight."""
+    past = [h for h in history or [] if h["from"] <= date]
+    return past[-1]["kg"] if past else weight_kg
+
+
 def workout_watts(workout, ftp):
     """Steps may give "pct" (of FTP) or fixed "watts"; return a copy in watts."""
     steps = []

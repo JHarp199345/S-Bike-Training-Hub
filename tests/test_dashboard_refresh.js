@@ -1,18 +1,18 @@
-// Verify refreshes render new reports without writing athlete data.
+// The shared dashboard must refresh fresh sources and retain readings if a fetch fails.
 const fs=require('fs'),vm=require('vm'),assert=require('assert');
-const html=fs.readFileSync(__dirname+'/../web/dashboard.html','utf8');
-const source=html.slice(html.indexOf('let dashboardLoading=false;'),html.indexOf('</script><script>(()=>'));
-const elements=new Map(),events={},parent={};let requests=[],weekly='2026-10-04',verdict='easy',fail=false;
-const element=id=>{if(!elements.has(id))elements.set(id,{innerHTML:'',textContent:'',hidden:false,before(e){elements.set(e.id,e);},setAttribute(){}});return elements.get(id);};
-const context={console,Date,Math,Object,Promise,parent,location:{origin:'http://localhost'},document:{hidden:false,createElement:()=>({setAttribute(){}})},$:element,esc:String,ring:()=>'',pie(){},lines(){},bars:()=>'',zone:()=>'',SPORTC:{},setInterval(){},addEventListener:(type,handler)=>events[type]=handler,
- fetch:async(url,options)=>{requests.push({url,options});if(fail)throw Error('offline');return {ok:true,json:async()=>url==='/api/load'?{readiness:{verdict,limited_by:['shoulders 6/10']}}:url==='/api/coach/today'?{date:'2026-10-05'}:url==='/api/coach/weekly'?{answered:{[weekly]:{weekeffort:4}}}:{}};}};
+const js=fs.readFileSync(__dirname+'/../web/fitness-workspace.js','utf8');
+const source=js.slice(js.indexOf('async function refresh()'),js.indexOf('window.FitnessWorkspace='));
+const elements=new Map(),events=[];let requests=[],revision=1,fail=false,readCalls=0;
+const element=id=>{if(!elements.has(id))elements.set(id,{innerHTML:'',textContent:''});return elements.get(id);};
+const context={console,Date,Promise,loading:null,document:{getElementById:element},window:{dispatchEvent:e=>events.push(e)},CustomEvent:class{constructor(type,options){this.type=type;this.detail=options.detail;}},
+ WorkRate:{read:async()=>{readCalls++;return {revision};},card:(el,d)=>el.innerHTML='work '+d.revision},
+ lifting:(el,d)=>el.innerHTML='lifting '+d.revision,body:(el,d)=>el.innerHTML='body '+d.revision,calibration:(el,L,T)=>el.innerHTML='test '+T.revision,
+ fetch:async(url,options)=>{requests.push({url,options});if(fail)throw Error('offline');return {ok:true,json:async()=>({revision})};}};
 vm.createContext(context);vm.runInContext(source,context);
-const settle=()=>new Promise(resolve=>setImmediate(resolve));
 (async()=>{
- await settle();assert.match(element('dashboard-updated').textContent,/2026-10-04/);assert.match(element('verdicts').innerHTML,/shoulders 6\/10/);assert(requests.every(r=>r.options.cache==='no-store'));
- const n=requests.length;events.message({origin:'https://unrelated',source:parent,data:{type:'hub-data-updated'}});await settle();assert.equal(requests.length,n);
- weekly='2026-10-11';verdict='go';events.message({origin:context.location.origin,source:parent,data:{type:'hub-data-updated'}});await settle();assert.match(element('dashboard-updated').textContent,/2026-10-11/);assert.match(element('verdicts').innerHTML,/class="lv go"/);
- const previous=element('verdicts').innerHTML;fail=true;events.visibilitychange();await settle();assert.equal(element('verdicts').innerHTML,previous);assert.match(element('loading').textContent,/previous view is retained/);
- fail=false;events.visibilitychange();await settle();assert.equal(element('loading').hidden,true);
- console.log('PASS: dashboard refresh uses fresh data, shows weekly source, rejects unrelated messages, preserves readings on failure and retries');
+ const a=context.refresh(),b=context.refresh();await Promise.all([a,b]);assert.equal(readCalls,1);assert.equal(requests.length,3);assert(requests.every(r=>r.options.cache==='no-store'));assert.equal(element('work-rate-card').innerHTML,'work 1');assert.equal(events[0].type,'fitness-readings');
+ revision=2;await context.refresh();for(const id of ['work-rate-card','lifting-records-content','body-workload'])assert.match(element(id).innerHTML,/2/);assert.equal(element('calibration-extra').innerHTML,'test 2');
+ fail=true;await context.refresh();assert.equal(element('work-rate-card').innerHTML,'work 2');assert.match(element('fitness-status').textContent,/Previous readings are retained/);
+ fail=false;revision=3;await context.refresh();assert.equal(element('body-workload').innerHTML,'body 3');assert.match(element('fitness-status').textContent,/Updated/);
+ console.log('PASS: shared dashboard refresh coalesces reads, uses fresh APIs, updates all homes, retains readings on failure and retries');
 })().catch(e=>{console.error(e);process.exitCode=1;});

@@ -87,4 +87,4 @@ def from_state(state):
     sports=state.get("sports_last7") or {}
     leg=lambda sport:(sports.get(sport) or {}).get("muscle",0)/usual if muscle.get("last7",0)>0 else 0
     lifts={k:v["blocks"] for k,v in ((state.get("lifting") or {}).get("regions") or {}).items()}
-    return build(mechanical.get("score"),(state.get("swim_recovery") or {}).get("score"),leg("bike"),leg("run"),lifts,swim_leg_ratio=leg("swim"))
+    return build(None if (state.get("running_response") or {}).get("active") else mechanical.get("score"),(state.get("swim_recovery") or {}).get("score"),leg("bike"),leg("run"),lifts,swim_leg_ratio=leg("swim"))

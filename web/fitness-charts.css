@@ -1,0 +1,32 @@
+/* Scoped detail views shared by the Coach and standalone dashboard. */
+.fitness-chart-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:16px;margin:12px 0}
+.fitness-chart-card{min-width:0;background:var(--deep);border:1px solid var(--line);border-radius:14px;padding:16px}
+.fitness-chart-card h3,.fitness-chart-detail h3{font-size:16px;margin:0 0 12px}
+.fitness-chart-detail .chart{width:100%;height:auto;display:block}
+.fitness-chart-detail .pie{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.fitness-chart-detail .pie svg{width:140px;height:140px;flex:none}
+.fitness-chart-detail .legend{font-size:12px;color:var(--text2);display:flex;gap:12px;flex-wrap:wrap;margin-top:8px}
+.fitness-chart-detail .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px}
+.fitness-chart-detail .means{font-size:13px;color:var(--text2);border-top:1px solid var(--line);padding-top:10px;margin:12px 0 0}
+.fitness-chart-detail .bars{display:grid;gap:10px}
+.fitness-chart-detail .brow{display:grid;grid-template-columns:minmax(85px,1fr) minmax(50px,1.5fr) minmax(64px,.8fr);gap:10px;align-items:center;font-size:12px}
+.fitness-chart-detail .btrack{position:relative;height:12px;background:var(--control);border-radius:6px;overflow:hidden}
+.fitness-chart-detail .btrack i{position:absolute;left:0;top:0;bottom:0;border-radius:6px}
+.fitness-chart-detail .btrack em{position:absolute;top:0;bottom:0;width:2px;background:#fff8}
+.fitness-chart-detail .brow span:last-child{text-align:right;color:var(--text2);overflow-wrap:anywhere}
+.fitness-chart-history summary{cursor:pointer;padding:10px 0;font-weight:700}
+.fitness-table-scroll{overflow-x:auto}
+.fitness-chart-detail table{width:100%;border-collapse:collapse;font-size:13px}
+.fitness-chart-detail td,.fitness-chart-detail th{padding:8px;text-align:left;border-bottom:1px solid var(--line)}
+.fitness-detail-dialog{box-sizing:border-box;width:min(1000px,calc(100vw - 28px));max-height:90vh;overflow:auto;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:18px;padding:20px}
+.fitness-detail-dialog::backdrop{background:#020912aa;backdrop-filter:blur(4px)}
+.fitness-detail-header{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:12px}
+.fitness-detail-header h2{margin:0;font-size:20px;letter-spacing:0;color:var(--text)}
+.fitness-detail-header button{width:44px;height:44px;padding:0;flex:none;border-radius:12px;background:var(--control);color:var(--text);font-size:24px;border:0;cursor:pointer}
+.fitness-overview-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:18px 0}
+.fitness-overview-actions button{text-align:left;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:14px;padding:18px;font:inherit;cursor:pointer}
+.fitness-overview-actions b,.fitness-overview-actions small{display:block}
+.fitness-overview-actions small{color:var(--muted);margin-top:6px}
+:root[data-embedded="true"] [data-standalone-only]{display:none!important}
+#watch-observations{margin-top:24px}#watch-observations>h2{margin-top:0}
+@media(max-width:560px){.fitness-detail-dialog{padding:14px}.fitness-chart-card{padding:12px}.fitness-overview-actions{grid-template-columns:1fr}}

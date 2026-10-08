@@ -22,6 +22,20 @@ def main():
     bests.FILE = tmp / "bests.json"
     rides = tmp / "rides"; rides.mkdir()
 
+    # Cached minute conversion is identical for fractional samples, offset
+    # timestamps, local DST boundaries, and dates before the epoch.
+    stamps = ['2026-10-05T16:34:00.123456','2026-10-05T16:34:01.999999',
+              '2026-03-08T01:59:59','2026-03-08T03:00:00',
+              '2026-11-01T01:59:59-07:00','2026-11-01T01:00:00-08:00',
+              '1969-12-31T23:59:59.5+00:00']
+    stamp_path = tmp / 'timestamps.csv'
+    with stamp_path.open('w',newline='') as f:
+        writer=csv.writer(f);writer.writerow(['time','power_w'])
+        writer.writerows((t,100) for t in stamps)
+    wanted={int(dt.datetime.fromisoformat(t).timestamp()) for t in stamps}
+    got={p[0] for p in bests.ride_seconds(stamp_path) if p is not None}
+    check('Minute conversion preserves local time, DST offsets and fractional timestamps', wanted <= got)
+
     # Ride 1: 25 min at 150 W with a 5-min block at 220 W, a 1-min 300 W, and one 3-s 600 W spike.
     r1 = [(s, 150) for s in range(1500)]
     for s in range(300, 600): r1[s] = (s, 220)

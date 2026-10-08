@@ -6,11 +6,11 @@ A free, local training hub for cycling, swimming, running and strength. It keeps
 
 <p align="center"><img src="docs/journey/today.jpg" width="880" alt="The Coach's Today page: the day's verdict, check-in and workouts"></p>
 
-## App 1.8.1 · current release
+## App 1.9.0 · current release
 
-This release brings the typed cycling builder and private music library together with clearer recorded-workout displays. Completed and partial activity totals remain visible even without a matching plan; recorded time is separate from prescribed time. Unfinished media connections are labeled **in progress** in the app.
+Training energy now comes from the source least dependent on heart rate (bike power; running and walking from distance, gradient and body mass; the watch for swims), and every check-in and workout report keeps the work context it was made in. Check-ins use validated questions (Hooper, pain by site, CR-10 effort, weekly OSTRC). The Plan tab's load outlook shows your recorded and planned 3-day rate, biggest day and 28-day load against each phase's target, and a bad report triggers an evening and next-morning re-check before running resumes.
 
-The bundled assistant remains **MCP 1.8.0**; these app improvements do not change its protocol. See [release notes](docs/releases/APP-1.8.1.md) for scope and platform verification.
+Use **MCP 1.9.0** with this app (the assistant tools changed). See [release notes](docs/releases/APP-1.9.0.md) for scope and platform verification.
 
 ## What a 12-week program looks like
 
@@ -110,7 +110,7 @@ Then **Build my program**: the hub drafts a program toward your goal that you ca
 
 The hub keeps the numbers; your assistant plans with you. It works with any app that supports MCP servers: Claude Desktop, Claude Code, and others, including local models.
 
-- **Claude Desktop:** use MCP **1.8.0** with this updated app. Download the `.mcpb` bundle from the [latest release](https://github.com/JHarp199345/S-Bike-Training-Hub/releases), then **Settings → Extensions → Advanced settings → Install extension**. Leave the hub address at `http://127.0.0.1:8729`.
+- **Claude Desktop:** use MCP **1.9.0** with this updated app. Download the `.mcpb` bundle from the [latest release](https://github.com/JHarp199345/S-Bike-Training-Hub/releases), then **Settings → Extensions → Advanced settings → Install extension**. Leave the hub address at `http://127.0.0.1:8729`.
 - **Claude Code:** `claude mcp add --scope user s-bike-hub -- "$PWD/.venv/bin/python" "$PWD/mcp_server.py"` (on Windows: `.venv\Scripts\python.exe`).
 - **Other MCP apps:** point them at `mcp_server.py` with the `.venv` Python.
 

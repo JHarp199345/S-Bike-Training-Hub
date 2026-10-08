@@ -30,6 +30,9 @@ for t in sorted(HERE.glob("test_*.py")):
     if sys.platform != "darwin" and "# macOS only" in t.read_text():
         skipped.append(t.name)
         continue
+    if "# paused feature: HUB_RECOVERY_LEARNING" in t.read_text() and os.environ.get("HUB_RECOVERY_LEARNING") != "1":
+        skipped.append(t.name)   # recovery-curve learning is paused for research review
+        continue
     t0 = time.monotonic()
     try:
         r = subprocess.run([sys.executable, str(t)], cwd=HERE.parent, capture_output=True, text=True, timeout=300,
@@ -50,6 +53,6 @@ for t in sorted(HERE.glob("test_*.py")):
         if os.environ.get("GITHUB_ACTIONS"):        # failures readable as annotations, not just in the log
             tail = [x for x in out.strip().splitlines() if x.strip()][-12:]
             print(f"::error title={t.name}::" + " | ".join(tail).replace("%", "%25")[:3500], flush=True)
-print(f"\n{len(passed)} passed, {len(failed)} failed, {len(skipped)} skipped (macOS only: {', '.join(skipped) or '-'})")
+print(f"\n{len(passed)} passed, {len(failed)} failed, {len(skipped)} skipped ({', '.join(skipped) or '-'})")
 note(f"DONE {len(passed)} passed, {len(failed)} failed")
 sys.exit(1 if failed else 0)

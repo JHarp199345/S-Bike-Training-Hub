@@ -43,7 +43,7 @@ def outlook(d, load, done, workouts, today, days=14):
         if not sessions:continue
         metrics=[{k:m.get(k) for k in ('key','before','after','limit','over_limit','session_dose','unit')} for m in row['metrics']]
         daily.append({'date':row['date'],'readings':metrics})
-        run=next((m for m in metrics if m['key']=='run_mechanical'),{})
+        run=next((m for m in metrics if m['key']==('run_response' if (load.get('running_response') or {}).get('active') else 'run_mechanical')),{})
         strength=[m for m in metrics if m['key'].startswith('lift_')]
         for i,s in enumerate(sessions):
             if s['sport'] not in ('run','gym'):continue
@@ -55,7 +55,7 @@ def outlook(d, load, done, workouts, today, days=14):
             test=s['sport']=='run' and (d.get('plans',{}).get(row['date']) or {}).get('test')=='run_calibration'
             summaries.append({'date':row['date'],'index':i,'sport':s['sport'],'name':s.get('name'),'minutes':s.get('minutes'),
                 'context':progression.context(d,row['date'],s['sport'],s),'readings':selected,
-                'status':'test' if test else 'unknown' if unknown else 'conflict' if conflicts else 'within_projected_limits',
+                'status':'test' if test else 'unknown' if unknown else 'conflict' if conflicts else 'response_review' if s['sport']=='run' and (load.get('running_response') or {}).get('active') else 'within_projected_limits',
                 'alternatives':['Shorten or reduce the scheduled dose','Move the exposure and recheck the following week','Replace affected work with an eligible activity or rest'] if conflicts and not test else [],
                 'meaning':'Readings include all work on this day; they are not isolated per-session measurements.'})
     gate=B.running_gate(d,load,d.get('checkins',{}).get(today))
@@ -142,6 +142,11 @@ def running_progression(d, load, today, daily, gate):
     """Is the plan challenging running the right amount? The load on the coming week's run days against the target
     for this phase and state (build wave, maintenance, automatic deload), plus the weekly cap on absolute load."""
     import progression, training_block as B
+    if (load.get('running_response') or {}).get('active'):
+        return {'phase':progression.context(d,today,'run')['phase'],'mode':'reported response',
+            'target_blocks':None,'band':None,'planned_week_peak_blocks':None,'planned_week_blocks':None,
+            'weekly_cap_blocks':None,'status':'held' if gate.get('status')=='hold' else 'review',
+            'advice':'Review recorded exposure, current foot/leg reports, protected checks and conditional response forecasts. Block targets are retired; no personal response threshold is established.'}
     # One calendar week, so the wave's target and the runs it judges agree: the rest of this week through
     # Friday, then next week from the weekend on.
     now=dt.date.fromisoformat(today)
@@ -253,6 +258,7 @@ def capacity_candidates(d, load, today):
     protected=load.get('run_progression')
     if protected and rem.get('phase')=='plateau':blocked.append('Protected recovery plateau: use the existing 60% review workflow; capacity cannot rescale it here')
     if any(set(s['regions']).intersection(lifting.LEG_REGIONS) for s in symptoms):blocked.append('Unresolved lower-body symptoms')
+    if (load.get('running_response') or {}).get('active'):blocked.append('Running blocks retired; review the selected running response model through its MCP protocol')
     append('running_block',run_events,rem.get('reference_points'),blocked)
     regions=(load.get('lifting') or {}).get('regions') or lifting.model(copy.deepcopy(d),dt.date.fromisoformat(today))['regions']
     for region in sorted(set(regions)|set(lift_events)):
@@ -267,14 +273,15 @@ def with_capacity(d,load,today,base):
     out=copy.deepcopy(load)
     out['lifting']=lifting.model(copy.deepcopy(d),dt.date.fromisoformat(today))
     latest=_latest(d,'running_block')
-    if latest:
+    if latest and not (out.get('running_response') or {}).get('active'):
         days=out.get('days') or []
         if not days:raise ValueError('Running dose history is unavailable')
         prof=loads.load_profile(base)
         reports=d.get('checkins',{})
         rem=damage.remodeling_response([x['date'] for x in days],[x.get('sports',{}).get('run',{}).get('impact',0) for x in days],
             weight_kg=prof['weight_kg'],feet_reports=reports,walking=loads.walking_inputs(out.get('activities',[]),loads.load_steps(base),prof),
-            block=latest['reference'],reviews=(d.get('run_progression') or {}).get('reviews',[]))
+            block=latest['reference'],reviews=(d.get('run_progression') or {}).get('reviews',[]),
+            recovery_curve=(d.get('running_recovery_calibration') or {}).get('profile'))
         if not rem:raise ValueError('Running history cannot be recalculated')
         out['systems']['impact']['tissue']['remodeling']=rem
         if out.get('run_progression'):
@@ -341,7 +348,7 @@ def preview(d,load,done,workouts,today,base,revision,fields):
         held,clear_by=run_hold(gate,today)
         for row in after['sessions']:
             if row['date'] not in seen:continue
-            if row['status'] not in ('within_projected_limits','test'):violations.append(row['date']+': '+str(row['name'])+' has unknown or excessive projected load')
+            if row['status'] not in ('within_projected_limits','response_review','test'):violations.append(row['date']+': '+str(row['name'])+' has unknown or excessive projected load')
             if row['sport']=='run' and held(row['date']):violations.append(row['date']+': current running hold remains in force'+(f' (projected to clear {clear_by})' if clear_by else ''))
             if any(__import__('progression').affected(s,[symptom]) for symptom in after['active_symptoms'] for s in B.sessions(candidate['plans'][row['date']])):violations.append(row['date']+': unresolved symptom overlap')
         # Flag newly introduced or worsened limit breaches across all sports, including later days.

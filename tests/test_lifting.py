@@ -73,6 +73,40 @@ def main():
     base, heavy = lifting.evaluate(dk, [bench])["points_total"], lifting.evaluate(dk, [dict(bench, weight=205)])["points_total"]
     check(f"with a known max, a heavier plan is more load ({heavy} vs {base})", heavy > base)
 
+    # Actual mixed sessions keep distinct effort and unknown recovery feedback.
+    mixed = new()
+    day2 = "2026-10-06"
+    pulled = {"name": "Lat pulldown", "kind": "machine", "style": "build", "sets": 3,
+              "reps": 10, "weight": 100, "hold": 6, "regions": {"lats": 70, "biceps": 30}}
+    sled = {"name": "TANK M4 push", "kind": "other", "style": "build", "sets": 3,
+            "seconds": 90, "regions": {"quads": 50, "glutes": 30, "calves": 20},
+            "sled": {"model": "TANK M4", "front_level": 2, "rear_level": 2,
+                     "distance_m": 164.592, "distance_per_trip_m": 54.864,
+                     "duration_basis": "HR-associated estimate, not timed", "seconds_low": 60, "seconds_high": 120}}
+    lifting.set_session(mixed, day2, [pulled, sled], minutes=23)
+    mixed_log = lifting.log(mixed, day2, [{"rpe": 6}, {"rpe": 8}], None, None,
+                            source_activity_id="watch-gym")
+    check("exercise efforts stay distinct and missing session/wellness feedback stays unknown",
+          [x["rpe"] for x in mixed_log["lifts"]] == [6, 8] and mixed_log["rpe"] is None
+          and mixed_log["wellness"] is None and lifting.learned_offset(mixed) == 0)
+    check("sled distance and duration uncertainty survive actual logging without fabricated weight",
+          mixed_log["lifts"][1]["sled"]["distance_m"] == 164.592
+          and mixed_log["lifts"][1]["weight"] is None and mixed_log["source_activity_id"] == "watch-gym")
+    unknown = new(); lifting.set_session(unknown, day2, [pulled])
+    ul = lifting.log(unknown, day2, [{}], None, None)
+    check("unknown effort cannot manufacture a new strength anchor or positive response",
+          not lifting.state(unknown)["strength"] and ul["lifts"][0]["effort_basis"] == "provisional default"
+          and lifting.learned_offset(unknown) == 0)
+    baseline = lifting.evaluate(new(), [dict(sled, rpe=6)])["points_total"]
+    check("a harder reported sled effort increases its provisional load at the same duration",
+          mixed_log["lifts"][1]["points"] > baseline)
+    for change in ({"rpe": 11}, {"sled": {"front_level": 4}}, {"sled": {"distance_m": -1}}):
+        try:
+            lifting.clean(new(), [dict(sled, **change)]); rejected = False
+        except ValueError:
+            rejected = True
+        check("invalid exercise effort or sled dose is rejected: " + str(change), rejected)
+
     # the rider's plain list, then the AI scores it
     dr = new()
     lifting.set_session(dr, day, [{"name": "Kneeling rainbow throw", "sets": 3, "reps": 8, "weight": 10}], draft=True)

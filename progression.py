@@ -60,11 +60,21 @@ def report(d,date,index,fields,done,today):
     dt.date.fromisoformat(date)
     if date>today:raise ValueError('Report a completed session, not a future workout')
     ss=B.sessions(d.get('plans',{}).get(date) or {})
-    if not 0<=index<len(ss):raise ValueError('Choose a scheduled session')
-    session=ss[index];sport=session['sport']
     import coach
     marked=coach.attach_completions(d,date,copy.deepcopy(ss),copy.deepcopy(done.get(date,[])))
-    completion=marked[index].get('completion')
+    activity_id=fields.get('activity_id')
+    if activity_id:
+        completion=next((x for x in done.get(date,[]) if x.get('activity_id')==activity_id),None)
+        if completion is None:raise ValueError('Choose one imported activity on this date')
+        matched=next((i for i,x in enumerate(marked) if x.get('completion',{}).get('activity_id')==activity_id),None)
+        if matched is not None:
+            index=matched;session=ss[index]
+        else:
+            index=None;session={'sport':{'bike':'ride'}.get(completion['sport'],completion['sport']), 'name':'Recorded '+completion['sport'], 'minutes':completion.get('minutes')}
+    else:
+        if not 0<=index<len(ss):raise ValueError('Choose a scheduled session')
+        session=ss[index];completion=marked[index].get('completion')
+    sport=session['sport']
     if not completion:raise ValueError('Import or log the completed workout before reporting effort')
     effort=fields.get('effort')
     if effort not in ('too_easy','as_intended','too_hard'):raise ValueError('effort is too_easy, as_intended or too_hard')
@@ -81,7 +91,7 @@ def report(d,date,index,fields,done,today):
         cleaned.append({'location':x['location'],'side':x['side'],'severity':severity,'regions':LOCATIONS[x['location']]})
     hr=fields.get('heart_rate_issue',False)
     if not isinstance(hr,bool):raise ValueError('heart_rate_issue must be true or false')
-    key=date+':'+str(index);old=d.get('training_feedback',{}).get(key) or {}
+    key=date+':'+str(index) if index is not None else 'activity:'+activity_id;old=d.get('training_feedback',{}).get(key) or {}
     if old and not d.get('progression_symptom_reviews',{}).get(key):
         for prior in old.get('symptoms',[]):
             if prior['severity']>0 and not any(x['location']==prior['location'] and x['side']==prior['side'] and x['severity']>0 for x in cleaned):
@@ -91,7 +101,8 @@ def report(d,date,index,fields,done,today):
     entry={'date':date,'session_index':index,'sport':sport,'session_name':session.get('name'),
         'planned_minutes':session.get('minutes',0),'effort':effort,'rpe':rpe,'symptoms':cleaned,
         'heart_rate_issue':hr,'note':str(fields.get('note') or '')[:1000],
-        'actual_minutes':completion.get('minutes'),'context':context(d,date,sport,session)}
+        'actual_minutes':completion.get('minutes'),'context':context(d,date,sport,session),
+        'activity_id':activity_id or completion.get('activity_id')}
     if old:
         d.setdefault('feedback_edits',[]).append(copy.deepcopy(old))
         if old.get('adapted'):entry['adapted']=old['adapted']
@@ -190,7 +201,7 @@ def _lifting_regression(session,symptoms):
 
 
 def _summary(forecast):
-    keys=('cardio_fatigue','cardio_conditioning','muscle_fatigue','run_mechanical','run_recent','swim_recovery','strength')
+    keys=('cardio_fatigue','cardio_conditioning','muscle_fatigue','run_response','run_mechanical','run_recent','swim_recovery','strength')
     result={}
     for key in keys:
         values=[m['after'] for f in forecast.values() for m in f['metrics'] if m['key']==key]

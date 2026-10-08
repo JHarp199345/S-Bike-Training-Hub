@@ -48,7 +48,8 @@ def describe(d,date,index,s=None):
    if when==date and i==index:continue
    nearby.append({'date':when,'name':x.get('name') or x['sport'],'sport':x['sport'],'minutes':x.get('minutes'), 'note':x.get('note'), 'steps':x.get('steps'), 'lifts':x.get('lifts')})
  dose={k:v for k,v in s.items() if k not in ('explanation','completion','missed','missed_reason','swim_outlook','coaching_context')}
- basis={'session':dose,'phase':{k:phase.get(k) for k in ('id','label','kind','purpose','modes')},'nearby':nearby,'test':plan.get('test')}
+ logged=next((l for l in reversed(d.get('lifting',{}).get('logs',[])) if l.get('date')==date and l.get('session')==s.get('name')),None)
+ basis={'recorded_lifts':logged,'session':dose,'phase':{k:phase.get(k) for k in ('id','label','kind','purpose','modes')},'nearby':nearby,'test':plan.get('test')}
  token=hashlib.sha256(json.dumps(basis,sort_keys=True,default=str).encode()).hexdigest()[:24]
  test=guide(d,date,s)
  roles={'swim':'Keep your swim practice steady and work on smooth strokes.', 'ride':'Practice steady pedaling and build cycling endurance.',

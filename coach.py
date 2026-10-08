@@ -79,6 +79,10 @@ def record(d, date, fields):
     if "hops_left" in fields or "hops_right" in fields:          # the hop test, leg by leg: the worse leg is the number
         sides = [c.get(k) for k in ("hops_left", "hops_right") if c.get(k) is not None]
         c["hops"] = min(sides) if sides else None
+    import wellness                                                # validated instruments (Hooper; pain by site)
+    c.update(wellness.clean_daily(fields))
+    if wellness.hooper_index(c) is not None:
+        c["hooper_index"] = wellness.hooper_index(c)
     if "journal" in fields:                                        # the rider's own words: kept, not scored
         c["journal"] = str(fields["journal"] or "").strip()[:4000] or None
     if "gut" in fields:

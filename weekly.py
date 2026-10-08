@@ -80,6 +80,10 @@ def record(d, sunday, fields):
         out["lift"] = lift
     if fields.get("note"):
         out["note"] = str(fields["note"])[:1000]
+    import wellness
+    ostrc = wellness.clean_ostrc(fields.get("ostrc"))           # OSTRC overuse questionnaire per problem area
+    if ostrc:
+        out["ostrc"] = ostrc
     progress = fields.get("progress") or {}
     if not isinstance(progress, dict) or any(k not in ("bike", "run", "swim", "gym") or v not in ("better", "same", "worse")
                                               for k, v in progress.items()):

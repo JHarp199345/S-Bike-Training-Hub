@@ -39,12 +39,20 @@ def ride_seconds(path):
     """[(epoch second, watts), ...] one per second, gaps up to MAX_FILL filled;
     a None marks a longer break."""
     per = collections.OrderedDict()
+    minute_epochs = {}
     try:
         with open(path, newline="") as f:
             for r in csv.DictReader(f):
                 try:
-                    t = int(dt.datetime.fromisoformat(r["time"]).timestamp())
-                    per.setdefault(t, []).append(float(r["power_w"] or 0))
+                    stamp = dt.datetime.fromisoformat(r["time"])
+                    minute = stamp.replace(second=0, microsecond=0)
+                    # Local-time conversion is expensive on macOS. Samples in
+                    # the same minute share it; offsets/DST remain datetime's.
+                    if minute not in minute_epochs:
+                        minute_epochs[minute] = minute.timestamp()
+                    t = int(minute_epochs[minute] + stamp.second + stamp.microsecond / 1e6)
+                    watts = float(r["power_w"] or 0)
+                    per.setdefault(t, []).append(watts)
                 except (ValueError, KeyError, TypeError):
                     continue
     except OSError:

@@ -29,10 +29,24 @@ def grade(score):
 
 def _events(ride_csv):
     ev = Path(ride_csv).with_name(Path(ride_csv).stem + "_events.csv")
+    events = []
     try:
-        return [(dt.datetime.fromisoformat(r["time"]), r["event"]) for r in csv.DictReader(open(ev, newline=""))]
-    except (OSError, KeyError, ValueError):
-        return []
+        with open(ev, newline="") as f:
+            for r in csv.DictReader(f):
+                if not r.get("event"):
+                    continue
+                try:
+                    events.append((dt.datetime.fromisoformat(r["time"]), r["event"]))
+                except (KeyError, ValueError, TypeError):
+                    continue
+    except OSError:
+        pass
+    # Ignore launcher/test events appended after this recording ended.
+    seconds = [v[0] for v in bests.ride_seconds(ride_csv) if v is not None]
+    if seconds:
+        last_second = max(seconds)
+        events = [(t, e) for t, e in events if t.timestamp() <= last_second]
+    return events
 
 
 def _parts_from_blocks(blocks, ftp):

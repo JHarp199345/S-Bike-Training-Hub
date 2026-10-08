@@ -213,6 +213,95 @@ def tempo_seconds(t):
     return sum(parts) or None if parts else None
 
 
+def exercise_rpe(value):
+    if value is None:
+        return None
+    n = float(value)
+    if not math.isfinite(n) or n != int(n) or not 1 <= n <= 10:
+        raise ValueError("Exercise effort is 1-10, or unknown")
+    return int(n)
+
+
+def sled_metadata(value):
+    """Record equipment/dose without treating magnetic gear as a weight or measured force."""
+    if value is None:
+        return None
+    if not isinstance(value, dict):
+        raise ValueError("sled must be an object")
+    out = {}
+    for k in ("model", "duration_basis", "force_basis", "note"):
+        if k in value:
+            out[k] = str(value[k])[:300]
+    for k in ("front_level", "rear_level"):
+        if k in value:
+            n = int(value[k])
+            if n != float(value[k]) or not 0 <= n <= 3:
+                raise ValueError("Sled magnetic levels are 0-3")
+            out[k] = n
+    for k in ("distance_m", "distance_per_trip_m", "seconds_low", "seconds_high", "force_low_lbf", "force_high_lbf"):
+        if k in value:
+            n = float(value[k])
+            if not math.isfinite(n) or n <= 0:
+                raise ValueError("Sled distance/time must be positive")
+            out[k] = n
+    if out.get("seconds_low", 0) > out.get("seconds_high", float("inf")):
+        raise ValueError("Sled duration range is reversed")
+    if out.get('force_low_lbf',0)>out.get('force_high_lbf',float('inf')):raise ValueError('Sled force range is reversed')
+    if ('force_low_lbf' in out) != ('force_high_lbf' in out):raise ValueError('Give both ends of a force range')
+    if 'force_low_lbf' in out and not out.get('force_basis'):raise ValueError('Force estimates need a source or assumption')
+    if 'force_low_lbf' in out and out.get('distance_m'):
+        out['work_j_low']=round(out['force_low_lbf']*4.4482216152605*out['distance_m'])
+        out['work_j_high']=round(out['force_high_lbf']*4.4482216152605*out['distance_m'])
+        out['force_note']='Conditional force/work estimate; not measured resistance, lifted weight, or a calibrated tissue load.'
+    if out.get('distance_per_trip_m') and out.get('seconds_low') and out.get('seconds_high') and 'm4' in out.get('model','').lower():
+        import strength_workouts
+        out['resistance_estimate']=strength_workouts.sled_preview({'distance_per_leg_m':out['distance_per_trip_m'],
+            'seconds_low':out['seconds_low'],'seconds_high':out['seconds_high'],'front_level':out.get('front_level'), 'rear_level':out.get('rear_level')})
+    return out
+
+
+def dose_metrics(lifts):
+    """Descriptive dose, independent of the recovery/scoring model."""
+    rows=[]
+    for x in lifts:
+        if not x.get('done', True): continue
+        details=x.get('set_details') or [dict(x, sets=1) for _ in range(int(x.get('sets') or 1))]
+        per=[]
+        for n, a in enumerate(details, 1):
+            if not a.get('done',True):continue
+            reps=a.get('reps', x.get('reps')); w=a.get('weight',x.get('weight')); u=a.get('unit',x.get('unit','lb'))
+            tempo=a.get('tempo',x.get('tempo')); hold=a.get('hold',x.get('hold')) or 0
+            sides=2 if x.get('per_side') else 1
+            secs=a.get('seconds',x.get('seconds'))
+            ts=tempo_seconds(tempo)
+            active=(reps*((ts or 4)+hold) if reps else (secs or 0))*sides
+            volume=reps*w*sides if reps and w is not None else None
+            per.append({'set':n,'reps':reps,'weight':w,'unit':u,'tempo':tempo,'hold':hold,
+                        'active_seconds':round(active,1),'time_estimated':bool(reps and not ts),
+                        'external_volume':volume})
+        volume_kg=sum((a['external_volume'] or 0)*KG[a['unit']] for a in per)
+        rows.append({'name':x['name'],'sets':per,'external_volume_lb':round(volume_kg/KG['lb'],2),
+                     'active_seconds':round(sum(a['active_seconds'] for a in per),1),
+                     'sled':x.get('sled'), 'time_estimated':any(a['time_estimated'] for a in per)})
+    return {'exercises':rows,'external_volume_lb':round(sum(a['external_volume_lb'] for a in rows),2),
+            'active_seconds':round(sum(a['active_seconds'] for a in rows),1),
+            'basis':'External volume is sets × reps × entered weight; sled force and body weight are not lifted poundage.'}
+
+
+def actual_sets(x, a):
+    """Validate individual actual sets; expand only for scoring, never rewrite the plan."""
+    parts=a.get('set_details')
+    if parts is None: return [dict(a)], [dict(x)]
+    if not isinstance(parts,list) or not 1<=len(parts)<=20:raise ValueError('set_details is 1–20 actual sets')
+    actual=[]; planned=[]
+    for item in parts:
+        if not isinstance(item,dict):raise ValueError('Each actual set must be an object')
+        if item.get('sets') not in (None,1):raise ValueError('Each set_details entry describes one set')
+        values={**{k:v for k,v in a.items() if k!='set_details'},**item,'sets':1}
+        actual.append(values);planned.append(dict(x,sets=1))
+    return actual,planned
+
+
 def clean(d, lifts, unit=None, draft=False):
     """Validate a list of exercises. Refuses anything a rule excludes. With draft=True (the rider's plain list),
     an exercise may come without a kind or regions: the library fills them in if the AI scored it before, and
@@ -257,13 +346,15 @@ def clean(d, lifts, unit=None, draft=False):
         hold = int(x["hold"]) if x.get("hold") else None
         if hold and (not reps or not 1 <= hold <= 120):
             raise ValueError(f"'{name}': hold is 1-120 seconds held in each rep (for a static hold, give seconds instead)")
+        effort = exercise_rpe(x.get("rpe"))
+        sled = sled_metadata(x.get("sled"))
         tempo = str(x.get("tempo") or "").strip()[:12] or None
         ts = tempo_seconds(tempo)
         if tempo and not ts:
             raise ValueError(f"'{name}': tempo like 3-0-3 (seconds down, pause, up)")
         if not style and kind:
             style = "restorative" if (secs and not reps) or (ts and ts >= 6) else "build"
-        out.append({"name": name, "how": str(x.get("how") or known.get("how") or "")[:300],
+        out.append({**({"rpe": effort} if effort is not None else {}), **({"sled": sled} if sled is not None else {}), "name": name, "how": str(x.get("how") or known.get("how") or "")[:300],
                     "equipment": str(x.get("equipment") or known.get("equipment") or "")[:80],
                     "kind": kind, "style": style, "sets": sets, "reps": reps, "seconds": secs, "weight": w, "unit": u,
                     "tempo": tempo, "hold": hold, "per_side": bool(x.get("per_side", known.get("per_side", False))),
@@ -300,7 +391,7 @@ def set_session(d, date, lifts, name=None, minutes=None, index=None, note=None, 
             i = l["inputs"]
             state(d)["logs"].remove(l)
             log(d, date, i["done"], i["rpe"], i["wellness"], i.get("session_index"), i.get("compare_last"),
-                i.get("override"), _session_name=new["name"])
+                i.get("override"), _session_name=new["name"], source_activity_id=l.get("source_activity_id"))
     return p
 
 
@@ -345,6 +436,7 @@ def points(d, x, weight=None, reps=None, sets=None, rpe=None, e1rm=None, hold=No
     """(points, detail) for one exercise as planned, or as done when weight/reps/sets/rpe/hold/seconds are given."""
     if not x.get("scored"):
         return 0.0, {"method": "not scored yet"}
+    rpe = x.get("rpe") if rpe is None else rpe
     reps = x["reps"] if reps is None else reps
     sets = x["sets"] if sets is None else sets
     hold = x.get("hold") if hold is None else hold
@@ -404,8 +496,9 @@ def learned_offset(d):
             continue
         fu = s["followups"].get(l["date"]) or {}
         sore = max(fu.get("regions", {}).values(), default=None)
-        bad = l["wellness"] <= 4 or (sore is not None and sore >= 7)
-        good = l["wellness"] >= 7 and (sore is None or sore <= 4)
+        wellness = l.get("wellness")
+        bad = (wellness is not None and wellness <= 4) or (sore is not None and sore >= 7)
+        good = (wellness is not None and wellness >= 7) and (sore is None or sore <= 4)
         if bad and did <= sug + 0.1:
             off += 0.05
         elif good and did <= sug - 0.1:
@@ -501,7 +594,7 @@ def evaluate(d, lifts, today=None, ctx=None, draft=True):
         fit = ("matches the steer" if abs(gap) <= 0.15 else
                f"more grinding than the steer suggests ({round(100 * share)}% restorative vs {round(100 * st['restorative_share'])}%)" if gap < 0 else
                f"more restorative than the steer suggests ({round(100 * share)}% vs {round(100 * st['restorative_share'])}%)")
-    return {"exercises": rows, "unscored": [x["name"] for x in ls if not x["scored"]],
+    return {"dose":dose_metrics(ls), "exercises": rows, "unscored": [x["name"] for x in ls if not x["scored"]],
             "points_total": round(total, 1), "regions": {r: round(v, 1) for r, v in reg.items()},
             "leg_points": round(sum(v for r, v in reg.items() if r in LEG_REGIONS), 1),
             "usual_session": round(statistics.median(past), 1) if past else None,
@@ -512,7 +605,7 @@ def evaluate(d, lifts, today=None, ctx=None, draft=True):
 
 
 # ── the check-off ───────────────────────────────────────────────────────────
-def log(d, date, done, rpe, wellness, session_index=None, compare_last=None, override=None, ctx=None, _session_name=None):
+def log(d, date, done, rpe, wellness, session_index=None, compare_last=None, override=None, ctx=None, _session_name=None, source_activity_id=None):
     """The check-off: `done` is one entry per planned lift, in order:
     {"done": true|false, "weight": ..., "reps": ..., "sets": ..., "hold": s, "seconds": s, "failure": true,
      "why": "too_heavy"|"chose"} (anything left out = as planned; failure = taken to failure, no reps in reserve).
@@ -528,9 +621,12 @@ def log(d, date, done, rpe, wellness, session_index=None, compare_last=None, ove
     done = done or [{} for _ in plan]
     if len(done) != len(plan):
         raise ValueError(f"one entry per planned lift ({len(plan)})")
-    rpe = max(1, min(10, int(rpe)))
-    wellness = max(1, min(10, int(wellness)))
-    rir = max(0, min(4, 10 - rpe))
+    original_plan,original_done=plan,done
+    groups=[]; plan=[]; done=[]
+    for x,a in zip(original_plan,original_done):
+        aa,xx=actual_sets(x,a);groups.append((len(plan),len(aa)));plan.extend(xx);done.extend(aa)
+    rpe = None if rpe is None else max(1, min(10, int(rpe)))
+    wellness = None if wellness is None else max(1, min(10, int(wellness)))
     need = [x["name"] for x, a in zip(plan, done) if a.get("done", True) and a.get("weight") is not None
             and x.get("weight") is not None and float(a["weight"]) < x["weight"] and a.get("why") not in WHY]
     if need:
@@ -541,7 +637,13 @@ def log(d, date, done, rpe, wellness, session_index=None, compare_last=None, ove
             plan_reg[r] = plan_reg.get(r, 0) + v
     st = steer(d, ctx, plan_reg or None, dt.date.fromisoformat(date))
     rows, reg, total, pts = [], {}, 0.0, []
+    actual_exercises=[]
     for x, a in zip(plan, done):
+        x=dict(x)
+        if 'tempo' in a:
+            x['tempo']=str(a['tempo'] or '').strip() or None
+            if x['tempo'] and not tempo_seconds(x['tempo']):raise ValueError('Actual tempo must be like 3-0-3')
+        if 'sled' in a:x['sled']=sled_metadata(a['sled'])
         if not a.get("done", True):
             rows.append({"name": x["name"], "done": False, "points": 0, "style": x.get("style")})
             pts.append(0.0)
@@ -551,6 +653,8 @@ def log(d, date, done, rpe, wellness, session_index=None, compare_last=None, ove
         sets = x["sets"] if a.get("sets") is None else int(a["sets"])
         hold = x.get("hold") if a.get("hold") is None else int(a["hold"])
         secs = x.get("seconds") if a.get("seconds") is None else int(a["seconds"])
+        if not 1<=sets<=20 or (reps is not None and not 1<=reps<=100) or (w is not None and (not math.isfinite(w) or not 0<=w<=1000)):
+            raise ValueError('Actual sets 1–20, reps 1–100, weight 0–1000')
         if hold is not None and (not 0 <= hold <= 120 or hold and not reps):
             raise ValueError("Hold is 0–120 seconds per rep; static holds use seconds")
         if secs is not None and not 1 <= secs <= 600:
@@ -558,7 +662,9 @@ def log(d, date, done, rpe, wellness, session_index=None, compare_last=None, ove
         if a.get("failure") is not None and not isinstance(a["failure"], bool):
             raise ValueError("Failure must be true or false")
         fail = bool(a.get("failure"))
-        lrir, lrpe = (0, 10) if fail else (rir, rpe)
+        reported_rpe = exercise_rpe(a.get("rpe", x.get("rpe", rpe)))
+        lrpe = 10 if fail else reported_rpe
+        lrir = 0 if fail else max(0, min(4, 10 - (lrpe if lrpe is not None else PLAN_RPE)))
         k = key(x["name"])
         known = (s["strength"].get(k) or {}).get("e1rm_kg")
         why = a.get("why") if (x.get("weight") is not None and w is not None and w < x["weight"]) else None
@@ -593,18 +699,49 @@ def log(d, date, done, rpe, wellness, session_index=None, compare_last=None, ove
                 det["note"] = "too heavy: the load stays as planned"
             else:
                 p_, det = points(d, x, weight=w, reps=reps, sets=sets, rpe=lrpe, hold=hold, seconds=secs)
-        if new_rm:
+        if new_rm and (reported_rpe is not None or fail or why == "too_heavy"):
             s["strength"][k] = {"name": x["name"], "e1rm_kg": round(new_rm, 1), "date": date,
                                 "from": f"{w:g} {x['unit']} x {reps}" + (" (too heavy)" if why == "too_heavy" else "")}
+        duration_range=None
+        if x.get('sled') and x['sled'].get('seconds_low') and x['sled'].get('seconds_high') and secs:
+            lower=points(d,x,weight=w,reps=reps,sets=sets,rpe=lrpe,hold=hold,seconds=x['sled']['seconds_low'])[0]
+            upper=points(d,x,weight=w,reps=reps,sets=sets,rpe=lrpe,hold=hold,seconds=x['sled']['seconds_high'])[0]
+            duration_range={'points_low':round(lower,1),'points_high':round(upper,1),
+                'basis':'Duration uncertainty under the existing time-and-effort model; not a force measurement'}
+        actual_exercises.append(dict(x,sets=sets,reps=reps,weight=w,seconds=secs,hold=hold,rpe=reported_rpe))
         for r, v in spread(x, p_).items():
             reg[r] = reg.get(r, 0) + v
         total += p_
         pts.append(p_)
-        rows.append({"name": x["name"], "done": True, "weight": w, "unit": x["unit"], "reps": reps, "sets": sets,
+        rows.append({**({"sled": x["sled"]} if x.get("sled") else {}), "rpe": reported_rpe,
+                     "effort_basis": "reported" if reported_rpe is not None else "provisional default",
+                     **({'load_range':duration_range} if duration_range else {}),
+                     **({'comfort':a['comfort']} if a.get('comfort') in ('no_discomfort','soreness','pain') else {}),
+                     "name": x["name"], "done": True, "weight": w, "unit": x["unit"], "reps": reps, "sets": sets,
                      "seconds": secs, "hold": hold, "failure": fail or None, "tempo": x.get("tempo"), "points": round(p_, 1), "why": why, **det,
                      "style": x.get("style"), "regions": x.get("regions") or {},
                      "section": a.get("section") if a.get("section") in ("warmup","main","cooldown") else x.get("section", "main"), "per_side": x.get("per_side", False)})
-    entry = {"date": date, "session": sess["name"], "rpe": rpe, "wellness": wellness, "lifts": rows,
+    grouped=[]
+    for (start,count),original in zip(groups,original_done):
+        rr=rows[start:start+count]
+        if original.get('set_details') is not None:
+            completed=[r for r in rr if r.get('done')]
+            row=dict(rr[0]);row['set_details']=rr;row['sets']=len(completed);row['points']=round(sum(r['points'] for r in rr),1)
+            row['done']=bool(completed)
+            ranges=[r['load_range'] for r in completed if r.get('load_range')]
+            if ranges:
+                row['load_range']={
+                    'points_low':round(sum(r['points_low'] for r in ranges),1),
+                    'points_high':round(sum(r['points_high'] for r in ranges),1),
+                    'basis':ranges[0]['basis']}
+            for field in ('weight','reps','seconds','tempo','hold','rpe'):
+                row[field]=completed[0].get(field) if completed and all(r.get(field)==completed[0].get(field) for r in completed) else None
+            grouped.append(row)
+        else:grouped.extend(rr)
+    rows=grouped
+    for row in rows:
+        if row.get('done'):row['dose']=dose_metrics([row])['exercises'][0]
+    entry = {**({"source_activity_id": str(source_activity_id)} if source_activity_id else {}), "date": date, "session": sess["name"], "rpe": rpe, "wellness": wellness, "lifts": rows,
              "points_total": round(total, 1), "regions": {r: round(v, 1) for r, v in reg.items()},
              "leg_points": round(sum(v for r, v in reg.items() if r in LEG_REGIONS), 1),
              "unscored": [x["name"] for x in plan if not x.get("scored")],
@@ -612,12 +749,13 @@ def log(d, date, done, rpe, wellness, session_index=None, compare_last=None, ove
              "steer_share": st["restorative_share"], "steer_mode": st["mode"],
              "restorative_share": restorative_share([{"style": r.get("style")} for r in rows], pts),
              "override": override or sess.get("override"),
-             "inputs": {"done": done, "rpe": rpe, "wellness": wellness, "session_index": session_index,
+             "dose":dose_metrics(rows), "inputs": {"done": original_done, "rpe": rpe, "wellness": wellness, "session_index": session_index,
                         "compare_last": compare_last, "override": override},
              "logged": dt.datetime.now().isoformat(timespec="minutes")}
+    replacing=any(l["date"]==date and l["session"]==sess["name"] for l in s["logs"])
     s["logs"] = [l for l in s["logs"] if not (l["date"] == date and l["session"] == sess["name"])] + [entry]
     s["logs"].sort(key=lambda l: l["date"])
-    remember(d, [x for x, a in zip(plan, done) if a.get("done", True)], date, done=True)
+    remember(d, list({key(x['name']):x for x in actual_exercises}.values()), date, done=not replacing)
     return entry
 
 

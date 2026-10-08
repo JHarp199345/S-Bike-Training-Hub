@@ -373,6 +373,19 @@ def personal_step(acts, prof):
     return {"points_per_step": per_step[len(per_step) // 2], "spm": spm[len(spm) // 2], "from_runs": len(per_step)}
 
 
+def attach_lift_activity(acts, log):
+    """Join explicit gym actuals to their watch recording without adding another duration."""
+    ident = log.get("source_activity_id")
+    if not ident:
+        return False
+    match = next((a for a in acts if a["id"] == ident and a["sport"] == "gym"
+                  and dt.date.fromtimestamp(a["start"]).isoformat() == log["date"]), None)
+    if match is None:
+        return False
+    match["lift_muscle"] = (match.get("lift_muscle") or 0.0) + log["leg_points"]
+    return True
+
+
 def score(a, prof, k_hr):
     """Engine, impact and muscle points for one activity."""
     mass = prof["weight_kg"] / 70
@@ -485,13 +498,21 @@ def analyse(acts, prof, today=None, meta=None, feet_reports=None, daily_steps=No
             extra |= {"force_lb": round(f), "steps_at_1000lb": round(s["impact"] * damage.STEPS_1000LB_PER_POINT)}
         if a["sport"] == "run":
             extra["drift_pct"] = run_drift(a)
+        import energy                                   # primary energy: power, then motion, then the watch
+        import rider
+        mass = rider.weight_on(prof.get("weight_kg"), prof.get("weight_history"), dt.date.fromtimestamp(a["start"]).isoformat())
+        en = energy.estimate(a["sport"], a["records"], mass, (a.get("session") or {}).get("total_calories"),
+                             (a.get("session") or {}).get("total_timer_time") or a["minutes"] * 60)
         scored.append({**extra, "id": a["id"], "source": a["source"], "sport": a["sport"],
                        "date": dt.date.fromtimestamp(a["start"]).isoformat(),
                        "start": dt.datetime.fromtimestamp(a["start"]).strftime("%H:%M"),
                        "minutes": round(a["minutes"], 1), "km": round(a["distance_m"] / 1000, 2),
+                       "duration_seconds": (a.get("session") or {}).get("total_timer_time") or a["minutes"] * 60,
                        "calories_kcal": (a.get("session") or {}).get("total_calories"),
                        "calories_basis": "watch-reported total (active/resting split unknown)" if (a.get("session") or {}).get("total_calories") is not None else None,
                        "avg_hr": _avg_hr(a), "descent_m": round(a.get("descent_m") or 0),
+                       "energy_kcal": en["energy_kcal"], "energy_source": en["energy_source"],
+                       "energy_estimates": en["estimates"], "energy_gap_ratio": en["gap_ratio"],
                        **{x: round(s[x], 1) for x in SYSTEMS},
                        **({"swim_exposure": a.pop("_swim_exposure")} if "_swim_exposure" in a else {}),
                        **({"swim_kick": s["swim_kick"]} if s["swim_kick"] is not None else {}),
@@ -562,7 +583,7 @@ def analyse(acts, prof, today=None, meta=None, feet_reports=None, daily_steps=No
                                                   runs=run_evidence(scored, prof) if automatic_run_learning(prof, run_reviews) else None,
                                                   learn_since=max([x for x in (prof.get('_reviewed_run_date'), prof.get('_block_test_date')) if x], default=None),
                                                   start_block=start_block(prof, scored) if not prof.get("block_points") else None,
-                                                  reset_before=prof.get("_reset_before"))
+                                                  reset_before=prof.get("_reset_before"), recovery_curve=prof.get("_recovery_curve"))
     if systems["impact"]["tissue"]:
         systems["impact"]["tissue"]["walking"] = {k: v for k, v in walking.items() if k != "steps"}
     if systems["impact"]["tissue"]:
@@ -626,6 +647,14 @@ def readiness(state, checkin=None):
         if x == "engine" and not s.get("tuned"):
             if s["form"] < -30:
                 level, why = "easy", [f"big engine load for your base (form {s['form']})"]
+        elif x == 'impact' and (state.get('running_response') or {}).get('active'):
+            response=state['running_response'];observed=response.get('feet')
+            why=['Running response model: no block countdown or fitted clearance threshold']
+            if not observed or response.get('last_run_date') and observed['date']<response['last_run_date']:
+                level='easy';why.append('A current foot/leg response after the latest run is still needed')
+            elif observed['rating']>=8:level='rest';why.append(f"Feet reported {observed['rating']:g}/10 on {observed['date']}")
+            elif observed['rating']>=6:level='easy';why.append(f"Feet reported {observed['rating']:g}/10 on {observed['date']}")
+            if observed and observed['date']==response.get('last_run_date'):why.append('Same-day response; delayed recovery is not yet established')
         elif x == "impact" and s.get("tissue"):
             recent = s["tissue"].get("event")
             if recent and recent["score"] >= 1:
@@ -772,7 +801,7 @@ def readiness(state, checkin=None):
 def load_profile(base):
     import rider
     p = rider.load(Path(base) / "profile.json")
-    return {"weight_kg": float(p.get("weight_kg", 80.0)), "hr_rest": float(p.get("hr_rest", 60)),
+    return {"weight_kg": float(p.get("weight_kg", 80.0)), "weight_history": p.get("weight_history") or [], "hr_rest": float(p.get("hr_rest", 60)),
             "hr_max": float(p.get("hr_max", 185)), "ftp": float(p.get("ftp", 150)),
             "calibration": p.get("load_calibration") or {}, "phase": p.get("training_phase", "run_durability"),
             "habitual_steps": int(p.get("habitual_steps") or damage.HABITUAL_STEPS),
@@ -928,9 +957,11 @@ def summary(base, today=None):
         dd = _coach.load(base / "coach.json")
         logs = [l for l in lifting.state(dd)["logs"] if l["date"] <= (today or dt.date.today()).isoformat()]
         for i, l in enumerate(logs):
+            if attach_lift_activity(acts, l):
+                continue
             day0 = dt.datetime.fromisoformat(l["date"] + "T12:00").timestamp()
             for a in acts:                      # the watch's file of the same session: its heart rate stays, its muscle guess goes
-                if a["sport"] == "gym" and dt.date.fromtimestamp(a["start"]).isoformat() == l["date"]:
+                if not l.get("source_activity_id") and a["sport"] == "gym" and dt.date.fromtimestamp(a["start"]).isoformat() == l["date"]:
                     a["lift_muscle"] = 0.0
             acts.append({"id": f"lift-{l['date']}-{i}", "source": "lifts", "start": day0 + i * 300, "sport": "gym",
                          "minutes": l.get("minutes") or 45, "distance_m": 0, "descent_m": 0, "records": [],
@@ -948,11 +979,23 @@ def summary(base, today=None):
         prof['block_points'] = reviewed['reference']
         prof['_reviewed_run_reference'] = True
         prof['_reviewed_run_date'] = reviewed['date']
+    prof['_recovery_curve'] = (coach.load(base / 'coach.json').get('running_recovery_calibration') or {}).get('profile')
     prof['_protected_run_recovery'] = bool(coach.load(base / 'coach.json').get('run_progression'))
     out = analyse(acts, prof, today, meta, feet_reports, load_steps(base), lift_blocks, weekly,
                   (coach.load(base / "coach.json").get("run_progression") or {}).get("reviews", []))
     out["lifting"] = lifted
     out["aerobic"] = aero
+    import running_response
+    out['running_response']=running_response.state(coach.load(base/'coach.json'),out,(today or dt.date.today()).isoformat())
+    if out['running_response']:
+        m=out['headline']['mechanical']
+        m['running_model']=running_response.MODEL
+        m['ratio']=round(max(m['muscle_ratio'],m['swim_ratio'],m['lift_ratio']),2)
+        m['running_in_utilization']=False
+        bal=out['headline']['balance'];c=out['headline']['cardio']['ratio']
+        bal['score']=round(bal['cardio_weight']*max(0,100-80*abs(c-.9))+bal['mechanical_weight']*max(0,100-85*max(0,m['ratio']-1)-20*max(0,.6-m['ratio'])))
+        bal['grade']='A' if bal['score']>=85 else 'B' if bal['score']>=70 else 'C' if bal['score']>=55 else 'D' if bal['score']>=40 else 'E'
+        out['body_map']=__import__('bodymap').from_state(out)
     try:                                        # the rest of what the watch saw, cross-referenced (insights.py)
         import insights
         out["insights"] = insights.summary(acts, out.get("days", []), checkins, aero, base / "rides", today)
@@ -971,7 +1014,7 @@ def summary(base, today=None):
     # and installs from before the question existed (return_to_run absent). Everyone else runs on the blocks alone.
     cd_ = coach.load(base / "coach.json")
     if prof.get("return_to_run") is not False or cd_.get("run_progression"):
-        out["run_progression"]=recovery.status(cd_,rem,today)
+        out["run_progression"]=recovery.status(cd_,running_response.progression_input(out),today)
     else:
         out["run_progression"]=None
     if est and not est["block"]["value"] and rem.get("reference_points"):

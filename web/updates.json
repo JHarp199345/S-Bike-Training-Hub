@@ -1,6 +1,21 @@
 {
-  "latest": "app-v1.8.1",
+  "latest": "app-v1.9.0",
   "entries": [
+    {
+      "id": "app-v1.9.0",
+      "date": "2026-10-07",
+      "version": "App 1.9.0",
+      "title": "Recorded work, validated check-ins and a plan that watches its load",
+      "changes": [
+        "Training energy now comes from the least heart-rate-dependent source: bike power, running and walking from distance, gradient and body mass (1 kcal per kg per km on the flat), and the watch for swims. The watch's number is shown beside it and large gaps are flagged.",
+        "Each check-in and workout report keeps the 3-day rate, biggest day and 28-day load it was made in, so later formula changes never move your history. Older reports can be rebuilt once through a preview.",
+        "Validated check-in questions: the Hooper questionnaire (fatigue, sleep, stress, soreness, 1–7), pain by site (0–10, kept apart from soreness), session effort on the CR-10 scale and the weekly OSTRC injury questionnaire.",
+        "Plan load outlook: your recorded and planned 3-day rate, biggest day and 28-day load against the phase's target, with report-gated running steps (3–10%) and sessions that went well in the last 90 days.",
+        "After a bad report (pain 5+, pain getting worse, soreness well above usual) the Hub holds running and asks a short re-check that evening and the next morning before deciding to resume, stay reduced or step back.",
+        "Body workload: an Overall ring of every region, group views with magnifying graphs, bars stacked by source and 28-day carried totals. Also: completed-workout reports, actual strength and swim logging, and a more responsive ride screen."
+      ],
+      "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/app-v1.9.0"
+    },
     {
       "id": "app-v1.8.1",
       "date": "2026-10-05",
@@ -176,16 +191,20 @@
   ],
   "in_the_works": [
     {
+      "title": "Forecasts from your own reports",
+      "detail": "Fitting how your reports follow your recent rate and carried load, then predicting a planned week, with an accuracy scoreboard against what you actually report."
+    },
+    {
+      "title": "Learning your recovery curve",
+      "detail": "Paused for a research review: recovery timing learned from your reports instead of starting values."
+    },
+    {
       "title": "Apple Music",
       "detail": "Waiting on the Hub's Apple Music developer setup."
     },
     {
-      "title": "Plex, iBroadcast and OpenSubsonic connections",
-      "detail": "Plex still needs live-account playback verification. iBroadcast needs publisher registration; OpenSubsonic connection setup is not exposed in the current interface."
-    },
-    {
-      "title": "Programs that adapt to you",
-      "detail": "Recovery and progression driven by your measured response and check-ins rather than fixed waits, across every sport you train."
+      "title": "Plex connections",
+      "detail": "Plex still needs live-account playback verification."
     },
     {
       "title": "Lifting built on joints and movement directions",

@@ -41,9 +41,10 @@ def running_gate(d, load=None, checkin=None):
     load = load or {}
     mech = (load.get("headline") or {}).get("mechanical") or {}
     remodeling = ((((load.get("systems") or {}).get("impact") or {}).get("tissue") or {}).get("remodeling") or {})
-    blocks = remodeling.get("score", mech.get("remodeling_blocks"))
+    active=(load.get("running_response") or {}).get("active")
+    blocks = None if active else remodeling.get("score", mech.get("remodeling_blocks"))
     limit = mech.get("block_limit", 1.5)
-    forecast_days = remodeling.get("cleared_to_run_in_days")
+    forecast_days = None if active else remodeling.get("cleared_to_run_in_days")
     reports = [v for _, v in sorted((d.get("weekly") or {}).items()) if v.get("run_response")]
     response = (reports[-1].get("run_response") if reports else None) or (d.get("training_block") or {}).get("hop_status")
     readiness = {}
@@ -61,12 +62,15 @@ def running_gate(d, load=None, checkin=None):
     progression=None
     if d.get("run_progression"):
         import recovery
-        progression=recovery.status(d,remodeling,(load.get("days") or [{"date":dt.date.today().isoformat()}])[-1]["date"])
+        progression=recovery.status(d,__import__("running_response").progression_input(load),(load.get("days") or [{"date":dt.date.today().isoformat()}])[-1]["date"])
         reasons.extend(progression["run_reasons"])
     # The athlete's mechanical lock is independent of a good hop report or tail exception.
     if blocks is not None and blocks>=limit and not any("mechanical running load" in x for x in reasons):
         reasons.append(f"mechanical running load {blocks:.2f} blocks must fall below {limit:g}")
-    return {"progression":progression,"status": "hold" if reasons else "review" if blocks is None else "open_for_review",
+    # All symptom, readiness, personal-wait and functional-check reasons above
+    # still produce a hold. Missing retired block units alone must not lock a
+    # reviewed response-model prescription after those checks are satisfied.
+    return {"progression":progression,"status": "hold" if reasons else "review" if blocks is None and not active else "open_for_review",
             "blocks": blocks, "limit": limit, "model_days": forecast_days,
             "hop_response": response, "reasons": reasons}
 
@@ -247,6 +251,9 @@ def projected_loads(d, today, dates, load=None, done=None, workouts=None):
     systems=load.get("systems") or {}; acts=load.get("activities") or []
     tissue=(systems.get("impact") or {}).get("tissue") or {}
     remodel=tissue.get("remodeling") or {}; short=tissue.get("event") or {}
+    response=load.get('running_response') or {};active=bool(response.get('active'))
+    response_low=(response.get('estimate') or {}).get('low');response_high=(response.get('estimate') or {}).get('high')
+
     swim=swim_plan_forecast(d,today,load,done)
     saved={w.get("id"):w for w in workouts or []}
     history=[a for a in acts if a.get("date", "")<=today.isoformat() and a.get("minutes",0)>0]
@@ -331,7 +338,11 @@ def projected_loads(d, today, dates, load=None, done=None, workouts=None):
     no_run={x["date"]:x["score"] for x in remodel.get("projection",[])}
     no_short={x["date"]:x["score"] for x in short.get("projection",[])}
     run_before=remodel.get("score"); run_anchor=None; run_missing=False; new_runs=[]
-    ref=remodel.get("reference_points")
+    ref=100 if active else remodel.get("reference_points")
+    curve=remodel.get("recovery_curve") or {}
+    plateau_rate=curve.get("plateau_days_per_block",5.0)
+    decline_rate=curve.get("decline_days_per_block",3.0)
+    tail_days=curve.get("tail_days",damage.TAIL_DAYS)
     try:
         import programming
         phase_id=programming.phase(d,today)["phase"]
@@ -412,7 +423,7 @@ def projected_loads(d, today, dates, load=None, done=None, workouts=None):
         def remaining(anchor,age,plateau,descent):
             if age<=plateau:return anchor
             if age<=plateau+descent:return anchor*(1-.8*(age-plateau)/descent)
-            return 0.0 if age>=plateau+descent+damage.TAIL_DAYS else anchor*.2*math.exp(-5*(age-plateau-descent)/damage.TAIL_DAYS)
+            return 0.0 if age>=plateau+descent+tail_days else anchor*.2*math.exp(-5*(age-plateau-descent)/tail_days)
         run_value=None if run_missing else remaining(run_anchor[1],elapsed-run_anchor[0],run_anchor[2],run_anchor[3]) if run_anchor else remodel.get("score") if not elapsed else no_run.get(key,0.0 if remodel.get("score")==0 else None)
         run_added=0.0
         for date,raw in new_runs:
@@ -420,16 +431,30 @@ def projected_loads(d, today, dates, load=None, done=None, workouts=None):
             if run_value is None: run_added=None; run_missing=True; break
             added=raw*damage.overlap_multiplier(run_value); run_value+=added; run_added+=added
             owed=max(0,run_anchor[0]+run_anchor[2]-elapsed) if run_anchor else max(0,(remodel.get("plateau_remaining_days") or 0)-elapsed)
-            run_anchor=(elapsed,run_value,max(1,owed+5*added),max(1,3*run_value))
-        row("run_mechanical","Running mechanical backlog","blocks",run_before,run_value,run_added,goal=goal_run,
-            method="Existing no-new-run projection; new runs use the same overlap, owed plateau, descent and tail formulas. No future symptom changes.",limit=remodel.get("threshold_blocks",1.5))
-        run_before=run_value
-        short_value=short.get("score") if not elapsed else no_short.get(key,0 if short.get("score") is not None else None)
-        if short_value is not None:
-            short_value+=sum(raw*damage.EVENT_KERNEL[(day-dt.date.fromisoformat(date)).days] for date,raw in new_runs if 0<=(day-dt.date.fromisoformat(date)).days<len(damage.EVENT_KERNEL))
-        if run_missing:short_value=None
-        row("run_recent","Recent running response","reference sessions",short.get("score") if not elapsed else by_date[(day-dt.timedelta(days=1)).isoformat()]["metrics_by_key"]["run_recent"]["after"],short_value,
-            goal=goal_run,method="Existing separate five-day event kernel")
+            run_anchor=(elapsed,run_value,max(1,owed+plateau_rate*added),max(1,decline_rate*run_value))
+        if active:
+            fitted=response['parameters'];rho=math.exp(-1/fitted['params']['tau']);baseline=fitted['b']
+            before=(response_low+response_high)/2 if response_low is not None and response_high is not None else None
+            if elapsed and before is not None:
+                response_low=baseline+(response_low-baseline)*rho;response_high=baseline+(response_high-baseline)*rho
+            dose=sum(raw for date,raw in new_runs if date==key)
+            if run_missing:response_low=response_high=None
+            elif response_low is not None:
+                response_low=min(10,max(1,response_low+fitted['a']*dose));response_high=min(10,max(1,response_high+fitted['a']*dose))
+            after=(response_low+response_high)/2 if response_low is not None and response_high is not None else None
+            row('run_response','Estimated running leg response','report scale',before,after,dose,'impact points / 100',goal=goal_run,
+                method='Shared exponential decay with report-anchored state. Conditional on recorded inputs; future reports unknown; not clearance.')
+            metrics[-1]['timing_range']=[response_low,response_high];metrics[-1]['model']=response['model']
+        else:
+            row("run_mechanical","Running mechanical backlog","blocks",run_before,run_value,run_added,goal=goal_run,
+                method="Existing no-new-run projection; new runs use the same overlap, owed plateau, descent and tail formulas. No future symptom changes.",limit=remodel.get("threshold_blocks",1.5))
+            run_before=run_value
+            short_value=short.get("score") if not elapsed else no_short.get(key,0 if short.get("score") is not None else None)
+            if short_value is not None:
+                short_value+=sum(raw*damage.EVENT_KERNEL[(day-dt.date.fromisoformat(date)).days] for date,raw in new_runs if 0<=(day-dt.date.fromisoformat(date)).days<len(damage.EVENT_KERNEL))
+            if run_missing:short_value=None
+            row("run_recent","Recent running response","reference sessions",short.get("score") if not elapsed else by_date[(day-dt.timedelta(days=1)).isoformat()]["metrics_by_key"]["run_recent"]["after"],short_value,
+                goal=goal_run,method="Existing separate five-day event kernel")
         swim_value=None if swim_missing else sf+sh
         row("swim_recovery","Swim recovery load","blocks",previous_swim,swim_value,swim_add,goal="manage",method="Existing fitted swim reference, 1.5/14-day decay and overlap",limit=1.5)
         previous_swim=swim_value
@@ -442,13 +467,14 @@ def projected_loads(d, today, dates, load=None, done=None, workouts=None):
         row("strength","Strength regional maximum","blocks",lift_before,lift_value,sum(region_dose.values()) if not regional_missing else None,"strength points",method="Highest regional lifting block; see individual regions",limit=1.5)
         ratios=[]
         for k in rolling:
+            if active and k=="impact":continue
             week=[v for date,v in rolling[k] if (day-dt.timedelta(days=6)).isoformat()<=date<=key]
             usual=(systems.get(k) or {}).get("usual_week")
             # the usual week grows by doing a little more than usual: the planning limit is the weekly growth cap
             ratios.append(sum(week)/usual/USUAL_WEEK_GROWTH if week and all(v is not None for v in week) and usual else None)
-        ratios += [run_value/1.5 if run_value is not None else None,swim_value/1.5 if swim_value is not None else None,lift_value/1.5 if lift_value is not None else None]
+        ratios += ([] if active else [run_value/1.5 if run_value is not None else None])+[swim_value/1.5 if swim_value is not None else None,lift_value/1.5 if lift_value is not None else None]
         combined=max(ratios) if all(v is not None for v in ratios) else None
-        row("mechanical","Mechanical utilization","× limit",combined_before,combined,goal="down" if goal_run=="down" else "manage",method="Maximum of impact and leg load against the usual week plus 15% growth, and running, swim and lifting blocks against 1.5; unlike units stay separate",limit=1)
+        row("mechanical","Mechanical utilization","× limit",combined_before,combined,goal="down" if goal_run=="down" else "manage",method="Shared leg load, swim and lifting utilization; running response is advisory and has no fitted utilization limit" if active else "Maximum of impact and leg load against the usual week plus 15% growth, and running, swim and lifting blocks against 1.5; unlike units stay separate",limit=1)
         combined_before=combined
         import bodymap
         regional_unknown=[]
@@ -456,9 +482,9 @@ def projected_loads(d, today, dates, load=None, done=None, workouts=None):
             values=[v for date,sp,v in sport_rolling if sp==sport and (day-dt.timedelta(days=6)).isoformat()<=date<=key]
             if any(v is None for v in values):regional_unknown.append(sport);return 0
             return sum(values)/(systems.get("muscle",{}).get("usual_week") or 1)
-        projected_regions=bodymap.build(run_value,swim_value,week_leg("bike"),week_leg("run"),
+        projected_regions=bodymap.build(None if active else run_value,swim_value,week_leg("bike"),week_leg("run"),
             lift={r:v["value"] for r,v in regional.items() if v["value"] is not None}, swim_leg_ratio=week_leg("swim"))
-        if run_value is None:regional_unknown.append("running backlog")
+        if not active and run_value is None:regional_unknown.append("running backlog")
         if swim_value is None:regional_unknown.append("swim recovery")
         if regional_missing:regional_unknown.append("lifting")
         projected_regions["unavailable_sources"]=regional_unknown
@@ -495,6 +521,10 @@ def recorded_load_history(load, today):
         ("run_mechanical",tissue.get("remodeling") or {}),
         ("run_recent",tissue.get("event") or {}),
         ("swim_recovery",load.get("swim_recovery") or {}))}
+    response=load.get('running_response') or {}
+    if response.get('active'):
+        series.pop('run_mechanical',None);series.pop('run_recent',None)
+        series['run_response']={r['date']:(r['estimate_low']+r['estimate_high'])/2 for r in response['history']}
     days={r["date"]:r for r in load.get("days",[])}
     dates=sorted(set(days).union(*(set(v) for v in series.values())))
     out=[]

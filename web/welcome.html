@@ -121,6 +121,7 @@
  <div class="row">
   <label>Resting heart rate <span class="fine">(bpm, from your watch)</span><input id="hr_rest" type="number" inputmode="numeric" placeholder="e.g. 58"></label>
   <label>Maximum heart rate <span class="fine">(if you know it; otherwise estimated from age)</span><input id="hr_max" type="number" inputmode="numeric" placeholder="optional"></label>
+  <label>VO2max from your watch <span class="fine">(optional; most watches show an estimate. It sets your starting training load until your own history takes over)</span><input id="vo2max" type="number" inputmode="decimal" min="15" max="95" step="0.1" placeholder="optional"></label>
  </div>
  <h3 style="margin-top:6px">Your sports, and your experience in each</h3>
  <div id="sports"></div>
@@ -194,7 +195,7 @@ fetch('/api/setup').then(r=>r.json()).then(s=>{
   if(f) $('mcpcmd').textContent=`claude mcp add --scope user s-bike-hub -- "${f}/.venv/bin/python" "${f}/mcp_server.py"`;
   const p=s.profile||{};
   if(p.weight_kg) $('weight').value=Math.round(p.weight_kg/0.45359237*10)/10;
-  ['age','hr_rest','hr_max'].forEach(k=>{ if(p[k]) $(k).value=p[k]; });
+  ['age','hr_rest','hr_max','vo2max'].forEach(k=>{ if(p[k]) $(k).value=p[k]; });
   (p.sports||[]).forEach(k=>{ const c=$('sp-'+k); if(c) c.checked=true; });
   Object.entries(p.experience||{}).forEach(([k,v])=>{ const e=$('ex-'+k); if(e) e.value=v; });
   if(p.smart_bike || (!s.no_bike && p.smart_bike==null)) $('smart_bike').checked=!s.no_bike;
@@ -250,7 +251,7 @@ $('form').onsubmit=async ev=>{ ev.preventDefault();
   starterQuery=new URLSearchParams({program:'setup',starter:'1',sports:sports.map(s=>({bike:'ride',lift:'gym'}[s]||s)).join(','),weeks:String(weeks),hours:String(hours),target,level:starterLevel}).toString();
   const anchors=['BB squat','BB bench press','BB row'].flatMap((name,i)=>Number($('anchorweight'+i).value)?[{name,weight:Number($('anchorweight'+i).value),reps:Number($('anchorreps'+i).value),rir:Number($('anchorrir'+i).value),unit:$('unit').value}]:[]);
   sessionStorage.setItem('starterSetup',JSON.stringify({anchors,unit:$('unit').value,equipment:$('starterequipment').value,assessment:$('starterassessment').value}));
-  const body={unit:$('unit').value,weight:+$('weight').value,age:$('age').value||null,hr_rest:$('hr_rest').value||null,hr_max:$('hr_max').value||null,
+  const body={unit:$('unit').value,weight:+$('weight').value,age:$('age').value||null,hr_rest:$('hr_rest').value||null,hr_max:$('hr_max').value||null,vo2max:$('vo2max').value||null,
     sports,experience:Object.fromEntries(sports.map(k=>[k,$('ex-'+k).value])),smart_bike:$('smart_bike').checked,return_to_run:$('return_to_run').checked,start,
     ftp:$('ftp').value||null,css:$('css').value||null,run5k:$('run5k').value||null,rules:$('rules').value.split('\n').map(x=>x.trim()).filter(Boolean)};
   if(sports.includes('run')){const m=runMin==='more'?Number($('runmoremin').value):runMin;
