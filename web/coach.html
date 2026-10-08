@@ -1033,7 +1033,7 @@ $('send').onclick=async()=>{
   if(checkinSaving)return;
   const body={date:day?.date,legs:+$('legs').value,feet:+$('feet').value,breathing:+$('breath').value,gut,
     hooper_fatigue:+$('hfatigue').value,hooper_sleep:+$('hsleep').value,hooper_stress:+$('hstress').value,hooper_soreness:+$('hsoreness').value,
-    pain:painAnswer==='yes'?Object.fromEntries([...document.querySelectorAll('[data-pain-site]')].filter(x=>+x.value>0).map(x=>[x.dataset.painSite,+x.value])):{}};
+    pain:$('painsites').hidden?{}:Object.fromEntries(['feet','legs','hips','shoulders','other'].map(k=>[k,+$('pain-'+k).value]).filter(([,v])=>v>0))};
   if(shoulderTouched)body.shoulders=+$('shoulders').value;
   if($('hopsl').value!=='')body.hops_left=+$('hopsl').value;if($('hopsr').value!=='')body.hops_right=+$('hopsr').value;
   body.journal=$('journal').value.trim();

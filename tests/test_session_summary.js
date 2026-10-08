@@ -83,5 +83,5 @@ let output=ctx.activityMetricsHtml({duration_seconds:1500,distance_m:5000,calori
 assert.match(output,/Watch calories/);assert.match(output,/>0 <small>kcal/);assert.match(output,/5:00/);assert.match(output,/Heart-rate drift/);assert.doesNotMatch(output,/Peak heart rate/);assert.doesNotMatch(output,/Muscle load · estimate/);
 const feedbackStart=html.indexOf('function feedbackHtml'),feedbackEnd=html.indexOf("document.addEventListener('click',async e=>{const button=e.target.closest('[data-effort]')",feedbackStart);
 vm.runInContext(html.slice(feedbackStart,feedbackEnd),ctx);
-output=ctx.feedbackHtml('2026-10-06',null,null,'run-id','run');assert.match(output,/After-run report/);assert.match(output,/Whole-session effort/);assert.match(output,/data-feedback-activity="run-id"/);assert.match(output,/data-effort="as_intended" disabled/,'Imported feedback must wait for backend capability verification');
+output=ctx.feedbackHtml('2026-10-06',null,null,'run-id','run');assert.match(output,/After-run report/);assert.match(output,/Session effort · CR-10/);assert.match(output,/data-feedback-activity="run-id"/);assert.match(output,/data-effort="as_intended" disabled/,'Imported feedback must wait for backend capability verification');
 console.log('PASS activity metric zeros, unknowns, units and imported report compatibility gate');
