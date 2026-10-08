@@ -54,9 +54,13 @@ def save(d):
     import schedule_tracking
     try: previous = json.loads(p.read_text())
     except (OSError, ValueError): previous = {}
-    schedule_tracking.capture(d, previous)
+    # Persist the audit without mutating caller state (including reviewed previews).
+    saved = copy.deepcopy(d)
+    if "schedule_tracking" in previous:
+        saved["schedule_tracking"] = copy.deepcopy(previous["schedule_tracking"])
+    schedule_tracking.capture(saved, previous)
     tmp = p.with_suffix(".tmp")
-    tmp.write_text(json.dumps({k: v for k, v in d.items() if k != "_path"}, indent=1))
+    tmp.write_text(json.dumps({k: v for k, v in saved.items() if k != "_path"}, indent=1))
     tmp.replace(p)
 
 

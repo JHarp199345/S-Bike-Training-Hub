@@ -42,9 +42,12 @@ with patch.object(coach,'today',return_value=DATE):
  # The ordinary save boundary captures a change, including changes made outside set_sessions.
  with tempfile.TemporaryDirectory() as tmp:
   p=Path(tmp)/'coach.json';p.write_text(json.dumps(d));d['_path']=str(p)
-  d['plans'][DATE]['sessions'][0]['minutes']=25;coach.save(d)
+  d['plans'][DATE]['sessions'][0]['minutes']=25;before_save=copy.deepcopy(d);coach.save(d)
   saved=json.loads(p.read_text());assert len(saved['schedule_tracking']['revisions'])==2
-  coach.save(d);assert len(d['schedule_tracking']['revisions'])==2
+  assert d==before_save  # persistence never changes a reviewed in-memory snapshot
+  coach.save(d);assert len(json.loads(p.read_text())['schedule_tracking']['revisions'])==2
+  d['plans'][DATE]['sessions'][0]['minutes']=20;coach.save(d)
+  assert len(json.loads(p.read_text())['schedule_tracking']['revisions'])==3  # stale caller ledger cannot erase history
 # Skipping a second session must be allowed after reporting the first; deleting cannot shift it.
 x={'plans':{DATE:{'sessions':[original.copy(),{'sport':'swim','minutes':20,'name':'Swim'}]}},'training_feedback':{DATE+':0':{}},'checkins':{}}
 with patch.object(coach,'today',return_value=DATE):

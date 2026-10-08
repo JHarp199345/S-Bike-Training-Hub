@@ -44,7 +44,7 @@ req={'sport':'swim','name':'Reviewed swim','minutes':50,'swim_recipe':recipe}
 async def main():
  with tempfile.TemporaryDirectory() as tmp:
   base=pathlib.Path(tmp);(base/'rides').mkdir();d=coach.load(base/'coach.json')
-  coach.set_sessions(d,'2026-10-04',[{'sport':'ride','minutes':20,'name':'Past prescription'}]);coach.save(d);before=copy.deepcopy(d)
+  coach.set_sessions(d,'2026-10-04',[{'sport':'ride','minutes':20,'name':'Past prescription'}]);coach.save(d);d=coach.load(base/'coach.json');before=copy.deepcopy(d)  # include the saved prescription audit
   candidate=sw.add(d,'2026-10-05',req);assert d==before
   assert candidate['plans']['2026-10-04']==before['plans']['2026-10-04']
   candidate=sw.add(candidate,'2026-10-05',dict(req,index=0,name='Edited swim'));assert len(candidate['plans']['2026-10-05']['sessions'])==1

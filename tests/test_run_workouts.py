@@ -21,7 +21,7 @@ for bad in [True,0,11]:
  else: raise AssertionError(bad)
 async def main():
  with tempfile.TemporaryDirectory() as tmp:
-  base=pathlib.Path(tmp);(base/'rides').mkdir();d=coach.load(base/'coach.json');coach.save(d)
+  base=pathlib.Path(tmp);(base/'rides').mkdir();d=coach.load(base/'coach.json');coach.save(d);d=coach.load(base/'coach.json')  # compare previews against persisted audit state
   br=SimpleNamespace(csv_path=str(base/'rides'/'example.csv'),profile={'weight_kg':120,'ftp':180})
   async def api(path,req):return await mapserver.coach_api(br,b'POST',path,path,json.dumps(req).encode())
   req={'date':'2026-10-05','sport':'run','name':'Run walk','minutes':28,'run_recipe':p}
