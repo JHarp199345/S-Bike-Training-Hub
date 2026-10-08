@@ -1328,6 +1328,11 @@ async def _coach_api(bridge, method, path, p, body):
                 result['issues'].append(f"Timed sets already occupy {result['sendoff_minutes']:g} minutes; increase or clarify total session time")
                 result['valid']=False
             return js({**result,'fields':fields})
+        if p == "/api/coach/adherence":
+            import schedule_tracking, datetime as _dt
+            days=max(1,min(90,int((q.get("days") or ["28"])[0])))
+            start=(_dt.date.fromisoformat(date)-_dt.timedelta(days=days)).isoformat()
+            return js(schedule_tracking.summary(d,start,date,done_by_day(rides.parent,d),date))
         if p == "/api/coach/week":
             return js({"week": coach.week(d, date, done_by_day(rides.parent, d))})
         if p == "/api/coach/artwork":
@@ -1427,7 +1432,7 @@ async def _coach_api(bridge, method, path, p, body):
                             "hard_sessions": w["hard_sessions"],
                             "missed": [{"date": x["date"], "index": k, "session": s.get("name") or s.get("sport"), "minutes": s.get("minutes"),
                                         "reason": s.get("missed_reason")} for x in w["days"] for k, s in enumerate(x["workouts"]) if s.get("missed")]})
-            return js({"coaching_review": {"outlook": __import__('coaching_review').outlook(d,load_state(rides.parent),done,bridge.workouts,coach.today()), "capacity": __import__('coaching_review').capacity_candidates(d,load_state(rides.parent),coach.today())}, "weeks": out, "goal": {k: goal.get(k) for k in ("goal", "sport", "target", "hours", "start")} if goal else None,
+            return js({"coaching_review": {"outlook": __import__('coaching_review').outlook(d,load_state(rides.parent),done,bridge.workouts,coach.today()), "capacity": __import__('coaching_review').capacity_candidates(d,load_state(rides.parent),coach.today())}, "weeks": out, "schedule_adherence": __import__("schedule_tracking").summary(d,(mon-__import__("datetime").timedelta(days=7*n)).isoformat(),date,done,date), "goal": {k: goal.get(k) for k in ("goal", "sport", "target", "hours", "start")} if goal else None,
                        "note": "Planned vs done per week against the athlete's available time; missed sessions with their reasons."})
         if p == "/api/coach/missed" and method == b"GET":
             start = (q.get("start") or [(__import__("datetime").date.fromisoformat(coach.today()) - __import__("datetime").timedelta(days=84)).isoformat()])[0]
@@ -1833,7 +1838,12 @@ async def _coach_api(bridge, method, path, p, body):
                     gate=training_block.running_gate(d,load_state(rides.parent),d["checkins"].get(coach.today()))
                     if gate["status"]!="open_for_review":raise ValueError("Running remains gated; review load and readiness before restoring")
             # Refuse changes to a day containing imported actual exercise as well.
-            if done_by_day(rides.parent,d).get(date):raise ValueError("Keep completed workouts; edit their reports instead")
+            actual=done_by_day(rides.parent,d).get(date) or []
+            if req.get("action")=="delete" and actual:raise ValueError("Keep completed workouts; edit their reports instead")
+            viewed=[coach.scheduled_view(d,s) for s in originals]
+            coach.attach_completions(d,date,viewed,actual)
+            if isinstance(index,int) and 0<=index<len(viewed) and viewed[index].get("completion"):
+                raise ValueError("Keep completed workouts; edit their reports instead")
             coach.session_action(d,date,index,req.get("action"))
             coach.save(d)
             capture_program_forecast(bridge,rides,d)

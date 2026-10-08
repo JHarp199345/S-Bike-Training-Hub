@@ -51,6 +51,10 @@ def load(path):
 
 def save(d):
     p = Path(d["_path"])
+    import schedule_tracking
+    try: previous = json.loads(p.read_text())
+    except (OSError, ValueError): previous = {}
+    schedule_tracking.capture(d, previous)
     tmp = p.with_suffix(".tmp")
     tmp.write_text(json.dumps({k: v for k, v in d.items() if k != "_path"}, indent=1))
     tmp.replace(p)
@@ -303,6 +307,8 @@ def set_sessions(d, date, sessions, _trusted=False, draft=False):
             entry["workout_goals"]=workout_library.clean_goals(item["sport"],item["workout_goals"])
         for key in ("goal_request_id","goal_comparison"):
             if item.get(key):entry[key]=item[key]
+        if entry.get("skipped_id"):
+            entry = skipped_marker(entry, entry["skipped_id"])
         clean.append(entry)
     p = d["plans"].setdefault(date, {})
     p["sessions"] = clean
@@ -444,11 +450,26 @@ MISS_REASONS = ("busy", "sick", "sore", "tired", "travel", "weather", "other")
 TRAINABLE = ("ride", "swim", "run", "gym", "walk")
 
 
+def skipped_marker(session, ident):
+    return {"sport":"rest", "minutes":0, "name":session.get("name","Workout"), "steps":[],
+            "note":"Cancelled by athlete; original workout retained for restore.", "workout":None, "skipped_id":ident}
+
+
+def scheduled_view(d, session):
+    """Original prescription for display/accounting; storage keeps zero planned dose."""
+    ident = session.get("skipped_id")
+    original = (d.get("skipped_workouts", {}).get(ident) or {}).get("session")
+    if ident and original:
+        return {**copy.deepcopy(original), "skipped_id": ident, "cancelled": True}
+    return copy.deepcopy(session)
+
+
 def attach_completions(d, k, sessions, actual):
     """Pair each planned session on day k with what was actually done (completion), sport by sport."""
     used = set()
     gym_index = 0
     for s in sessions:
+        if s.get("skipped_id"): continue  # a later same-sport activity is not this cancelled prescription
         if s.get("sport") == "gym":
             log = next((l for l in (d.get("lifting") or {}).get("logs", [])
                         if l.get("date") == k and l.get("session") == s.get("name")
@@ -475,7 +496,7 @@ def mark_missed(d, k, sessions, as_of=None):
     as_of = as_of or today()
     reasons = (d.get("missed") or {}).get(k, {})
     for i, s in enumerate(sessions):
-        if k < as_of and not s.get("completion") and s.get("sport") in TRAINABLE and (s.get("minutes") or 0) > 0:
+        if k < as_of and not s.get("skipped_id") and not s.get("completion") and s.get("sport") in TRAINABLE and (s.get("minutes") or 0) > 0:
             s["missed"] = True
             if reasons.get(str(i)):
                 s["missed_reason"] = reasons[str(i)]
@@ -489,11 +510,12 @@ def missed_days(d, start, end, done=None, as_of=None):
     while day0 < day1:
         k = day0.isoformat()
         p = d.get("plans", {}).get(k) or {}
-        ss = copy.deepcopy(p.get("sessions") or ([p] if p.get("sport") else []))
+        ss = [scheduled_view(d, s) for s in (p.get("sessions") or ([p] if p.get("sport") else []))]
         if ss:
             mark_missed(d, k, attach_completions(d, k, ss, copy.deepcopy((done or {}).get(k, []))), as_of)
             miss = [{"index": i, "name": s.get("name") or s.get("sport"), "sport": s.get("sport"), "minutes": s.get("minutes"),
-                     "reason": (s.get("missed_reason") or {}).get("reason")} for i, s in enumerate(ss) if s.get("missed")]
+                     "reason": "cancelled" if s.get("skipped_id") else (s.get("missed_reason") or {}).get("reason"),
+                     "status": "cancelled" if s.get("skipped_id") else "missed"} for i, s in enumerate(ss) if s.get("missed") or s.get("skipped_id")]
             if miss:
                 out[k] = miss
         day0 += dt.timedelta(days=1)
@@ -510,24 +532,25 @@ def session_action(d, date, index, action):
     item=items[index]
     # Indexed reports and actual workouts must never be shifted or discarded.
     logs=(d.get("lifting") or {}).get("logs",[])
-    has_actual=any(x.get("date")==date for x in logs) or any(k.startswith(date+":") for k in d.get("training_feedback",{}))
+    has_actual=any(x.get("date")==date and x.get("session")==item.get("name") for x in logs) or date+":"+str(index) in d.get("training_feedback",{})
     if item.get("completion") or has_actual:
         raise ValueError("Keep completed workouts and their reports; edit the recorded workout instead")
     if action=="skip":
         if item.get("skipped_id"):return plan
         ident=uuid.uuid4().hex
-        d.setdefault("skipped_workouts",{})[ident]={"date":date,"session":copy.deepcopy(item)}
+        d.setdefault("skipped_workouts",{})[ident]={"date":date,"session":copy.deepcopy(item),"at":dt.datetime.now().isoformat(timespec="seconds")}
         # Zero-dose placeholder keeps all session indices stable; the original is recoverable.
-        items[index]={"sport":"rest","minutes":0,"name":item.get("name","Workout"),"steps":[],"note":"Skipped by athlete; original workout retained for restore.","workout":None,"skipped_id":ident}
+        items[index]=skipped_marker(item, ident)
     elif action=="restore":
         saved=d.get("skipped_workouts",{}).get(item.get("skipped_id"))
         if not saved:raise ValueError("No skipped workout to restore")
         items[index]=copy.deepcopy(saved["session"])
     elif action=="delete":
-        if any(x.get("completion") for x in items):raise ValueError("Cannot shift a day with completed workouts")
+        if any(x.get("completion") for x in items) or any(x.get("date")==date for x in logs) or any(k.startswith(date+":") for k in d.get("training_feedback",{})):raise ValueError("Cannot shift a day with completed workouts")
         d.setdefault("removed_workouts",[]).append({"date":date,"session":copy.deepcopy(item)})
         items.pop(index)
     else:raise ValueError("action is skip, restore, or delete")
+    d.setdefault("session_events", []).append({"date":date,"index":index,"action":action,"name":item.get("name"),"at":dt.datetime.now().isoformat(timespec="seconds")})
     plan["updated"]=dt.datetime.now().isoformat(timespec="minutes")
     return plan
 
@@ -558,7 +581,7 @@ def week(d, date, done=None):
         sessions = p.get("sessions") or ([{"sport": p.get("sport"), "minutes": p.get("minutes"),
                                           "name": p.get("sport", "").title(), "steps": [],
                                           "note": p.get("note") or "", "workout": p.get("workout")}] if p.get("sport") else [])
-        sessions = copy.deepcopy(sessions)
+        sessions = [scheduled_view(d, s) for s in sessions]
         import session_explanations
         for n, session in enumerate(sessions):session["explanation"] = session_explanations.describe(d,k,n,session)
         actual = copy.deepcopy((done or {}).get(k, []))
@@ -567,12 +590,16 @@ def week(d, date, done=None):
         out.append({"date": k, "sport": p.get("sport") or (sessions[0]["sport"] if sessions else None),
                     "minutes": p.get("minutes") or (sessions[0]["minutes"] if sessions else None),
                     "sessions": sessions, "note": p.get("note"),
-                    "verdict": p.get("verdict"), "done": (done or {}).get(k, [])})
+                    "verdict": p.get("verdict"), "done": (done or {}).get(k, []),
+                    "recovery_day": k < today() and not any(float(a.get("minutes") or 0)>0 for a in actual)
+                        and not any(l.get("date")==k for l in (d.get("lifting") or {}).get("logs", []))})
     return out
 
 
 def day(d, date):
-    return {"date": date, "checkin": d["checkins"].get(date), "plan": d["plans"].get(date),
+    plan = copy.deepcopy(d["plans"].get(date))
+    if plan and plan.get("sessions") is not None: plan["sessions"] = [scheduled_view(d, s) for s in plan["sessions"]]
+    return {"date": date, "checkin": d["checkins"].get(date), "plan": plan,
             "baseline": baseline(d, date)}
 
 

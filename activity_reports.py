@@ -48,7 +48,8 @@ def build(a, scored=None, d=None, actual=None):
     s = a.get('session') or {}; scored = scored or {}; d = d or {}
     hrs = [number(r.get('hr'), True) for r in a.get('records', [])]
     hrs = [h for h in hrs if h is not None]
-    seconds = number(s.get('total_timer_time'), True) or a.get('minutes', 0) * 60
+    timer = number(s.get('total_timer_time'), True)
+    seconds = timer or (number(a.get('minutes'), True) or 0) * 60
     distance = number(a.get('distance_m'))
     date = scored.get('date') or dt.date.fromtimestamp(a['start']).isoformat()
     feedback = next((v for v in d.get('training_feedback', {}).values() if v.get('activity_id') == a['id']), None)
@@ -68,6 +69,13 @@ def build(a, scored=None, d=None, actual=None):
            'load': {k: scored.get(k) for k in ('engine', 'impact', 'muscle')},
            'load_basis': 'Existing Hub model estimates, not measured tissue damage',
            'feedback': feedback, 'workout_details': d.get('activity_workouts', {}).get(a['id'])}
+    # Use the ledger's existing metabolic estimate, never add mechanical lifting work to it.
+    energy = number(scored.get('energy_kcal')) if 'energy_kcal' in scored else number(s.get('total_calories'))
+    source = scored.get('energy_source') if 'energy_kcal' in scored else 'watch'
+    out['energy_rate'] = {'kcal_per_min': round(energy * 60 / seconds, 2),
+                          'metabolic_power_w': round(energy * 4184 / seconds, 2),
+                          'energy_kcal': energy, 'source': source,
+                          'duration_basis': 'Recorded timer' if timer else 'Hub recorded duration (rounded)'} if energy is not None and seconds > 0 else None
     if a['sport'] == 'swim': out['swim'] = swim_metrics(a)
     if a['sport'] == 'run':
         cadence = number(s.get('avg_cadence'), True)

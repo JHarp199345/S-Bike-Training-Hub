@@ -72,6 +72,8 @@ def _prepare(load, logs, end):
         calories = number(a.get('energy_kcal')) if 'energy_kcal' in a else number(a.get('calories_kcal'))
         watch = number(a.get('calories_kcal'))
         activities.append({**a, 'minutes': minutes, 'energy_j': calories * J_PER_KCAL if calories is not None else None,
+                           'energy_kcal_per_min': calories / minutes if calories is not None and minutes and minutes > 0 else None,
+                           'energy_power_w': calories * J_PER_KCAL / (minutes * 60) if calories is not None and minutes and minutes > 0 else None,
                            'energy_source': a.get('energy_source') or ('watch' if watch is not None else None),
                            'watch_energy_j': watch * J_PER_KCAL if watch is not None else None,
                            'duration_basis': 'Recorded timer' if seconds is not None else 'Hub recorded duration (rounded)'})

@@ -5,6 +5,20 @@ import work_rate as wr
 
 
 class WorkRateTests(unittest.TestCase):
+    def test_optional_energy_rates_keep_sources_and_missing_duration_distinct(self):
+        activities = [dict(id='primary',date='2026-10-06',sport='run',minutes=11,duration_seconds=600,calories_kcal=300,energy_kcal=200,energy_source='motion'),
+                      dict(id='no-duration',date='2026-10-06',sport='bike',minutes=0,energy_kcal=100),
+                      dict(id='no-energy',date='2026-10-06',sport='swim',minutes=10,energy_kcal=None),
+                      dict(id='zero',date='2026-10-06',sport='gym',minutes=10,calories_kcal=0)]
+        before=copy.deepcopy(activities)
+        result=wr.build({'activities':activities},today='2026-10-07')
+        rates={a['id']:a['energy_kcal_per_min'] for a in result['activities']}
+        self.assertEqual(rates,{'primary':20,'no-duration':None,'no-energy':None,'zero':0})
+        powers={a['id']:a['energy_power_w'] for a in result['activities']}
+        self.assertAlmostEqual(powers['primary'],200*4184/600)
+        self.assertIsNone(powers['no-duration'])
+        self.assertEqual(activities,before)
+
     def test_duration_weighting_rest_and_missing_are_distinct(self):
         activities = [dict(id='a',date='2026-10-05',sport='run',source='fit',minutes=10,calories_kcal=100,engine=10,impact=20,muscle=5),
                       dict(id='b',date='2026-10-06',sport='swim',source='fit',minutes=30,calories_kcal=200,engine=15,muscle=3),

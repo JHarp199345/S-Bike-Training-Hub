@@ -92,28 +92,34 @@ def _week(d, start, done=None):
         if logged_minutes > watched_minutes:
             actual.append({"sport": "gym", "minutes": logged_minutes - watched_minutes})
         import coach
-        marked = coach.mark_missed(d, date, coach.attach_completions(d, date, copy.deepcopy(all_sessions),
+        prescribed = [coach.scheduled_view(d, s) for s in all_sessions]
+        marked = coach.mark_missed(d, date, coach.attach_completions(d, date, prescribed,
                                                                       copy.deepcopy((done or {}).get(date, []))))
-        for s in ss:
+        for s in marked:
+            if s.get("sport") not in SPORTS: continue
             minutes = int(s.get("minutes") or 0)
             totals[s["sport"]]["planned"] += minutes
-            totals[s["sport"]]["exposure"] += round(minutes * (1.8 if hard(s) else 1.0))
-            hard_count += hard(s)
+            if not s.get("skipped_id"):
+                totals[s["sport"]]["exposure"] += round(minutes * (1.8 if hard(s) else 1.0))
+                hard_count += hard(s)
         for s in actual:
             totals[s["sport"]]["done"] += int(s.get("minutes") or 0)
         days.append({"date": date, "sessions": len(ss),
                      "workouts": [{"sport": s.get("sport"), "name": s.get("name"), "minutes": int(s.get("minutes") or 0),
                                    "shape": s.get("shape"), "completed": bool(s.get("completion")), "missed": bool(s.get("missed")),
-                                   "missed_reason": (s.get("missed_reason") or {}).get("reason")} for s in marked],
+                                   "missed_reason": (s.get("missed_reason") or {}).get("reason"),
+                                   "skipped_id":s.get("skipped_id")} for s in marked],
                      "minutes": sum(int(s.get("minutes") or 0) for s in ss),
                      "hard": sum(hard(s) for s in ss), "done_minutes": sum(int(s.get("minutes") or 0) for s in actual),
-                     "missed": sum(1 for s in marked if s.get("missed"))})
+                     "missed": sum(1 for s in marked if s.get("missed")),
+                     "cancelled": sum(1 for s in marked if s.get("skipped_id")),
+                     "recovery_day": date < __import__("coach").today() and not actual and not lift_logs.get(date)})
     return {"start": start.isoformat(), "end": (start + dt.timedelta(days=6)).isoformat(),
             "days": days, "sports": totals, "hard_sessions": hard_count,
             "total_minutes": sum(v["planned"] for v in totals.values()),
             "exposure_minutes": sum(v["exposure"] for v in totals.values()),
             "done_minutes": sum(v["done"] for v in totals.values()),
-            "missed": sum(x["missed"] for x in days)}
+            "missed": sum(x["missed"] for x in days), "cancelled": sum(x["cancelled"] for x in days)}
 
 
 def create(d, today, weeks=4, start_date=None, run_gate=None):
@@ -561,7 +567,7 @@ def forecast(d, today, done=None, load=None, checkin=None, workouts=None):
         for day in week["days"]:
             original=sessions(d.get("plans",{}).get(day["date"]) or {})
             for index,workout in enumerate(day["workouts"]):
-                workout["steps"]=original[index].get("steps") or []
+                workout["steps"]=__import__("coach").scheduled_view(d,original[index]).get("steps") or []
                 if (day["date"],index) in swim_estimates:
                     workout["swim_outlook"]=swim_estimates[(day["date"],index)]
     projections=projected_loads(d,today,[x["date"] for w in weeks for x in w["days"]],load,done,workouts)

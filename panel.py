@@ -116,6 +116,8 @@ PAGE = """<!doctype html><html><head><meta charset="utf-8"><title>S-Bike Hub</ti
   <div class="sub" style="margin:10px 0 2px">Or open <span id="addr"></span> and type this PIN:</div>
   <div class="pin" id="pin"></div></div></div>
  <button id="forget">Forget paired phones &amp; new PIN</button></div>
+<section class="phone" aria-labelledby="energy-setting-title"><h2 id="energy-setting-title">Training display</h2><label for="energy-unit">Energy units</label><select id="energy-unit" data-energy-unit style="display:block;width:100%;box-sizing:border-box;margin:10px 0;padding:12px;background:#0b0f14;color:#eef1f5;border:1px solid #2a3441;border-radius:10px;font:inherit"><option value="calories">Calories (kcal)</option><option value="joules">Joules &amp; watts (J / W)</option></select><p class="sub" style="margin:8px 0">Saved in this browser. Training totals and history use your choice. Calories shows kcal/min; Joules &amp; watts shows W. The equivalent appears in smaller text. Nominal lifting work remains a mechanical estimate, not calories burned.</p><a href="/coach#fitness" style="color:var(--info)">View recorded training</a></section>
+<script src="/web/energy-units.js"></script>
 <ul id="log"></ul>
 <details><summary>Music connections</summary><div id="hub-music-settings"></div></details>
 <script type="module" src="/web/music-settings.js"></script>

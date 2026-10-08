@@ -11,6 +11,15 @@ assert s['by_stroke']['freestyle']['swolf_avg']==40 and s['excluded_lengths']==2
 assert r['calories_kcal']==0 and r['avg_hr'] is None and r['load']['impact']==0
 assert R.swim_metrics({'swim_lengths':a['swim_lengths']})['swolf_avg'] is None
 assert R.number(float('nan')) is None and R.number(True) is None
+# Energy rates use the primary estimate and actual timer, not the watch total or rounded minutes.
+assert r['energy_rate']['kcal_per_min']==0 and r['energy_rate']['source']=='watch'
+energy_activity={**a,'minutes':11,'session':{'total_timer_time':600,'total_calories':300}}
+primary=R.build(energy_activity,{'energy_kcal':200,'energy_source':'motion'})
+assert primary['energy_rate']=={'kcal_per_min':20,'metabolic_power_w':1394.67,'energy_kcal':200,'source':'motion','duration_basis':'Recorded timer'}
+assert primary['calories_kcal']==300 # keep the separate watch observation
+assert R.build(energy_activity,{'energy_kcal':None})['energy_rate'] is None # unknown primary stays unknown
+assert R.build({**a,'minutes':0,'session':{'total_calories':300}})['energy_rate'] is None
+assert R.build({**a,'minutes':float('nan'),'session':{}})['energy_rate'] is None
 run={**a,'id':'run','sport':'run','session':{'total_timer_time':600,'avg_cadence':80,'total_cycles':800,'avg_step_length':800},'distance_m':2000}
 r=R.build(run,{'steps':1600,'drift_pct':0});assert r['run']['pace_per_km_seconds']==300 and r['run']['cadence_steps_min']==160 and r['run']['step_length_m']==.8
 # Unplanned imported feedback uses a stable activity identity, never creates prescriptions.

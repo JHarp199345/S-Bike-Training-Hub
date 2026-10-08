@@ -47,3 +47,7 @@
 .wr-hist .wr-stack{display:flex;flex-direction:column-reverse;width:100%;min-height:2px;border-radius:3px 3px 0 0;overflow:hidden;opacity:.85}
 .wr-hist .wr-stack i{display:block;width:100%;min-height:0;border-radius:0;opacity:1}
 .wr-hist button:hover .wr-stack,.wr-hist button:focus-visible .wr-stack{opacity:1;outline:2px solid #e5f6ff}
+
+/* Quiet conversions beside rates; legible without competing with the main reading. */
+.wr-conversion,.activity-metric strong .wr-conversion{font-size:12px!important;font-weight:400!important;color:var(--muted,#a7bdca);letter-spacing:0;line-height:1.5;font-style:normal}
+.wr-session-power{margin-top:8px}.wr-session-power>small:last-of-type{display:block}.wr-local a{color:inherit}.wr-value .wr-conversion{align-self:baseline}

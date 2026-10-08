@@ -16,4 +16,6 @@ for action in ['delete','skip']:
  else:raise AssertionError('actual report must be protected')
 ls=lifting.clean({'plans':{},'checkins':{}},[{'name':'New exercise','sets':8,'reps':10,'section':'warmup','block':'Block 1','block_repeats':4}],draft=True)
 assert ls[0]['section']=='warmup' and ls[0]['block']=='Block 1' and ls[0]['sets']==8
-print('PASS skip keeps indices, zero-dose placeholder, restore, delete archive, actual-report protection, section/block metadata')
+view=coach.scheduled_view(d,original)
+assert view==original
+print('PASS skip keeps indices, zero planned dose, restore, delete archive, actual-report protection, section/block metadata')

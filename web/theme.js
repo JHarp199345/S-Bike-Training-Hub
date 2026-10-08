@@ -63,6 +63,9 @@
   // One small Appearance button: in the corner of the page, or inside the menu on the map pages (ride, planner),
   // where the corners belong to the controls. It opens the themes in a little panel.
   document.addEventListener('DOMContentLoaded', () => {
+    if(location.pathname==='/panel'&&!window.EnergyUnits&&!document.querySelector('script[src="/web/energy-units.js"]')){
+      const units=document.createElement('script');units.src='/web/energy-units.js';document.head.append(units);
+    }
     if(root.dataset.embedded==='true')return;
     const menu = document.querySelector('#drawer') || document.querySelector('#side');
     const btn = document.createElement('button');
