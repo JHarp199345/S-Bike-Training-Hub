@@ -201,6 +201,7 @@
  #weekstrip .duration-badge,.blockcalendar .duration-badge{bottom:0;right:0;min-width:23px;box-sizing:border-box;text-align:center;font:10px/1.2 -apple-system,Roboto,sans-serif;padding:1px 3px;border-radius:6px}
  #weekstrip .calendar-status,.blockcalendar .calendar-status{left:-2px;bottom:0;width:16px;height:16px;display:grid;place-items:center;background:var(--deep);border-radius:50%}
  #weekstrip .calendar-status .sporticon,.blockcalendar .calendar-status .sporticon{width:15px!important;height:15px!important;margin:0;grid-area:1/1}
+ .calendar-activities>.recovery-record{grid-column:1/-1;justify-self:center}
  .calendar-status.partial>span{grid-area:1/1;display:flex;align-items:center;justify-content:center}.calendar-status.partial .status-shadow{opacity:.25}.calendar-status.partial .status-fill{clip-path:inset(0 50% 0 0)}
  .wf-set-table{width:100%;margin:12px 0;border-collapse:collapse;font-size:.85rem}.wf-set-table th,.wf-set-table td{padding:8px 12px;text-align:left;white-space:nowrap;border-bottom:1px solid var(--line)}.wf-sled-dose{margin-top:14px}
 .calendar-day-tools{margin-top:auto;padding-top:10px;display:flex;flex-direction:column;align-items:center;gap:6px;width:100%}
@@ -574,7 +575,7 @@ function calendarPartial(s){
  return !!s.completion&&actual!=null&&planned>0&&Number(actual)<Number(planned);
 }
 function calendarStatus(s){
- const kind=s.skipped_id?'skipped':calendarPartial(s)?'partial':s.completion||s.completed?'completed':s.missed?'missed':null;
+ const kind=s.skipped_id?'skipped':calendarPartial(s)?'partial':s.completion||s.completed||s.recovery_record?'completed':s.missed?'missed':null;
  if(!kind)return '';
  const label=kind==='partial'?`Partially completed: ${calendarMinutes(s)} of ${s.completion?.planned_minutes??s.minutes} min`:kind==='skipped'?'Cancelled':kind;
  const icon=['skipped','missed'].includes(kind)?'<span class="cancel-cross" aria-hidden="true">✕</span>':sportIcon(kind==='partial'?'completed':kind);
@@ -583,7 +584,7 @@ function calendarStatus(s){
 function calendarMarker(s,attributes=''){
  const minutes=calendarMinutes(s),name=s.explanation?.test?.title||s.name||s.sport;
  const label=(s.skipped_id?'Cancelled: ':s.missed?'Missed: ':'')+name+(s.completion?` · ${minutes??'unknown'} min recorded`:'')+(calendarPartial(s)?` · ${s.completion?.planned_minutes??s.minutes} min planned`:'');
- return `<span class="wds" ${attributes} title="${esc(label)}" aria-label="${esc(label)}">${calendarActivity(s)}${calendarStatus(s)}${minutes!=null&&minutes>0?`<small class="duration-badge">${Math.round(minutes)}m</small>`:''}</span>`;
+ return `<span class="wds${s.recovery_record?' recovery-record':''}" ${attributes} title="${esc(label)}" aria-label="${esc(label)}">${calendarActivity(s)}${calendarStatus(s)}${minutes!=null&&minutes>0?`<small class="duration-badge">${Math.round(minutes)}m</small>`:''}</span>`;
 }
 function calendarRecordedActivity(a){return {sport:a.sport,name:a.workout_name||`Recorded ${a.sport}`,minutes:a.planned_minutes,completion:a};}
 

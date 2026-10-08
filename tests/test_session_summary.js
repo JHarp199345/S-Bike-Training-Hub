@@ -27,6 +27,19 @@ assert.match(ctx.recordedActivityHtml({sessions:[],done:[done]}),/34 min recorde
 assert.equal(ctx.recordedActivityHtml({sessions:[partial],done:[done]}),'');
 console.log('PASS: imported activity stays visible without a plan and matched actuals are not duplicated');
 
+// Recovery is a separate checked moon below the cancelled sport, not cancelled training.
+a=html.indexOf('function calendarPartial(s)');b=html.indexOf('function calendarRecordedActivity(a)',a);vm.runInContext(html.slice(a,b),ctx);
+ctx.sportIcon=s=>`icon-${s}`;ctx.calendarActivity=s=>ctx.sportIcon(s.sport);ctx.calendarMinutes=s=>s.completion?.minutes??s.minutes;
+const cancelledLift={sport:'gym',minutes:20,skipped_id:'archived',name:'Strength'};
+const markers=ctx.displaySessions({sessions:[cancelledLift],done:[],recovery_day:true});
+assert.equal(markers.length,2);assert.equal(markers[0].sport,'gym');assert.equal(markers[1].sport,'rest');
+assert.match(ctx.calendarMarker(markers[0]),/icon-gym.*cancel-cross/);
+assert.match(ctx.calendarMarker(markers[1]),/recovery-record.*icon-rest.*calendar-status completed/);
+assert.doesNotMatch(ctx.calendarMarker(markers[1]),/cancel-cross/);
+assert.match(html,/\.calendar-activities>\.recovery-record\{grid-column:1\/-1/);
+console.log('PASS cancelled lift icon and red X precede a separate checked recovery moon');
+
+
 // Completed report opens and closes through the same button or its footer.
 const reportButton={textContent:'View reported swim',attrs:{},setAttribute(k,v){this.attrs[k]=v;},getAttribute(k){return this.attrs[k];},focus(){this.focused=true;}},footer={};
 const reportCard={hidden:true,innerHTML:'',querySelector(){return footer;}};ctx.$=id=>{assert.equal(id,'othercard');return reportCard;};
