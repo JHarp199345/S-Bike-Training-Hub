@@ -1,0 +1,33 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const ctx={};vm.createContext(ctx);vm.runInContext(fs.readFileSync('web/workout-format.js','utf8'),ctx);vm.runInContext(fs.readFileSync('web/recorded-strength.js','utf8'),ctx);
+const report={activity_id:'synthetic',date:'2026-10-08',strength:{name:'Synthetic routine',sets:[{exercise:'Hip thrust',set:1,order:1,reps:12,weight:100,unit:'lb',volume_lb:1200,active_seconds:72,power_w_low:37,power_w_high:37,reported_rpe:1},{exercise:'Hip thrust',set:1,order:2,reps:10,weight:195,unit:'lb',volume_lb:1950,active_seconds:60,power_w_low:72,power_w_high:72,reported_rpe:7}],log:{dose:{external_volume_lb:3150}},details:{fields:{main:'Hip thrust 1 x 12 @ 100 lb'}},hr:{points:[{seconds:0,bpm:100},{seconds:20,bpm:160},{seconds:100,bpm:110}]}}};
+report.strength.log.lifts=[{name:'Hip thrust',section:'main',sets:2,reps:10,weight:195,unit:'lb',set_details:[{reps:12,weight:100,rpe:1},{reps:10,weight:195,rpe:7}]}];
+let out=ctx.RecordedStrength.render(report,'today');assert.match(out,/3,150 lb/);assert.match(ctx.RecordedStrength.table(report.strength),/Hip thrust · 2/);assert.match(out,/<details data-rs-preview>/);assert.doesNotMatch(out,/<details data-rs-preview open/);
+assert.match(out,/wf-warmup wf-unspecified/);assert.match(out,/wf-main/);assert.match(out,/wf-cooldown wf-unspecified/);
+assert.match(out,/class="workout-heart rs-heart"/);assert.match(out,/aria-label="Save workout to library"/);assert.doesNotMatch(out,/>Save workout to library<|data-session-action/);
+assert.match(ctx.WorkoutFormat.setTable({name:'Unknown',sets:1,reps:10,weight:50}),/<th>Planned effort<\/th><th>Reported effort/);
+assert.match(ctx.WorkoutFormat.render({sport:'gym',lifts:[{name:'Row',sets:3,reps:10,section:'main'}]},{preview:true}),/Planned effort: — \/10/);
+assert.match(ctx.RecordedStrength.render(report,'plan'),/Recorded output · reported effort/);
+const readonly=ctx.RecordedStrength.render(report,'history');assert.doesNotMatch(readonly,/data-rs-approve|data-rs-library|rs-editor/);
+assert.match(ctx.RecordedStrength.hrChart(report.strength.hr),/M48.0/);assert.match(ctx.RecordedStrength.hrChart(report.strength.hr),/M525.0/,'HR gaps break the line rather than implying measurements');
+assert.match(ctx.RecordedStrength.render({...report,strength:{...report.strength,name:'<script>alert(1)</script>'}}),/&lt;script&gt;/);
+const html=fs.readFileSync('web/coach.html','utf8'),start=html.indexOf('const workoutReportSnapshots'),end=html.indexOf("document.addEventListener('click',async e=>{const button=e.target.closest('[data-effort]')",start);
+const forms=[{dataset:{feedbackDate:'2026-10-08',feedbackIndex:'null',feedbackActivity:'synthetic',feedbackSport:'gym'}},{dataset:{feedbackDate:'2026-10-08',feedbackIndex:'2',feedbackSport:'gym'}},{dataset:{feedbackDate:'2026-10-08',feedbackIndex:'3'}}];
+const deleted=[];ctx.esc=v=>String(v??'').replaceAll('<','&lt;');ctx.day={};ctx.activityReportCache={delete:id=>deleted.push(id)};ctx.document={querySelectorAll:()=>forms};ctx.refreshFitnessDashboard=()=>{};
+vm.runInContext(html.slice(start,end),ctx);
+let form=ctx.feedbackHtml('2026-10-08',null,null,'synthetic','gym');assert.match(form,/<details class="note session-feedback" open/);assert.match(form,/feedback-fields/);assert.doesNotMatch(form,/width:60px|width:110px/);
+const saved={activity_id:'synthetic',session_index:2,rpe:7,note:'Actual report',effort:'as_intended',symptoms:[]};ctx.synchronizeWorkoutReport(saved,'2026-10-08',null,'synthetic');
+assert(forms[0].outerHTML&&forms[1].outerHTML);assert(!forms[2].outerHTML);
+assert.doesNotMatch(forms[0].outerHTML,/<details[^>]*\bopen\b/);assert.match(forms[0].outerHTML,/✓ Saved · view or edit/);assert.match(forms[1].outerHTML,/Actual report/);
+assert.deepEqual(deleted,['synthetic']);assert.equal(ctx.day.training_feedback['2026-10-08:2'].rpe,7);
+assert.doesNotMatch(ctx.feedbackHtml('2026-10-08',null,null,'synthetic','gym'),/<details[^>]*\bopen\b/,'Another surface renders the same saved report closed');
+const completedStart=html.indexOf('function completedHtml('),completedEnd=html.indexOf('function swimOutlookHtml(',completedStart);
+ctx.COMPLETE_ICON='✓';ctx.day.date='2026-10-08';vm.runInContext(html.slice(completedStart,completedEnd),ctx);
+for(const sport of ['swim','ride','run','gym','walk','other']){
+ const session={sport,name:'Sample '+sport,completion:{activity_id:'sample-'+sport,minutes:20}};
+ const card=ctx.completedHtml(session,'today');
+ assert.equal((card.match(/class="note session-feedback"/g)||[]).length,1,sport+' gets exactly one report');
+ assert.match(card,/data-workout-daily-checkin/,sport+' gets the shared daily recovery check-in');
+ assert.doesNotMatch(ctx.completedHtml(session,'metrics'),/session-feedback|data-workout-daily-checkin/,'Plan metrics never duplicate reports');
+}
+console.log('PASS recorded rendering, assumptions, missing samples, escaped text, collapsed parser preview, read-only history and shared saved-report collapse');

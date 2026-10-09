@@ -206,7 +206,7 @@ def set_sessions(d, date, sessions, _trusted=False, draft=False):
     for item in sessions:
         if not isinstance(item, dict) or item.get("sport") not in SPORTS:
             raise ValueError(f"session sport is one of {', '.join(SPORTS)}")
-        minutes = _num(item.get("minutes", 0), 0, 600, 4) if item.get("sport") in ("ride","swim","run") else int(item.get("minutes", 0))
+        minutes = _num(item.get("minutes", 0) or 0, 0, 600, 4)          # every sport keeps its decimals (23.2 stays 23.2)
         if minutes is None or not 0 <= minutes <= 600:
             raise ValueError("session minutes is 0-600")
         steps = item.get("steps") or []
@@ -471,21 +471,34 @@ def scheduled_view(d, session):
 def attach_completions(d, k, sessions, actual):
     """Pair each planned session on day k with what was actually done (completion), sport by sport."""
     used = set()
+    reserved = {s.get('recorded_activity_id') for s in sessions if s.get('recorded_activity_id')}
     gym_index = 0
+    free_logs = [l for l in (d.get('lifting') or {}).get('logs', [])
+                 if l.get('source_activity_id') not in reserved
+                 and (d.get('recording_links',{}).get(l.get('source_activity_id')) or {}).get('mode') not in ('new','scheduled')]
     for s in sessions:
         if s.get("skipped_id"): continue  # a later same-sport activity is not this cancelled prescription
+        explicit = s.get('recorded_activity_id')
+        if explicit:
+            pair = next(((n,a) for n,a in enumerate(actual) if n not in used and a.get('activity_id')==explicit), None)
+            if pair:
+                n,a=pair; used.add(n); s['completion']=copy.deepcopy(a)
+            if s.get('sport')=='gym': gym_index += 1
+            continue
         if s.get("sport") == "gym":
-            log = next((l for l in (d.get("lifting") or {}).get("logs", [])
+            log = next((l for l in free_logs
                         if l.get("date") == k and l.get("session") == s.get("name")
                         and (l.get("inputs") or {}).get("session_index") in (None, gym_index)), None)
             if log is None:   # a lift logged that day under another name still counts for the gym session
-                log = next((l for l in (d.get("lifting") or {}).get("logs", []) if l.get("date") == k), None) if gym_index == 0 else None
+                log = next((l for l in free_logs if l.get("date") == k), None) if gym_index == 0 else None
             gym_index += 1
             if log:
                 s["completion"] = {"minutes": log.get("minutes"), "lifting": log}
             continue
         want = {"ride": "bike"}.get(s.get("sport"), s.get("sport"))
         matches = [(n, a) for n, a in enumerate(actual) if n not in used
+                   and a.get("activity_id") not in reserved
+                   and (a.get("workout_link") or {}).get("mode") not in ("new", "scheduled")
                    and {"ride": "bike"}.get(a.get("sport"), a.get("sport")) == want
                    and a.get("minutes", 0) >= max(ATTEMPT_MIN, (s.get("minutes") or 0) * ATTEMPT_SHARE)]
         if matches:
@@ -584,7 +597,7 @@ def week(d, date, done=None):
         p = d["plans"].get(k) or {}
         sessions = p.get("sessions") or ([{"sport": p.get("sport"), "minutes": p.get("minutes"),
                                           "name": p.get("sport", "").title(), "steps": [],
-                                          "note": p.get("note") or "", "workout": p.get("workout")}] if p.get("sport") else [])
+                                          "note": p.get("note") or "", "workout": p.get("workout"), **({"recorded_activity_id":p["recorded_activity_id"]} if p.get("recorded_activity_id") else {})}] if p.get("sport") else [])
         sessions = [scheduled_view(d, s) for s in sessions]
         import session_explanations
         for n, session in enumerate(sessions):session["explanation"] = session_explanations.describe(d,k,n,session)

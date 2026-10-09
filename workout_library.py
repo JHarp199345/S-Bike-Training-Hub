@@ -11,13 +11,14 @@ import math
 import re
 import uuid
 
-SPORTS = ('gym', 'swim', 'ride', 'run', 'other')
+SPORTS = ('gym', 'swim', 'ride', 'run', 'walk', 'other')
 GOALS = {
     'gym': {'weight_moved': (1, 1000000), 'minutes': (1, 600)},
     'swim': {'distance': (25, 30000), 'minutes': (1, 600)},
     'ride': {'minutes': (1, 600), 'distance_km': (.1, 500), 'power_low': (20, 1500), 'power_high': (20, 1500),
              'cadence_low': (30, 200), 'cadence_high': (30, 200), 'energy_kcal': (1, 10000)},
     'run': {'minutes': (1, 600), 'distance_km': (.1, 100), 'steps': (1, 200000), 'zone': (1,5), 'hr_low': (30,240), 'hr_high': (30,240)},
+    'walk': {'minutes': (1, 600), 'distance_km': (.1, 100)},
     'other': {'minutes': (1, 600)},
 }
 TEMPLATE_KEYS = ('sport', 'name', 'minutes', 'note', 'steps', 'lifts', 'typed_workout', 'swim_recipe', 'run_recipe', 'swim_plan', 'swim_profile', 'bike_plan', 'route_id', 'workout', 'cadence', 'focus', 'workout_goals')
@@ -218,7 +219,75 @@ def attach_goals(d, date, index, req):
         session['goal_request_id'] = goal_id
     return session
 
-def keep(d, date, index, favorite=None, origin='athlete'):
+def dose_signature(template):
+    """Identity of what the workout prescribes. Explanatory text (how a plan was derived) is not the workout, so two
+    saves of the same dose through different paths are one library entry."""
+    t = copy.deepcopy(template)
+    for plan in ('bike_plan', 'swim_plan'):
+        if isinstance(t.get(plan), dict):
+            t[plan].pop('basis', None)
+    return hashlib.sha256(json.dumps(t, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+
+
+def remove(d, ident, merge_into=None):
+    """Take a workout out of the library. With merge_into, its dated uses and the sessions pointing at it move to the
+    kept entry, so no history is lost."""
+    library = d.get('workout_library', {})
+    item = library.get(identifier(ident))
+    if not item:
+        raise ValueError('Library workout not found')
+    keep_item = library.get(identifier(merge_into)) if merge_into else None
+    if merge_into and not keep_item:
+        raise ValueError('The workout to keep was not found')
+    if keep_item:
+        for use in item['uses']:
+            if use not in keep_item['uses']:
+                keep_item['uses'].append(use)
+        keep_item['favorite'] = keep_item.get('favorite') or item.get('favorite')
+        keep_item['remembered'] = keep_item.get('remembered') or item.get('remembered')
+    for plan in (d.get('plans') or {}).values():
+        for s in plan.get('sessions') or []:
+            if s.get('library_id') == item['id']:
+                if keep_item:
+                    s['library_id'] = keep_item['id']
+                else:
+                    s.pop('library_id', None)
+    for detail in (d.get('activity_workouts') or {}).values():
+        if detail.get('library_id') == item['id']:
+            detail['library_id'] = keep_item['id'] if keep_item else None
+    del library[item['id']]
+    return {'removed': item['id'], 'kept': keep_item['id'] if keep_item else None}
+
+
+def routine_signature(session):
+    """Gym movement identity, independent of date, weights, repetitions and effort.
+    Consecutive dose rows for the same movement are one movement. Order, section,
+    circuit, equipment and unilateral/bilateral structure still distinguish routines.
+    """
+    if session.get('sport')!='gym':return None
+    import lifting
+    movements=[]
+    for x in session.get('lifts') or []:
+        name=re.sub(r'\s+level\s+[0-3]\b','',lifting.key(x['name']))
+        row=[name,x.get('section') or 'main',x.get('block') or '',
+             x.get('equipment') or '',bool(x.get('per_side'))]
+        if not movements or row!=movements[-1]:movements.append(row)
+    return hashlib.sha256(json.dumps(movements,sort_keys=True).encode()).hexdigest() if movements else None
+
+def _matching_item(d, template, signature, library_id=None):
+    library=d.get('workout_library',{})
+    family=routine_signature(template)
+    if library_id:
+        item=library.get(library_id)
+        if not item:raise ValueError('Selected library workout not found')
+        if item and family and routine_signature(item['session'])==family:return item
+    exact=next((i for i in library.values() if i['signature']==signature or dose_signature(i['session'])==signature),None)
+    if exact:return exact
+    matches=[i for i in library.values() if family and routine_signature(i['session'])==family]
+    # Ambiguous legacy duplicates need an explicit selection, never a silent merge.
+    return matches[0] if len(matches)==1 else None
+
+def keep(d, date, index, favorite=None, origin='athlete', library_id=None):
     import training_block
     sessions = training_block.sessions(d.get('plans', {}).get(date) or {})
     if isinstance(index, bool) or not isinstance(index, int) or not 0 <= index < len(sessions):
@@ -229,9 +298,9 @@ def keep(d, date, index, favorite=None, origin='athlete'):
     template = {k: copy.deepcopy(session[k]) for k in TEMPLATE_KEYS if k in session}
     if template.get('bike_plan') and template.get('typed_workout'):template.pop('workout', None)
     # Machine/control identifiers and per-date source files stay out of the reusable template.
-    signature = hashlib.sha256(json.dumps(template, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+    signature = dose_signature(template)
     library = d.setdefault('workout_library', {})
-    item = next((i for i in library.values() if i['signature'] == signature), None)
+    item = _matching_item(d, template, signature, library_id or session.get('library_id'))
     if item is None:
         if len(library) >= 1000:
             raise ValueError('The library has 1,000 workouts; archive unused entries before adding more')
@@ -259,7 +328,7 @@ def get(d, ident):
 def responses(d, item, done=None):
     import training_block
     out = []
-    for use in item['uses']:
+    for use in item.get('uses',[]):
         date, index = use['date'], use['index']
         # A replaced or edited prescription must not inherit an unrelated response by index.
         sessions = training_block.sessions(d.get('plans', {}).get(date) or {})
@@ -279,12 +348,135 @@ def responses(d, item, done=None):
             row['followup_scope'] = 'Lifting day; shared when multiple lifts happened on this date.'
         if row['feedback'] or logs or row.get('delayed_capacity_followup') or row.get('completion'):
             out.append(row)
-    return out
+    # Completed imports link by immutable source ID; measurements remain in their
+    # original records, not copied into a reusable prescription.
+    for ref in item.get('completed_uses',[]):
+        ident=ref['activity_id']
+        detail=d.get('activity_workouts',{}).get(ident,{})
+        if detail.get('library_id')!=item['id']:continue
+        import recorded_strength
+        log=recorded_strength.source_log(d,ident)
+        feedback=next((copy.deepcopy(x) for x in d.get('training_feedback',{}).values() if str(x.get('activity_id'))==ident),None)
+        completion=next((copy.deepcopy(x) for x in (done or {}).get(ref['date'],[]) if str(x.get('activity_id'))==ident),None)
+        existing=next((r for r in out if str((r.get('completion') or {}).get('activity_id'))==ident),None)
+        row=existing if existing is not None else copy.deepcopy(ref)
+        row.update(activity_id=ident,feedback=feedback or row.get('feedback'),completion=completion or row.get('completion'))
+        if log:
+            row.update(session_name=log['session'],external_volume_lb=log.get('dose',{}).get('external_volume_lb'),
+                strength_logs=[{k:copy.deepcopy(log[k]) for k in ('rpe','wellness','points_total','regions','lifts') if k in log}],
+                delayed_lifting_followup=copy.deepcopy(d.get('lifting',{}).get('followups',{}).get(ref['date'])),
+                followup_scope='Lifting day; shared when multiple lifts happened on this date.')
+        if existing is None:out.append(row)
+    return sorted(out,key=lambda r:(r['date'],str(r.get('activity_id','')),r.get('index',-1)),reverse=True)
 
-def listing(d, sport=None, favorite_only=False, done=None):
+def completed_cardio_template(activity, detail, req):
+    """Reuse recorded work without turning watch measurements into targets."""
+    sport = 'ride' if activity['sport'] == 'bike' else activity['sport']
+    if sport not in SPORTS:
+        raise ValueError('Choose a supported recorded workout')
+    name = str(req.get('name') or detail.get('name') or detail.get('workout_name') or
+               'Recorded ' + {'ride': 'cycling', 'swim': 'swim', 'run': 'run', 'walk': 'walk', 'other': 'workout'}[sport]).strip()
+    if not name or len(name) > 120:
+        raise ValueError('Give a library name of 1–120 characters')
+    template = {'sport': sport, 'name': name, 'minutes': activity['minutes'], 'note': detail.get('note', '')}
+    fields = detail.get('fields') or {}
+    if fields:
+        template['typed_workout'] = {**{k: fields.get(k, '') for k in ('warmup', 'main', 'cooldown')}, 'repeats': 1}
+        template['steps'] = [f"{LABELS[k]}: {fields[k]}" for k in ('warmup', 'main', 'cooldown') if fields.get(k)]
+    if sport == 'swim' and detail.get('recipe'):
+        import swim_workouts
+        template['swim_recipe'] = swim_workouts.validate_recipe({**detail['recipe'], 'fields': detail['recipe'].get('fields') or fields})
+        template['swim_plan'] = swim_workouts.snapshot(template['swim_recipe'])
+    elif detail.get('run_recipe'):
+        import run_workouts
+        template['run_recipe'] = run_workouts.validate(detail['run_recipe'])
+    if not template.get('steps') and not template.get('swim_recipe') and not template.get('run_recipe'):
+        # A duration/distance outline is useful even without recorded interval detail.
+        # Do not invent stroke, watt targets, effort, or section splits.
+        distance = activity.get('km')
+        template['steps'] = [f"Recorded {activity['minutes']:g} min" +
+                             (f" · {distance:g} km" if distance else '')]
+    return template
+
+def save_completed(d, activity, req):
+    import recorded_strength
+    ident=str(activity['id']);log=recorded_strength.source_log(d,ident)
+    detail=d.get('activity_workouts',{}).get(ident,{})
+    if activity['sport'] != 'gym':
+        return _keep_completed_template(d, activity, req, completed_cardio_template(activity, detail, req))
+    if not log:raise ValueError('Add and approve the actual lifting details before saving this routine')
+    lifts=copy.deepcopy((log.get('inputs',{}).get('session') or {}).get('lifts') or [])
+    # The log has per-set actuals, but no planned prescription: rebuild dose rows.
+    if not lifts:
+        for x in log['lifts']:
+            for sd in x.get('set_details') or [x]:
+                if sd.get('done') is False:continue
+                lifts.append({**{k:copy.deepcopy(x[k]) for k in ('name','kind','style','regions','equipment','section','block','per_side','sled','how') if k in x},
+                    **{k:sd.get(k) for k in ('weight','unit','reps','seconds','tempo','hold')},'sets':1})
+    template={'sport':'gym','name':str(req.get('name') or log['session']).strip(),
+        'minutes':activity['minutes'],'lifts':lifts,'note':detail.get('note','')}
+    if not template['name'] or len(template['name'])>120:raise ValueError('Give a library name of 1–120 characters')
+    # Generate readable reusable dose text, rather than copying watch data or
+    # stale athlete prose that might disagree with corrected parsed dose.
+    fields={k:'\n'.join(f"{x['name']} {x.get('sets') or 1} x "+
+        (f"{x['reps']}" if x.get('reps') else f"{x.get('seconds') or 0} seconds")+
+        (' per side' if x.get('per_side') else '')+
+        (f" @ {x['weight']} {x.get('unit') or 'lb'}" if x.get('weight') is not None else '')+
+        (f" tempo {x['tempo']}" if x.get('tempo') else '')
+        for x in lifts if (x.get('section') or 'main')==k) for k in ('warmup','main','cooldown')}
+    template['typed_workout']={**fields,'repeats':1}
+    return _keep_completed_template(d, activity, req, template)
+
+def _keep_completed_template(d, activity, req, template):
+    ident = str(activity['id'])
+    detail = d.get('activity_workouts', {}).get(ident, {})
+    signature=dose_signature(template)
+    item=_matching_item(d,template,signature,req.get('library_id') or detail.get('library_id'))
+    if item is None:
+        if len(d.get('workout_library',{}))>=1000:raise ValueError('The library has 1,000 workouts')
+        uid=uuid.uuid4().hex
+        item={'id':uid,'signature':signature,'session':template,'favorite':False,'created':now(),'origin':'completed workout','uses':[]}
+        d.setdefault('workout_library',{})[uid]=item
+    # An explicit library save updates its reusable dose, while history stays
+    # attached to immutable original performances. Keep a previously chosen title.
+    if item.get('completed_uses') or item.get('uses'):
+        template['name']=str(req.get('name') or item['session']['name'])
+    item['session']=template
+    item['signature']=hashlib.sha256(json.dumps(template,sort_keys=True,ensure_ascii=False).encode()).hexdigest()
+    # Explicitly keeping a completed routine is the heart action.
+    item['favorite']=True
+    ref={'date':activity['date'],'activity_id':ident}
+    if ref not in item.setdefault('completed_uses',[]):item['completed_uses'].append(ref)
+    item['updated']=now()
+    d.setdefault('activity_workouts',{}).setdefault(ident,{})['library_id']=item['id']
+    return copy.deepcopy(item)
+
+def reconcile_completed(d, ident):
+    detail=d.get('activity_workouts',{}).get(ident,{})
+    item=d.get('workout_library',{}).get(detail.get('library_id'))
+    if not item:return
+    import recorded_strength
+    log=recorded_strength.source_log(d,ident)
+    if log and routine_signature({'sport':'gym','lifts':log['lifts']})!=routine_signature(item['session']):
+        item['completed_uses']=[r for r in item.get('completed_uses',[]) if r['activity_id']!=ident]
+        detail.pop('library_id',None)
+
+def remember(d, ident, remembered):
+    """The brain: a remembered layer on top of the library (everything in the library is already kept)."""
+    item = d.get('workout_library', {}).get(identifier(ident))
+    if not item:
+        raise ValueError('Library workout not found')
+    if not isinstance(remembered, bool):
+        raise ValueError('remembered is true or false')
+    item['remembered'] = remembered
+    item['updated'] = now()
+    return copy.deepcopy(item)
+
+
+def listing(d, sport=None, favorite_only=False, done=None, remembered_only=False):
     items = []
     for raw in d.get('workout_library', {}).values():
-        if sport and raw['session']['sport'] != sport or favorite_only and not raw['favorite']:
+        if sport and raw['session']['sport'] != sport or favorite_only and not raw['favorite'] or remembered_only and not raw.get('remembered'):
             continue
         item = copy.deepcopy(raw); item['responses'] = responses(d, item, done)
         item['response_count'] = len(item['responses'])
@@ -342,8 +534,10 @@ def save_template(d, req):
     # Use the common signature/validation logic without touching any scheduled day.
     candidate = copy.deepcopy(d)
     candidate['plans']['2000-01-01'] = {'sessions': [entry]}
-    item = keep(candidate, '2000-01-01', 0, favorite=req.get('favorite'), origin='athlete')
+    item = keep(candidate, '2000-01-01', 0, favorite=req.get('favorite'), origin='athlete',library_id=req.get('library_id'))
     ident = item['id']
+    item['session']=entry
+    item['signature']=hashlib.sha256(json.dumps(entry,sort_keys=True,ensure_ascii=False).encode()).hexdigest()
     item['uses'] = copy.deepcopy(d.get('workout_library', {}).get(ident, {}).get('uses', []))
     d.setdefault('workout_library', {})[ident] = item
     return copy.deepcopy(item)

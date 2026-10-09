@@ -32,12 +32,12 @@ fitwrite.run(tmp / "r.fit", dt.datetime(2026, 9, 1, 7).timestamp(), 600, 145, 40
 fit = (tmp / "r.fit").read_bytes()
 ok = True
 for label, cond in [
-    ("a .fit run is added to activities/", up("morning_run.fit", fit) == (200, {"imported": ["morning_run.fit"]}) and (tmp / "activities" / "morning_run.fit").exists()),
+    ("a .fit run is added to activities/", up("morning_run.fit", fit) == (200, {"imported": ["morning_run.fit"], "already": []}) and (tmp / "activities" / "morning_run.fit").exists()),
     ("the same file again is noticed, not duplicated", up("morning_run.fit", fit)[1].get("already") == ["morning_run.fit"]),
-    ("a .tcx is accepted", up("ride.tcx", b'<?xml version="1.0"?><TrainingCenterDatabase xmlns="x"></TrainingCenterDatabase>')[0] == 200),
+    ("an empty TCX without a workout is refused", up("ride.tcx", b'<?xml version="1.0"?><TrainingCenterDatabase xmlns="x"></TrainingCenterDatabase>')[0] == 400),
     ("a renamed photo is refused", up("fake.fit", b"\x89PNG" + b"0" * 40)[0] == 400),
     ("other file types are refused", up("notes.txt", b"hello")[0] == 400),
-    ("paths can't escape the folder", up("..%2F..%2Fcoach.fit", fit)[1].get("imported") in (["coach.fit"], None) and not (tmp / "coach.fit").exists()),
+    ("paths can't escape the folder", up("..%2F..%2Fcoach.fit", fit)[1].get("imported") in (["coach.fit"], [], None) and not (tmp / "coach.fit").exists()),
 ]:
     ok &= bool(cond); print(("PASS " if cond else "FAIL ") + label)
 html = (pathlib.Path(__file__).resolve().parent.parent / "web" / "coach.html").read_text()

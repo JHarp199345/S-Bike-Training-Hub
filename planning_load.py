@@ -104,7 +104,7 @@ def outlook(d, load, prof, today, horizon=21, done=None):
                 if kcal:
                     planned.append({"sport": s.get("sport"), "name": s.get("name"), "kcal": round(kcal), "basis": basis})
                     j += kcal * J_PER_KCAL
-        days.append({"date": key, "j": j, "planned": planned, "future": x > today})
+        days.append({"date": key, "j": j, "recorded_j": recorded.get(key, 0.0) if x <= today else 0.0, "planned": planned, "future": x > today})
         x += dt.timedelta(days=1)
     # Reference: the typical daily rate and training day over the 28 days before today (or the starting estimate).
     past28 = [r for r in days if today - dt.timedelta(days=27) <= _date(r["date"]) <= today]
@@ -138,10 +138,20 @@ def outlook(d, load, prof, today, horizon=21, done=None):
                 flags.append("3-day rate above the phase target")
             if peak["j"] > typical_day * PEAK_CAP and peak["date"] == r["date"]:
                 flags.append(f"biggest day over {PEAK_CAP}× your typical training day")
+        if r["date"] == today.isoformat():
+            # "Now" is what is recorded so far; today's unfinished plan is reported separately (it still feeds the days ahead).
+            done3 = [x.get("recorded_j", x["j"]) for x in w3]
+            today_now = {"rate3_j_per_day": sum(done3) / 3, "load28_j": sum(x.get("recorded_j", x["j"]) for x in w28),
+                         "energy_j": r["recorded_j"], "planned_today_j": r["j"] - r["recorded_j"],
+                         "rate3_with_plan_j_per_day": rate3}
         out.append({"date": r["date"], "future": r["future"], "energy_j": r["j"], "planned": r["planned"],
                     "rate3_j_per_day": rate3, "peak3": {"date": peak["date"], "j": peak["j"]},
                     "load28_j": sum(x["j"] for x in w28), "phase": phase,
                     "target_rate3": target, "flags": flags})
+    for o in out:
+        if o["date"] == today.isoformat():
+            o.update(rate3_j_per_day=today_now["rate3_j_per_day"], load28_j=today_now["load28_j"], energy_j=today_now["energy_j"],
+                     planned_today_j=today_now["planned_today_j"], rate3_with_plan_j_per_day=today_now["rate3_with_plan_j_per_day"])
     return {"as_of": today.isoformat(), "well_tolerated": well_tolerated(d, today), "reference_rate_j_per_day": ref, "typical_training_day_j": typical_day,
             "reference_basis": ref_basis, "history_days": history_days, "sport_rates": rates, "build_step": step,
             "peak_cap": PEAK_CAP, "days": out,

@@ -6,11 +6,40 @@ A free, local training hub for cycling, swimming, running and strength. It keeps
 
 <p align="center"><img src="docs/journey/today.jpg" width="880" alt="The Coach's Today page: the day's verdict, check-in and workouts"></p>
 
-## App 1.9.0 · current release
+## App 1.10.0 · current release
 
-Training energy now comes from the source least dependent on heart rate (bike power; running and walking from distance, gradient and body mass; the watch for swims), and every check-in and workout report keeps the work context it was made in. Check-ins use validated questions (Hooper, pain by site, CR-10 effort, weekly OSTRC). The Plan tab's load outlook shows your recorded and planned 3-day rate, biggest day and 28-day load against each phase's target, and a bad report triggers an evening and next-morning re-check before running resumes.
+Workout records now share one format across sports, with editable text, optional effort readings and reports that stay linked to the original session. Watch files can be associated with scheduled workouts or added as separate sessions; linked bike and watch recordings count once. Plan uses the same **View workout details / Hide workout details** controls for every sport and stays on Plan.
 
-Use **MCP 1.9.0** with this app (the assistant tools changed). See [release notes](docs/releases/APP-1.9.0.md) for scope and platform verification.
+**Energy units:** choose **Calories** or **Joules / watts** in Settings. Energy appears as kcal or J/kJ/MJ, and session rate as kcal/min or W, with a smaller equivalent alongside it. One kcal = 4,184 J; one kcal/min ≈ 69.73 W. Cycling crank power, estimated metabolic energy and nominal lifting external work retain separate labels. Changing units changes the display, not the underlying record or heart-rate zones. Lifting’s mechanical calorie equivalent is not calories burned.
+
+**Swim timing:** type `400 FS 6 to 8 minutes` to store a six-minute goal and eight-minute expectation for the whole written set. A single time sets both markers. These are completion targets; `@ 1:10` still means a send-off, and `rest 20 seconds` still means rest. The parser previews the set totals without AI.
+
+<p align="center"><img src="docs/release-1.10/swim-preview.jpg" width="880" alt="Real manual swim preview showing separate completion goals and expectations"></p>
+
+After linking the watch file, distance, order and available strokes align the sets. The report shows **at goal**, **as or better than expected**, or **slower than expected**, plus seconds/percent against expectation and remaining time to goal. Consecutive drills stay one block when the watch cannot distinguish them. Missing, extra or ambiguous segments require review; no individual times are manufactured.
+
+<p align="center"><img src="docs/release-1.10/swim-timing.jpg" width="880" alt="Watch timing comparison against saved goal and expected times, with drills kept as one block"></p>
+
+Optional individual drill times are athlete reports, stored separately from watch measurements. Leave them blank if you did not record or remember them. For untimed sets, after at least three comparable recorded performances the builder offers a recent-best and median timing draft for review; it never assigns a goal silently.
+
+<p align="center"><img src="docs/release-1.10/drill-splits.jpg" width="880" alt="Optional athlete-reported drill split fields with saved values and unknown splits left blank"></p>
+
+Plan swim details now show a sectioned workout beside a **distance-based stroke donut** and the existing front/back body map with five estimated intensity colors. Watch classification stays separate from athlete-described strokes, including unresolved drills. Stacked stroke-distance bars can group by session or day over 5, 10, 20, 30, 40, 60 or 90 days, with available-record coverage labeled; separate charts show duration, distance, average HR and descriptive HR × minutes. Increased volume can raise HR × time without raising average HR. Unknown readings remain dashes; these charts do not declare adaptation or deconditioning.
+
+<p align="center"><img src="docs/release-1.10/swim-plan-profile.jpg" width="880" alt="Plan swim write-up beside a distance donut showing 75 percent freestyle, 15 percent butterfly and 10 percent backstroke"></p>
+<p align="center"><img src="docs/release-1.10/swim-stroke-history.jpg" width="880" alt="Compact 90-day Plan swim stroke-distance history grouped by session, with unknown watch strokes and record coverage labeled"></p>
+<p align="center"><img src="docs/release-1.10/swim-response.jpg" width="880" alt="Independent swim volume, duration and heart-rate response charts"></p>
+
+**Fitness Dashboard swim history:** a full-size stacked stroke-distance chart covers custom dates or the last 1, 2, 3, 6 or 12 calendar months, grouped by day or swim session. Compare months, calendar quarters, saved training phases or custom groups of 1–12 months. Six comparison periods appear by default, three per page; request up to twelve or use View all. Each donut shows distance proportions, total distance and recorded time. Unknown classification stays visible and available-record coverage is labeled. The compact history remains in Plan swim cards; Today keeps its existing workout/report layout.
+
+<p align="center"><img src="docs/release-1.10/swim-dashboard.jpg" width="880" alt="Fitness Dashboard swim history with custom dates, full-size stacked distance bars and three monthly body-map donuts per page"></p>
+
+Saved workouts have red library hearts. Library history opens on the most recent comparable performance, with comparison metrics above a stack of record cards and small previous/next controls. Changes in weight/reps keep a strength routine’s history; changed movements create a different routine. Performance differences alone do not prove adaptation or deconditioning.
+
+<p align="center"><img src="docs/release-1.10/library-records.jpg" width="880" alt="Saved swim with a red heart, sport-specific measured metrics, unknown values and stacked performance cards"></p>
+<p align="center"><img src="docs/release-1.10/calorie-rates.jpg" width="880" alt="Recorded training shown in calories per minute with a quiet watt equivalent"></p>
+
+Use **MCP 1.10.0** with this app: 114 listed tools use the same Hub operations as the manual interface. See [release notes](docs/releases/APP-1.10.0.md) and [swim timing design](docs/design/swim-timing.md). Screenshots above use synthetic data. The unfinished Halloween world is excluded from this release.
 
 ## What a 12-week program looks like
 
@@ -56,9 +85,9 @@ To make your own copy of this journey: `python3 tools/demo/journey.py` (Linux, n
 
 ## Ride views and personal media
 
-The ride screen uses one **Ride.** header and glass menu across the real map, animal game, 8-bit game, haunted graveyard, and personal Plex video view. Use the hamburger to choose your view, music or video, and a saved ERG workout or route. Workout targets stay the same when scenery changes. The menu orders rides using today's schedule, calculated load estimates, and recorded starts; these comparisons are guidance, not a readiness guarantee.
+The ride screen shares its controls across the existing ride views. The phone layout has a compact cadence display; tap for ride information. Workout targets stay the same when the view changes. Pause, resume and End operate on the current ride, workout and route; route/ghost history tolerates incomplete event rows.
 
-Personal media is in **Settings → Music connections**. On macOS, choose your music folder and the ride screen's **Library** shows songs, albums and artists, with cover art and available tempo estimates. **Workout Tempo** suggests songs that fit your cadence band; it does not change the workout. The Hub reads existing files locally; files you deliberately drop onto the upload area are added without overwriting existing songs. Saved-folder selection on Linux/Windows is **in progress**; **Playlists → Files from this device** provides browser-local music instead. Apple Music publisher setup, iBroadcast/OpenSubsonic connections, and live-account Plex playback verification are **in progress**. Plex video currently supports browser-playable personal MP4/WebM files, without transcoding, subtitles or watch progress.
+Personal audio and video use one **private folder on your computer**, configured in **Settings → Music connections**. Choose a folder on macOS; on Linux/Windows use `HUB_MUSIC_FOLDER`. The Library separates audio/video, supports search and random selections, shows available cover art and tempo, and plays supported files with seeking. Choose video opens the Video library. Uploads never overwrite existing files. Setup is restricted to the computer running the Hub; paired devices can play the media. The previous third-party streaming-service setup is removed from this release.
 
 See [personal media setup and privacy](docs/PERSONAL-MEDIA.md) for account setup, supported formats, and what stays local.
 
@@ -110,7 +139,7 @@ Then **Build my program**: the hub drafts a program toward your goal that you ca
 
 The hub keeps the numbers; your assistant plans with you. It works with any app that supports MCP servers: Claude Desktop, Claude Code, and others, including local models.
 
-- **Claude Desktop:** use MCP **1.9.0** with this updated app. Download the `.mcpb` bundle from the [latest release](https://github.com/JHarp199345/S-Bike-Training-Hub/releases), then **Settings → Extensions → Advanced settings → Install extension**. Leave the hub address at `http://127.0.0.1:8729`.
+- **Claude Desktop:** use MCP **1.10.0** with this updated app. Download the `.mcpb` bundle from the [latest release](https://github.com/JHarp199345/S-Bike-Training-Hub/releases), then **Settings → Extensions → Advanced settings → Install extension**. Leave the hub address at `http://127.0.0.1:8729`.
 - **Claude Code:** `claude mcp add --scope user s-bike-hub -- "$PWD/.venv/bin/python" "$PWD/mcp_server.py"` (on Windows: `.venv\Scripts\python.exe`).
 - **Other MCP apps:** point them at `mcp_server.py` with the `.venv` Python.
 
@@ -131,7 +160,7 @@ On the welcome page, under **Your bike**: turn the bike on, pedal to wake it, di
 
 ### 5. Get your watch data in
 
-Import your watch's activity files (`.fit` or `.tcx`; COROS, Garmin and most others) from the Coach, or let your assistant do it if it has a watch connector. Every ride, run and swim then counts toward your training load.
+Use **Import watch workout** on Today for `.fit` or `.tcx` files (COROS, Garmin and other supported watches). Choose the matching scheduled workout, or **＋ New workout** for a separate session on the watch’s recorded date. Preview the association before saving. A watch file can also link to a Hub bike recording: bike power/cadence and watch heart rate are aligned with an optional clock adjustment and counted as one session. Imports preserve existing files and detect duplicates. Assistants use the same review and save operations.
 
 ## Every day
 
@@ -153,12 +182,7 @@ Import your watch's activity files (`.fit` or `.tcx`; COROS, Garmin and most oth
   - impact on feet and bones, from your steps, pace and body weight;
   - swim shoulders;
   - lifting by muscle region.
-- **Running in "blocks"**, your personal recovery unit, measured by the running calibration:
-  - **Targets:** while running is building, runs land at 0.8–1.5 blocks, waved light/middle/heavy week to week.
-  - **Maintenance:** about 0.4 when running isn't the focus.
-  - **Deloads:** to 0.4, then 0.1, start automatically after tightness, a hard run, a heavy morning or a hop-test drop.
-  - **Growth:** the block grows 1–10% a week when runs are absorbed more easily than predicted, at most +30% between check weeks.
-  - **Shrinking:** a rough run shrinks it at once.
+- **Running response and recovery review:** recent reports and recorded exposure guide the selected response estimate. Shared model changes require an evidence-based preview and approved apply; older block tools remain for legacy installations. The estimate is not an injury prediction or medical clearance.
 - **Training rules** checked on every plan and change:
   - no hard ride or run the day after leg lifting;
   - no two sessions on the same tissue in one day;
@@ -193,7 +217,17 @@ Tests run on Linux, macOS and Windows in GitHub Actions on every push, installin
 
 The training models are provisional estimates calibrated by your own reports, not medical advice or injury prediction. Check with a doctor before starting a program, and stop if something hurts. Shortness of breath or a heart-rate issue is a reason to ease off all training and get checked. The bike connection changes resistance on real equipment: keep a way to stop pedaling safely.
 
+## Personal music and video
+
+A private folder supplies audio and browser-playable video during rides, with local metadata and tempo reading where available. The current library deals 36 random picks and supports search, audio/video selection, and shuffle. Playback depends on the browser and codec; the Hub does not transcode files. See [personal media setup](docs/PERSONAL-MEDIA.md).
+
+**In progress:** testing more formats and richer metadata browsing. The planned recommendation layout is 16 feature films and 32 music videos, organized by genre, director and participating artists. Those category-specific counts and filters are not implemented in this release.
+
 ## Credits and license
+
+The **Fitness Dashboard body heat map** uses [body-highlighter](https://www.npmjs.com/package/body-highlighter), derived from [react-body-highlighter by GV79 / giavinh79](https://github.com/giavinh79/react-body-highlighter), under MIT. Its [original license](web/vendor/body-highlighter.LICENSE) and [upstream documentation](web/vendor/body-highlighter.README.md) are included. The swim donut reuses the same credited front/back body map at a smaller scale.
+
+Thanks also to [MapLibre](https://maplibre.org), [BRouter](https://github.com/abrensch/brouter), [Protomaps](https://protomaps.com), [OpenStreetMap contributors](https://www.openstreetmap.org/copyright), [Kenney](https://kenney.nl) and [Quaternius](https://quaternius.com) for the software, map data and art used by the Hub. Existing scenery asset licenses and credits remain bundled. These are project credits, not claims of sponsorship or partnership.
 
 Built by JHarp199345 with [Claude](https://claude.com) as co-author. The running-load block model was worked out by JHarp199345 with ChatGPT, then built into the hub with Claude. Map data © OpenStreetMap contributors; full credits in [docs/how-it-works.md](docs/how-it-works.md#credits). [MIT license](LICENSE).
 
@@ -241,7 +275,7 @@ Swimming can have distance and time goals. Cycling can have time, an average-pow
 
 **Save goal brief without a workout** stores a dated request for a coach or assistant to design or reuse suitable work within the current phase. It carries no projected or recorded activity load. A saved prescription can resolve its brief. **Save for later** hearts a workout in the private library without scheduling it; workouts added through the creator are also kept for reuse. Heart buttons on scheduled workouts keep favorites. Library entries show explicit effort reports, original completion records when matched, and delayed recovery feedback when available. Missing feedback is shown as unknown. Edited prescriptions and repeated dates do not silently inherit another workout’s response.
 
-The MCP server provides compact `get_workout_library` listings, `get_library_workout` details, `get_workout_goals`, `save_workout_goal`, `preview_workout_goals`, `save_library_workout`, and `favorite_workout`. Its coaching routine considers compatible favorites before inventing every workout, previews goal differences and whole-calendar load, and preserves the current program’s recovery and taper purpose. Preference is not readiness clearance. These tools are in the local source; installed extension bundles need rebuilding/reloading to expose new tools.
+The MCP server provides compact `get_workout_library` listings, `get_library_workout` details, `get_workout_goals`, `save_workout_goal`, `preview_workout_goals`, `save_library_workout`, and `favorite_workout`. Its coaching routine considers compatible favorites before inventing every workout, previews goal differences and whole-calendar load, and preserves the current program’s recovery and taper purpose. Preference is not readiness clearance. These tools ship in MCP 1.10.0; update older extension bundles and restart the Hub to expose the new actions.
 
 ### Energy display
 

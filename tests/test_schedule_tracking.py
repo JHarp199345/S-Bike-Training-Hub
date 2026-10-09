@@ -55,3 +55,20 @@ with patch.object(coach,'today',return_value=DATE):
  try:coach.session_action(x,DATE,1,'delete');raise AssertionError('shifted recorded indices')
  except ValueError:pass
 print('PASS cancellation and revisions stay separate, original icons/targets, no phantom dose/completion, recovery record, partials, immutable baseline and normal save audit')
+
+
+def test_untrainable_sessions_do_not_look_like_plan_changes():
+    """A session that doesn't count toward adherence (e.g. 'other' or rest) must not appear as a target change."""
+    import coach, schedule_tracking
+    other = next(s for s in ('other', 'mobility', 'walk') if s not in coach.TRAINABLE) if any(s not in coach.TRAINABLE for s in ('other', 'mobility', 'walk')) else None
+    if other is None:
+        return
+    d = {'plans': {'2026-10-01': {'sessions': [{'sport': 'ride', 'minutes': 30, 'name': 'Ride'},
+                                               {'sport': other, 'minutes': 25, 'name': 'Extra'}]}}}
+    s = schedule_tracking.summary(d, '2026-10-01', '2026-10-02', {}, as_of='2026-10-03')
+    assert s['initial_minutes'] == s['prescribed_minutes'] == 30 and s['target_change_minutes'] == 0, s
+
+
+if __name__ == '__main__':
+    test_untrainable_sessions_do_not_look_like_plan_changes()
+    print('PASS untrainable sessions are not counted as a plan change')

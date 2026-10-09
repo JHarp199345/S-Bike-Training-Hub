@@ -1,0 +1,25 @@
+const assert=require('node:assert/strict'),S=require('../web/swim-workout.js');
+const recipe={total_distance:2000,unit:'yd',sets:[{stroke:'free',distance_m:1500,section:'main',distance:1500,unit:'yd',description:'FS <script>',work:'swim'},{stroke:'fly',distance_m:300,section:'warmup',distance:300,unit:'yd',description:'Butterfly drill',work:'drill'},{stroke:'back',distance_m:200,section:'cooldown',distance:200,unit:'yd',description:'Backstroke',work:'swim'}]};
+const mix=S.strokeMix(recipe);assert.deepEqual(mix.parts.map(x=>x.percent),[75,15,10]);
+const plan=S.planView(recipe);assert.match(plan,/75%/);assert.match(plan,/Warm-up/);assert.match(plan,/Main work/);assert.match(plan,/Cool-down/);assert.match(plan,/Time —/);assert.doesNotMatch(plan,/<textarea|<input|<script>/);assert.match(plan,/FS &lt;script&gt;/);
+const response={distance_m:2000,duration_minutes:40,avg_hr:130,hr_time_bpm_min:5200};
+const view=S.analysisView({recipe,recipe_basis:'Athlete-described',described_mix:mix,watch_mix:{parts:[{stroke:'drill',label:'Drill',distance_m:400,percent:100}],total_m:400},response,history:[{date:'2026-10-08',watch_mix:mix,response:{...response,avg_hr:null}},{date:'2026-10-09',current:true,watch_mix:mix,response}]});
+assert.match(view,/Watch-classified/);assert.match(view,/Stroke distance across swims/);assert.match(view,/Time, volume and heart-rate response/);assert.match(view,/HR × time/);assert.match(view,/Reported effort —/);assert.doesNotMatch(view,/NaN|undefined|<textarea/);
+console.log('PASS Plan sectioned write-up, distance donut, body illustration, separate watch sources and response history with missing values');
+
+assert.match(plan,/Estimated Intensity Heat Map/);assert.match(plan,/data-swim-body/);assert.doesNotMatch(plan,/Muscle shading is/);
+const history=[{date:'2026-10-01',watch_mix:mix,response},{date:'2026-10-08',watch_mix:mix,response},{date:'2026-10-08',watch_mix:mix,response},{date:'2026-10-09',watch_mix:mix,response}];
+assert.equal(S.historyBuckets(history,5,'session').length,3);
+const daily=S.historyBuckets(history,5,'day');assert.equal(daily.length,5);assert.equal(daily[3].count,2);assert.equal(daily[3].distance_m,4000);assert.equal(daily[0].count,0);assert.equal(S.historyBuckets(history,30).length,4);
+assert.match(view,/30 days/);console.log('PASS date windows, multiple swims per day, zero-record days and reused map legend');
+const H=require('../web/swim-history.js');
+assert.equal(H.monthStart('2026-10-09',6),'2026-05-01');assert.equal(H.validRange('2026-09-01','2026-10-09','2026-10-09'),'');assert.ok(H.validRange('2026-02-30','2026-10-09','2026-10-09'));assert.ok(H.validRange('2025-01-01','2026-10-09','2026-10-09'));
+const settings={start:'2026-05-01',end:'2026-10-09',period:'month',span:2,count:6,source:'watch',group:'day'};
+assert.equal(H.periods(history,[],settings).length,6);assert.equal(H.periods(history,[],settings)[0].mix.count,4);assert.equal(H.periods(history,[],settings)[5].mix.count,0);
+assert.equal(H.series(history,settings).find(r=>r.date==='2026-10-08').mix.count,2);
+assert.equal(H.periods(history,[],{...settings,period:'quarter'})[0].label,'Q4 2026');
+const phase=H.periods(history,[{label:'Base',start:'2026-10-01',end:'2026-10-09'}],{...settings,period:'phase'});assert.equal(phase[0].end,'2026-10-08');assert.equal(phase[0].mix.count,3);
+assert.equal(H.aggregate([{response:{distance_m:100}}],'written').parts[0].stroke,'unknown');
+assert.equal(H.periods(history,[],{...settings,start:'2025-11-01',count:12}).length,12);
+const fs=require('fs'),coach=fs.readFileSync(require('path').join(__dirname,'../web/coach.html'),'utf8');assert.doesNotMatch(coach,/SwimWorkout.historyView\(report.swim_analysis.history,90\)/);assert.match(coach,/swim-history-dashboard/);
+console.log('PASS full dashboard calendar/quarter/phase periods, date validation, daily aggregation, missing descriptions and Plan-only mini history');

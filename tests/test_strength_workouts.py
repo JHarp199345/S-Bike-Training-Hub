@@ -55,7 +55,7 @@ async def api_test():
   state={'activities':[{'id':'gym','date':'2026-10-06','sport':'gym','minutes':23,'km':0},{'id':'swim','date':'2026-10-06','sport':'swim','minutes':53,'km':2.10312}]}
   async def api(path,body):
    code,_,raw,_=await mapserver.coach_api(bridge,b'POST',path,path,json.dumps(body).encode());return code,json.loads(raw)
-  with patch.object(mapserver,'load_state',return_value=state):
+  with patch.object(mapserver,'load_state',return_value=state), patch('activity_reports.read_activity',return_value={'id':'swim','sport':'swim','start':1791280800,'distance_m':2103.12,'minutes':53,'laps':[]}):
    code,r=await api('/api/coach/lifting/log',{'date':'2026-10-06','text':'Lat pulldowns 3 x 10 at 100 lb tempo 3-0-3'})
    assert code==200 and r['log']['source_activity_id']=='gym' and r['log']['dose']['active_seconds']==180,r
    code,p=await api('/api/coach/recorded-swim',{'activity_id':'swim','text':'2300 free easy','unit':'yd'})
@@ -74,4 +74,49 @@ async def api_test():
     assert code==400 and (base/'coach.json').read_bytes()==prior,rejected
  print('PASS normal API text correction preserves watch link, swim annotation previews/readbacks, no duplicate or rewritten plans')
 
-if __name__=='__main__':main();asyncio.run(api_test())
+def completed_test():
+ d={'plans':{'2026-10-08':{'sessions':[{'sport':'bike','name':'Keep prescribed ride','minutes':40}]}},'checkins':{},'ratings':{}}
+ before=copy.deepcopy(d)
+ req={'text':'TANK M4 level 1: 3 x 60 seconds\nHip thrust machine: 1 x 12 at 105 lb tempo 3-0-3\nHip thrust machine: 2 x 10 at 195 lb tempo 3-0-3',
+      'name':'Actual gym','exercise_metadata':[
+       {'kind':'other','style':'build','regions':{'quads':.5,'glutes':.5},'rpe':3},
+       {'kind':'machine','style':'build','regions':{'glutes':.8,'hamstrings':.2},'rpe':1},
+       {'kind':'machine','style':'build','regions':{'glutes':.8,'hamstrings':.2},'per_set_rpe':[7,7]}]}
+ activity={'id':'gym-new','date':'2026-10-08','sport':'gym','minutes':34.2}
+ result,state=sw.completed(d,req,activity)
+ assert d==before and result['log']['dose']['external_volume_lb']==5160
+ assert result['log']['dose']['active_seconds']==372 and not result['log']['unscored']
+ assert [r['rpe'] for r in result['log']['lifts']]==[3,1,7]
+ d['lifting']=state
+ second,state=sw.completed(d,req,activity)
+ assert len(state['logs'])==1 and d['plans']==before['plans']
+ assert state['library'][lifting.key('TANK M4 level 1')]['times_done']==1
+ bad={**req,'exercise_metadata':[{'weight':999}]*3}
+ try:sw.completed(d,bad,activity)
+ except ValueError:pass
+ else:raise AssertionError('Metadata overwrote dose')
+ # Unplanned completed activity uses the same server protocol, with preview isolation.
+ async def call_api():
+  with tempfile.TemporaryDirectory() as tmp:
+   base=pathlib.Path(tmp);(base/'rides').mkdir();(base/'activities').mkdir()
+   original=coach.load(base/'coach.json');original['plans']=before['plans'];coach.save(original)
+   bridge=SimpleNamespace(csv_path=str(base/'rides/demo.csv'),workouts=[],profile={'ftp':180})
+   async def call(body):
+    code,_,raw,_=await mapserver.coach_api(bridge,b'POST','/api/coach/lifting/recorded','/api/coach/lifting/recorded',json.dumps(body).encode())
+    return code,json.loads(raw)
+   with patch.object(mapserver,'load_state',return_value={'activities':[activity]}):
+    prior=(base/'coach.json').read_bytes()
+    code,p=await call({**req,'activity_id':'gym-new'})
+    assert code==200 and p['valid'] and (base/'coach.json').read_bytes()==prior,p
+    for _ in range(2):
+     code,p=await call({**req,'activity_id':'gym-new','save':True})
+     assert code==200 and p['saved'],p
+    saved=coach.load(base/'coach.json')
+    assert saved['plans']==before['plans'] and len(saved['lifting']['logs'])==1
+    assert saved['lifting']['logs'][0]['source_activity_id']=='gym-new'
+    code,p=await call({**req,'activity_id':'not-imported','save':True})
+    assert code==400,p
+ asyncio.run(call_api())
+ print('PASS completed-only MCP/API preview, exact dose, per-set efforts, linked idempotent save, plan preservation')
+
+if __name__=='__main__':main();asyncio.run(api_test());completed_test()

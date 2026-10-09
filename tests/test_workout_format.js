@@ -10,3 +10,8 @@ assert(!f.render({lifts:[{name:'<script>',sets:1,seconds:30}]},{actual:true}).in
 console.log('PASS workout-format quantities, incomplete data, stages, and escaped exercise names');
 
 const inferred=f.organize({lifts:[{name:'Prep',style:'restorative'},{name:'Lift',style:'build'},{name:'Ease',style:'restorative'}]});assert.deepEqual(inferred.lifts.map(f.section),['warmup','main','cooldown']);assert(inferred.inferred);assert(!f.organize({lifts:[{name:'Explicit main',style:'restorative',section:'main'}]}).inferred);
+
+const actualTimes=f.setTable({name:'Timed push',sets:3,seconds:60,set_details:[{seconds:60},{seconds:60},{seconds:60}]});
+assert(!actualTimes.includes('180 s') && (actualTimes.match(/60 s/g)||[]).length===6,'Each set displays its own duration');
+const actualTotal=f.render({sport:'gym',points_total:151.2,lifts:[{name:'A',sets:1,reps:1,weight:1,points:151.4}]},{actual:true});
+assert(actualTotal.includes('151.2 strength points · logged estimate'),'Historical session total survives section rounding');

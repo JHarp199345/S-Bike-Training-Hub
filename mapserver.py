@@ -37,7 +37,7 @@ HERE = Path(__file__).resolve().parent
 from map_paths import locate as map_folder
 MAPS = map_folder()
 WEB = HERE / "web"
-TYPES = {".mjs": "text/javascript", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg", ".glb": "model/gltf-binary",
+TYPES = {".mjs": "text/javascript", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg", ".glb": "model/gltf-binary", ".webp": "image/webp",
          ".html": "text/html; charset=utf-8", ".json": "application/json", ".map": "application/json"}
 
 _maps = None
@@ -441,14 +441,11 @@ async def handle(bridge, method, path, body, host):
             ok = b"TrainingCenterDatabase" in body[:4000]
         if not ok:
             return 400, "application/json", json.dumps({"error": f"{name or 'That file'} isn't a .fit or .tcx activity file"}).encode(), {}
-        folder = base / "activities"
-        folder.mkdir(exist_ok=True)
-        dest = folder / name
-        if dest.exists() and dest.read_bytes() == body:
-            return 200, "application/json", json.dumps({"imported": [], "already": [name]}).encode(), {}
-        dest.write_bytes(body)
+        import watch_files
+        try: result=await asyncio.to_thread(watch_files.store, base, name, body)
+        except ValueError as e:return 400, "application/json", json.dumps({"error":str(e)}).encode(), {}
         _load_cache["key"] = None
-        return 200, "application/json", json.dumps({"imported": [name]}).encode(), {}
+        return 200, "application/json", json.dumps(result).encode(), {}
     if p == "/api/activities/import" and method == b"POST":
         base = Path(bridge.csv_path).parent.parent if getattr(bridge, "csv_path", None) else HERE
         try:
@@ -945,15 +942,16 @@ def done_by_day(base, d=None):
         return {}
     out, small = {}, {}
     for a in st.get("activities", []):
-        if d is not None and not coach.counts(d, a["date"], a["sport"], a["minutes"]):
+        if d is not None and not a.get("workout_link") and not coach.counts(d, a["date"], a["sport"], a["minutes"]):
             small[(a["date"], a["sport"])] = small.get((a["date"], a["sport"]), 0) + a["minutes"]
             continue
-        out.setdefault(a["date"], []).append({"sport": a["sport"], "minutes": a["minutes"]})
+        out.setdefault(a["date"], []).append({"sport": a["sport"], "minutes": a["minutes"], "activity_id": a["id"]})
     # pieces of one session (stopped, then resumed or restarted): together they are the day's session
     for (day, sport), mins in small.items():
         whole = [x for x in out.get(day, []) if x["sport"] == sport]
         if whole:
             whole[-1]["minutes"] += mins
+            whole[-1].pop("activity_id", None)
         elif coach.counts(d, day, sport, mins):
             out.setdefault(day, []).append({"sport": sport, "minutes": mins})
     for day in out:
@@ -963,7 +961,9 @@ def done_by_day(base, d=None):
             # Only aggregate a day's recordings when there is one session of this sport.
             # Multiple sessions keep their own activity's dose.
             peers = [v for v in out[day] if v["sport"] == x["sport"]]
-            if len(peers) > 1:
+            if x.get("activity_id"):
+                matching = [a for a in matching if a["id"] == x["activity_id"]]
+            elif len(peers) > 1:
                 matching = [matching[peers.index(x)]] if peers.index(x) < len(matching) else []
             x["load"] = {k: round(sum(a.get(k) or 0 for a in matching), 1) for k in ("engine", "impact", "muscle")}
             x["km"] = round(sum(a.get("km") or 0 for a in matching), 2)
@@ -971,11 +971,17 @@ def done_by_day(base, d=None):
             if len(matching)==1:
                 x['date']=day
                 x['activity_id']=matching[0]['id']
-                for field in ('calories_kcal','calories_basis','avg_hr','steps','drift_pct'):
+                for field in ('calories_kcal','calories_basis','avg_hr','steps','drift_pct','swim_analysis','workout_link','recording_sources','recording_alignment','metric_sources'):
                     if matching[0].get(field) is not None:x[field]=matching[0][field]
                 x['distance_m']=matching[0].get('km',0)*1000
                 annotation=(d or {}).get('activity_workouts',{}).get(x['activity_id'])
                 if annotation:x['workout_details']=annotation
+                if x['sport']=='gym':
+                    import recorded_strength
+                    log=recorded_strength.source_log(d or {},x['activity_id'])
+                    if log:
+                        x['lifting']={k:v for k,v in log.items() if k!='inputs'}
+                        x['workout_name']=log['session']
         # A single recorded bike session can carry the workout's intended duration,
         # even when it was created in the ride builder rather than the calendar.
         bikes = [x for x in out[day] if x["sport"] == "bike"]
@@ -1079,8 +1085,12 @@ async def import_activities(base, urls):
             skipped.append({"url": u, "why": f"download failed: {e}"}); continue
         if len(data) > 20_000_000 or (name.lower().endswith(".fit") and data[8:12] != b".FIT"):
             skipped.append({"url": u, "why": "not a FIT file (or too big)"}); continue
-        dest.write_bytes(data)
-        done.append(name)
+        import watch_files
+        try: result=await asyncio.to_thread(watch_files.store,base,name,data)
+        except ValueError as e:
+            skipped.append({'url':u,'why':str(e)});continue
+        done.extend(result['imported'])
+        if result['already']:skipped.append({'url':u,'why':'already imported','files':result['already']})
     return {"imported": done, "skipped": skipped}
 
 
@@ -1158,13 +1168,26 @@ async def _coach_api(bridge, method, path, p, body):
         date = req.get("date") or date
         if not __import__("re").fullmatch(r"\d{4}-\d{2}-\d{2}", date):
             return js({"error": "date is YYYY-MM-DD"}, 400)
+        if p == '/api/coach/recording-links' and method==b'GET':
+            import recording_links
+            return js(await asyncio.to_thread(recording_links.choices, rides.parent, d, (q.get('activity_id') or [None])[0]))
+        if p == '/api/coach/recording-link' and method==b'POST':
+            import recording_links
+            result = await asyncio.to_thread(recording_links.select, rides.parent, d, req)
+            if result['saved']:
+                coach.save(d); _load_cache['key'] = None
+            return js(result)
+        if p == '/api/coach/swim-history' and method==b'GET':
+            import swim_analysis
+            return js(await asyncio.to_thread(swim_analysis.dashboard,load_state(rides.parent).get('activities',[]),d,coach.today()))
         if p == '/api/coach/activity-report' and method==b'GET':
             import activity_reports, loads
             ident=(q.get('activity_id') or [''])[0]
             def read_report():
                 activity=activity_reports.read_activity(rides.parent,ident)
-                scored=next((a for a in load_state(rides.parent).get('activities',[]) if a['id']==ident),{})
-                return activity_reports.build(activity,scored,d,done_by_day(rides.parent,d))
+                history=load_state(rides.parent).get('activities',[])
+                scored=next((a for a in history if a['id']==activity['id']),{})
+                return activity_reports.build(activity,scored,d,done_by_day(rides.parent,d),history)
             return js(await asyncio.to_thread(read_report))
         if p == '/api/coach/rechecks' and method == b'GET':
             import report_protocol
@@ -1235,6 +1258,15 @@ async def _coach_api(bridge, method, path, p, body):
             if result['valid']:
                 result['exposure'] = run_workouts.exposure(result,bridge.profile)
             return js(result)
+        if p == '/api/coach/workout-library/completed' and method==b'POST':
+            import workout_library, copy
+            activity=next((a for a in load_state(rides.parent).get('activities',[]) if a['id']==req.get('activity_id') and a['sport'] in ('gym','swim','bike','ride','run','walk','other')),None)
+            if activity is None:raise ValueError('Choose a recorded workout')
+            candidate=copy.deepcopy(d)
+            item=workout_library.save_completed(candidate,activity,req)
+            if req.get('save') is True:coach.save(candidate)
+            return js({'workout':item,'saved':req.get('save') is True,
+                'review':'Reusable workout, linked to the original dated performance and reports. No duplicated activity or watch data.'})
         if p == "/api/coach/workout-library":
             import workout_library
             if method==b"POST":
@@ -1245,18 +1277,26 @@ async def _coach_api(bridge, method, path, p, body):
                 item=workout_library.save_template(d,req);coach.save(d)
                 return js({'workout':item})
             if workout_library.add_starter_rides(d,bridge.profile["ftp"]):coach.save(d)     # the old builder's starters, once
-            items=workout_library.listing(d,(q.get('sport') or [None])[0],q.get('favorites')==['1'],done_by_day(rides.parent,d))
+            items=workout_library.listing(d,(q.get('sport') or [None])[0],q.get('favorites')==['1'],done_by_day(rides.parent,d),q.get('remembered')==['1'])
             offset=max(0,min(1000,int((q.get('offset') or ['0'])[0])));limit=max(1,min(50,int((q.get('limit') or ['30'])[0])))
             summaries=[]
             for item in items[offset:offset+limit]:
                 session=item['session'];summary={k:session[k] for k in ('sport','name','minutes','workout_goals') if k in session}
-                summaries.append({**{k:item[k] for k in ('id','favorite','origin','created','updated','response_count')},'session':summary,'responses':item['responses'][-3:]})
+                summaries.append({**{k:item[k] for k in ('id','favorite','origin','created','updated','response_count')},'remembered':bool(item.get('remembered')),'session':summary,'responses':item['responses'][:3]})
             return js({'workouts':summaries,'total':len(items),'offset':offset,'next_offset':offset+limit if offset+limit<len(items) else None,'goals':workout_library.goal_requests(d),
                        'review':'Preferences and recorded responses guide selection; check current capacity, phase and whole-calendar load before reuse. Missing responses remain unknown.'})
         if p.startswith('/api/coach/workout-library/') and method==b'GET':
             import workout_library
             item=workout_library.get(d,p.rsplit('/',1)[1]);item['responses']=workout_library.responses(d,item,done_by_day(rides.parent,d))
             return js({'workout':item,'review':'Review exact details and current phase/load before scheduling; responses describe the original sessions.'})
+        if p == "/api/coach/workout-library/remember" and method==b"POST":
+            import workout_library
+            item=workout_library.remember(d,req.get('id'),req.get('remembered'));coach.save(d)
+            return js({'workout':{k:item[k] for k in ('id','remembered')}})
+        if p == "/api/coach/workout-library/remove" and method==b"POST":
+            import workout_library
+            result=workout_library.remove(d,req.get('id'),req.get('merge_into'));coach.save(d)
+            return js(result)
         if p == "/api/coach/workout-library/favorite" and method==b"POST":
             import workout_library
             if req.get('id'):
@@ -1318,15 +1358,30 @@ async def _coach_api(bridge, method, path, p, body):
             if not recipe['valid']:return js({'error':'Clarify the swim sets before saving','preview':annotation},400)
             if differs and not req.get('distance_difference_reviewed'):return js({'error':'Written distance differs from the watch; confirm a partial or corrected transcription','preview':annotation},400)
             d.setdefault('activity_workouts',{})[activity['id']]=annotation
+            import swim_timing,activity_reports
+            swim_timing.remember(d,activity_reports.read_activity(rides.parent,activity['id']),recipe)
             coach.save(d)
             return js({'saved':True,'activity_id':activity['id'],'details':annotation})
+        if p == '/api/coach/swim/splits' and method==b'POST':
+            import activity_reports,swim_timing
+            activity=activity_reports.read_activity(rides.parent,req.get('activity_id'))
+            if activity['sport']!='swim':raise ValueError('Choose a swim activity')
+            recipe,_=swim_timing.recipe_for(d,activity,done_by_day(rides.parent,d))
+            if recipe is None:raise ValueError('Link a planned swim before reporting its drill splits')
+            result=swim_timing.save_splits(d,activity,recipe,req.get('splits'))
+            coach.save(d)
+            return js({'saved':True,'activity_id':activity['id'],'reported_splits':result})
         if p == "/api/coach/swim/preview" and method==b"POST":
             import swim_workouts
             fields=swim_workouts.split_sections(req['text']) if 'text' in req else req.get('fields') or {}
             result=swim_workouts.parse(fields,req.get('repeats',1),req.get('unit','yd'),req.get('pool_length'))
-            if req.get('minutes') is not None and float(req['minutes'])+.02<result['sendoff_minutes']:
-                result['issues'].append(f"Timed sets already occupy {result['sendoff_minutes']:g} minutes; increase or clarify total session time")
+            if req.get('minutes') is not None and float(req['minutes'])+.02<max(result['sendoff_minutes'],result['completion_goal_minutes']):
+                result['issues'].append(f"Timed sets already occupy {max(result['sendoff_minutes'],result['completion_goal_minutes']):g} minutes; increase or clarify total session time")
                 result['valid']=False
+            import swim_timing
+            result['timing_suggestions']=swim_timing.suggestions(result,d)
+            if result['completion_expected_minutes'] and req.get('minutes') is not None and float(req['minutes'])<result['completion_expected_minutes']:
+                result['warnings'].append('Expected set completion time exceeds the session target; allow additional time for rest if needed.')
             return js({**result,'fields':fields})
         if p == "/api/coach/adherence":
             import schedule_tracking, datetime as _dt
@@ -1599,6 +1654,12 @@ async def _coach_api(bridge, method, path, p, body):
                 import report_protocol
                 rc=report_protocol.on_report(d,"workout",date,entry,date)
                 if rc:entry["recheck"]=rc["id"]
+                if entry.get('activity_id'):
+                    import activity_reports,swim_timing
+                    activity=activity_reports.read_activity(rides.parent,entry['activity_id'])
+                    if activity['sport']=='swim':
+                        recipe,_=swim_timing.recipe_for(d,activity,done_by_day(rides.parent,d))
+                        if recipe:swim_timing.remember(d,activity,recipe)
                 coach.save(d)
                 _load_cache["key"] = None
                 progression.daily_adapt(d,coach.today(),done_by_day(rides.parent,d),load_state(rides.parent),bridge.workouts)
@@ -1862,7 +1923,7 @@ async def _coach_api(bridge, method, path, p, body):
                 candidate=swim_workouts.add(d,date,req)
                 import workout_library
                 at=req.get('index') if req.get('index') is not None else len(candidate['plans'][date]['sessions'])-1
-                workout_library.attach_goals(candidate,date,at,req);workout_library.keep(candidate,date,at,favorite=req.get('favorite'))
+                workout_library.attach_goals(candidate,date,at,req);workout_library.keep(candidate,date,at,favorite=req.get('favorite'),library_id=req.get('library_id'))
                 coach.save(candidate)
                 capture_program_forecast(bridge,rides,candidate)
                 return js({'sessions':candidate['plans'][date]['sessions']})
@@ -1874,7 +1935,7 @@ async def _coach_api(bridge, method, path, p, body):
                 try:
                     import workout_library
                     at=req.get('index') if req.get('index') is not None else len(candidate['plans'][date]['sessions'])-1
-                    workout_library.attach_goals(candidate,date,at,req);workout_library.keep(candidate,date,at,favorite=req.get('favorite'))
+                    workout_library.attach_goals(candidate,date,at,req);workout_library.keep(candidate,date,at,favorite=req.get('favorite'),library_id=req.get('library_id'))
                     coach.save(candidate)
                 except Exception:
                     workouts.delete(wid)
@@ -1892,7 +1953,7 @@ async def _coach_api(bridge, method, path, p, body):
                 import run_workouts,workout_library
                 candidate,at = run_workouts.add(d,date,req)
                 workout_library.attach_goals(candidate,date,at,req)
-                workout_library.keep(candidate,date,at,favorite=req.get('favorite'))
+                workout_library.keep(candidate,date,at,favorite=req.get('favorite'),library_id=req.get('library_id'))
                 coach.save(candidate);capture_program_forecast(bridge,rides,candidate)
                 return js({'sessions':candidate['plans'][date]['sessions']})
             # add one session to a day from the Plan tab's + buttons (a plain list; the AI can refine it)
@@ -1908,7 +1969,7 @@ async def _coach_api(bridge, method, path, p, body):
             if req.get('typed_workout'):
                 import workout_library
                 at=len(d['plans'][date]['sessions'])-1
-                workout_library.attach_goals(d,date,at,req);workout_library.keep(d,date,at,favorite=req.get('favorite'))
+                workout_library.attach_goals(d,date,at,req);workout_library.keep(d,date,at,favorite=req.get('favorite'),library_id=req.get('library_id'))
             coach.save(d)
             capture_program_forecast(bridge,rides,d)
             return js({"sessions": d["plans"][date]["sessions"]})
@@ -1954,6 +2015,21 @@ async def _coach_api(bridge, method, path, p, body):
             if sub == "/preview":
                 import strength_workouts
                 return js(strength_workouts.preview(d, req))
+            if sub == "/recorded":
+                import strength_workouts
+                activity=next((a for a in load_state(rides.parent).get('activities',[])
+                               if a['id']==req.get('activity_id') and a['sport']=='gym'),None)
+                if activity is None:return js({'error':'Choose one imported gym activity'},400)
+                result,lift_state=strength_workouts.completed(d,req,activity,ctx=ctx)
+                if req.get('save'):
+                    d['lifting']=lift_state
+                    d.setdefault('activity_workouts',{})[activity['id']]=result['details']
+                    import workout_library
+                    workout_library.reconcile_completed(d,activity['id'])
+                    coach.save(d)
+                    _load_cache['key']=None
+                    result['saved']=True
+                return js(result)
             if sub == "/sled-preview":
                 import strength_workouts
                 return js(strength_workouts.sled_preview(req))
@@ -1971,7 +2047,7 @@ async def _coach_api(bridge, method, path, p, body):
                     import workout_library
                     at=req.get('index')
                     if at is None:at=next(i for i,x in enumerate(pl['sessions']) if x['sport']=='gym')
-                    workout_library.attach_goals(d,date,at,req);workout_library.keep(d,date,at,favorite=req.get('favorite'))
+                    workout_library.attach_goals(d,date,at,req);workout_library.keep(d,date,at,favorite=req.get('favorite'),library_id=req.get('library_id'))
                 coach.save(d)
                 capture_program_forecast(bridge,rides,d)
                 gym = [s_ for s_ in pl["sessions"] if s_.get("lifts")]

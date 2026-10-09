@@ -11,6 +11,17 @@ def seconds(v):
  p=v.split(':')
  if len(p) not in (2,3) or any(not x.isdigit() for x in p) or any(int(x)>=60 for x in p[1:]):raise ValueError('Use an interval time such as 1:10')
  return sum(int(x)*60**i for i,x in enumerate(reversed(p)))
+def completion_time(description):
+ """A trailing completion target is distinct from send-offs and fixed rest.
+ Ranges are total time for the written line, not automatically per repetition.
+ """
+ pattern=r'(?<![\w.:])(?P<low>\d+(?:\.\d+)?)\s*(?:(?:to|-)\s*(?P<high>\d+(?:\.\d+)?)\s*)?(?P<unit>minutes?|mins?|seconds?|secs?)\s*$'
+ m=re.search(pattern,description,re.I)
+ if not m or re.search(r'\b(?:rest|send[ -]?off|on|every|@)\s*$',description[:m.start()],re.I):return description,None,None
+ scale=60 if m['unit'].lower().startswith('min') else 1
+ low=float(m['low'])*scale;high=float(m['high'] or m['low'])*scale
+ if not 1<=low<=high<=36000:raise ValueError('Completion time must be an ordered positive goal-to-expected range')
+ return description[:m.start()].strip(' ,;'),low,high
 def split_sections(text):
  fields={k:[] for k in NAMES};section='main'
  for line in str(text).splitlines():
@@ -54,6 +65,7 @@ def parse(fields,repeats=1,distance_unit='yd',pool_length=None):
     if not description:issues.append('Add a stroke or activity for '+chunk);continue
     sendoff=None;rest_seconds=None
     try:
+     description,goal,expected=completion_time(description)
      intervals=re.findall(r'(?:@|\bon\s+)\s*(\d+:\d{2}(?::\d{2})?)',description,re.I)
      if len(intervals)>1:raise ValueError('Choose one send-off per set')
      if not intervals and ('@' in description or re.search(r'\b(?:on|at)\s*\d+:',description,re.I)):raise ValueError('Clarify the send-off; use @ 1:10')
@@ -68,7 +80,7 @@ def parse(fields,repeats=1,distance_unit='yd',pool_length=None):
     except ValueError as e:issues.append(str(e)+': '+chunk);continue
     stroke=next((v for pattern,v in ((r'\b(?:free(?:style)?|front crawl|fs)\b','free'),(r'\b(?:back(?:stroke)?|bs)\b','back'),(r'\bbreast(?:stroke)?\b','breast'),(r'\b(?:fly|butterfly)\b','fly'),(r'\b(?:IM|medley)\b','medley')) if re.search(pattern,description,re.I)),'choice')
     work='kick' if re.search(r'\bkick\b',description,re.I) else 'pull' if re.search(r'\bpull\b',description,re.I) else 'drill' if re.search(r'\bdrill\b',description,re.I) or 'drill' in group['label'].lower() else 'swim'
-    item={'section':section,'group':group['label'],'repetitions':count,'distance':distance,'unit':u,'distance_m':round(count*distance*(.9144 if u=='yd' else 1),4),'stroke':stroke,'work':work,'equipment':[name for name in ('board','buoy','paddles','fins','snorkel') if re.search(r'\b'+name+r'\b',description,re.I)],'sendoff_seconds':sendoff,'rest_seconds':rest_seconds,'description':description[:400],'notes':[]}
+    item={'source_text':chunk,'section':section,'group':group['label'],'repetitions':count,'distance':distance,'unit':u,'distance_m':round(count*distance*(.9144 if u=='yd' else 1),4),'stroke':stroke,'work':work,'equipment':[name for name in ('board','buoy','paddles','fins','snorkel') if re.search(r'\b'+name+r'\b',description,re.I)],'goal_seconds':goal,'expected_seconds':expected,'timing_basis':'Completion time for this whole set line' if goal is not None else None,'sendoff_seconds':sendoff,'rest_seconds':rest_seconds,'description':description[:400],'notes':[]}
     if pool_length and u==distance_unit and abs(distance/pool_length-round(distance/pool_length))>.01:warnings.append('A set is not a whole number of pool lengths: '+chunk)
     group['sets'].append(item);sets.append(item)
  for g in groups:
@@ -85,10 +97,11 @@ def parse(fields,repeats=1,distance_unit='yd',pool_length=None):
  if not sets:issues.append('Add a swim set with distance and a stroke or activity')
  if len(sets)>100 or total_m>30000:issues.append('Split workouts exceeding 100 sets or 30,000 meters')
  timed=sum(s['repetitions']*s['sendoff_seconds'] for s in sets if s['sendoff_seconds'] is not None)
- warnings.append('Send-offs are start-to-start intervals. Rest depends on when you finish each repetition. The final send-off slot is included in scheduled timing.')
- if any(s['sendoff_seconds'] is None for s in sets):warnings.append('Some sets have no timed interval. Enter the full session duration; distance alone cannot determine swimming time.')
+ if timed:warnings.append('Send-offs are start-to-start intervals. Rest depends on when you finish each repetition. The final send-off slot is included in scheduled timing.')
+ if any(s['sendoff_seconds'] is None and s['goal_seconds'] is None for s in sets):warnings.append('Some sets have no timed interval. Enter the full session duration; distance alone cannot determine swimming time.')
  if any(s['stroke'] in ('choice','medley') for s in sets):warnings.append('Choice or medley strokes stay unspecified, not silently converted to freestyle.')
- return {'sets':sets,'total_distance':distance,'unit':distance_unit,'total_distance_m':total_m,'pool_length':pool_length,'sendoff_minutes':round(timed/60,2),'all_sendoffs':bool(sets) and all(s['sendoff_seconds'] is not None for s in sets),'issues':issues,'warnings':list(dict.fromkeys(warnings)),'notes':notes,'valid':not issues}
+ completion_goal=sum(s['goal_seconds'] or 0 for s in sets);completion_expected=sum(s['expected_seconds'] or 0 for s in sets)
+ return {'completion_goal_minutes':round(completion_goal/60,2),'completion_expected_minutes':round(completion_expected/60,2),'all_completion_timed':bool(sets) and all(s['goal_seconds'] is not None for s in sets),'sets':sets,'total_distance':distance,'unit':distance_unit,'total_distance_m':total_m,'pool_length':pool_length,'sendoff_minutes':round(timed/60,2),'all_sendoffs':bool(sets) and all(s['sendoff_seconds'] is not None for s in sets),'issues':issues,'warnings':list(dict.fromkeys(warnings)),'notes':notes,'valid':not issues}
 def validate_recipe(recipe):
  if not isinstance(recipe,dict):raise ValueError('Swim recipe must be an object')
  parsed=parse(recipe.get('fields') or {},recipe.get('repeats',1),recipe.get('unit','yd'),recipe.get('pool_length'))
@@ -108,7 +121,7 @@ def add(d,date,req):
  import coach,training_block
  recipe=validate_recipe(req.get('swim_recipe'));minutes=float(req.get('minutes') or 0)
  if not math.isfinite(minutes) or not 1<=minutes<=600:raise ValueError('Enter a full session duration of 1–600 minutes')
- if minutes+.02<recipe['sendoff_minutes']:raise ValueError(f"Timed sets already use {recipe['sendoff_minutes']:g} minutes; review the session duration")
+ if minutes+.02<max(recipe['sendoff_minutes'],recipe['completion_goal_minutes']):raise ValueError(f"Timed sets need at least {max(recipe['sendoff_minutes'],recipe['completion_goal_minutes']):g} minutes; review the session duration")
  candidate=copy.deepcopy(d);sessions=copy.deepcopy(training_block.sessions(candidate.get('plans',{}).get(date) or {}));index=req.get('index')
  if index is not None and (isinstance(index,bool) or not isinstance(index,int) or not 0<=index<len(sessions) or sessions[index].get('sport')!='swim'):raise ValueError('Choose the existing swim to edit')
  entry={'sport':'swim','name':str(req.get('name') or 'Swim workout')[:80],'minutes':minutes,'steps':[],'note':str(req.get('note') or '')[:300],'swim_recipe':recipe,'swim_plan':snapshot(recipe),'typed_workout':{**recipe['fields'],'repeats':recipe['repeats']}}

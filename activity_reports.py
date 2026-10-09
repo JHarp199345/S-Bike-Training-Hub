@@ -44,7 +44,7 @@ def swim_metrics(a):
             'basis': 'Calculated from watch active pool lengths with watch-classified stroke, positive stroke count and duration. SWOLF = seconds + counted strokes per length. Average distance per stroke = measured length distance / total counted strokes; best is the longest distance per stroke for one measured length. Push-offs affect it. Drill, kick and unknown lengths excluded. Compare SWOLF at the same pool length, stroke and similar pace; lower alone does not prove improvement.'}
 
 
-def build(a, scored=None, d=None, actual=None):
+def build(a, scored=None, d=None, actual=None, history=None):
     s = a.get('session') or {}; scored = scored or {}; d = d or {}
     hrs = [number(r.get('hr'), True) for r in a.get('records', [])]
     hrs = [h for h in hrs if h is not None]
@@ -60,7 +60,7 @@ def build(a, scored=None, d=None, actual=None):
         marked = coach.attach_completions(d, date, copy.deepcopy(sessions), done)
         index = next((i for i, x in enumerate(marked) if x.get('completion', {}).get('activity_id') == a['id']), None)
         if index is not None: feedback = d.get('training_feedback', {}).get(date + ':' + str(index))
-    out = {'feedback_supported': True, 'activity_id': a['id'], 'date': date, 'sport': a['sport'], 'source': a.get('source'),
+    out = {**{k:a[k] for k in ('recording_sources','recording_alignment','metric_sources','workout_link') if k in a}, 'feedback_supported': True, 'activity_id': a['id'], 'date': date, 'sport': a['sport'], 'source': a.get('source'),
            'duration_seconds': round(seconds, 1), 'distance_m': distance,
            'calories_kcal': number(s.get('total_calories')),
            'calories_basis': 'Watch-reported total; active/resting split unknown' if number(s.get('total_calories')) is not None else None,
@@ -76,7 +76,23 @@ def build(a, scored=None, d=None, actual=None):
                           'metabolic_power_w': round(energy * 4184 / seconds, 2),
                           'energy_kcal': energy, 'source': source,
                           'duration_basis': 'Recorded timer' if timer else 'Hub recorded duration (rounded)'} if energy is not None and seconds > 0 else None
-    if a['sport'] == 'swim': out['swim'] = swim_metrics(a)
+    if a['sport'] == 'gym':
+        import recorded_strength
+        out['strength'] = recorded_strength.profile(d,a['id'],a.get('records',[]))
+    if a['sport'] == 'swim':
+        import swim_timing
+        out['swim'] = swim_metrics(a)
+        import swim_analysis
+        detail = (out.get('workout_details') or {}).get('recipe')
+        planned, plan_basis = swim_timing.recipe_for(d,a,actual)
+        shown = detail or planned
+        out['swim_analysis'] = {**swim_analysis.profile(a), 'recipe':shown,
+            'recipe_basis':'Athlete-described performed sets' if detail else plan_basis or 'No written breakdown',
+            'described_mix':swim_analysis.recipe_mix(detail,'Athlete-described performed sets') if detail else None,
+            'planned_mix':swim_analysis.recipe_mix(planned,'Saved plan · not a measured stroke split') if planned else None,
+            'history':swim_analysis.history(history or [],d,a['id'])}
+        recipe, basis = swim_timing.recipe_for(d,a,actual)
+        if recipe: out['swim_timing'] = {**swim_timing.compare(recipe,a),'plan_basis':basis,'activity_id':a['id'],'reported_splits':swim_timing.reported_splits(d,a,recipe)}
     if a['sport'] == 'run':
         cadence = number(s.get('avg_cadence'), True)
         out['run'] = {'pace_per_km_seconds': round(seconds / distance * 1000, 1) if distance and seconds else None,
@@ -103,7 +119,29 @@ def read_activity(base, ident):
     base=Path(base)
     for suffix, reader in [('.fit', loads._from_fit), ('.tcx', loads._from_tcx)]:
         path=base/'activities'/(ident+suffix)
-        if path.is_file():return reader(path)
+        if path.is_file():
+            activity=reader(path)
+            return _linked_activity(base,ident,activity)
     path=base/'rides'/(ident+'.csv')
-    if path.is_file() and not ident.endswith(('_events','_report')):return loads._from_bridge(path)
+    if path.is_file() and not ident.endswith(('_events','_report')):return _linked_activity(base,ident,loads._from_bridge(path))
     raise ValueError('Activity file not found; import the workout first')
+
+
+def _linked_activity(base, ident, activity):
+    import coach, loads, recording_links
+    links=coach.load(base/'coach.json').get('recording_links',{})
+    if not links:return activity
+    sources=[k for k,v in links.items() if v.get('target_activity_id')==ident]
+    if sources:
+        # Read only explicitly linked files; do not scan years of historical rides.
+        raw=[activity]
+        for source in sources:
+            for suffix,reader in [('.fit',loads._from_fit),('.tcx',loads._from_tcx)]:
+                path=base/'activities'/(source+suffix)
+                if path.is_file():raw.append(reader(path));break
+        return next((a for a in recording_links.apply(raw,links) if a['id']==ident),activity)
+    if ident in links:
+        link=links[ident]
+        if link.get('target_activity_id'):return read_activity(base,link['target_activity_id'])
+        activity['workout_link']=link
+    return activity

@@ -151,7 +151,7 @@ def _from_bridge(p):
             "minutes": len(moving) / 60, "distance_m": 0, "descent_m": 0, "records": recs}
 
 
-def gather(folder_activities, folder_rides, extra_tcx=()):
+def gather(folder_activities, folder_rides, extra_tcx=(), *, raw=False):
     """Every activity once: watch files first; bridge rides the watch didn't record."""
     acts = []
     for p in sorted(Path(folder_activities).glob("*.fit")):
@@ -166,21 +166,30 @@ def gather(folder_activities, folder_rides, extra_tcx=()):
                 acts.append(a)
         except (ET.ParseError, OSError, ValueError):
             continue
-    watch = [(a["start"], a["start"] + a["minutes"] * 60) for a in acts]
+    bridges = []
     for p in sorted(Path(folder_rides).glob("ride_*.csv")):
         if p.name.endswith(("_events.csv", "_report.csv")):
             continue
         b = _from_bridge(p)
-        if b and not any(s - 600 <= b["start"] <= e for s, e in watch):
-            acts.append(b)
+        if b: bridges.append(b)
+    if raw: return acts + bridges
+    import recording_links
+    try: links = json.loads((Path(folder_activities).parent / "coach.json").read_text()).get("recording_links", {})
+    except (OSError, ValueError): links = {}
+    linked = recording_links.apply(acts + bridges, links)
+    protected = [a for a in linked if a.get("workout_link") or a.get("recording_sources")]
+    protected_ids = {a['id'] for a in protected}
+    ordinary = [a for a in linked if a['id'] not in protected_ids]
+    watch = [(a["start"], a["start"] + a["minutes"] * 60, a["sport"]) for a in ordinary if a["source"] == "watch"]
+    acts = [a for a in ordinary if a["source"] != "bridge" or not any(sp == "bike" and s - 600 <= a["start"] <= e for s, e, sp in watch)]
     # the same watch activity imported twice (e.g. .fit and .tcx): keep one
     out, starts = [], []
     has_power = lambda a: any(r["w"] for r in a["records"][:600])
     for a in sorted(acts, key=lambda a: (round(a["start"] / 240), not has_power(a), a["source"] != "watch")):
-        if a["minutes"] < 3 or any(abs(a["start"] - s) < 120 for s in starts):
+        if a["minutes"] < 3 or any(a["sport"] == sp and abs(a["start"] - t) < 120 for t, sp in starts):
             continue
-        starts.append(a["start"]); out.append(a)
-    return out
+        starts.append((a["start"], a["sport"])); out.append(a)
+    return sorted(out + protected, key=lambda a: a["start"])
 
 
 # ── scoring ─────────────────────────────────────────────────────────────────
@@ -503,7 +512,11 @@ def analyse(acts, prof, today=None, meta=None, feet_reports=None, daily_steps=No
         mass = rider.weight_on(prof.get("weight_kg"), prof.get("weight_history"), dt.date.fromtimestamp(a["start"]).isoformat())
         en = energy.estimate(a["sport"], a["records"], mass, (a.get("session") or {}).get("total_calories"),
                              (a.get("session") or {}).get("total_timer_time") or a["minutes"] * 60)
+        if a["sport"] == "swim":
+            import swim_analysis
+            extra["swim_analysis"] = swim_analysis.profile(a)
         scored.append({**extra, "id": a["id"], "source": a["source"], "sport": a["sport"],
+                       **{k: a[k] for k in ("workout_link", "recording_sources", "recording_alignment", "metric_sources") if k in a},
                        "date": dt.date.fromtimestamp(a["start"]).isoformat(),
                        "start": dt.datetime.fromtimestamp(a["start"]).strftime("%H:%M"),
                        "minutes": round(a["minutes"], 1), "km": round(a["distance_m"] / 1000, 2),

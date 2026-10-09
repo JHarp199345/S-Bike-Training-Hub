@@ -110,7 +110,7 @@ The tested S29 only accepts **one** Bluetooth connection, and it ignores the "hi
 | 📈 **Live graph, calories, fitness** | A live power graph in zone colors, calories from real work (kJ), personal bests (5 s / 1 / 5 / 20 min) with callouts, and a power-based fitness / fatigue / form chart. |
 | 🏆 **Streaks & milestones** | Day and week streaks, tiered milestones, and fun comparisons (Eiffel Tower, Alpe d'Huez, Everest…). |
 | 📣 **Ride posts** | An automatic, friendly-but-competitive infographic and caption for every ride, plus a "Copy for Claude" pack for custom ones. Optional Strava posting of the title and caption. |
-| 🛠 **Workout builder** | Steady, ramp and interval blocks in % of FTP, so workouts rescale when your FTP changes. There's also an FTP ramp test. |
+| 🛠 **Write a workout** | On the Coach page, type a workout in plain English for any sport (cycling with watts, cadence and time targets). The Ride menu's **Build a workout** opens it; **Import from the map** turns a route into a ride. There's also an FTP ramp test. |
 | 💪 **Self-healing** | If the bridge crashes mid-ride, the menu-bar icon restarts it and the ride continues in the same file. |
 
 <p align="center">
@@ -174,7 +174,7 @@ Edit [`regions.json`](../regions.json) (name, bounding box, center, zoom) and ru
 | `/coach` | Today, Plan, Fitness Dashboard, Progress, and Rules; sport-specific recommendations, check-ins, calendar, multiple daily sessions, training blocks, projected loads, workout details, swim profiles, lifting, and reviews |
 | `/coach#fitness` | Fitness Dashboard: detailed load metrics, body map, sport verdicts, recovery estimates, and calibration evidence |
 | `/course` | The game view: today's course, a running workout, or the route you're riding |
-| `/workouts` | Block-based workout builder |
+| `/workouts` | Opens **Write a workout** on the Coach page (the old block builder was replaced) |
 | `/fitness` | Legacy cycling detail view; its information is also available in Fitness Dashboard under Cycling history |
 | `/milestones` | Streaks, totals, badges |
 | `/posts` | Ride infographics, captions, the Claude pack, optional Strava |
@@ -539,7 +539,7 @@ This software changes the resistance on real exercise equipment and relies on re
 
 - **Map data:** © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors (ODbL), via [Protomaps](https://protomaps.com).
 - **Terrain:** [Mapzen terrain tiles](https://github.com/tilezen/joerd/blob/master/docs/attribution.md) (AWS Open Data).
-- **Body map:** [body-highlighter](https://www.npmjs.com/package/body-highlighter) (MIT) - see [web/vendor/body-highlighter.LICENSE](../web/vendor/body-highlighter.LICENSE).
+- **Body map:** [body-highlighter](https://www.npmjs.com/package/body-highlighter), based on [react-body-highlighter by GV79 / giavinh79](https://github.com/giavinh79/react-body-highlighter) (MIT) - see [web/vendor/body-highlighter.LICENSE](../web/vendor/body-highlighter.LICENSE).
 - **Game art:** animals rendered from 3D models by [Quaternius](https://quaternius.com) (CC0) - see [web/sprites/CREDITS.md](../web/sprites/CREDITS.md).
 - **Software:** routing by [BRouter](https://github.com/abrensch/brouter); maps drawn with [MapLibre GL JS](https://maplibre.org); Bluetooth via [bleak](https://github.com/hbldh/bleak) and [bless](https://github.com/kevincar/bless); menu bar via [rumps](https://github.com/jaredks/rumps) and [PyObjC](https://pyobjc.readthedocs.io).
 

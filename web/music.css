@@ -103,3 +103,47 @@
 body:has(#music-dock) .appearance-btn{bottom:auto;top:18px;right:150px}body:has(#music-dock) .appearance-pop{bottom:auto;top:70px}
 @media(max-width:760px){#music-tempo{top:-14px;right:14px}body:has(#music-dock) .appearance-btn{top:14px;right:136px}}
 .ride-source-links{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}.ride-source-links a{display:grid;gap:3px;padding:12px 14px;border:1px solid var(--line,#31404a);border-radius:12px;background:var(--control,#223043);color:var(--text,#eef3f7);font-weight:600;text-decoration:none}.ride-source-links a:hover{border-color:var(--info,#8dcaff)}.ride-source-links small{font-weight:400;color:var(--muted,#b6c4ce);font-size:12px}@media(max-width:520px){.ride-source-links{grid-template-columns:1fr}}
+
+/* Simple library: search, Audio | Video, 36 random picks */
+.lib-dialog[open]{display:flex;flex-direction:column}
+.lib-simple-head{padding:20px 24px 0}.lib-simple-head h2{font:500 28px/1.1 Georgia,'Times New Roman',serif;margin:0;color:var(--ink)}
+.lib-dialog .lib-top{padding:14px 24px 10px}
+.lib-dialog .lib-top>button{font-size:13px!important;padding:6px 13px!important;min-height:34px!important;border-color:#ffffff22!important}
+.lib-tile.video .lib-cover{background:var(--velvet-navy)}.lib-tile.video .lib-initials{font-size:28px}
+.lib-device{display:block;padding:0 24px 16px;font-size:12px;color:var(--ink-muted);cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.lib-empty{padding:30px 10px;text-align:center}
+@media(max-width:640px){.lib-simple-head{padding:16px 16px 0}.lib-dialog .lib-top{padding:10px 16px 8px}.lib-device{padding:0 16px 70px}}
+
+/* Phone ride layout: the scene gets the screen; a frosted readout bottom left, tap for everything. */
+.ride-readout,.ride-info{display:none}
+@media(max-width:700px){
+ header{padding:6px 10px!important}header>strong{font-size:19px!important}
+ .hub-ride-tools button{width:40px!important;height:40px!important;border-radius:11px!important}.hub-ride-tools svg{width:22px!important;height:22px!important}
+ body:has(#music-dock) .appearance-btn{top:8px!important;right:104px!important;width:36px;height:36px}
+ #watch-metrics{display:none!important}
+ .ride-readout{display:flex;align-items:flex-end;gap:14px;position:fixed;left:12px;bottom:76px;z-index:30;padding:10px 14px 9px;border-radius:16px;
+  background:rgba(18,26,38,.28);backdrop-filter:blur(14px) saturate(150%);-webkit-backdrop-filter:blur(14px) saturate(150%);
+  border:1px solid rgba(255,255,255,.28);box-shadow:0 8px 24px rgba(0,0,0,.25);color:#fff;font:inherit;cursor:pointer;text-shadow:0 1px 6px rgba(0,0,0,.45)}
+ .ride-readout b{display:block;font:700 30px/1 system-ui;letter-spacing:-.5px;font-variant-numeric:tabular-nums}
+ .ride-readout small{display:block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;opacity:.85;margin-top:3px}
+ .ride-readout .rr-rot b{font-size:22px}.ride-readout .rr-rot{transition:opacity .3s,transform .3s}
+ .ride-readout.turn .rr-rot{opacity:0;transform:translateY(4px)}.ride-readout.asleep{opacity:.75}
+ .ride-info[open]{display:block;border:0;padding:0;margin:auto auto 0;width:100%;max-width:100%;background:transparent}
+ .ride-info::backdrop{background:rgba(0,0,0,.35)}
+ .ride-info-card{margin:0 8px 8px;padding:16px 16px 12px;border-radius:22px;color:#fff;background:rgba(18,26,38,.55);backdrop-filter:blur(22px) saturate(160%);-webkit-backdrop-filter:blur(22px) saturate(160%);border:1px solid rgba(255,255,255,.25)}
+ .ride-info-head{display:flex;justify-content:space-between;align-items:center}.ride-info-head h2{margin:0;font-size:20px}
+ .ride-info-head button{width:40px;height:40px;border-radius:50%;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.08);color:#fff;font-size:16px}
+ .ride-info-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px 10px;margin:14px 0 6px}
+ .ride-info-grid small{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.05em;opacity:.75}
+ .ride-info-grid b{font:700 20px/1.2 system-ui;font-variant-numeric:tabular-nums}.ride-info-grid b span{font-size:12px;font-weight:500;opacity:.8}
+ .ride-info-grid .wide{grid-column:1/-1}.ride-info-grid .wide b{font-size:16px}
+ .ride-info-note{margin:6px 0 0;font-size:11px;opacity:.6;text-align:center}
+ /* the music bar becomes one slim row */
+ #music-dock.velvet{grid-template-columns:auto 1fr auto!important;gap:8px!important;margin:0 8px 8px!important;padding:6px 8px!important;border-radius:14px!important}
+ #music-dock.velvet::before,#music-dock.velvet::after{display:none}
+ #music-art{width:40px!important;height:40px!important;border-radius:8px!important}
+ #music-dock.velvet #music-title{font-size:14px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#music-dock.velvet #music-detail{font-size:10px!important}
+ .music-transport{grid-column:auto!important;gap:2px!important}.music-transport #music-prev,.music-transport #music-shuffle{display:none!important}
+ .music-transport button{width:38px!important;height:38px!important;min-height:38px!important}.velvet .lib-play{width:40px!important;height:40px!important}
+ .music-right{grid-column:1/-1;display:none!important}#music-tempo{display:none!important}
+}

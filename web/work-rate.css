@@ -51,3 +51,4 @@
 /* Quiet conversions beside rates; legible without competing with the main reading. */
 .wr-conversion,.activity-metric strong .wr-conversion{font-size:12px!important;font-weight:400!important;color:var(--muted,#a7bdca);letter-spacing:0;line-height:1.5;font-style:normal}
 .wr-session-power{margin-top:8px}.wr-session-power>small:last-of-type{display:block}.wr-local a{color:inherit}.wr-value .wr-conversion{align-self:baseline}
+.lo-flags{list-style:none;margin:6px 0 10px;padding:0;display:grid;gap:6px}.lo-flags li{border-left:3px solid #f0c78e;padding:4px 10px;background:#f0c78e14;border-radius:0 8px 8px 0;font-size:14px}.lo-flags b{color:#f0c78e;margin-right:6px}

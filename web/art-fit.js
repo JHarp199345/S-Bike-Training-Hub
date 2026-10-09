@@ -13,6 +13,6 @@ window.ArtFit=(()=>{
   const score=Math.round(45*area+40*kept+15*resolution);
   return {score,eligible:score>=70&&kept>=.9,subjectKept:Math.round(100*kept),width:im.naturalWidth,height:im.naturalHeight};
  }
- async function choose(assets,w,h,preferred){const scored=await Promise.all(assets.map(async a=>({asset:a,...assess(a,await image(a),w,h)})));const valid=scored.filter(x=>x.eligible).sort((a,b)=>b.score-a.score);const best=valid[0];if(!best)return null;const near=valid.filter(x=>x.score>=best.score-5);return near.find(x=>x.asset.id===preferred)||near[Math.floor(Math.random()*near.length)];}
+ async function choose(assets,w,h,preferred,neighbors=[]){assets=assets.filter(a=>!neighbors.some(b=>b&&(a.file===b.file||(a.similarity_group&&a.similarity_group===b.similarity_group))));const scored=await Promise.all(assets.map(async a=>({asset:a,...assess(a,await image(a),w,h)})));const valid=scored.filter(x=>x.eligible).sort((a,b)=>b.score-a.score);const best=valid[0];if(!best)return null;const near=valid.filter(x=>x.score>=best.score-5);return near.find(x=>x.asset.id===preferred)||near[Math.floor(Math.random()*near.length)];}
  return {assess,choose,image};
 })();

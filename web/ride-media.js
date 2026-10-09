@@ -1,6 +1,6 @@
-import {api,node} from './music-common.js';
-const $=id=>document.getElementById(id),video=$('ride-video'),screen=$('watch-screen'),picker=$('video-picker'),list=$('video-list'),notice=$('video-notice');
-let trail=[],request=0,lastCue='',expandUntil=0,pinned=false,status={};
+import {node} from './music-common.js';
+const $=id=>document.getElementById(id),video=$('ride-video'),screen=$('watch-screen');
+let lastCue='',expandUntil=0,pinned=false,status={};
 export function watchMode(on){screen.hidden=!on;if(on)window.dispatchEvent(new Event('hub-video-play'));if(!on){video.pause();}else if(!video.getAttribute('src'))$('watch-empty').hidden=false;}
 window.addEventListener('hub-ride-status',e=>{status=e.detail;const s=status,work=s.test||s.workout,step=work?.step||work?.stage||'',target=s.erg;
   const cue=[work?.name|| (s.test?'FTP test':''),step,target].filter(x=>x!==undefined&&x!==null&&x!=='').join(' · ');
@@ -12,16 +12,12 @@ window.addEventListener('hub-ride-status',e=>{status=e.detail;const s=status,wor
 });
 $('watch-metrics').onclick=()=>{pinned=!pinned;$('watch-metrics').setAttribute('aria-pressed',String(pinned));$('watch-metrics').classList.toggle('expanded',pinned||Date.now()<expandUntil);};
 $('watch-fullscreen').onclick=()=>{if(document.fullscreenElement)document.exitFullscreen();else $('ride-screen').requestFullscreen?.();};
-video.onerror=()=>{$('watch-message').textContent='This video format could not play in this browser. It may need conversion in Plex. Choose another episode or use Plex’s player.';};
-async function browse(parent='',offset=0,append=false){const stamp=++request;if(!append)list.replaceChildren();notice.textContent='Loading your Plex library…';
-  try{const d=await api('video?parent='+encodeURIComponent(parent)+'&offset='+offset);if(stamp!==request)return;notice.textContent=d.items.length?'Choose a show, movie, or episode.':'No videos found in this library.';
-    $('video-back').hidden=!trail.length;for(const row of d.items){const b=node('button',row.title),sub=node('small',row.folder?'Open':row.unavailable||row.detail||'Play video');b.append(sub);b.disabled=!!row.unavailable;
-      b.onclick=()=>{if(row.folder){trail.push(parent);browse(row.id);return;}window.dispatchEvent(new Event('hub-video-play'));video.pause();video.src=row.url;video.hidden=false;video.load();$('watch-empty').hidden=true;$('watch-message').textContent='';picker.close();
-        video.play().catch(()=>{$('watch-message').textContent='Press Play on the video to begin.';});};list.append(b);}
-    if(d.next!==null&&d.next!==undefined){const more=node('button','Load more');more.onclick=()=>{more.remove();browse(parent,d.next,true);};list.append(more);}
-  }catch(e){if(stamp===request)notice.textContent=e.message;}
-}
-$('video-choose').onclick=()=>{trail=[];picker.showModal();browse();};$('video-back').onclick=()=>browse(trail.pop()||'');
+video.onerror=()=>{$('watch-message').textContent='This video could not play in this browser. Browser-playable formats are mp4 (H.264), webm and most mov files; convert others first.';};
+// Your folder's videos (or a video file from this device) play here, on the Watch view.
+window.addEventListener('hub-play-video',e=>{window.dispatchEvent(new CustomEvent('hub-show-view',{detail:'watch'}));window.dispatchEvent(new Event('hub-video-play'));
+  video.pause();video.src=e.detail.url;video.hidden=false;video.load();$('watch-empty').hidden=true;$('watch-message').textContent='';video.title=e.detail.title||'';
+  video.play().catch(()=>{$('watch-message').textContent='Press Play on the video to begin.';});});
+$('video-choose').onclick=()=>window.dispatchEvent(new CustomEvent('hub-open-library',{detail:'video'}));
 // Opening a picker does not start a workout or change a trainer setting.
 const workouts=$('ride-workouts'),workList=$('ride-workout-list'),workNotice=$('ride-workout-notice');
 $('ride-workout-open').onclick=async()=>{workouts.showModal();workList.replaceChildren();workNotice.textContent='Loading workouts and routes…';

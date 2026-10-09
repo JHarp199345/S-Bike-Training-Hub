@@ -11,8 +11,6 @@
 
 ## In progress
 
-- Apple Music publisher configuration and live-account verification.
-- Plex real-account audio/video verification. Browser-playable personal MP4/WebM files only; no transcoding, subtitles or watch-progress integration.
 - iBroadcast and OpenSubsonic connection setup.
 - Native saved-folder chooser and automatic audio decoding for tempo on Linux/Windows. Browser-local audio files are available; existing BPM tags can be used.
 - Further calibration and adaptive-programming work listed under What's new. Training-model outputs remain provisional estimates.

@@ -34,7 +34,9 @@ def capture(d, previous):
 
 
 def minutes(items):
-    return sum(float(s.get('minutes') or 0) for s in items)
+    """Prescribed minutes counted the same way as the adherence denominator: trainable sports with a duration."""
+    import coach
+    return sum(float(s.get('minutes') or 0) for s in items if s.get('sport') in coach.TRAINABLE)
 
 
 def summary(d, start, end, done=None, as_of=None):

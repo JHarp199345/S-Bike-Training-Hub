@@ -24,11 +24,13 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 INDEX = HERE / "music_library.json"
 CACHE = HERE / "music_cache"
-EXTS = {".mp3", ".m4a", ".aac", ".flac", ".wav", ".aif", ".aiff", ".ogg", ".opus"}
-MIME = {".mp3": "audio/mpeg", ".m4a": "audio/mp4", ".aac": "audio/aac", ".flac": "audio/flac", ".wav": "audio/wav",
+AUDIO_EXTS = {".mp3", ".m4a", ".aac", ".flac", ".wav", ".aif", ".aiff", ".ogg", ".opus"}
+VIDEO_EXTS = {".mp4", ".m4v", ".webm", ".mov"}       # browser-playable video; other containers need converting first
+EXTS = AUDIO_EXTS | VIDEO_EXTS
+MIME = {".mp4": "video/mp4", ".m4v": "video/mp4", ".webm": "video/webm", ".mov": "video/quicktime", ".mp3": "audio/mpeg", ".m4a": "audio/mp4", ".aac": "audio/aac", ".flac": "audio/flac", ".wav": "audio/wav",
         ".aif": "audio/aiff", ".aiff": "audio/aiff", ".ogg": "audio/ogg", ".opus": "audio/ogg"}
 COVERS = ("cover.jpg", "cover.png", "folder.jpg", "folder.png", "front.jpg", "front.png", "album.jpg")
-VERSION = 1                                         # bump to re-read tags for every file
+VERSION = 2                                         # bump to re-read tags for every file
 
 _lock = threading.RLock()
 _scan = {"state": "idle", "done": 0, "total": 0, "tempo_done": 0, "tempo_total": 0}
@@ -293,8 +295,9 @@ def _number(v):
 
 
 def describe(path, root):
-    """One song's entry: what the file says, filled in from its name and folder."""
-    t = read_tags(path)
+    """One song's (or video's) entry: what the file says, filled in from its name and folder."""
+    video = path.suffix.lower() in VIDEO_EXTS
+    t = {} if video else read_tags(path)
     n = from_name(path.stem)
     art = _art_from_image(t["art"]) if t.get("art") else None
     if not art:
@@ -315,6 +318,7 @@ def describe(path, root):
             "album": album or "Singles", "album_artist": t.get("album_artist"),
             "track": _number(t.get("track")) or _number(n["track"]), "art": art,
             "bpm": bpm if bpm and 50 <= bpm <= 220 else None, "bpm_source": "tag" if bpm and 50 <= bpm <= 220 else None,
+            "kind": "video" if video else "audio", "tempo_checked": True if video else None,
             "size": st.st_size, "mtime": st.st_mtime, "added": st.st_mtime, "v": VERSION}
 
 
@@ -476,7 +480,7 @@ def library():
         scan()
     tracks = sorted((d.get("tracks") or {}).values() if d.get("folder") == str(root) else [],
                     key=lambda t: ((t.get("album_artist") or t["artist"]).lower(), t["album"].lower(), t.get("track") or 0, t["title"].lower()))
-    keep = ("id", "title", "artist", "album", "album_artist", "track", "art", "bpm", "bpm_source", "duration", "added")
+    keep = ("id", "kind", "title", "artist", "album", "album_artist", "track", "art", "bpm", "bpm_source", "duration", "added")
     return {"folder": str(root), "display": str(root).replace(str(Path.home()), "~", 1),
             "tracks": [{k: t.get(k) for k in keep} for t in tracks], "scan": dict(_scan)}
 

@@ -141,7 +141,14 @@
    display:flex;align-items:center;justify-content:center;font-size:22px;text-decoration:none;border-radius:14px}
  body{--ov-bg:var(--glass);--ov-fg:var(--text);--ov-dim:var(--text2);--ov-ok:var(--good);--ov-off:var(--warn);--ov-accent:var(--accent)}
 html[data-embedded="true"] #menu,html[data-embedded="true"] #gamebtn,html[data-embedded="true"] #fullscreenride{display:none}
-</style><link rel="stylesheet" href="/web/overlays.css?v=4"><link rel="stylesheet" href="/web/theme.css"><script src="/web/theme.js"></script><script src="/web/overlays.js?v=6"></script></head><body>
+
+/* Embedded on a phone: the scene gets the screen; the ride screen's frosted readout carries the numbers. */
+@media(max-width:700px){html[data-embedded="true"] .hud,html[data-embedded="true"] #cal,html[data-embedded="true"] #prof{display:none!important}
+ html[data-embedded="true"] .shift{position:fixed!important;left:auto!important;right:10px!important;top:auto!important;bottom:84px!important;width:auto!important;height:auto!important;display:flex;flex-direction:column;gap:10px;pointer-events:none}
+ html[data-embedded="true"] .shift button{position:static!important;width:52px!important;height:52px!important;border-radius:50%!important;font-size:26px!important;line-height:1;padding:0!important;pointer-events:auto;
+  background:rgba(18,26,38,.3)!important;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.3)!important;color:#fff!important}
+ html[data-embedded="true"] .shift button small{display:none}}
+</style><link rel="stylesheet" href="/web/overlays.css?v=5"><link rel="stylesheet" href="/web/theme.css"><script src="/web/theme.js"></script><script src="/web/overlays.js?v=6"></script></head><body>
 <div id="map"></div>
 <div class="hud pg">
  <div class="t glass"><b id="spd">–</b><span>KM/H</span></div><div class="t glass"><b id="w">–</b><span>WATTS</span></div>

@@ -253,7 +253,7 @@ def sled_metadata(value):
         out['work_j_low']=round(out['force_low_lbf']*4.4482216152605*out['distance_m'])
         out['work_j_high']=round(out['force_high_lbf']*4.4482216152605*out['distance_m'])
         out['force_note']='Conditional force/work estimate; not measured resistance, lifted weight, or a calibrated tissue load.'
-    if out.get('distance_per_trip_m') and out.get('seconds_low') and out.get('seconds_high') and 'm4' in out.get('model','').lower():
+    if out.get('distance_per_trip_m') and out.get('seconds_low') and out.get('seconds_high') and 'm4' in out.get('model','').lower() and 'front_level' in out and 'rear_level' in out:
         import strength_workouts
         out['resistance_estimate']=strength_workouts.sled_preview({'distance_per_leg_m':out['distance_per_trip_m'],
             'seconds_low':out['seconds_low'],'seconds_high':out['seconds_high'],'front_level':out.get('front_level'), 'rear_level':out.get('rear_level')})
@@ -354,7 +354,11 @@ def clean(d, lifts, unit=None, draft=False):
             raise ValueError(f"'{name}': tempo like 3-0-3 (seconds down, pause, up)")
         if not style and kind:
             style = "restorative" if (secs and not reps) or (ts and ts >= 6) else "build"
-        out.append({**({"rpe": effort} if effort is not None else {}), **({"sled": sled} if sled is not None else {}), "name": name, "how": str(x.get("how") or known.get("how") or "")[:300],
+        planned=x.get('planned_effort')
+        if planned is not None:
+            if not isinstance(planned,list) or len(planned)!=sets:raise ValueError('Give one planned effort per set, or leave it unknown')
+            planned=[exercise_rpe(v) for v in planned]
+        out.append({**({'planned_effort':planned} if planned is not None else {}), **({"rpe": effort} if effort is not None else {}), **({"sled": sled} if sled is not None else {}), "name": name, "how": str(x.get("how") or known.get("how") or "")[:300],
                     "equipment": str(x.get("equipment") or known.get("equipment") or "")[:80],
                     "kind": kind, "style": style, "sets": sets, "reps": reps, "seconds": secs, "weight": w, "unit": u,
                     "tempo": tempo, "hold": hold, "per_side": bool(x.get("per_side", known.get("per_side", False))),
@@ -605,7 +609,7 @@ def evaluate(d, lifts, today=None, ctx=None, draft=True):
 
 
 # ── the check-off ───────────────────────────────────────────────────────────
-def log(d, date, done, rpe, wellness, session_index=None, compare_last=None, override=None, ctx=None, _session_name=None, source_activity_id=None):
+def log(d, date, done, rpe, wellness, session_index=None, compare_last=None, override=None, ctx=None, _session_name=None, source_activity_id=None, _actual_session=None):
     """The check-off: `done` is one entry per planned lift, in order:
     {"done": true|false, "weight": ..., "reps": ..., "sets": ..., "hold": s, "seconds": s, "failure": true,
      "why": "too_heavy"|"chose"} (anything left out = as planned; failure = taken to failure, no reps in reserve).
@@ -613,9 +617,9 @@ def log(d, date, done, rpe, wellness, session_index=None, compare_last=None, ove
     s = state(d)
     p = d["plans"].get(date) or {}
     gyms = [x for x in (p.get("sessions") or []) if x.get("sport") == "gym" and x.get("lifts")]
-    if not gyms:
+    if not gyms and _actual_session is None:
         raise ValueError(f"no planned lifts on {date}")
-    sess = next((g for g in gyms if g["name"] == _session_name), None) if _session_name else None
+    sess = _actual_session or (next((g for g in gyms if g["name"] == _session_name), None) if _session_name else None)
     sess = sess or (gyms[session_index or 0] if (session_index or 0) < len(gyms) else gyms[0])
     plan = sess["lifts"]
     done = done or [{} for _ in plan]

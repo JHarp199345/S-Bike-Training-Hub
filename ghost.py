@@ -16,6 +16,7 @@ afterwards - if the profiles part ways, the ghost is dropped.
 import bisect
 import csv
 import datetime as dt
+import math
 import statistics
 from pathlib import Path
 
@@ -112,14 +113,25 @@ class Ghost:
             if self.exclude and ride.resolve() == Path(self.exclude).resolve():
                 continue
             try:
-                rows = list(csv.DictReader(open(ev, newline="")))
+                with open(ev, newline="") as f:
+                    rows = list(csv.DictReader(f))
             except OSError:
                 continue
-            starts = [r for r in rows if r.get("event", "").startswith(tag)]
+            starts = []
+            for row in rows:
+                event = row.get("event") or ""
+                if not event.startswith(tag):
+                    continue
+                try:
+                    offset = float(event[len(tag):].split(" m")[0])
+                    t0 = dt.datetime.fromisoformat(row["time"])
+                except (ValueError, TypeError, KeyError):
+                    continue
+                if math.isfinite(offset):
+                    starts.append((offset, t0))
             if not starts:
                 continue
-            offset = float(starts[-1]["event"][len(tag):].split(" m")[0])
-            t0 = dt.datetime.fromisoformat(starts[-1]["time"])
+            offset, t0 = starts[-1]
             prof = load_ride(ride, min_len=0)
             if not prof:
                 continue

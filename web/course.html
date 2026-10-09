@@ -90,7 +90,12 @@ html[data-embedded="true"] .ride-tools{display:none}
  #menu nav{display:flex;flex-wrap:wrap;gap:7px}#menu .sub2{font:14px/1.5 system-ui;margin:0}
  body{--ov-strip-right:156px}.hud{padding-right:156px}body:has(#pausebtn:not([hidden])){--ov-strip-right:222px}body:has(#pausebtn:not([hidden])) .hud{padding-right:222px}
  @media(max-width:500px){.ride-tools{right:10px;gap:8px}.ride-tools #menubtn,.ride-tools #fullscreenride,.ride-tools #pausebtn{width:48px;height:48px}.ride-tools svg{width:27px;height:27px}#menu{right:10px;top:72px}}
-</style><link rel="stylesheet" href="/web/overlays.css?v=4"><link rel="stylesheet" href="/web/theme.css"><script src="/web/theme.js"></script></head><body>
+
+/* Embedded on a phone: two small round gear buttons on the right; the ride screen's frosted readout carries the numbers. */
+@media(max-width:700px){html[data-embedded="true"] .ctl{left:auto;right:10px;bottom:84px;grid-template-columns:1fr;gap:10px;padding:0;background:none}
+ html[data-embedded="true"] .ctl button{width:52px;height:52px;min-height:0;border-radius:50%;padding:0;font-size:0;background:rgba(18,26,38,.3);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.3);color:#fff}
+ html[data-embedded="true"] #dn::before{content:'−';font-size:28px} html[data-embedded="true"] #up::before{content:'+';font-size:28px}}
+</style><link rel="stylesheet" href="/web/overlays.css?v=5"><link rel="stylesheet" href="/web/theme.css"><script src="/web/theme.js"></script></head><body>
 <canvas id="cv"></canvas>
 <div id="banner"></div>
 <div class="ctl"><button id="dn">− EASIER</button><button id="up">+ HARDER</button></div>

@@ -80,3 +80,8 @@ music_cache/
 *.aiff
 *.ogg
 *.opus
+*.mp4
+*.m4v
+*.webm
+*.mov
+tools/cache/

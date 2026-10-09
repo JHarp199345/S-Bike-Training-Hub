@@ -1,6 +1,36 @@
 {
-  "latest": "app-v1.9.0",
+  "latest": "app-v1.10.0",
   "entries": [
+    {
+      "id": "app-v1.10.0",
+      "date": "2026-10-09",
+      "version": "App 1.10.0",
+      "title": "Clearer workout records, swim timing and linked watch data",
+      "changes": [
+        "Choose calories/kcal per minute or joules/watts in Settings; quiet equivalent readings retain clear metabolic-versus-mechanical labels and uncertainty ranges.",
+        "Watch imports can be linked to scheduled sessions or added as new workouts on their recorded date. Bike and watch recordings combine once, with a clock-adjustment preview and recorded metric sources.",
+        "Consistent workout cards and reports for swimming, cycling, strength, running, walking and other activities. Daily Hooper recovery stays separate; saved session reports collapse across views.",
+        "Workout library hearts start red for saved entries. Most recent performance cards, persistent comparison metrics, card navigation and repeat-click close controls make history easier to browse.",
+        "Plain-text strength editing preserves warm-up, main work and cool-down, optional planned/reported effort, set corrections and clearly labeled output estimates. Missing readings stay unknown.",
+        "Swim builder accepts goal-to-expected completion times: 400 FS 6 to 8 minutes. Watch lengths/laps compare by distance and order; consecutive drills stay combined unless you optionally report individual drill times. Timing drafts require three comparable performances and review.",
+        "Cancelled and missed workouts keep their sport icon and red cross. A finished day with no recorded work shows a separate checked recovery moon. Completion and plan revisions are tracked separately.",
+        "Phone ride controls are clearer, personal audio/video share a private local library, outlook flags are easier to scan, and incomplete route history no longer blocks ghost lookup.",
+        "Plan workout details use the same View/Hide control across sports and remain inside Plan, including today’s swims.",
+        "Swim Plan cards show a sectioned workout, stroke-distance donut and the existing front/back body heat map with a concise five-color key. Stroke-distance history offers 5, 10, 20, 30, 40, 60 and 90 days, grouped by session or day. Distance, duration, average HR and descriptive HR × minutes stay separate; missing readings remain unknown.",
+        "Fitness Dashboard adds full-size swim history, custom dates and 1–12-month presets. Compare month, quarter, saved training phase or custom month groups using up to twelve body-map donuts, three per page or all together. Plan retains the compact 90-day history; Today stays unchanged."
+      ],
+      "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/app-v1.10.0"
+    },
+    {
+      "id": "mcp-v1.10.0",
+      "date": "2026-10-09",
+      "version": "MCP 1.10.0",
+      "title": "Shared workout recording tools",
+      "changes": [
+        "114 published tools, including watch-link review, completed workout library saves and optional swim drill split reports. Use with App 1.10.0."
+      ],
+      "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/mcp-v1.10.0"
+    },
     {
       "id": "app-v1.9.0",
       "date": "2026-10-07",
@@ -39,9 +69,8 @@
       "changes": [
         "At 60% of a running hold, a three-day test: a short run-walk, then how walking feels the next day, then stairs. A good result offers to start winding the hold down; anything else tries again in a week.",
         "End on the ride screen now ends the whole ride: the workout and the route together.",
-        "Your music folder and files from this device are available. Plex needs live-account verification; Apple Music, iBroadcast and OpenSubsonic connection setup are in progress.",
-        "Fixed: video playback no longer builds up in memory, and Apple Music no longer repeats its event handlers.",
-        "The Hub now tells you when an update is out (checked at most twice a day; you can turn it off here)."
+        "The Hub now tells you when an update is out (checked at most twice a day; you can turn it off here).",
+        "Personal music folders and files from this device are available. Video playback no longer builds up in memory."
       ],
       "image": "/web/sports/phase-recovery.jpg"
     },
@@ -199,20 +228,16 @@
       "detail": "Paused for a research review: recovery timing learned from your reports instead of starting values."
     },
     {
-      "title": "Apple Music",
-      "detail": "Waiting on the Hub's Apple Music developer setup."
-    },
-    {
-      "title": "Plex connections",
-      "detail": "Plex still needs live-account playback verification."
-    },
-    {
       "title": "Lifting built on joints and movement directions",
       "detail": "Three full-body sessions (A, B, C) covering every joint action and direction, repeated and progressed for 4-6 weeks."
     },
     {
       "title": "Likes, dislikes and learned rules",
       "detail": "Thumbs up or down on exercises after a workout; exercises you keep skipping come up less."
+    },
+    {
+      "title": "Personal music and video library",
+      "detail": "Testing browser-playable formats and playback. Planned: random selections of 16 feature films and 32 music videos, with browsing by genre, director and participating artists as metadata becomes available."
     }
   ]
 }

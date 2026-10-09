@@ -40,3 +40,6 @@
 .ov-dots{display:flex;gap:5px}.ov-dots i{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.3)}.ov-dots i.on{background:#fff}
 .ov-lock{font-size:15px;line-height:1;background:var(--ov-bg,rgba(10,14,28,.55));border:1px solid rgba(255,255,255,.25);border-radius:10px;padding:5px 8px;color:#fff;cursor:pointer}
 .ov-lock.on{border-color:var(--ov-accent,#ffd678)}
+
+/* Phones inside the Ride screen: the frosted readout (ride-readout.js) replaces these; tap it for everything. */
+@media(max-width:700px){html[data-embedded="true"] .ov,html[data-embedded="true"] .ov-strip{display:none!important}}

@@ -15,7 +15,8 @@
       "focal": [
         40,
         50
-      ]
+      ],
+      "similarity_group": "floor-mobility"
     },
     {
       "id": "foundation",
@@ -32,7 +33,8 @@
       "focal": [
         65,
         50
-      ]
+      ],
+      "similarity_group": "pool-swimmer"
     },
     {
       "id": "development",
@@ -48,7 +50,8 @@
       "focal": [
         65,
         50
-      ]
+      ],
+      "similarity_group": "cycling-side"
     },
     {
       "id": "lifting",
@@ -64,7 +67,8 @@
       "focal": [
         65,
         50
-      ]
+      ],
+      "similarity_group": "barbell-standing"
     },
     {
       "id": "event-preparation",
@@ -80,7 +84,8 @@
       "focal": [
         65,
         50
-      ]
+      ],
+      "similarity_group": "road-runner"
     },
     {
       "id": "final-preparation",
@@ -96,7 +101,8 @@
       "focal": [
         65,
         50
-      ]
+      ],
+      "similarity_group": "final-preparation"
     },
     {
       "id": "recovery",
@@ -112,7 +118,8 @@
       "focal": [
         65,
         50
-      ]
+      ],
+      "similarity_group": "rest-bedroom"
     },
     {
       "id": "program-hero",
@@ -129,7 +136,8 @@
       "focal": [
         65,
         50
-      ]
+      ],
+      "similarity_group": "road-runner"
     },
     {
       "id": "rest-dawn",
@@ -147,7 +155,8 @@
       "focal": [
         78,
         48
-      ]
+      ],
+      "similarity_group": "rest-bedroom"
     },
     {
       "id": "ride-dawn",
@@ -165,7 +174,8 @@
       "focal": [
         78,
         48
-      ]
+      ],
+      "similarity_group": "cycling-side"
     },
     {
       "id": "mobility-morning",
@@ -182,7 +192,8 @@
       "focal": [
         78,
         48
-      ]
+      ],
+      "similarity_group": "floor-mobility"
     },
     {
       "id": "swim-dawn",
@@ -200,7 +211,8 @@
       "focal": [
         78,
         48
-      ]
+      ],
+      "similarity_group": "pool-swimmer"
     },
     {
       "id": "strength-morning",
@@ -218,7 +230,8 @@
       "focal": [
         78,
         48
-      ]
+      ],
+      "similarity_group": "strength-morning"
     },
     {
       "id": "today-cycle-portrait",
@@ -245,7 +258,8 @@
       ],
       "layouts": [
         "tall-workout"
-      ]
+      ],
+      "similarity_group": "cycling-side"
     },
     {
       "id": "today-recovery-wide",
@@ -273,7 +287,8 @@
       ],
       "layouts": [
         "wide-guidance"
-      ]
+      ],
+      "similarity_group": "floor-mobility"
     },
     {
       "id": "community-strength-watch",
@@ -294,7 +309,8 @@
       "style": "photorealistic",
       "source": "approved-regeneration",
       "width": 922,
-      "height": 1706
+      "height": 1706,
+      "similarity_group": "community-strength-watch"
     },
     {
       "id": "community-coastal-cycle",
@@ -314,7 +330,8 @@
       "style": "photorealistic",
       "source": "approved-regeneration",
       "width": 1916,
-      "height": 821
+      "height": 821,
+      "similarity_group": "cycling-side"
     },
     {
       "id": "community-road-run",
@@ -335,7 +352,8 @@
       "style": "photorealistic",
       "source": "approved-regeneration",
       "width": 1983,
-      "height": 793
+      "height": 793,
+      "similarity_group": "road-runner"
     },
     {
       "id": "community-deadlift",
@@ -356,7 +374,8 @@
       "style": "photorealistic",
       "source": "approved-regeneration",
       "width": 1696,
-      "height": 927
+      "height": 927,
+      "similarity_group": "barbell-standing"
     },
     {
       "id": "community-cockpit",
@@ -379,7 +398,8 @@
       "style": "photorealistic",
       "source": "approved-regeneration",
       "width": 1697,
-      "height": 927
+      "height": 927,
+      "similarity_group": "community-cockpit"
     },
     {
       "id": "community-trail-run",
@@ -400,7 +420,8 @@
       "style": "photorealistic",
       "source": "user-supplied-sheet",
       "width": 443,
-      "height": 267
+      "height": 267,
+      "similarity_group": "community-trail-run"
     },
     {
       "id": "community-squat",
@@ -421,7 +442,8 @@
       "style": "photorealistic",
       "source": "user-supplied-sheet",
       "width": 443,
-      "height": 267
+      "height": 267,
+      "similarity_group": "community-squat"
     },
     {
       "id": "test-assessment",
@@ -438,7 +460,8 @@
       "focal": [
         72,
         50
-      ]
+      ],
+      "similarity_group": "test-assessment"
     },
     {
       "id": "morning-diagnostic-sunrise",
@@ -465,7 +488,8 @@
         "wide-guidance"
       ],
       "width": 2172,
-      "height": 724
+      "height": 724,
+      "similarity_group": "morning-diagnostic-sunrise"
     },
     {
       "id": "rest-hammock-day",
@@ -479,7 +503,8 @@
       "focal": [
         75,
         50
-      ]
+      ],
+      "similarity_group": "rest-hammock-day"
     },
     {
       "id": "rest-sky-night",
@@ -493,8 +518,10 @@
       "focal": [
         75,
         50
-      ]
+      ],
+      "similarity_group": "rest-sky-night"
     }
   ],
-  "rotation": "Choose relevant artwork on opening the view; keep it stable during use."
+  "rotation": "Choose relevant artwork on opening the view; keep it stable during use.",
+  "adjacency": "Avoid equal file paths and curated similarity groups in neighboring automatic artwork slots; use a plain background when there is no suitable distinct alternative."
 }

@@ -10,7 +10,7 @@ import secrets
 import sys
 from pathlib import Path
 
-EXTS = {".mp3", ".m4a", ".aac", ".flac", ".wav", ".aif", ".aiff", ".ogg", ".opus"}
+EXTS = {".mp3", ".m4a", ".aac", ".flac", ".wav", ".aif", ".aiff", ".ogg", ".opus", ".mp4", ".m4v", ".webm", ".mov"}
 MAX_BYTES = 1_000_000_000          # 1 GB a file: room for long lossless mixes
 
 
@@ -33,6 +33,10 @@ def looks_like_audio(ext, head):
         return head[:4] == b"FORM" and head[8:12] in (b"AIFF", b"AIFC")
     if ext in (".ogg", ".opus"):
         return head[:4] == b"OggS"
+    if ext in (".mp4", ".m4v", ".mov"):
+        return head[4:8] in (b"ftyp", b"moov", b"wide", b"mdat", b"free")
+    if ext == ".webm":
+        return head[:4] == b"\x1a\x45\xdf\xa3"
     return False
 
 
@@ -41,7 +45,7 @@ def safe_name(name):
     name = re.sub(r"[\x00-\x1f/\\:]+", " ", name).strip().lstrip(".")
     stem, ext = os.path.splitext(name)
     if ext.lower() not in EXTS or not stem:
-        raise ValueError(f"{name or 'That file'} isn't a music file (mp3, m4a, aac, flac, wav, aiff, ogg, opus)")
+        raise ValueError(f"{name or 'That file'} isn't an audio or video file (mp3, m4a, aac, flac, wav, aiff, ogg, opus, mp4, m4v, webm, mov)")
     return stem[:180] + ext.lower()
 
 

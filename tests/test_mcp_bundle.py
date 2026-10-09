@@ -11,10 +11,12 @@ async def main():
  with tempfile.TemporaryDirectory(prefix='sbike-bundle-test-') as temp:
   base = pathlib.Path(temp); (base/'rides').mkdir(); (base/'workouts').mkdir()
   version=json.loads((ROOT/'mcpb/manifest.json').read_text())['version']
-  bundle = ROOT/f'mcpb/s-bike-hub-mcp-{version}.mcpb'
-  if bundle.exists():
+  override=os.environ.get('S_BIKE_TEST_BUNDLE')
+  bundle = pathlib.Path(override) if override else ROOT/f'mcpb/s-bike-hub-mcp-{version}.mcpb'
+  if bundle.exists() and not override:
    assert hashlib.sha256(bundle.read_bytes()).hexdigest() == json.loads((ROOT/'server.json').read_text())['packages'][0]['fileSha256']
-  else:
+  elif not bundle.exists():
+   if override: raise FileNotFoundError(bundle)
    # Release archives are ignored by Git; a fresh checkout tests the same source layout.
    bundle=base/'source-test.mcpb'
    with zipfile.ZipFile(bundle,'w') as z:

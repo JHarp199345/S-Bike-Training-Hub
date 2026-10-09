@@ -39,11 +39,10 @@ def main():
           h(p=b"/ride", hd=ck) is None and h(p=b"/tiles/14/2806/6535", hd=ck) is None)
     check("the paired phone still can't stop the bridge", h(m=b"POST", p=b"/stop", hd=ck)[0] == 403)
     check("the paired phone can't unpair everyone", h(m=b"POST", p=b"/remote/forget", hd=ck)[0] == 403)
-    check("paired phones can play media but cannot configure music accounts",
-          h(p=b"/api/music/playlists?provider=plex", hd=ck) is None
-          and h(p=b"/api/music/settings", hd=ck)[0] == 403
-          and h(m=b"POST", p=b"/api/music/connect", hd=ck)[0] == 403
-          and h(p=b"/api/music/apple", hd=ck)[0] == 403)
+    check("paired phones can play your media but cannot change the folder",
+          h(p=b"/api/music/library/picks?kind=audio", hd=ck) is None
+          and h(m=b"POST", p=b"/api/music/folder/choose", hd=ck)[0] == 403
+          and h(m=b"POST", p=b"/api/music/library/rescan", hd=ck)[0] == 403)
     fake = ("y" if tok[0] == "x" else "x") + tok[1:]      # always differs from the real token (1 in 64 started with x)
     check("a made-up token doesn't work", (h(m=b"POST", p=b"/gear/1", hd={b"cookie": f"{remote.COOKIE}={fake}".encode()}) or [None])[0] == 401)
 

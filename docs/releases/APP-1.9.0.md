@@ -15,7 +15,6 @@
 
 - Forecasting your reports from recent rate and carried load, with an accuracy scoreboard.
 - Recovery-curve learning is **paused for a research review**. Its preview and apply are off unless `HUB_RECOVERY_LEARNING=1` is set; the curve keeps its starting values.
-- Apple Music publisher setup; Plex live-account verification.
 
 ## Installation and updates
 

@@ -20,7 +20,8 @@ console.log('PASS: partial, unknown and zero recorded duration stay distinct fro
 // Imported actuals must remain visible even when the prescription is absent, without duplicates when matched.
 ctx.esc=x=>String(x);ctx.COMPLETE_ICON='✓';ctx.WorkoutFormat={render:()=>''};
 let a=html.indexOf('function unmatchedCalendarActivities(d)'),b=html.indexOf('function calendarMinutes',a);vm.runInContext(html.slice(a,b),ctx);
-a=html.indexOf('function completedHtml(s)');b=html.indexOf('function swimOutlookHtml',a);vm.runInContext(html.slice(a,b),ctx);
+a=html.indexOf('function completedHtml(');b=html.indexOf('function swimOutlookHtml',a);vm.runInContext(html.slice(a,b),ctx);
+a=html.indexOf('function workoutHeart(');b=html.indexOf('\nfunction ',a+10);ctx.day=ctx.day||{library_favorites:[]};vm.runInContext(html.slice(a,b),ctx);
 a=html.indexOf('function recordedActivityHtml(d)');b=html.indexOf('function renderTodayWorkouts',a);vm.runInContext(html.slice(a,b),ctx);
 const done={sport:'bike',minutes:34,km:10.36,load:{engine:28.4}};
 assert.match(ctx.recordedActivityHtml({sessions:[],done:[done]}),/34 min recorded/);
@@ -41,12 +42,12 @@ console.log('PASS cancelled lift icon and red X precede a separate checked recov
 
 
 // Completed report opens and closes through the same button or its footer.
-const reportButton={textContent:'View reported swim',attrs:{},setAttribute(k,v){this.attrs[k]=v;},getAttribute(k){return this.attrs[k];},focus(){this.focused=true;}},footer={};
+const reportButton={textContent:'View workout details',attrs:{},setAttribute(k,v){this.attrs[k]=v;},getAttribute(k){return this.attrs[k];},focus(){this.focused=true;}},footer={};
 const reportCard={hidden:true,innerHTML:'',querySelector(){return footer;}};ctx.$=id=>{assert.equal(id,'othercard');return reportCard;};
 ctx.toggleReportedWorkout(reportButton,{sport:'swim',completion:{minutes:53}});
-assert.equal(reportCard.hidden,false);assert.equal(reportButton.textContent,'Hide reported swim');assert.equal(reportButton.attrs['aria-expanded'],'true');
+assert.equal(reportCard.hidden,false);assert.equal(reportButton.textContent,'Hide workout details');assert.equal(reportButton.attrs['aria-expanded'],'true');
 ctx.toggleReportedWorkout(reportButton,{sport:'swim',completion:{minutes:53}});
-assert.equal(reportCard.hidden,true);assert.equal(reportButton.textContent,'View reported swim');
+assert.equal(reportCard.hidden,true);assert.equal(reportButton.textContent,'View workout details');
 ctx.toggleReportedWorkout(reportButton,{sport:'swim',completion:{minutes:53}});footer.onclick();assert.equal(reportCard.hidden,true);assert.equal(reportButton.focused,true);
 console.log('PASS completed report opens/collapses from the primary button and footer');
 
@@ -90,10 +91,11 @@ async function recordedPreviewTests(){
 recordedPreviewTests().catch(e=>{console.error(e);process.exitCode=1;});
 
 // Detailed observations show legitimate zeros, hide absent measurements and keep load estimates labeled.
-let metricsStart=html.indexOf('const activityReportCache'),metricsEnd=html.indexOf('function completedHtml(s)',metricsStart);
+let metricsStart=html.indexOf('const activityReportCache'),metricsEnd=html.indexOf('function completedHtml(',metricsStart);
 ctx.window={addEventListener(){},dispatchEvent(){}};ctx.Event=class{constructor(type){this.type=type;}};
 ctx.document.readyState='loading';ctx.document.addEventListener=()=>{};ctx.document.querySelectorAll=()=>[];
 vm.runInContext(fs.readFileSync('web/energy-units.js','utf8'),ctx);
+vm.runInContext(fs.readFileSync('web/recorded-strength.js','utf8'),ctx);ctx.RecordedStrength=ctx.window.RecordedStrength;
 vm.runInContext(html.slice(metricsStart,metricsEnd),ctx);
 let output=ctx.activityMetricsHtml({duration_seconds:1500,distance_m:5000,calories_kcal:0,avg_hr:140,max_hr:null,run:{pace_per_km_seconds:300,cadence_steps_min:160,steps:4000,drift_pct:0},load:{engine:30,impact:0,muscle:null}});
 assert.match(output,/Watch calories/);assert.match(output,/>0 <small>kcal/);assert.match(output,/5:00/);assert.match(output,/Heart-rate drift/);assert.doesNotMatch(output,/Peak heart rate/);assert.doesNotMatch(output,/Muscle load · estimate/);
@@ -107,7 +109,7 @@ assert.match(output,/1,394.67 <small>W/);assert.match(output,/wr-conversion.*20 
 assert.match(output,/Not measured cycling power, a heart-rate zone or effort rating/);
 assert.doesNotMatch(ctx.activityMetricsHtml({energy_rate:{metabolic_power_w:Infinity}}),/Estimated metabolic power/);
 assert.doesNotMatch(ctx.activityMetricsHtml({calories_kcal:200,duration_seconds:0}),/Estimated metabolic power/);
-const feedbackStart=html.indexOf('function feedbackHtml'),feedbackEnd=html.indexOf("document.addEventListener('click',async e=>{const button=e.target.closest('[data-effort]')",feedbackStart);
+const feedbackStart=html.indexOf('const workoutReportSnapshots'),feedbackEnd=html.indexOf("document.addEventListener('click',async e=>{const button=e.target.closest('[data-effort]')",feedbackStart);
 vm.runInContext(html.slice(feedbackStart,feedbackEnd),ctx);
-output=ctx.feedbackHtml('2026-10-06',null,null,'run-id','run');assert.match(output,/After-run report/);assert.match(output,/Session effort · CR-10/);assert.match(output,/data-feedback-activity="run-id"/);assert.match(output,/data-effort="as_intended" disabled/,'Imported feedback must wait for backend capability verification');
+output=ctx.feedbackHtml('2026-10-06',null,null,'run-id','run');assert.match(output,/After-run report/);assert.match(output,/Overall session effort/);assert.match(output,/data-feedback-activity="run-id"/);assert.match(output,/data-effort="as_intended" disabled/,'Imported feedback must wait for backend capability verification');
 console.log('PASS activity metric zeros, unknowns, units and imported report compatibility gate');
