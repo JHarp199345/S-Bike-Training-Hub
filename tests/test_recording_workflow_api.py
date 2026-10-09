@@ -7,7 +7,7 @@ date=coach.today();t=dt.datetime.fromisoformat(date+'T06:00').timestamp()
 class Fake:
  profile={'ftp':180,'ftp_source':'test'};csv_path=base/'rides/ride_test.csv';workouts=[];args=types.SimpleNamespace(no_bike=True)
  def event(self,m):pass
-loop=asyncio.new_event_loop();server=loop.run_until_complete(panel.serve(Fake(),18798,lan=False));threading.Thread(target=loop.run_forever,daemon=True).start()
+loop=asyncio.new_event_loop();server=loop.run_until_complete(panel.serve(Fake(),18798,lan=False));server_thread=threading.Thread(target=loop.run_forever,daemon=True);server_thread.start()
 url='http://127.0.0.1:18798'
 def api(path,data=None):
  req=urllib.request.Request(url+path,data=None if data is None else json.dumps(data).encode(),headers={'Content-Type':'application/json'})
@@ -43,5 +43,13 @@ r=subprocess.run([sys.executable,str(ROOT/'mcp_server.py')],input='\n'.join(map(
 answers=[json.loads(l) for l in r.stdout.splitlines()];assert len(answers)==4 and not any(x['result'].get('isError') for x in answers[1:]),answers
 assert json.loads(answers[3]['result']['content'][0]['text'])['feedback']['rpe']==6
 history=api('/api/coach/swim-history');assert len(history['rows'])==1 and history['rows'][0]['activity_id']=='swim' and history['as_of']==date
-server.close();loop.call_soon_threadsafe(loop.stop)
+# Close on the owning loop: cross-thread close can race asyncio's waiters.
+async def close_server():
+ server.close()
+ await server.wait_closed()
+asyncio.run_coroutine_threadsafe(close_server(),loop).result(timeout=10)
+loop.call_soon_threadsafe(loop.stop)
+server_thread.join(timeout=10)
+assert not server_thread.is_alive()
+loop.close()
 print('PASS HTTP upload/link/report parity for six sports, canonical counts, immutable prescription, independent daily Hooper and shared MCP operations')
