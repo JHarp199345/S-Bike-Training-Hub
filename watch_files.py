@@ -21,9 +21,11 @@ def _store(base, name, data):
         raise ValueError('Choose a FIT or TCX workout file up to 20 MB')
     if extension=='.fit' and data[8:12]!=b'.FIT':raise ValueError('This is not a FIT activity file')
     reader=loads._from_fit if extension=='.fit' else loads._from_tcx
-    with tempfile.NamedTemporaryFile(dir=folder,suffix=extension) as tmp:
-        tmp.write(data);tmp.flush()
-        try:activity=reader(Path(tmp.name))
+    # Close the writer before the reader opens the file: Windows locks open temp files.
+    with tempfile.TemporaryDirectory(dir=folder,prefix='validate-') as scratch:
+        tmp=Path(scratch)/('workout'+extension)
+        tmp.write_bytes(data)
+        try:activity=reader(tmp)
         except Exception as e:raise ValueError('This file could not be read as a workout') from e
     if not activity or not activity.get('start') or not activity.get('minutes'):
         raise ValueError('This file has no usable workout date and duration')

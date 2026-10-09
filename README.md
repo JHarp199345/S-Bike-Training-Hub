@@ -6,7 +6,9 @@ A free, local training hub for cycling, swimming, running and strength. It keeps
 
 <p align="center"><img src="docs/journey/today.jpg" width="880" alt="The Coach's Today page: the day's verdict, check-in and workouts"></p>
 
-## App 1.10.0 · current release
+## App 1.10.1 · current release
+
+App 1.10.1 corrects Windows watch-file validation and includes the 1.10.0 improvements below.
 
 Workout records now share one format across sports, with editable text, optional effort readings and reports that stay linked to the original session. Watch files can be associated with scheduled workouts or added as separate sessions; linked bike and watch recordings count once. Plan uses the same **View workout details / Hide workout details** controls for every sport and stays on Plan.
 
@@ -39,7 +41,7 @@ Saved workouts have red library hearts. Library history opens on the most recent
 <p align="center"><img src="docs/release-1.10/library-records.jpg" width="880" alt="Saved swim with a red heart, sport-specific measured metrics, unknown values and stacked performance cards"></p>
 <p align="center"><img src="docs/release-1.10/calorie-rates.jpg" width="880" alt="Recorded training shown in calories per minute with a quiet watt equivalent"></p>
 
-Use **MCP 1.10.0** with this app: 114 listed tools use the same Hub operations as the manual interface. See [release notes](docs/releases/APP-1.10.0.md) and [swim timing design](docs/design/swim-timing.md). Screenshots above use synthetic data. The unfinished Halloween world is excluded from this release.
+Use **MCP 1.10.0** with this app: 114 listed tools use the same Hub operations as the manual interface. See [1.10.1 release notes](docs/releases/APP-1.10.1.md), [1.10.0 feature notes](docs/releases/APP-1.10.0.md) and [swim timing design](docs/design/swim-timing.md). Screenshots above use synthetic data. The unfinished Halloween world is excluded from this release.
 
 ## What a 12-week program looks like
 

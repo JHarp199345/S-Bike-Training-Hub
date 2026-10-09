@@ -82,3 +82,10 @@ sessions=[{'sport':'gym','name':'First lift','minutes':10,'recorded_activity_id'
 marked=coach.attach_completions(d,date,sessions,[{'sport':'gym','minutes':10,'activity_id':'gym-canonical'}])
 assert marked[0]['completion']['activity_id']=='gym-canonical' and not marked[1].get('completion')
 print('PASS an explicitly linked lifting log cannot complete a second scheduled workout')
+
+assert not list((base/'activities').glob('validate-*'))
+try:watch_files.store(base,'bad.tcx',b'<TrainingCenterDatabase/>')
+except ValueError:pass
+else:raise AssertionError('Empty watch file must be rejected')
+assert not list((base/'activities').glob('validate-*'))
+print('PASS temporary watch validation files are closed before reading and cleaned on success/failure')

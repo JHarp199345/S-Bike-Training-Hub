@@ -1,6 +1,17 @@
 {
-  "latest": "app-v1.10.0",
+  "latest": "app-v1.10.1",
   "entries": [
+    {
+      "id": "app-v1.10.1",
+      "date": "2026-10-09",
+      "version": "App 1.10.1",
+      "title": "Windows watch imports corrected",
+      "changes": [
+        "Fixes Windows file locking during FIT/TCX validation. Imported files are closed before the workout reader opens them; temporary validation files are cleaned up.",
+        "Includes the App 1.10.0 coach, swim-history, energy-unit, library and normal ride improvements listed below. Use with MCP 1.10.0."
+      ],
+      "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/app-v1.10.1"
+    },
     {
       "id": "app-v1.10.0",
       "date": "2026-10-09",
