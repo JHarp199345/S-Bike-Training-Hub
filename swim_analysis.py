@@ -15,12 +15,17 @@ def mix(parts, total=None, basis=''):
     return {'total_m':round(total,3),'basis':basis,'parts':[{'stroke':k,'label':LABELS.get(k,LABELS['unknown']),'distance_m':round(v,3),'percent':round(v/total*100,2)} for k,v in parts.items()] if total else []}
 
 def recipe_mix(recipe, basis='Written workout · distance proportions'):
-    parts={}
+    parts={};work_parts={}
     for s in (recipe or {}).get('sets',[]):
         key=s.get('stroke') if s.get('stroke') in LABELS else 'unknown'
         # A named stroke drill remains named in the athlete's description, not the watch.
-        parts[key]=parts.get(key,0)+(positive(s.get('distance_m')) or 0)
-    return mix(parts,basis=basis)
+        distance=positive(s.get('distance_m')) or 0
+        parts[key]=parts.get(key,0)+distance
+        work=s.get('work') if s.get('work') in ('swim','drill','kick','pull') else 'swim'
+        work_parts[(key,work)]=work_parts.get((key,work),0)+distance
+    out=mix(parts,basis=basis)
+    out['work_parts']=[{'stroke':stroke,'work':work,'distance_m':round(distance,3)} for (stroke,work),distance in work_parts.items() if distance>0]
+    return out
 
 def watch_mix(a):
     parts={};pool=positive(a.get('pool_length_m'));session=positive(a.get('distance_m'))
@@ -69,9 +74,12 @@ def history_rows(scored,d):
     for a in scored:
         if a.get('sport')!='swim' or not a.get('swim_analysis'):continue
         detail=d.get('activity_workouts',{}).get(a['id']) or {}
-        recipe=detail.get('recipe');p=a['swim_analysis'];feedback=next((v for v in d.get('training_feedback',{}).values() if v.get('activity_id')==a['id']),{})
+        recipe=detail.get('recipe');planned=(d.get('swim_timing_baselines',{}).get(a['id']) or {}).get('recipe');p=a['swim_analysis'];feedback=next((v for v in d.get('training_feedback',{}).values() if v.get('activity_id')==a['id']),{})
+        written=recipe or planned
+        written_basis='Recorded workout breakdown' if recipe else 'Saved planned workout' if planned else None
         rows.append({'activity_id':a['id'],'date':a['date'],'start':a.get('start'),'current':False,
-                     'watch_mix':p['watch_mix'],'described_mix':recipe_mix(recipe,'Athlete-described performed sets') if recipe else None,
+                     'written_mix':recipe_mix(written,written_basis) if written else None,'written_basis':written_basis,
+                     'watch_mix':p['watch_mix'],'planned_mix':recipe_mix(planned,'Saved plan captured at workout association') if planned else None,'described_mix':recipe_mix(recipe,'Athlete-described performed sets') if recipe else None,
                      'work_types':{'sets':[{'distance_m':s.get('distance_m',0),'work':s.get('work','swim')} for s in recipe.get('sets',[])]} if recipe else None,
                      'response':{**p['response'],'reported_effort':feedback.get('rpe')}})
     rows.sort(key=lambda r:(r['date'],r.get('start') or '',r['activity_id']))

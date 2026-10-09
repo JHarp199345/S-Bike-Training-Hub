@@ -6,11 +6,13 @@ A free, local training hub for cycling, swimming, running and strength. It keeps
 
 <p align="center"><img src="docs/journey/today.jpg" width="880" alt="The Coach's Today page: the day's verdict, check-in and workouts"></p>
 
-## App 1.10.1 · current release
+## App 1.10.2 · current release
 
-App 1.10.1 corrects Windows watch-file validation and includes the 1.10.0 improvements below.
+App 1.10.2 adds unfinished-workout editing and clearer swim comparisons. It includes the Windows watch-file correction from 1.10.1 and the 1.10.0 improvements below.
 
 Workout records now share one format across sports, with editable text, optional effort readings and reports that stay linked to the original session. Watch files can be associated with scheduled workouts or added as separate sessions; linked bike and watch recordings count once. Plan uses the same **View workout details / Hide workout details** controls for every sport and stays on Plan.
+
+**Edit unfinished workouts:** the pencil on a Today workout card reopens its warm-up, main work and cool-down fields. Save updates that workout in place, preserving completed neighbors and route settings. Completed workouts keep their original record; update their report or performed details instead.
 
 **Energy units:** choose **Calories** or **Joules / watts** in Settings. Energy appears as kcal or J/kJ/MJ, and session rate as kcal/min or W, with a smaller equivalent alongside it. One kcal = 4,184 J; one kcal/min ≈ 69.73 W. Cycling crank power, estimated metabolic energy and nominal lifting external work retain separate labels. Changing units changes the display, not the underlying record or heart-rate zones. Lifting’s mechanical calorie equivalent is not calories burned.
 
@@ -26,10 +28,17 @@ Optional individual drill times are athlete reports, stored separately from watc
 
 <p align="center"><img src="docs/release-1.10/drill-splits.jpg" width="880" alt="Optional athlete-reported drill split fields with saved values and unknown splits left blank"></p>
 
-Plan swim details now show a sectioned workout beside a **distance-based stroke donut** and the existing front/back body map with five estimated intensity colors. Watch classification stays separate from athlete-described strokes, including unresolved drills. Stacked stroke-distance bars can group by session or day over 5, 10, 20, 30, 40, 60 or 90 days, with available-record coverage labeled; separate charts show duration, distance, average HR and descriptive HR × minutes. Increased volume can raise HR × time without raising average HR. Unknown readings remain dashes; these charts do not declare adaptation or deconditioning.
+Plan swim details show a sectioned workout beside a larger **distance-based stroke donut** and the credited front/back body map. The two columns align, with a separate key panel: five estimated intensity levels on the left and stroke distance on the right.
 
-<p align="center"><img src="docs/release-1.10/swim-plan-profile.jpg" width="880" alt="Plan swim write-up beside a distance donut showing 75 percent freestyle, 15 percent butterfly and 10 percent backstroke"></p>
-<p align="center"><img src="docs/release-1.10/swim-stroke-history.jpg" width="880" alt="Compact 90-day Plan swim stroke-distance history grouped by session, with unknown watch strokes and record coverage labeled"></p>
+**Swim history:** closely spaced vertical columns use a fixed stroke order, with dates below. Select **Distance** for a shared metre scale or **Percentages** for full-height proportions, grouped by session or day over 5, 10, 20, 30, 40, 60 or 90 days. **Planned** uses the recorded written breakdown when available, otherwise the saved plan captured at association. **Compare** places Planned above Watch detection on the same scale. Missing written workouts stay blank; library templates are never guessed into old records.
+
+Named drills retain their stroke color with diagonal slashes; drill/kick/pull detail can be hidden. Unknown watch drills remain unresolved. Thin absent-stroke markers mean zero and never increase totals or percentages. A distance-based swim receives a full calendar check when its prescribed distance is completed, even if it finishes faster than the estimated duration.
+
+<p align="center"><img src="docs/release-1.10.2/swim-plan-profile.jpg" width="880" alt="Synthetic example: aligned swim write-up and larger credited front/back body-map donut, with separate intensity and stroke keys"></p>
+<p align="center"><img src="docs/release-1.10.2/swim-stroke-history.jpg" width="880" alt="Synthetic example: vertical stroke-percentage columns with Planned above Watch detection, dates below and named drills hatched in their stroke color"></p>
+
+Separate charts show duration, distance, average HR and descriptive HR × minutes. Increased volume can raise HR × time without raising average HR. Unknown readings remain dashes; these charts do not declare adaptation or deconditioning.
+
 <p align="center"><img src="docs/release-1.10/swim-response.jpg" width="880" alt="Independent swim volume, duration and heart-rate response charts"></p>
 
 **Fitness Dashboard swim history:** a full-size stacked stroke-distance chart covers custom dates or the last 1, 2, 3, 6 or 12 calendar months, grouped by day or swim session. Compare months, calendar quarters, saved training phases or custom groups of 1–12 months. Six comparison periods appear by default, three per page; request up to twelve or use View all. Each donut shows distance proportions, total distance and recorded time. Unknown classification stays visible and available-record coverage is labeled. The compact history remains in Plan swim cards; Today keeps its existing workout/report layout.
@@ -41,7 +50,7 @@ Saved workouts have red library hearts. Library history opens on the most recent
 <p align="center"><img src="docs/release-1.10/library-records.jpg" width="880" alt="Saved swim with a red heart, sport-specific measured metrics, unknown values and stacked performance cards"></p>
 <p align="center"><img src="docs/release-1.10/calorie-rates.jpg" width="880" alt="Recorded training shown in calories per minute with a quiet watt equivalent"></p>
 
-Use **MCP 1.10.0** with this app: 114 listed tools use the same Hub operations as the manual interface. See [1.10.1 release notes](docs/releases/APP-1.10.1.md), [1.10.0 feature notes](docs/releases/APP-1.10.0.md) and [swim timing design](docs/design/swim-timing.md). Screenshots above use synthetic data. The unfinished Halloween world is excluded from this release.
+Use **MCP 1.10.0** with this app: 114 listed tools use the same Hub operations as the manual interface. See [1.10.2 release notes](docs/releases/APP-1.10.2.md), [1.10.1 import correction](docs/releases/APP-1.10.1.md), [1.10.0 feature notes](docs/releases/APP-1.10.0.md) and [swim timing design](docs/design/swim-timing.md). Screenshots above use synthetic data; the new swim screenshots render the actual Hub components with example workouts. The unfinished Halloween world is excluded from this release.
 
 ## What a 12-week program looks like
 

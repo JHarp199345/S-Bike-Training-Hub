@@ -932,6 +932,30 @@ def with_focus(day_json, bridge, d=None):
             "skills": skills.summary(d, step)}
 
 
+def editable_session_snapshot(base, d, date, index, sport):
+    """Check the selected session, not every completed workout on its date."""
+    import copy, coach, training_block
+    saved = copy.deepcopy(training_block.sessions(d.get('plans', {}).get(date) or {}))
+    if isinstance(index, bool) or not isinstance(index, int) or not 0 <= index < len(saved):
+        raise ValueError('Choose an existing workout to edit')
+    if saved[index].get('sport') != sport:
+        raise ValueError('Keep the existing session sport when editing')
+    actual = coach.attach_completions(d, date, copy.deepcopy(saved), done_by_day(base, d).get(date, []))
+    if actual[index].get('completion') or saved[index].get('recorded_activity_id'):
+        raise ValueError('Keep completed workouts; edit their actual reports instead')
+    if saved[index].get('skipped_id') or saved[index].get('recovery_record'):
+        raise ValueError('Restore the cancelled workout before editing')
+    return saved
+
+
+def preserve_session_neighbors(candidate, date, saved, index):
+    """Retain unrelated prescriptions and recording links exactly during a single-session edit."""
+    if saved is not None:
+        for i, session in enumerate(saved):
+            if i != index:
+                candidate['plans'][date]['sessions'][i] = session
+
+
 def done_by_day(base, d=None):
     """What was actually done each day (watch activities and bike rides): {date: [{sport, minutes}]}.
     With the coach data `d`, attempts that were cut short are left out (coach.counts)."""
@@ -1910,6 +1934,7 @@ async def _coach_api(bridge, method, path, p, body):
             capture_program_forecast(bridge,rides,d)
             return js({"ok":True})
         if p == "/api/coach/session/add" and method == b"POST":
+            edit_sessions = editable_session_snapshot(rides.parent, d, date, req['index'], req.get('sport')) if req.get('index') is not None else None
             if req.get("run_recipe") is not None and req.get("sport") != "run":
                 raise ValueError("Choose Running for a running recipe")
             if req.get("swim_recipe") is not None:
@@ -1918,9 +1943,9 @@ async def _coach_api(bridge, method, path, p, body):
                     import workout_imports
                     workout_imports.get(rides.parent,req['workout_import_id'])
                     if req.get('source_reviewed') is not True:raise ValueError('Compare the extracted text with the source and confirm it before saving')
-                if req.get('index') is not None and done_by_day(rides.parent,d).get(date):raise ValueError('Keep completed workouts; edit their reports instead')
                 import swim_workouts
                 candidate=swim_workouts.add(d,date,req)
+                preserve_session_neighbors(candidate,date,edit_sessions,req.get('index'))
                 import workout_library
                 at=req.get('index') if req.get('index') is not None else len(candidate['plans'][date]['sessions'])-1
                 workout_library.attach_goals(candidate,date,at,req);workout_library.keep(candidate,date,at,favorite=req.get('favorite'),library_id=req.get('library_id'))
@@ -1928,10 +1953,9 @@ async def _coach_api(bridge, method, path, p, body):
                 capture_program_forecast(bridge,rides,candidate)
                 return js({'sessions':candidate['plans'][date]['sessions']})
             if req.get("ride_blocks") is not None:
-                if req.get("index") is not None and done_by_day(rides.parent,d).get(date):
-                    raise ValueError("Keep completed workouts; edit their reports instead")
                 import ride_workouts,workouts
                 candidate,wid=ride_workouts.add(d,date,req)
+                preserve_session_neighbors(candidate,date,edit_sessions,req.get('index'))
                 try:
                     import workout_library
                     at=req.get('index') if req.get('index') is not None else len(candidate['plans'][date]['sessions'])-1
@@ -1948,10 +1972,9 @@ async def _coach_api(bridge, method, path, p, body):
                 gate=training_block.running_gate(d,load_state(rides.parent),d["checkins"].get(coach.today()))
                 if gate["status"]!="open_for_review":raise ValueError("Running stays unscheduled: "+"; ".join(gate["reasons"] or ["metrics and preparatory checks need review"]))
             if req.get('run_recipe') is not None:
-                if req.get('index') is not None and done_by_day(rides.parent,d).get(date):
-                    raise ValueError('Keep completed workouts; edit their reports instead')
                 import run_workouts,workout_library
                 candidate,at = run_workouts.add(d,date,req)
+                preserve_session_neighbors(candidate,date,edit_sessions,req.get('index'))
                 workout_library.attach_goals(candidate,date,at,req)
                 workout_library.keep(candidate,date,at,favorite=req.get('favorite'),library_id=req.get('library_id'))
                 coach.save(candidate);capture_program_forecast(bridge,rides,candidate)
@@ -1963,12 +1986,15 @@ async def _coach_api(bridge, method, path, p, body):
             if not manual_minutes and req.get('sport')=='gym' and req.get('lifts'):
                 import lifting
                 manual_minutes=lifting.estimate_minutes(lifting.clean(d,req['lifts'],draft=bool(req.get('draft'))))
-            cur.append({"sport": req.get("sport"), "minutes": int(manual_minutes or 30), "name": req.get("name") or str(req.get("sport")).title(),
-                        "steps": req.get("steps") or [], "note": req.get("note") or "", "swim_profile": req.get("swim_profile"), "swim_plan":req.get("swim_plan"), "bike_plan":req.get("bike_plan"), "cadence":req.get("cadence"), "focus":req.get("focus"), "workout":req.get("workout"), "lifts":req.get("lifts"), "typed_workout":req.get("typed_workout")})
+            entry = {**(cur[req['index']] if edit_sessions is not None else {}), "sport": req.get("sport"), "minutes": int(manual_minutes or 30), "name": req.get("name") or str(req.get("sport")).title(),
+                        "steps": req.get("steps") or [], "note": req.get("note") or "", **{key:req[key] for key in ("swim_profile","swim_plan","bike_plan","cadence","focus","workout","lifts","typed_workout") if key in req}}
+            if edit_sessions is None:cur.append(entry)
+            else:cur[req['index']]=entry
             coach.set_sessions(d, date, cur, draft=bool(req.get("draft")))
+            preserve_session_neighbors(d,date,edit_sessions,req.get('index'))
             if req.get('typed_workout'):
                 import workout_library
-                at=len(d['plans'][date]['sessions'])-1
+                at=req['index'] if edit_sessions is not None else len(d['plans'][date]['sessions'])-1
                 workout_library.attach_goals(d,date,at,req);workout_library.keep(d,date,at,favorite=req.get('favorite'),library_id=req.get('library_id'))
             coach.save(d)
             capture_program_forecast(bridge,rides,d)
@@ -2040,9 +2066,13 @@ async def _coach_api(bridge, method, path, p, body):
                 return js({'activity_id':activity['id'],'sport':activity['sport'],'minutes':activity['minutes'],
                            **strength_workouts.hr_windows(activity['records'])})
             if sub == "/plan":
-                if (req.get('typed_workout') or req.get('workout_goals')) and done_by_day(rides.parent,d).get(date):raise ValueError('Keep completed workouts; edit their actual reports instead')
+                import training_block
+                index=req.get('index')
+                if index is None:index=next((i for i,s in enumerate(training_block.sessions(d['plans'].get(date) or {})) if s.get('sport')=='gym'),None)
+                edit_sessions=editable_session_snapshot(rides.parent,d,date,index,'gym') if index is not None and (req.get('index') is not None or req.get('typed_workout') or req.get('workout_goals')) else None
                 pl = lifting.set_session(d, date, req.get("lifts"), req.get("name"), req.get("minutes"), req.get("index"),
                                          req.get("note"), draft=bool(req.get("draft")), override=req.get("override"),typed_workout=req.get("typed_workout"))
+                preserve_session_neighbors(d,date,edit_sessions,index)
                 if req.get('typed_workout') or req.get('workout_goals'):
                     import workout_library
                     at=req.get('index')

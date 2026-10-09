@@ -72,7 +72,7 @@ async def main():
    bad_before=(base/'coach.json').read_bytes()
    for bad in [dict(save,source_reviewed=True,minutes=30),dict(save,source_reviewed=True,sport='ride')]:
     code,_,body,_=await api('/api/coach/session/add',bad);assert code==400,body;assert (base/'coach.json').read_bytes()==bad_before
-  with patch.object(mapserver,'done_by_day',return_value={'2026-10-05':[{'sport':'swim'}]}):
+  with patch.object(mapserver,'done_by_day',return_value={'2026-10-05':[{'sport':'swim','minutes':50,'activity_id':'completed-test-swim'}]}):
    code,_,body,_=await api('/api/coach/session/add',dict(save,index=0,source_reviewed=True));assert code==400,body
   for ident in ['../coach.json','bad',True]:
    try:wi.get(base,ident)

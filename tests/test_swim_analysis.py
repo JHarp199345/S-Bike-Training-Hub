@@ -30,3 +30,25 @@ out=A.dashboard(rows,{'phase_profiles':[{'id':'base','label':'Base','start':'202
 assert len(out['rows'])==9 and out['history_start']=='2026-10-01' and out['phases'][0]['end']=='2026-10-12'
 assert all(r['date']<='2026-10-09' for r in out['rows'])
 print('PASS full dashboard history excludes future swims and retains saved phase boundaries')
+# Plan intent is supplied only by a captured association; never inferred from watch drill mode.
+planned=W.parse({'main':'300 butterfly drill\n2200 FS'},distance_unit='yd')
+state={'swim_timing_baselines':{'14':{'recipe':planned}},'activity_workouts':{'14':{'recipe':p}}}
+original=copy.deepcopy(state)
+row=A.history_rows(rows,state)[13]
+assert row['planned_mix']['total_m']==2286
+assert {x['stroke']:x['percent'] for x in row['planned_mix']['parts']}=={'fly':12,'free':88}
+assert row['planned_mix']['work_parts'][0]=={'stroke':'fly','work':'drill','distance_m':274.32}
+assert row['described_mix']['total_m']==1828.8
+assert row['watch_mix']==A.profile(a)['watch_mix']
+assert A.history_rows(rows,state)[0]['planned_mix'] is None
+assert state==original
+print('PASS captured plan/work kinds are separate from performed description and original watch classification')
+
+assert row['written_mix']['parts']==row['described_mix']['parts']
+assert row['written_mix']['work_parts']==row['described_mix']['work_parts']
+assert row['written_basis']=='Recorded workout breakdown'
+plan_only=A.history_rows(rows,{'swim_timing_baselines':state['swim_timing_baselines']})[13]
+assert plan_only['written_mix']['total_m']==2286
+assert plan_only['written_basis']=='Saved planned workout'
+assert A.history_rows(rows,{})[0]['written_mix'] is None
+print('PASS unified written history uses recorded breakdowns or captured plans without changing source records')

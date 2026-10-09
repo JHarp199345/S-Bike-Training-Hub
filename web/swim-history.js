@@ -4,6 +4,7 @@
 const E=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const names={free:'Freestyle',back:'Backstroke',breast:'Breaststroke',fly:'Butterfly',drill:'Drill · unresolved',mixed:'Mixed',medley:'Medley · unresolved',choice:'Choice · unresolved',unknown:'Unclassified'};
 const colors={free:'#38bdf8',back:'#a78bfa',breast:'#34d399',fly:'#fbbf24',drill:'#fb923c',mixed:'#e879f9',medley:'#e879f9',choice:'#94a3b8',unknown:'#64748b'};
+const ordered=parts=>root.SwimWorkout?.orderedParts(parts)||(parts||[]).slice().sort((a,b)=>['free','breast','back','fly','drill','mixed','medley','choice','unknown'].indexOf(a.stroke)-['free','breast','back','fly','drill','mixed','medley','choice','unknown'].indexOf(b.stroke));
 const num=v=>Number.isFinite(v)&&v>0?v:0,fmt=v=>Number(v).toLocaleString(undefined,{maximumFractionDigits:1});
 const date=s=>new Date(s+'T12:00:00Z'),iso=d=>d.toISOString().slice(0,10),shift=(s,n)=>{const d=date(s);d.setUTCDate(d.getUTCDate()+n);return iso(d);};
 function monthStart(end,months){const d=date(end);d.setUTCDate(1);d.setUTCMonth(d.getUTCMonth()-months+1);return iso(d);}
@@ -21,7 +22,7 @@ function aggregate(rows,source){
   if(r.work_types)work.push(...r.work_types.sets);
  }
  const sum=Object.values(parts).reduce((a,b)=>a+b,0);
- return {count:rows.length,distance_m:total,minutes,described,total_m:sum,basis:source==='written'?'Athlete-described · distance proportions':'Watch-classified · distance proportions',parts:Object.entries(parts).filter(([,v])=>v>0).map(([stroke,distance_m])=>({stroke,label:names[stroke]||names.unknown,distance_m,percent:distance_m/sum*100})),work_types:work.length?{sets:work}:null};
+ return {count:rows.length,distance_m:total,minutes,described,total_m:sum,basis:source==='written'?'Athlete-described · distance proportions':'Watch-classified · distance proportions',parts:ordered(Object.entries(parts).filter(([,v])=>v>0).map(([stroke,distance_m])=>({stroke,label:names[stroke]||names.unknown,distance_m,percent:distance_m/sum*100}))),work_types:work.length?{sets:work}:null};
 }
 function periods(rows,phases,state){
  const filtered=rows.filter(r=>r.date>=state.start&&r.date<=state.end);let ranges=[];
@@ -38,7 +39,7 @@ function series(rows,state){
  const out=[];for(let d=state.start;d<=state.end;d=shift(d,1))out.push({date:d,mix:aggregate(groups.get(d)||[],state.source)});return out;
 }
 function chart(rows,state){
- const buckets=series(rows,state),max=Math.max(1,...buckets.map(x=>x.mix.total_m)),width=900,height=215,step=width/Math.max(1,buckets.length),bar=Math.max(.4,step*.8),keys=[...new Set(buckets.flatMap(x=>x.mix.parts.map(p=>p.stroke)))];
+ const buckets=series(rows,state),max=Math.max(1,...buckets.map(x=>x.mix.total_m)),width=900,height=215,step=width/Math.max(1,buckets.length),bar=Math.max(.4,step*.8),keys=ordered([...new Set(buckets.flatMap(x=>x.mix.parts.map(p=>p.stroke)))].map(stroke=>({stroke}))).map(x=>x.stroke);
  return `<div class="swim-dash-chart"><svg viewBox="0 0 1000 285" role="img" aria-label="Stroke distance by ${E(state.group)}, ${E(state.start)} to ${E(state.end)}"><text x="12" y="25" fill="#b4c6d6">${fmt(max)} m</text><text x="30" y="240" fill="#b4c6d6">0</text><line x1="75" x2="975" y1="240" y2="240" stroke="#4e6476"/>${buckets.map((b,i)=>{let y=240;return b.mix.parts.map(p=>{const h=p.distance_m/max*height;y-=h;return `<rect x="${75+i*step}" y="${y}" width="${bar}" height="${h}" fill="${colors[p.stroke]||colors.unknown}"><title>${E(b.date)} · ${E(names[p.stroke]||names.unknown)} ${fmt(p.distance_m)} m · ${b.mix.count} recorded swim${b.mix.count===1?'':'s'}</title></rect>`;}).join('');}).join('')}${buckets.filter((_,i)=>i===0||i===buckets.length-1||i%Math.max(1,Math.ceil(buckets.length/7))===0).map(b=>{const i=buckets.indexOf(b),x=75+i*step;return `<text x="${x}" y="264" text-anchor="${i===buckets.length-1?'end':'start'}" fill="#b4c6d6" font-size="12">${E(b.date.slice(5))}</text>`;}).join('')}</svg></div><div class="swim-stroke-key">${keys.map(k=>`<span><i style="background:${colors[k]||colors.unknown}"></i>${E(names[k]||names.unknown)}</span>`).join('')}</div>`;
 }
 function render(host,data,state){

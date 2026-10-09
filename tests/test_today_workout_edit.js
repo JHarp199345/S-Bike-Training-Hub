@@ -1,0 +1,23 @@
+// Today editing uses the shared writer and leaves completed cards immutable.
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const html=fs.readFileSync('web/coach.html','utf8');
+assert.match(html,/<option value="walk">Walking<\/option>/);
+const listeners=[],nodes={},calls=[];
+const session={sport:'swim',name:'Pending swim',minutes:20,swim_recipe:{fields:{warmup:'100 FS',main:'200 FS',cooldown:''},repeats:2}};
+const ctx={esc:String,day:{date:'2026-10-09',week:[{date:'2026-10-09',sessions:[session]}]},document:{addEventListener:(type,handler)=>listeners.push(handler)},openManualWorkout:(...args)=>calls.push(args),WorkoutFormat:{organize:s=>({lifts:s.lifts}),section:x=>x.section||'main'}};
+vm.createContext(ctx);
+let start=html.indexOf('function sessionActions('),end=html.indexOf("$('existing-editor-close')",start);
+const source=html.slice(start,end);vm.runInContext(source.slice(0,source.indexOf("document.addEventListener('click',async")),ctx);
+start=source.indexOf("document.addEventListener('click',e=>{");vm.runInContext(source.slice(start),ctx);
+for(const sport of ['swim','ride','run','gym','walk','other'])assert.match(ctx.sessionActions(ctx.day.date,0,{sport,name:'Draft'},true),/data-session-edit/);
+assert.doesNotMatch(ctx.sessionActions(ctx.day.date,0,session),/data-session-edit/);
+for(const patch of [{completion:{minutes:20}},{skipped_id:'cancelled'},{missed:true},{recovery_record:true},{sport:'rest'},{sport:'test'}])assert.doesNotMatch(ctx.sessionActions(ctx.day.date,0,{...session,...patch},true),/data-session-edit/);
+const click={target:{closest:s=>s==='[data-session-edit]'?{dataset:{date:ctx.day.date,index:'0'}}:null}};
+listeners[0](click);assert.equal(calls.length,1);assert.equal(calls[0][1].index,0);assert.equal(calls[0][1].session,session);
+session.completion={activity_id:'watch'};listeners[0](click);assert.equal(calls.length,1);delete session.completion;
+start=html.indexOf('function workoutEditFields(');end=html.indexOf('function openManualWorkout(',start);vm.runInContext(html.slice(start,end),ctx);
+assert.equal(ctx.workoutEditFields(session).main,'200 FS');
+assert.equal(ctx.workoutEditFields({sport:'run',run_recipe:{fields:{main:'10 minutes jog'}}}).main,'10 minutes jog');
+const f=ctx.workoutEditFields({sport:'ride',steps:['Warm-up: 5 minutes at 90 watts','Main: 15 minutes at 120 watts','Cool-down: 5 minutes at 80 watts']});
+assert.match(f.warmup,/90 watts/);assert.match(f.main,/120 watts/);assert.match(f.cooldown,/80 watts/);
+console.log('PASS unfinished Today pencils, completed-card protection, correct session writer and saved section hydration');

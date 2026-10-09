@@ -54,7 +54,7 @@ async def main():
    launched_data=json.loads((folder/(launched[0]+'.json')).read_text());assert launched_data['steps']==saved['steps']
    bad_before=(base/'coach.json').read_text()
    code,_,body,_=await mapserver.coach_api(bridge,b'POST','/api/coach/session/add','/api/coach/session/add',json.dumps(dict(req,date='2026-10-05',minutes=36)).encode());assert code==400,body;assert (base/'coach.json').read_text()==bad_before
-  with patch.object(workouts,'FOLDER',folder),patch.object(mapserver,'done_by_day',return_value={'2026-10-05':[{'sport':'ride'}]}):
+  with patch.object(workouts,'FOLDER',folder),patch.object(mapserver,'done_by_day',return_value={'2026-10-05':[{'sport':'ride','minutes':46,'activity_id':'completed-test-ride'}]}):
    code,_,body,_=await mapserver.coach_api(bridge,b'POST','/api/coach/session/add','/api/coach/session/add',json.dumps(dict(req,date='2026-10-05',index=0)).encode());assert code==400,body
  print('PASS: saved executable ride, bands, ramps, fixed watts, no auto-adaptation, duration rejection, edit identity and actual-record protection')
 if __name__=='__main__':asyncio.run(main())

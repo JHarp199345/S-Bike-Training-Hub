@@ -38,7 +38,7 @@ async def main():
     code,_,body,_=await api('/api/coach/session/add',bad);assert code==400,body;assert (base/'coach.json').read_bytes()==stable
   with patch('training_block.running_gate',return_value={'status':'hold','reasons':['load']}):
    code,_,body,_=await api('/api/coach/session/add',req);assert code==400 and b'unscheduled' in body,body
-  with patch.object(mapserver,'done_by_day',return_value={req['date']:[{'sport':'run'}]}),patch('training_block.running_gate',return_value={'status':'open_for_review'}):
+  with patch.object(mapserver,'done_by_day',return_value={req['date']:[{'sport':'run','minutes':28}]}),patch('training_block.running_gate',return_value={'status':'open_for_review'}):
    code,_,body,_=await api('/api/coach/session/add',dict(req,index=0));assert code==400,body
   with patch.object(routes,'ROUTES',base/'routes'),patch.object(mapserver,'capture_program_forecast'):
    route=routes.Route([(34,-118,100),(34.01,-118,110)],'Test route');route.save()
