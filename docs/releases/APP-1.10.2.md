@@ -18,4 +18,4 @@ Released 2026-10-09. Use with MCP 1.10.0 (114 tools); the extension archive is u
 
 README swim screenshots render actual Hub components with synthetic examples. Existing body-map, mapping and artwork credits and licenses are retained. Personal athlete records, watch/ride files, credentials, private screenshots and the unfinished Halloween planet/game are excluded.
 
-Restart the Hub when no workout is active and refresh Coach after updating. Keep MCP extension version 1.10.0. [Current design status](../design/status-2026-10-09.md) lists the remaining work.
+Restart the Hub when no workout is active and refresh Coach after updating. Keep MCP extension version 1.10.0.

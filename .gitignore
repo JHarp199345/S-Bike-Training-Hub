@@ -85,3 +85,7 @@ music_cache/
 *.webm
 *.mov
 tools/cache/
+
+/docs/design/
+/docs/icon-design.md
+/docs/mcp-capability-review.md

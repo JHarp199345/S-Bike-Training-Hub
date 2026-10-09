@@ -18,12 +18,12 @@ Calendar responses expose prescriptions, completions, holds and future projectio
 
 ## Verification and building
 
-The packaged 1.3 server passed synthetic API workflows on stock macOS Python 3.9 with an isolated environment. Previous 1.2 Desktop installation was verified; 1.3 Desktop installation and live assistant decision quality remain separate checks. The optional real-assistant evaluation was blocked by an expired Claude sign-in. See the [capability review](mcp-capability-review.md).
+The packaged 1.3 server passed synthetic API workflows on stock macOS Python 3.9 with an isolated environment. Previous 1.2 Desktop installation was verified; 1.3 Desktop installation and live assistant decision quality remain separate checks. The optional real-assistant evaluation was blocked by an expired Claude sign-in.
 
 Build with `sh mcpb/build.sh`. Bundles are release assets, ignored by Git; `server.json` records SHA-256. Run `tests/test_mcp_bundle.py` against the archive. Optional `tests/eval_mcp_coaching.py` uses a signed-in Claude Code assistant with synthetic data, disabled built-in tools and preview-only permissions. It consumes the configured assistant's usage allowance and is excluded from routine tests.
 
 The Hub stores athlete data locally. Context supplied to external AI is governed by that provider's policies; remote cloud sessions cannot reach a Mac's localhost directly.
 
-MCP 1.4 also provides guided bike setup and recent-week/missed-session tools. The exact-draft workflow is retained. See [bike setup](bike-setup.md) and [capability review](mcp-capability-review.md).
+MCP 1.4 also provides guided bike setup and recent-week/missed-session tools. The exact-draft workflow is retained. See [bike setup](bike-setup.md).
 
 MCP 1.5 adds `get_coaching_review`, `preview_coaching_change` and `apply_coaching_change`. See [forecast/capacity review](coaching-review.md). Install the matching updated app; the new endpoints are not available on older servers.

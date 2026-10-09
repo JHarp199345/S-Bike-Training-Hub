@@ -200,7 +200,7 @@ Edit [`regions.json`](../regions.json) (name, bounding box, center, zoom) and ru
 
 ## Coaching with an AI assistant (optional)
 
-The MCP server gives an optional AI assistant tools to read training data, inspect templates and calibration, preview programs and write plans. It uses the Hub’s own calculations. Some newer controls still need dedicated MCP tools; see the [MCP capability review](mcp-capability-review.md).
+The MCP server gives an optional AI assistant tools to read training data, inspect templates and calibration, preview programs and write plans. It uses the Hub’s own calculations. Some newer controls still need dedicated MCP tools.
 
 **Desktop MCP bundle:** [Download MCP 1.5.0](https://github.com/JHarp199345/S-Bike-Training-Hub/releases/download/mcp-v1.5.0/s-bike-hub-mcp-1.5.0.mcpb), or read the [release notes](https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/mcp-v1.5.0). Install it in your compatible desktop MCP client and replace the older bundle. The updated Hub must be running locally. App updates do not automatically update an installed bundle. Version 1.5 adds two-week forecast review, exact approved calendar edits, and evidence-based capacity recalibration while retaining program drafts and bike setup; see [integration details](mcp-1.2-integration.md).
 
@@ -223,7 +223,7 @@ The MCP server gives an optional AI assistant tools to read training data, inspe
 
 **Earlier 1.2 releases were installed and discovered in Claude Desktop without manual configuration.** The 1.5 packaged server passed an isolated read → preview → apply → check-in → calendar → evidence test on macOS’s stock Python 3.9; its Desktop update has not yet been retested. The main Hub still requires Python 3.11+ and the normal app setup above. This is a local desktop connection; a remote cloud session cannot reach your Mac’s localhost directly.
 
-Program previews return a compact scenario comparison; the assistant can request **1–7 days** of detailed prescriptions and projected readings at a time. This keeps the working context manageable. Preview stores the exact proposal in a separate local cache for six hours without changing training records. Apply requires its `draft_id`, preserves completed history, and rejects changed athlete inputs or expired drafts. Repeating a retained applied draft returns its receipt. Update the app and bundle together: older field-based Apply requests are no longer accepted. Use `get_training_calendar` for 1–14 days of saved sessions, completions and projections, `explain_training_reading` for calculation evidence, and `get_adaptation_review` for contextual feedback decisions. [Verified behavior and remaining work](mcp-capability-review.md).
+Program previews return a compact scenario comparison; the assistant can request **1–7 days** of detailed prescriptions and projected readings at a time. This keeps the working context manageable. Preview stores the exact proposal in a separate local cache for six hours without changing training records. Apply requires its `draft_id`, preserves completed history, and rejects changed athlete inputs or expired drafts. Repeating a retained applied draft returns its receipt. Update the app and bundle together: older field-based Apply requests are no longer accepted. Use `get_training_calendar` for 1–14 days of saved sessions, completions and projections, `explain_training_reading` for calculation evidence, and `get_adaptation_review` for contextual feedback decisions.
 
 The Hub now includes persistent **macro programs with editable phases and detailed starter workouts for up to 12 weeks**, multiple daily sessions, sport-specific workout templates, projected loads, and Sunday review recommendations. An AI coach can use these tools to build and revise a plan around your event goals, available time, calculated load, and reports. A block can extend an already scheduled week; it is not an autonomous guarantee of an optimized program. Recheck actual results and readiness as the week unfolds.
 
@@ -661,7 +661,7 @@ The calendar and Coach panels now share colorful sport and feature icons: statio
 cycling, swimming, running, strength, rest, completion, tests, cardio, mechanical
 load, projections, conditioning, goals and weekly adaptation. Icons keep their text
 labels; decorative artwork does not replace accessible names.
-See [the icon map and design prompt](icon-design.md).
+The Coach uses a shared sport icon atlas with visible text labels.
 
 The running progression preset retains a 50-day personal minimum wait and a
 60% protected plateau. These are the original athlete's conservative preferences,
