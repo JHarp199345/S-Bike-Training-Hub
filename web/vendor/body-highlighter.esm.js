@@ -340,7 +340,7 @@ const e = {
   };
 }, _ = (r) => r === m.ANTERIOR ? P : p, h = (r, s, t, i, n) => {
   const l = document.createElementNS(f, "polygon");
-  return l.setAttribute("points", s.trim()), l.style.cursor = "pointer", l.style.fill = t, i && n && l.addEventListener("click", () => {
+  return l.setAttribute("data-muscle", r), l.setAttribute("points", s.trim()), l.style.cursor = "pointer", l.style.fill = t, i && n && l.addEventListener("click", () => {
     i({ muscle: r, data: n[r] });
   }), l;
 }, K = (r) => {

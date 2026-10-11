@@ -5,6 +5,8 @@ const aliases={
  'quad stretch':{name:'Supported standing quad stretch',how:'Hold a stable support; gently bend one knee if comfortable. Choose another position if balance or knee comfort limits you.'},
  'easy mobility':{name:'Easy mobility',how:'Move through a comfortable range without forcing it.'}
 };
+const exerciseAliases={'hip thrust machine':'hip thrust','hip thruster':'hip thrust','hip thrusters':'hip thrust','hip thrusts':'hip thrust','lat pull down':'lat pulldown','lat pull downs':'lat pulldown','lat pulldowns':'lat pulldown','chest press':'machine chest press','chest press machine':'machine chest press','bench press':'barbell bench press'};
+function exerciseIdentity(value){const raw=String(value??'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim(),key=exerciseAliases[raw]||raw;return {key,name:key.replace(/\b\w/g,c=>c.toUpperCase()),equipment:['dumbbell','barbell','machine','cable','kettlebell'].find(x=>key.split(' ').includes(x))||null};}
 function parse(text,defaultSection='main'){
  const lifts=[],unresolved=[],substitutions=[];
  const parts=String(text).replace(/\r/g,' ').split(/\b(warm[ -]?up|main (?:work(?:out)?|set)|cool[ -]?down)\b\s*:?/ig);
@@ -33,7 +35,7 @@ function parse(text,defaultSection='main'){
  if(lifts.length>30){unresolved.push('More than 30 exercises: split this into separate sessions.');lifts.length=30;}
  return {lifts,unresolved,substitutions};
 }
-root.WorkoutParser={parse};if(typeof module!=='undefined')module.exports=root.WorkoutParser;
+root.WorkoutParser={parse,exerciseIdentity};if(typeof module!=='undefined')module.exports=root.WorkoutParser;
 })(typeof window!=='undefined'?window:globalThis);
 // Repeated blocks retain a title; lifting sets include every repetition once.
 (function(root){

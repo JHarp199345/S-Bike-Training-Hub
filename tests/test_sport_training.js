@@ -1,0 +1,22 @@
+const assert=require('node:assert/strict');global.WorkoutParser=require('../web/workout-parser.js');const {series,weekly}=require('../web/sport-training.js');
+for(const [input,expected]of [['lat pull down','lat pulldown'],['hip thruster','hip thrust'],['hip thrust machine','hip thrust'],['chest press','machine chest press'],['bench press','barbell bench press'],['dumbbell bench press','dumbbell bench press']])assert.equal(WorkoutParser.exerciseIdentity(input).key,expected);
+const logs=[{date:'2026-10-11',session:'B',sets:[{exercise:'Hip Thruster',weight:50,unit:'kg',reps:8}]},{date:'2026-10-02',session:'A',sets:[{exercise:'Hip thrust',weight:100,unit:'lb',reps:10},{exercise:'Chest press',weight:150,unit:'lb',reps:6}]}];
+const rows=series(logs,'hip thrust');assert.equal(rows.length,2);assert.equal(rows[0].weight,100);assert.ok(Math.abs(rows[1].weight-110.23113109)<.001);assert.equal(rows[1].reps,8);assert.equal(series(logs,'barbell bench press').length,0);
+const weeks=weekly([{sport:'run',date:'2026-10-04',distance_m:5000,minutes:30},{sport:'run',date:'2026-10-05',distance_m:6000,minutes:35},{sport:'bike',date:'2026-10-05',distance_m:20000,minutes:40}],'run');assert.deepEqual(weeks.map(x=>[x.date,x.distance]),[['2026-09-28',5],['2026-10-05',6]]);
+console.log('PASS exercise identity, equipment separation, units, recorded sets and Monday sport weeks');
+
+const ledgerWeek=weekly([{sport:'run',date:'2026-10-05',km:6.2,minutes:36}],'run');assert.equal(ledgerWeek[0].distance,6.2);assert.equal(ledgerWeek[0].minutes,36);
+const {recipe,matchSession,filterBodyData}=require('../web/sport-training.js');
+const pairLogs=[{sets:[{exercise:'Bench press',weight:100,reps:8}]},{sets:[{exercise:'Dumbbell bench press',weight:50,reps:8}]},{sets:[{exercise:'Barbell bench press',weight:90,reps:8}]},{sets:[]}];
+assert.equal(matchSession(pairLogs,0,'workout'),2);
+assert.equal(matchSession(pairLogs,0,'exercise','dumbbell bench press'),1);
+assert.equal(matchSession(pairLogs,2,'workout'),null);
+assert.equal(matchSession(pairLogs,3,'workout'),null);
+const bodyData={activities:[{sport:'run'},{sport:'gym'}],lifts:[{date:'2026-10-08'}],daily:[{sports:{run:{muscle:10},gym:{muscle:20}},exposure:{muscle:30},regions:{glutes:{name:'Glutes',sources:{lift:6,run:4}}}}]};
+const filtered=filterBodyData(bodyData,'lift');assert.deepEqual(filtered.daily[0].regions.glutes.sources,{lift:6});assert.equal(filtered.daily[0].exposure.muscle,20);assert.equal(bodyData.daily[0].regions.glutes.sources.run,4);assert.equal(filterBodyData(bodyData,'run').lifts.length,0);
+console.log('PASS session matching, equipment separation, absent matches and non-mutating body sport filters');
+const {workGroups}=require('../web/sport-training.js');
+const physical=workGroups({sets:[{exercise:'Tank M4',scenario:{force_n_low:100,force_n_high:200,distance_m:54.864,seconds:60}},{exercise:'Tank M4',scenario:{force_n_low:100,force_n_high:200,distance_m:54.864,seconds:30}},{exercise:'Hip thrust',nominal_work_j:5000},{exercise:'Hold',nominal_work_j:null}]});
+assert.ok(Math.abs(physical[0].low-10.9728)<1e-8);assert.ok(Math.abs(physical[0].high-21.9456)<1e-8);assert.equal(physical[1].low,5);assert.equal(physical[2].unknown,1);assert.equal(physical[2].low,0);
+const incomplete=workGroups({sets:[{exercise:'Tank M4',scenario:{distance_m:54.864}},{exercise:'Tank M4',scenario:{force_n_low:100,force_n_high:200,distance_m:54.864}}]});assert.equal(incomplete[0].unknown,1);assert.equal(incomplete[0].sets.length,2);assert.ok(Math.abs(incomplete[0].high-10.9728)<1e-8);
+console.log('PASS force × travel, joule conversion, no double-counted trip or pace multiplier, missing and partial estimates');

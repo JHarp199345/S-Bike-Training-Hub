@@ -6,7 +6,18 @@ A free, local training hub for cycling, swimming, running and strength. It keeps
 
 <p align="center"><img src="docs/journey/today.jpg" width="880" alt="The Coach's Today page: the day's verdict, check-in and workouts"></p>
 
-## App 1.10.2 · current release
+## App 1.10.3 · current source update
+
+- **Training calendar:** scroll through three months per row with year headings, jump to a month or today, and inspect recorded days and saved phases. Current days are highlighted and past phases are labeled. The calendar also works without an installed program.
+- **Events:** schedule optional goals, browse event-directory links, or preview a public event URL and approve its extracted details. Missing or ambiguous fields need review. Organizer artwork appears only after permission is confirmed. A compact event selector has fixed add/remove controls; removing an event preserves its training schedule.
+- **Today:** follows the computer's local calendar date. Midnight rollover waits for open editors or dialogs to finish so unsaved work is protected.
+- **Sport training history:** switch between lifting, swimming, cycling and running. Lifting has saved benchmark exercises, recorded trends, dated session comparisons, and searchable saved strength estimates. Running and cycling currently show recorded weekly totals and session readings.
+- **TANK and lifting work:** comparisons offer estimated mechanical work in kJ alongside recorded lb × reps. Click an estimate for its formula and source. TANK ranges use the existing manufacturer-equivalent sled model and assumed friction; lifting uses nominal 0.5 m travel per rep. These are estimates of external work, not metabolic calories, measured tissue load, or recovery predictions.
+- **Body workload:** filter recorded regional work by sport; the lifting view shares this map instead of displaying a duplicate.
+
+Calendar file export, event photo albums, personalized recovery forecasting and future-performance comparisons are not implemented in this update. [Update details](docs/releases/APP-1.10.3.md).
+
+## App 1.10.2 · included improvements
 
 App 1.10.2 adds unfinished-workout editing and clearer swim comparisons. It includes the Windows watch-file correction from 1.10.1 and the 1.10.0 improvements below.
 

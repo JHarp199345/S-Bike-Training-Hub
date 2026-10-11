@@ -327,15 +327,16 @@ def set_sessions(d, date, sessions, _trusted=False, draft=False):
 EVENT_KINDS = ("test", "race", "goal")
 
 
-def add_event(d, date, name, kind="race", sport="bike", note="", detail=None):
+def add_event(d, date, name, kind="race", sport="bike", note="", detail=None, metadata=None):
     """A date to plan toward: an FTP test, a race, a goal. Returns it (with an id)."""
     import re
     if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(date)):
         raise ValueError("date is YYYY-MM-DD")
+    dt.date.fromisoformat(str(date))
     if kind not in EVENT_KINDS:
         raise ValueError(f"kind is one of {', '.join(EVENT_KINDS)}")
-    if sport not in ("bike", "run", "swim", "tri", "other"):
-        raise ValueError("sport is bike, run, swim, tri or other")
+    if sport not in ("bike", "run", "swim", "tri", "gym", "other"):
+        raise ValueError("sport is bike, run, swim, tri, gym or other")
     ev = {"id": f"{date}-{re.sub(r'[^a-z0-9]+', '-', str(name).lower()).strip('-')[:30]}", "date": str(date),
           "name": str(name)[:80], "kind": kind, "sport": sport, "note": str(note or "")[:300]}
     if detail:                                   # what the race is (programming.py plans backward from it)
@@ -347,6 +348,12 @@ def add_event(d, date, name, kind="race", sport="bike", note="", detail=None):
             det["strokes"] = [{"stroke": x.get("stroke"), "m": int(x.get("m") or 0)} for x in detail["strokes"][:12]
                               if x.get("stroke") in ("free", "back", "breast", "fly", "im")]
         ev["detail"] = {k: v for k, v in det.items() if v}
+    if metadata:
+        import event_directory
+        ev.update(event_directory.metadata(metadata))
+        if ev.get('source_id'):
+            import hashlib
+            ev['id'] = 'event-' + hashlib.sha256((ev.get('source', '') + ':' + ev['source_id']).encode()).hexdigest()[:24]
     d.setdefault("events", [])
     d["events"] = [e for e in d["events"] if e["id"] != ev["id"]] + [ev]
     return ev

@@ -1,6 +1,21 @@
 {
-  "latest": "app-v1.10.2",
+  "latest": "app-v1.10.3",
   "entries": [
+    {
+      "id": "app-v1.10.3",
+      "date": "2026-10-11",
+      "version": "App 1.10.3",
+      "title": "Training calendar, optional events and sport history",
+      "changes": [
+        "Training calendar shows saved phases and recorded days, local Today highlighting, month navigation and compact upcoming-event selection.",
+        "Optional event URL previews extract public details for review before scheduling; permitted organizer artwork can be displayed. Removing an event leaves its workouts intact.",
+        "Today follows the local date and protects open editors during midnight rollover.",
+        "Sport training history adds saved benchmark lifts, dated session comparisons, searchable saved strength estimates, and recorded weekly running/cycling totals.",
+        "Lifting comparisons include TANK in estimated external work (kJ), with clickable assumptions and ranges; recorded volume remains available. Work estimates are not metabolic calories or recovery predictions.",
+        "Body workload can be filtered by sport. Calendar export, photo albums and personalized recovery forecasting are not included."
+      ],
+      "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/blob/main/docs/releases/APP-1.10.3.md"
+    },
     {
       "id": "app-v1.10.2",
       "date": "2026-10-09",
@@ -9,7 +24,7 @@
       "changes": [
         "Today pencils reopen unfinished workouts in the shared text editor. Saves update the selected workout without duplicates and preserve completed neighbors, recording links and route settings.",
         "Plan swim breakdowns have a larger credited front/back body-map donut, aligned panels and separate vertical keys: estimated intensity left, stroke distance right.",
-        "Swim history uses tightly spaced vertical columns, dates below and a fixed stroke order. Choose distance or percentages, session or day, and 5–90 days. Compare stacks Planned above Watch detection with a shared scale.",
+        "Swim history uses tightly spaced vertical columns, dates below and a fixed stroke order. Choose distance or percentages, session or day, and 5\u201390 days. Compare stacks Planned above Watch detection with a shared scale.",
         "Planned includes existing recorded written breakdowns, falling back to the plan captured at association. Named drills use slashes in their stroke color; optional work detail can be hidden. Unknown watch drills remain unresolved; missing written workouts stay blank.",
         "Thin zero markers keep absent stroke colors visible without adding distance or changing percentages. Completing a distance-based swim faster than its estimated duration receives a full calendar check.",
         "Fitness Dashboard stroke stacks and legends now follow the same consistent hierarchy. Includes the earlier calorie-unit, watch-import, library, report and ride improvements. Keep MCP 1.10.0."
@@ -41,9 +56,9 @@
         "Swim builder accepts goal-to-expected completion times: 400 FS 6 to 8 minutes. Watch lengths/laps compare by distance and order; consecutive drills stay combined unless you optionally report individual drill times. Timing drafts require three comparable performances and review.",
         "Cancelled and missed workouts keep their sport icon and red cross. A finished day with no recorded work shows a separate checked recovery moon. Completion and plan revisions are tracked separately.",
         "Phone ride controls are clearer, personal audio/video share a private local library, outlook flags are easier to scan, and incomplete route history no longer blocks ghost lookup.",
-        "Plan workout details use the same View/Hide control across sports and remain inside Plan, including today’s swims.",
-        "Swim Plan cards show a sectioned workout, stroke-distance donut and the existing front/back body heat map with a concise five-color key. Stroke-distance history offers 5, 10, 20, 30, 40, 60 and 90 days, grouped by session or day. Distance, duration, average HR and descriptive HR × minutes stay separate; missing readings remain unknown.",
-        "Fitness Dashboard adds full-size swim history, custom dates and 1–12-month presets. Compare month, quarter, saved training phase or custom month groups using up to twelve body-map donuts, three per page or all together. Plan retains the compact 90-day history; Today stays unchanged."
+        "Plan workout details use the same View/Hide control across sports and remain inside Plan, including today\u2019s swims.",
+        "Swim Plan cards show a sectioned workout, stroke-distance donut and the existing front/back body heat map with a concise five-color key. Stroke-distance history offers 5, 10, 20, 30, 40, 60 and 90 days, grouped by session or day. Distance, duration, average HR and descriptive HR \u00d7 minutes stay separate; missing readings remain unknown.",
+        "Fitness Dashboard adds full-size swim history, custom dates and 1\u201312-month presets. Compare month, quarter, saved training phase or custom month groups using up to twelve body-map donuts, three per page or all together. Plan retains the compact 90-day history; Today stays unchanged."
       ],
       "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/app-v1.10.0"
     },
@@ -65,8 +80,8 @@
       "changes": [
         "Training energy now comes from the least heart-rate-dependent source: bike power, running and walking from distance, gradient and body mass (1 kcal per kg per km on the flat), and the watch for swims. The watch's number is shown beside it and large gaps are flagged.",
         "Each check-in and workout report keeps the 3-day rate, biggest day and 28-day load it was made in, so later formula changes never move your history. Older reports can be rebuilt once through a preview.",
-        "Validated check-in questions: the Hooper questionnaire (fatigue, sleep, stress, soreness, 1–7), pain by site (0–10, kept apart from soreness), session effort on the CR-10 scale and the weekly OSTRC injury questionnaire.",
-        "Plan load outlook: your recorded and planned 3-day rate, biggest day and 28-day load against the phase's target, with report-gated running steps (3–10%) and sessions that went well in the last 90 days.",
+        "Validated check-in questions: the Hooper questionnaire (fatigue, sleep, stress, soreness, 1\u20137), pain by site (0\u201310, kept apart from soreness), session effort on the CR-10 scale and the weekly OSTRC injury questionnaire.",
+        "Plan load outlook: your recorded and planned 3-day rate, biggest day and 28-day load against the phase's target, with report-gated running steps (3\u201310%) and sessions that went well in the last 90 days.",
         "After a bad report (pain 5+, pain getting worse, soreness well above usual) the Hub holds running and asks a short re-check that evening and the next morning before deciding to resume, stay reduced or step back.",
         "Body workload: an Overall ring of every region, group views with magnifying graphs, bars stacked by source and 28-day carried totals. Also: completed-workout reports, actual strength and swim logging, and a more responsive ride screen."
       ],
@@ -242,28 +257,6 @@
         "During the following week it grew into a shared place for coaching, multisport load, recovery and program planning."
       ],
       "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/commit/97395bd"
-    }
-  ],
-  "in_the_works": [
-    {
-      "title": "Forecasts from your own reports",
-      "detail": "Fitting how your reports follow your recent rate and carried load, then predicting a planned week, with an accuracy scoreboard against what you actually report."
-    },
-    {
-      "title": "Learning your recovery curve",
-      "detail": "Paused for a research review: recovery timing learned from your reports instead of starting values."
-    },
-    {
-      "title": "Lifting built on joints and movement directions",
-      "detail": "Three full-body sessions (A, B, C) covering every joint action and direction, repeated and progressed for 4-6 weeks."
-    },
-    {
-      "title": "Likes, dislikes and learned rules",
-      "detail": "Thumbs up or down on exercises after a workout; exercises you keep skipping come up less."
-    },
-    {
-      "title": "Personal music and video library",
-      "detail": "Testing browser-playable formats and playback. Planned: random selections of 16 feature films and 32 music videos, with browsing by genre, director and participating artists as metadata becomes available."
     }
   ]
 }

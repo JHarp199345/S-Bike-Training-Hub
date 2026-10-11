@@ -1,0 +1,48 @@
+const assert=require('node:assert/strict');
+process.env.TZ='America/Los_Angeles';
+const C=require('../web/training-calendar.js');
+
+assert.equal(C.addDays('2026-03-08',1),'2026-03-09');
+assert.equal(C.addDays('2026-11-01',1),'2026-11-02');
+assert.equal(C.addDays('2026-12-31',1),'2027-01-01');
+assert.equal(C.addDays('2028-03-01',-1),'2028-02-29');
+assert.throws(()=>C.date('2026-02-29'));
+assert.throws(()=>C.date('2026-13-01'));
+assert.equal(C.shiftMonth('2026-12',1),'2027-01');
+assert.equal(C.shiftMonth('2027-01',-1),'2026-12');
+assert.equal(C.weekStart('2026-10-11'),'2026-10-05');
+assert.equal(C.weekStart('2026-10-12'),'2026-10-12');
+assert.equal(C.dayDifference('2026-03-09','2026-03-07'),2);
+assert.equal(C.dayDifference('2026-11-02','2026-10-31'),2);
+assert.equal(C.dayDifference('2026-10-09','2026-10-10'),-1);
+for(const m of ['2026-10','2026-11','2027-01','2028-02']){
+ const days=C.monthDays(m);assert.equal(days.length,42);
+ assert.equal(C.date(days[0]).getDay(),1);
+ assert.equal(C.date(days.at(-1)).getDay(),0);
+ assert.equal(new Set(days).size,42);
+ const count=days.filter(d=>d.startsWith(m)).length;
+ assert.equal(count,new Date(Number(m.slice(0,4)),Number(m.slice(5)),0).getDate());
+}
+const phases=[{start:'2026-10-02',end:'2026-10-05'},{start:'2026-10-05',end:'2026-11-01'}];
+assert.equal(C.phaseAt(phases,'2026-10-04'),phases[0]);
+assert.equal(C.phaseAt(phases,'2026-10-05'),phases[1]);
+assert.equal(C.phaseAt(phases,'2026-11-01'),null);
+assert.equal(C.phaseState(phases[0],'2026-10-10'),'Past');
+assert.equal(C.phaseState(phases[1],'2026-10-10'),'Current');
+assert.equal(C.overlapsMonth(phases[1],'2026-11'),false);
+const saved={sport:'swim',minutes:60,completion:{activity_ids:['watch-1'],minutes:53}};
+const completed={sport:'swim',activity_ids:['watch-1'],minutes:53};
+const extra={sport:'swim',activity_ids:['watch-2'],minutes:20};
+const original={sessions:[saved],done:[completed,extra]};
+const rows=C.sessionsFor(original);assert.equal(rows.length,2);
+assert.equal(rows[0].recordOnly,false);assert.equal(rows[1].recordOnly,true);
+assert.equal(rows[1].completion,extra);assert.equal(original.sessions.length,1);
+assert.equal(C.sessionsFor({sessions:[],done:[extra]}).length,1);
+assert.equal(C.sessionsFor({sessions:[{sport:'bike',minutes:45}],done:[]})[0].completion,undefined);
+assert.equal(C.sessionsFor(undefined).length,0);
+const logged={date:'2026-10-06',session:'Strength',logged:'2026-10-06T16:00:00',source_activity_id:'gym-watch'};
+assert.equal(C.sessionsFor({sessions:[{sport:'gym',completion:{lifting:logged}}],done:[{sport:'gym',activity_id:'gym-watch',lifting:logged}]}).length,1);
+const noWatch={...logged,source_activity_id:null};
+assert.equal(C.sessionsFor({sessions:[{sport:'gym',completion:{lifting:noWatch}}],done:[{sport:'gym',lifting:{...noWatch}}]}).length,1);
+assert.equal(C.sessionsFor({sessions:[{sport:'gym',completion:{lifting:noWatch}}],done:[{sport:'gym',lifting:{...noWatch,logged:'2026-10-06T18:00:00'}}]}).length,2);
+console.log('PASS calendar local dates, DST, leap/year boundaries, Monday alignment, exclusive phases and linked recording deduplication');

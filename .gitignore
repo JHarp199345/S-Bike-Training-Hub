@@ -89,3 +89,10 @@ tools/cache/
 /docs/design/
 /docs/icon-design.md
 /docs/mcp-capability-review.md
+
+# Local artifacts and personal workout prescriptions
+.DS_Store
+.env
+.env.*
+work/
+workouts/planned-workout-*.json

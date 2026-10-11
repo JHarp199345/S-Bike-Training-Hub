@@ -122,6 +122,8 @@ def accept(d,proposal):
     d['program_history']=history[-20:]
     d['phase_profiles']=scratch['phase_profiles']
     d['program_goal']={k:v for k,v in proposal.items() if k not in ('phases','weeks','changes','starter','capacity_review')}
+    linked_event=next((e for e in d.get('events',[]) if e.get('kind')=='race' and e.get('name')==proposal.get('goal') and e.get('date')==proposal.get('target')),None)
+    if linked_event:d['program_goal']['event_id']=linked_event['id']
     if proposal.get('starter'):
         starter=proposal['starter']
         import lifting

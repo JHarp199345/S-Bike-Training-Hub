@@ -363,6 +363,27 @@ async def handle(bridge, method, path, body, host):
         base = Path(bridge.csv_path).parent.parent if getattr(bridge, "csv_path", None) else HERE
         data = await asyncio.get_running_loop().run_in_executor(None, load_state, base)
         return 200, "application/json", json.dumps(progress_evidence.report(data)).encode(), {}
+    if p == '/api/coach/event-url-preview' and method == b'POST':
+        import event_url
+        try:
+            request = json.loads(body)
+            result = await asyncio.to_thread(event_url.preview, request.get('url'))
+            return 200, 'application/json', json.dumps(result).encode(), {}
+        except (ValueError, TypeError, AttributeError):
+            return 400, 'application/json', b'{"error":"Could not read this public event page. Check its URL or use Add your own."}', {}
+        except Exception:
+            return 502, 'application/json', b'{"error":"The event website could not be reached. Try again or use Add your own."}', {}
+    if p == '/api/coach/event-directory' and method == b'GET':
+        import event_directory
+        from urllib.parse import parse_qs, urlsplit
+        query = {k: v[0] for k, v in parse_qs(urlsplit(path).query).items()}
+        try:
+            result = await asyncio.to_thread(event_directory.search, query)
+            return 200, 'application/json', json.dumps(result).encode(), {}
+        except ValueError as error:
+            return 400, 'application/json', json.dumps({'error': str(error)}).encode(), {}
+        except Exception:
+            return 502, 'application/json', b'{"error":"Event directory unavailable. Try again or use an official directory link."}', {}
     if p.startswith("/api/coach") or p == "/api/calibration":      # calibration lives with the coach's data
         return await coach_api(bridge, method, path, p, body)
     if p == "/api/load":
@@ -1260,6 +1281,15 @@ async def _coach_api(bridge, method, path, p, body):
                 coach.save(d)
                 result['receipt'] = str(path.relative_to(rides.parent))
             return js(result)
+        if p == '/api/coach/exercise-tracking':
+            import exercise_tracking
+            if method == b'POST':
+                try: exercises = exercise_tracking.save(d, req.get('exercises'))
+                except ValueError as e: return js({'error': str(e)}, 400)
+                coach.save(d)
+                return js({'exercises': exercises})
+            if method == b'GET': return js({'exercises': exercise_tracking.selections(d)})
+            return js({'error': 'Use GET or POST'}, 405)
         if p == '/api/coach/work-rate' and method == b'GET':
             import work_rate, lifting
             def read_work_rate():
@@ -1861,7 +1891,7 @@ async def _coach_api(bridge, method, path, p, body):
                 return js({"removed": gone, "events": coach.upcoming(d)})
             try:
                 ev = coach.add_event(d, req.get("date"), req.get("name") or "Event", req.get("kind", "race"),
-                                     req.get("sport", "bike"), req.get("note"), req.get("detail"))
+                                     req.get("sport", "bike"), req.get("note"), req.get("detail"), req.get("metadata"))
             except ValueError as e:
                 return js({"error": str(e)}, 400)
             coach.save(d)
