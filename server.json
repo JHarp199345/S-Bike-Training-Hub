@@ -2,19 +2,27 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.JHarp199345/s-bike-hub",
   "title": "S-Bike Training Hub",
-  "description": "Coach from a local smart-bike hub: check-ins, plans, rides, lifting, bike/run/swim load.",
+  "description": "Local training hub for cycling, running, swimming and lifting: assistant-led setup, planning, check-ins, load.",
   "repository": {
     "url": "https://github.com/JHarp199345/S-Bike-Training-Hub",
     "source": "github"
   },
   "websiteUrl": "https://github.com/JHarp199345/S-Bike-Training-Hub",
-  "version": "1.10.0",
+  "version": "1.11.0",
   "packages": [
     {
+      "registryType": "pypi",
+      "identifier": "s-bike-training-hub",
+      "version": "1.11.0",
+      "transport": {
+        "type": "stdio"
+      }
+    },
+    {
       "registryType": "mcpb",
-      "identifier": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/download/mcp-v1.10.0/s-bike-hub-mcp-1.10.0.mcpb",
-      "version": "1.10.0",
-      "fileSha256": "0b87916f468436dfec94064cd14df36c1a613acb963ad97072170daebca47b87",
+      "identifier": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/download/mcp-v1.11.0/s-bike-hub-mcp-1.11.0.mcpb",
+      "version": "1.11.0",
+      "fileSha256": "8311007d7b1d17d33a8cf478ea3161278cfa6d4ad333b6d48c4651db8e4d73fb",
       "transport": {
         "type": "stdio"
       }

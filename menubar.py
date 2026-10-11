@@ -38,7 +38,7 @@ def call(path, post=False, timeout=1.5):
 
 def bridge_state():
     try:
-        return json.loads((HERE / "state.json").read_text())
+        return json.loads((__import__("paths").DATA / "state.json").read_text())
     except (OSError, ValueError):
         return {}
 
@@ -130,7 +130,7 @@ class SBikeHub(rumps.App):
             self.info.title = "Stopping…"
 
     def on_report(self, _):
-        rides = sorted((HERE / "rides").glob("ride_*_report.html"), key=lambda p: p.stat().st_mtime)
+        rides = sorted((__import__("paths").DATA / "rides").glob("ride_*_report.html"), key=lambda p: p.stat().st_mtime)
         if rides:
             subprocess.run(["open", str(rides[-1])])
         else:
@@ -190,8 +190,8 @@ def install_login_item():
         "RunAtLoad": True,
         "KeepAlive": True,                 # closed by macOS or crashed: relaunch it
         "ThrottleInterval": 10,
-        "StandardErrorPath": str(HERE / "menubar.log"),
-        "StandardOutPath": str(HERE / "menubar.log"),
+        "StandardErrorPath": str(__import__("paths").DATA / "menubar.log"),
+        "StandardOutPath": str(__import__("paths").DATA / "menubar.log"),
     }))
 
 

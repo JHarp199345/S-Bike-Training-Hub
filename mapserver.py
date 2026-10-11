@@ -26,6 +26,7 @@ import os
 import itertools
 import json
 import threading
+import time
 import weakref
 from pathlib import Path
 
@@ -34,6 +35,8 @@ import places
 import ideas
 
 HERE = Path(__file__).resolve().parent
+import paths as _paths
+DATA = _paths.DATA        # your training data (paths.py); HERE is the app's own files
 from map_paths import locate as map_folder
 MAPS = map_folder()
 WEB = HERE / "web"
@@ -189,9 +192,43 @@ def style(host):
             "layers": layers}
 
 
+_assistant = {}          # when the assistant's tool server last reached the hub (this run only)
+
+
 async def handle(bridge, method, path, body, host):
     """(status, content type, body bytes, extra headers) for map paths, or None."""
     p = path.split("?")[0]
+    if p in ("/api/assistant/seen", "/api/assistant/status"):
+        # the welcome page's connection light: the assistant's tool server (mcp_server.py) says hello as it works
+        if p.endswith("/seen") and method == b"POST":
+            _assistant["seen"] = time.time()
+        seen = _assistant.get("seen")
+        return 200, "application/json", json.dumps({"connected": bool(seen and time.time() - seen < 3600),
+                                                    "seen_seconds_ago": round(time.time() - seen) if seen else None}).encode(), {}
+    if p in ("/api/setup/status", "/api/setup/basics"):
+        # the assistant-led setup (setup_guide.py): what's next, and saving basics without wiping earlier answers
+        import onboarding, setup_guide, coach as _coach
+        base = Path(bridge.csv_path).parent.parent if getattr(bridge, "csv_path", None) else HERE
+        if method == b"POST" and p.endswith("/basics"):
+            try:
+                req = json.loads(body or b"{}")
+                cur = onboarding.current(base)
+                unit = req.get("unit") if req.get("unit") in ("lb", "kg") else "kg"
+                merged = {"unit": unit, "weight": req.get("weight") if req.get("weight") is not None else
+                          (cur.get("weight_kg") / (0.45359237 if unit == "lb" else 1) if cur.get("weight_kg") else None),
+                          "age": req.get("age", cur.get("age")), "gender": req.get("gender", cur.get("gender")),
+                          "hr_rest": req.get("hr_rest", cur.get("hr_rest")), "hr_max": req.get("hr_max", cur.get("hr_max")),
+                          "vo2max": req.get("vo2max", cur.get("vo2max")),
+                          "sports": req.get("sports", cur.get("sports") or []),
+                          "experience": {**(cur.get("experience") or {}), **(req.get("experience") or {})},
+                          "start": req.get("start", cur.get("start_state") or "fresh"), "smart_bike": cur.get("smart_bike")}
+                out = onboarding.apply(base, {k: v for k, v in merged.items() if v is not None})
+            except (ValueError, TypeError) as e:
+                return 400, "application/json", json.dumps({"error": str(e)}).encode(), {}
+            return 200, "application/json", json.dumps({"saved": out["set"], "profile": onboarding.current(base)}).encode(), {}
+        d = _coach.load(base / "coach.json")
+        acts = load_state(base).get("activities", []) if (base / "activities").exists() else []
+        return 200, "application/json", json.dumps(setup_guide.status(onboarding.current(base), d, acts, _coach.today())).encode(), {}
     if p == "/api/setup":
         # the welcome page's orientation (onboarding.py)
         import onboarding
@@ -241,6 +278,12 @@ async def handle(bridge, method, path, body, host):
         return 200, TYPES[".html"], (WEB / f"{p[1:]}.html").read_bytes(), {}
     if p == "/manifest.webmanifest":
         return 200, "application/manifest+json", (WEB / "manifest.webmanifest").read_bytes(), {"Cache-Control": "max-age=3600"}
+    if p.startswith("/web/scenes/") and p.endswith((".html", ".js", ".png", ".json", ".glb", ".webp")):
+        # installable riding scenes (scenes.py): anything inside web/scenes/, nothing outside it
+        f = (WEB / p[5:]).resolve()
+        if not f.is_relative_to((WEB / "scenes").resolve()) or not f.is_file():
+            return 404, "text/plain", b"not found", {}
+        return 200, TYPES[f.suffix], f.read_bytes(), {} if f.suffix in (".js", ".json") else {"Cache-Control": "max-age=86400"}
     if p.startswith("/web/") and p.endswith((".js", ".css", ".svg", ".png", ".jpg", ".json", ".glb")):
         f = (WEB / p[5:]).resolve()
         if f.parent not in (WEB.resolve(), (WEB / "sprites").resolve(), (WEB / "vendor").resolve(), (WEB / "sports").resolve(), (WEB / "graveyard").resolve(), (WEB / "graveyard/Textures").resolve(), (WEB / "icons").resolve()) or not f.exists():
@@ -298,7 +341,7 @@ async def handle(bridge, method, path, body, host):
         return 200, "application/json", json.dumps(near).encode(), {}
     if p == "/api/fitness":
         import fitness
-        data = await asyncio.get_running_loop().run_in_executor(None, fitness.summary, HERE / "rides")
+        data = await asyncio.get_running_loop().run_in_executor(None, fitness.summary, DATA / "rides")
         return 200, "application/json", json.dumps(data).encode(), {}
     if p == "/api/ride/menu" and method == b"GET":
         import ride_library
@@ -347,7 +390,7 @@ async def handle(bridge, method, path, body, host):
                 bridge.reload_workouts()
                 return 200, "application/json", b'{"ok":true}', {}
             if p.startswith("/api/workouts/start/") and method == b"POST":
-                rides=Path(bridge.csv_path).parent if getattr(bridge,"csv_path",None) else HERE/"rides"
+                rides=Path(bridge.csv_path).parent if getattr(bridge,"csv_path",None) else DATA/"rides"
                 await asyncio.get_running_loop().run_in_executor(None,capture_program_forecast,bridge,rides)
                 if not bridge.workout_start_id(p.rsplit("/", 1)[1]):
                     return 404, "application/json", b'{"error":"no such workout"}', {}
@@ -478,7 +521,7 @@ async def handle(bridge, method, path, body, host):
     if p == "/api/milestones":
         import milestones
         goal = bridge.profile.get("weekly_rides", 3)
-        data = await asyncio.get_running_loop().run_in_executor(None, milestones.compute, HERE / "rides", goal)
+        data = await asyncio.get_running_loop().run_in_executor(None, milestones.compute, DATA / "rides", goal)
         return 200, "application/json", json.dumps(data, ensure_ascii=False).encode(), {}
     if p == "/api/milestones/goal" and method == b"POST":
         import rider
@@ -499,7 +542,7 @@ async def handle(bridge, method, path, body, host):
         return 200, "application/json", json.dumps(regs).encode(), {}
     if p == "/api/home":
         import rider
-        prof = rider.load(Path(bridge.csv_path).parent.parent / "profile.json" if getattr(bridge, "csv_path", None) else HERE / "profile.json")
+        prof = rider.load(Path(bridge.csv_path).parent.parent / "profile.json" if getattr(bridge, "csv_path", None) else DATA / "profile.json")
         if method == b"POST":
             try:
                 h = json.loads(body or b"{}")
@@ -540,7 +583,7 @@ async def handle(bridge, method, path, body, host):
         return 200, "application/json", json.dumps({"paused": bridge.erg.paused}).encode(), {}
     if p == "/api/course/forms":
         # which animals are the rider's forms, in order (the rider on the bike always comes first) - kept on the bridge
-        f = HERE / "course_forms.json"
+        f = DATA / "course_forms.json"
         known = set(json.loads((WEB / "sprites" / "animals.json").read_text())["animals"])
         if method == b"POST":
             try:
@@ -562,7 +605,7 @@ async def handle(bridge, method, path, body, host):
             req = json.loads(body or b"{}")
         except ValueError:
             req = {}
-        rides = Path(bridge.csv_path).parent if getattr(bridge, "csv_path", None) else HERE / "rides"
+        rides = Path(bridge.csv_path).parent if getattr(bridge, "csv_path", None) else DATA / "rides"
         d = coach.load(coach.file_for(rides))
         day = with_focus(coach.day(d, coach.today()), bridge, d)
         minutes = float(req.get("minutes") or (day.get("plan") or {}).get("minutes") or 30)
@@ -571,6 +614,9 @@ async def handle(bridge, method, path, body, host):
         course.save(r, meta)
         bridge.route_start(r.id)
         return 200, "application/json", json.dumps({"id": r.id, "name": r.name}).encode(), {}
+    if p == "/api/scenes" and method == b"GET":
+        import scenes
+        return 200, "application/json", json.dumps({"scenes": scenes.listing()}).encode(), {}
     if p.startswith("/api/course/") and method == b"GET":
         import course
         try:
@@ -586,7 +632,7 @@ async def handle(bridge, method, path, body, host):
             return 404, "application/json", b'{"error":"no such route"}', {}
         from bridge import virtual_speed
         ftp, mass = bridge.profile["ftp"], getattr(getattr(bridge, "ride", None), "mass", 126.6)
-        rides_dir = Path(bridge.csv_path).parent if getattr(bridge, "csv_path", None) else HERE / "rides"
+        rides_dir = Path(bridge.csv_path).parent if getattr(bridge, "csv_path", None) else DATA / "rides"
         try:
             hist = [c for c in json.loads((rides_dir / "climbs.json").read_text()) if c["route_id"] == r.id]
         except (OSError, ValueError):
@@ -612,7 +658,7 @@ async def handle(bridge, method, path, body, host):
     if p == "/api/climbs" and method == b"GET":
         from urllib.parse import parse_qs, urlsplit
         q = parse_qs(urlsplit(path).query)
-        rides_dir = Path(bridge.csv_path).parent if getattr(bridge, "csv_path", None) else HERE / "rides"
+        rides_dir = Path(bridge.csv_path).parent if getattr(bridge, "csv_path", None) else DATA / "rides"
         try:
             have = json.loads((rides_dir / "climbs.json").read_text())
         except (OSError, ValueError):
@@ -694,7 +740,7 @@ def today_focus(bridge):
     import coach, focus
     if getattr(bridge, "focus", None):
         return bridge.focus
-    rides = Path(bridge.csv_path).parent if getattr(bridge, "csv_path", None) else HERE / "rides"
+    rides = Path(bridge.csv_path).parent if getattr(bridge, "csv_path", None) else DATA / "rides"
     plan_ = coach.load(coach.file_for(rides))["plans"].get(coach.today()) or {}
     d = coach.load(coach.file_for(rides))
     return focus.resolve(plan_.get("focus"), bridge.profile["ftp"], (65, 80), plan_.get("verdict"), skill_levels(d)[0])
@@ -751,7 +797,7 @@ RIDE_RE = __import__("re").compile(r"ride_[0-9_\-]{10,30}")
 
 def _strava():
     import strava
-    return strava.Strava(HERE / "strava.json")
+    return strava.Strava(DATA / "strava.json")
 
 
 async def posts_api(bridge, method, path, p, body):
@@ -760,7 +806,7 @@ async def posts_api(bridge, method, path, p, body):
     import strava
     from urllib.parse import parse_qs, urlsplit
     loop = asyncio.get_running_loop()
-    rides = HERE / "rides"
+    rides = DATA / "rides"
     js = lambda obj, code=200: (code, "application/json", json.dumps(obj, ensure_ascii=False).encode(), {})
 
     def ride_path(stem):
@@ -772,8 +818,8 @@ async def posts_api(bridge, method, path, p, body):
         return 200, TYPES[".html"], (WEB / "posts.html").read_bytes(), {}
     if p == "/api/posts":
         import fitness, rider
-        prof = rider.load(HERE / "profile.json")
-        allr = await loop.run_in_executor(None, fitness.all_rides, rides, prof, HERE / "fitness_cache.json")
+        prof = rider.load(DATA / "profile.json")
+        allr = await loop.run_in_executor(None, fitness.all_rides, rides, prof, DATA / "fitness_cache.json")
         out = []
         for r in reversed(allr):
             if r["minutes"] < posts.MIN_MINUTES:
@@ -945,7 +991,7 @@ def with_focus(day_json, bridge, d=None):
     ftp = bridge.profile["ftp"]
     band = (getattr(bridge.args, "cadence_low", 65), getattr(bridge.args, "cadence_high", 80)) if hasattr(bridge, "args") else (65, 80)
     if d is None:
-        rides = Path(bridge.csv_path).parent if getattr(bridge, "csv_path", None) else HERE / "rides"
+        rides = Path(bridge.csv_path).parent if getattr(bridge, "csv_path", None) else DATA / "rides"
         d = coach.load(coach.file_for(rides))
     levels, step = skill_levels(d, day_json)
     return {**day_json, "focus": focus.resolve(plan.get("focus"), ftp, band, plan.get("verdict"), levels),
@@ -1204,7 +1250,7 @@ async def _coach_api(bridge, method, path, p, body):
         import updates
         try:return js(await asyncio.to_thread(updates.check,WEB))
         except Exception:return js({"error":"Could not reach the public update list. Your local Hub still works; try again later."},503)
-    rides = Path(bridge.csv_path).parent if getattr(bridge, "csv_path", None) else HERE / "rides"
+    rides = Path(bridge.csv_path).parent if getattr(bridge, "csv_path", None) else DATA / "rides"
     d = coach.load(coach.file_for(rides))                  # beside the bridge's own rides: a test bridge writes its own
     q = parse_qs(urlsplit(path).query)
     date = (q.get("date") or [coach.today()])[0]
@@ -2059,10 +2105,66 @@ async def _coach_api(bridge, method, path, p, body):
                 coach.save(d)
                 capture_program_forecast(bridge,rides,d)
             return js(training_block.forecast(d, date, done_by_day(rides.parent, d), load_state(rides.parent), d["checkins"].get(date), bridge.workouts))
+        if p == "/api/coach/planning-context" and method == b"GET":
+            # what the assistant plans from (planning_context.py): facts and evidence for pass 1 or pass 2
+            import planning_context, training_block
+            st = load_state(rides.parent)
+            gate = training_block.running_gate(d, st, d["checkins"].get(coach.today()))
+            try:
+                return js(planning_context.context(d, st.get("activities", []), coach.today(), (q.get("scope") or ["week"])[0],
+                                                   (q.get("from") or [None])[0], gate, st))
+            except ValueError as e:
+                return js({"error": str(e)}, 400)
+        if p == "/api/coach/health":
+            # the health and history records the athlete shares (health_history.py): local only, never sent anywhere
+            import health_history as H
+            if method == b"POST":
+                action = req.get("action")
+                try:
+                    if action == "screening":
+                        result = H.screen(d, req.get("answers"), coach.today(), req.get("clearance"))
+                    elif action == "add":
+                        result = H.add(d, req.get("kind"), req.get("record"), coach.today())
+                    elif action == "update":
+                        result = H.update(d, req.get("kind"), req.get("id"), req.get("record"), coach.today())
+                    elif action == "remove":
+                        result = H.remove(d, req.get("kind"), req.get("id"))
+                    else:
+                        raise ValueError("action is screening, add, update or remove")
+                except ValueError as e:
+                    return js({"error": str(e)}, 400)
+                coach.save(d)
+                return js({"saved": result, **H.summary(d)})
+            return js(H.summary(d))
+        if p == "/api/coach/weather-lookup":
+            # opt-in: air temperature for outdoor sessions (weather.py); the only outside request the hub makes
+            if method == b"POST":
+                d["weather_lookup"] = bool(req.get("enabled"))
+                coach.save(d)
+            return js({"enabled": bool(d.get("weather_lookup")),
+                       "about": "Looks up the hour's air temperature for outdoor sessions from Open-Meteo, sending only a place rounded to about 10 km and a date. Cached locally."})
+        if p == "/api/coach/sport-baseline" and method == b"POST":
+            # the athlete's own calibration: current routine and past best per sport
+            import planning_context
+            try:
+                entry = planning_context.set_baseline(d, req.get("sport"), req, coach.today())
+            except ValueError as e:
+                return js({"error": str(e)}, 400)
+            coach.save(d)
+            return js({"saved": entry, "sport_baselines": d.get("sport_baselines")})
         if p.startswith("/api/coach/lifting"):
             # lifting and functional strength (lifting.py): plan, evaluate, check off, follow up, the rider's rules
             import lifting
             sub = p[len("/api/coach/lifting"):]
+            if sub.startswith("/framework"):
+                # the joint framework the assistant plans inside (lifting_framework.py): structure only, no rules
+                import lifting_framework
+                library = (d.get("lifting") or {}).get("library") or {}
+                if sub == "/framework" and method == b"GET":
+                    return js(lifting_framework.framework(library))
+                if sub == "/framework/describe" and method == b"POST":
+                    return js(lifting_framework.describe(req.get("exercises"), library))
+                return js({"error": "not found"}, 404)
             ctx = lift_ctx(rides.parent, d, date)
             if sub == "" and method == b"GET":
                 return js(lifting.summary(d, ctx=ctx))

@@ -15,6 +15,7 @@ from pathlib import Path
 
 SPORTS = ("bike", "run", "swim", "lift")
 LEVELS = ("new", "returning", "regular")
+GENDERS = ("female", "male", "another", "prefer_not")
 # a usual week per system, in the load model's points (100 engine points = an hour at threshold; a 5 km jog = 40
 # impact points), by experience - deliberately on the cautious side
 ENGINE = {"new": 150, "returning": 250, "regular": 400}
@@ -92,6 +93,12 @@ def apply(base, form):
         p["vo2max"] = round(v, 1)
         p["estimates_source"] = "wearable estimate (welcome setup)"
         done.append(f"VO2max {p['vo2max']} (from your watch, for starting capacities)")
+    if form.get("gender") is not None:                              # the athlete's own answer; never required
+        g = form.get("gender")
+        if g not in GENDERS:
+            raise ValueError("gender is " + ", ".join(GENDERS))
+        p["gender"] = g
+        done.append("gender noted")
     p["return_to_run"] = bool(form.get("return_to_run"))          # coming back from a running injury: the careful protocol
     rs = running_start(form)
     if rs:
@@ -176,5 +183,5 @@ def running_start(form):
 def current(base):
     import rider
     p = rider.load(Path(base) / "profile.json")
-    return {k: p.get(k) for k in ("weight_kg", "age", "hr_rest", "hr_max", "vo2max", "sports", "experience", "start_state",
+    return {k: p.get(k) for k in ("weight_kg", "age", "gender", "hr_rest", "hr_max", "vo2max", "sports", "experience", "start_state",
                                   "smart_bike", "onboarded", "ftp", "return_to_run", "running_start")}

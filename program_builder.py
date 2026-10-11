@@ -188,6 +188,18 @@ def review_changes(d,phases,start,end):
     return {'apply_from':start.isoformat(),'phase_changes':changes,'removed_phases':old[len(phases):], 'retained_workout_days':retained,'conflicts':conflicts,'workout_policy':'Existing detailed workouts remain saved. Review conflicts before training; this applies phase intent and tentative placement only.'}
 
 
+def slot_detail(slot):
+    """Pass 1 placeholder detail the assistant may give a slot (planning_context.py): its role, a minutes band and,
+    for lifting, the joint groups. Kept as given; pass 2 fills in the workout."""
+    out={}
+    if slot.get('role') in ('improve','maintain'):out['role']=slot['role']
+    band=slot.get('minutes')
+    if isinstance(band,list) and len(band)==2 and all(isinstance(x,(int,float)) and not isinstance(x,bool) and 0<x<=600 for x in band) and band[0]<=band[1]:out['minutes']=list(band)
+    groups=slot.get('lift_groups')
+    if slot.get('sport')=='gym' and isinstance(groups,list) and groups and set(groups)<={'upper','trunk','lower'}:out['lift_groups']=[g for g in ('upper','trunk','lower') if g in groups]
+    return out
+
+
 def sessions_for(stage,hours):
     """Sessions a week by stage: about one per 40 available minutes at the peak (2-6), fewer before and after."""
     cap=max(2,min(6,round(hours*60/40)))
@@ -222,7 +234,7 @@ def macro_weeks(phases,start,target,focus,sport,restricted,hours,plans=None,opti
             if dated:
                 for slot in dated:
                     blocked=slot['sport']=='run' and restricted
-                    slots.append({'date':day.isoformat(),'sport':'rest' if blocked else slot['sport'],'purpose':'Running held — no run prescribed' if blocked else slot['purpose'],'conditional':True,'source':'dated placement'})
+                    slots.append({'date':day.isoformat(),'sport':'rest' if blocked else slot['sport'],'purpose':'Running held — no run prescribed' if blocked else slot['purpose'],'conditional':True,'source':'dated placement',**({} if blocked else slot_detail(slot))})
                 continue
             pattern=phase.get('weekly_pattern')
             if pattern:
@@ -230,7 +242,7 @@ def macro_weeks(phases,start,target,focus,sport,restricted,hours,plans=None,opti
                 for slot in chosen if isinstance(chosen,list) else [chosen]:
                     blocked=slot['sport']=='run' and restricted
                     slots.append({'date':day.isoformat(),'sport':'rest' if blocked else slot['sport'],
-                        'purpose':'Running held — no run prescribed' if blocked else slot['purpose'],'conditional':True,'source':'phase template'})
+                        'purpose':'Running held — no run prescribed' if blocked else slot['purpose'],'conditional':True,'source':'phase template',**({} if blocked else slot_detail(slot))})
                 continue
             stage=phase.get('stage',phase['kind'])
             # Capacity to attend is not evidence of physiological capacity: sessions grow with the phase,

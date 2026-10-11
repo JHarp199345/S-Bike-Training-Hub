@@ -57,7 +57,7 @@ async def main():
    # Missing anchors do not become invented weights.
    missing=await preview({**FIELDS,'start':'2026-11-14','starter_equipment':'barbell'})
    code,result=await api(body={'action':'accept','draft_id':missing['draft']['id']});assert code==400 and 'recent set' in result['error']
-   # Near event is taper-only; current running hold remains in force.
+   # Near event is taper-only; today's check-in reports legs 8/10, so running holds (a report, not a model).
    late=await preview({**FIELDS,'sport':'run','target':'2026-10-05'})
    assert all(p['stage']=='taper' for p in late['phases']) and late['running_hold']
    assert not any(s['sport']=='run' for w in late['weeks'] for s in w['slots'])

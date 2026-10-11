@@ -29,7 +29,7 @@ from live import kcal_from_kj
 import bests
 
 HERE = Path(__file__).resolve().parent
-RIDES = HERE / "rides"
+RIDES = __import__("paths").DATA / "rides"
 BAND = (70, 80)
 BUCKETS = [(-99, -3, "descent (< -3%)"), (-3, -1, "slight descent"), (-1, 1, "flat"),
            (1, 3, "gentle climb (1-3%)"), (3, 5, "climb (3-5%)"), (5, 99, "steep (5%+)")]

@@ -21,7 +21,7 @@ import re
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-ROUTES = Path(__file__).resolve().parent / "routes"
+ROUTES = __import__("paths").DATA / "routes"
 GRADE_WINDOW = 150.0     # metres either side: grade is the least-squares slope of the points in it
 CLIMB_HYSTERESIS = 5.0   # metres of real rise before it counts as climbing (filters data wobble)
 SMOOTH = 40.0            # metres: width of the elevation smoothing (Gaussian sigma)

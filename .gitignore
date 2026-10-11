@@ -96,3 +96,13 @@ tools/cache/
 .env.*
 work/
 workouts/planned-workout-*.json
+
+# Raw downloaded asset packs (the files a scene uses are copied into web/scenes/)
+assets/
+
+# Weather lookups (opt-in), cached locally
+weather_cache.json
+
+# Package build output
+build/
+dist/

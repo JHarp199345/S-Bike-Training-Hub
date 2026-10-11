@@ -29,14 +29,13 @@ async def main():
         assert code==200 and coach.load(base/'coach.json')['run_progression']['reviews'][-1]['action']=='begin_decline'
         code,_=await call('/api/coach/run-progression',{'action':'begin_decline'});assert code==400
         code,_=await call('/api/coach/run-progression',{'test_date':dates[23],'kind':'loading'});assert code==400
-        # Good tests cannot authorize scheduling while mechanical load is high.
+        # A model's 'rest' reading is evidence, not a hold (2026-10-11): scheduling a run is allowed.
         before=json.loads((base/'coach.json').read_text())
         with patch('loads.readiness',return_value={'running':{'verdict':'rest','why':['mechanical backlog']}}):
             code,result=await call('/api/coach/session/add',{'date':dates[22],'sport':'run','minutes':10})
-            assert code==400 and 'unscheduled' in result['error']
+            assert 'unscheduled' not in (result.get('error') or '')
             code,result=await call('/api/coach/plan',{'date':dates[22],'sport':'run','minutes':10})
-            assert code==400
-        assert json.loads((base/'coach.json').read_text())==before
+            assert 'hold' not in (result.get('error') or '')
     original_save=recovery.save_forecasts
     with patch.object(coach,'today',return_value=dates[20]),patch.object(mapserver,'load_state',return_value={}),patch.object(mapserver,'done_by_day',return_value={}),patch.object(recovery,'save_forecasts',side_effect=lambda data,f,done:original_save(data,f,done,now=dates[20]+'T08:00:00')):
         code,result=await call('/api/coach/forecast/save',{})

@@ -1,262 +1,277 @@
 {
-  "latest": "app-v1.10.3",
-  "entries": [
-    {
-      "id": "app-v1.10.3",
-      "date": "2026-10-11",
-      "version": "App 1.10.3",
-      "title": "Training calendar, optional events and sport history",
-      "changes": [
-        "Training calendar shows saved phases and recorded days, local Today highlighting, month navigation and compact upcoming-event selection.",
-        "Optional event URL previews extract public details for review before scheduling; permitted organizer artwork can be displayed. Removing an event leaves its workouts intact.",
-        "Today follows the local date and protects open editors during midnight rollover.",
-        "Sport training history adds saved benchmark lifts, dated session comparisons, searchable saved strength estimates, and recorded weekly running/cycling totals.",
-        "Lifting comparisons include TANK in estimated external work (kJ), with clickable assumptions and ranges; recorded volume remains available. Work estimates are not metabolic calories or recovery predictions.",
-        "Body workload can be filtered by sport. Calendar export, photo albums and personalized recovery forecasting are not included."
-      ],
-      "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/blob/main/docs/releases/APP-1.10.3.md"
-    },
-    {
-      "id": "app-v1.10.2",
-      "date": "2026-10-09",
-      "version": "App 1.10.2",
-      "title": "Editable planned workouts and clearer swim comparisons",
-      "changes": [
-        "Today pencils reopen unfinished workouts in the shared text editor. Saves update the selected workout without duplicates and preserve completed neighbors, recording links and route settings.",
-        "Plan swim breakdowns have a larger credited front/back body-map donut, aligned panels and separate vertical keys: estimated intensity left, stroke distance right.",
-        "Swim history uses tightly spaced vertical columns, dates below and a fixed stroke order. Choose distance or percentages, session or day, and 5\u201390 days. Compare stacks Planned above Watch detection with a shared scale.",
-        "Planned includes existing recorded written breakdowns, falling back to the plan captured at association. Named drills use slashes in their stroke color; optional work detail can be hidden. Unknown watch drills remain unresolved; missing written workouts stay blank.",
-        "Thin zero markers keep absent stroke colors visible without adding distance or changing percentages. Completing a distance-based swim faster than its estimated duration receives a full calendar check.",
-        "Fitness Dashboard stroke stacks and legends now follow the same consistent hierarchy. Includes the earlier calorie-unit, watch-import, library, report and ride improvements. Keep MCP 1.10.0."
-      ],
-      "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/app-v1.10.2"
-    },
-    {
-      "id": "app-v1.10.1",
-      "date": "2026-10-09",
-      "version": "App 1.10.1",
-      "title": "Windows watch imports corrected",
-      "changes": [
-        "Fixes Windows file locking during FIT/TCX validation. Imported files are closed before the workout reader opens them; temporary validation files are cleaned up.",
-        "Includes the App 1.10.0 coach, swim-history, energy-unit, library and normal ride improvements listed below. Use with MCP 1.10.0."
-      ],
-      "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/app-v1.10.1"
-    },
-    {
-      "id": "app-v1.10.0",
-      "date": "2026-10-09",
-      "version": "App 1.10.0",
-      "title": "Clearer workout records, swim timing and linked watch data",
-      "changes": [
-        "Choose calories/kcal per minute or joules/watts in Settings; quiet equivalent readings retain clear metabolic-versus-mechanical labels and uncertainty ranges.",
-        "Watch imports can be linked to scheduled sessions or added as new workouts on their recorded date. Bike and watch recordings combine once, with a clock-adjustment preview and recorded metric sources.",
-        "Consistent workout cards and reports for swimming, cycling, strength, running, walking and other activities. Daily Hooper recovery stays separate; saved session reports collapse across views.",
-        "Workout library hearts start red for saved entries. Most recent performance cards, persistent comparison metrics, card navigation and repeat-click close controls make history easier to browse.",
-        "Plain-text strength editing preserves warm-up, main work and cool-down, optional planned/reported effort, set corrections and clearly labeled output estimates. Missing readings stay unknown.",
-        "Swim builder accepts goal-to-expected completion times: 400 FS 6 to 8 minutes. Watch lengths/laps compare by distance and order; consecutive drills stay combined unless you optionally report individual drill times. Timing drafts require three comparable performances and review.",
-        "Cancelled and missed workouts keep their sport icon and red cross. A finished day with no recorded work shows a separate checked recovery moon. Completion and plan revisions are tracked separately.",
-        "Phone ride controls are clearer, personal audio/video share a private local library, outlook flags are easier to scan, and incomplete route history no longer blocks ghost lookup.",
-        "Plan workout details use the same View/Hide control across sports and remain inside Plan, including today\u2019s swims.",
-        "Swim Plan cards show a sectioned workout, stroke-distance donut and the existing front/back body heat map with a concise five-color key. Stroke-distance history offers 5, 10, 20, 30, 40, 60 and 90 days, grouped by session or day. Distance, duration, average HR and descriptive HR \u00d7 minutes stay separate; missing readings remain unknown.",
-        "Fitness Dashboard adds full-size swim history, custom dates and 1\u201312-month presets. Compare month, quarter, saved training phase or custom month groups using up to twelve body-map donuts, three per page or all together. Plan retains the compact 90-day history; Today stays unchanged."
-      ],
-      "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/app-v1.10.0"
-    },
-    {
-      "id": "mcp-v1.10.0",
-      "date": "2026-10-09",
-      "version": "MCP 1.10.0",
-      "title": "Shared workout recording tools",
-      "changes": [
-        "114 published tools, including watch-link review, completed workout library saves and optional swim drill split reports. Use with App 1.10.0."
-      ],
-      "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/mcp-v1.10.0"
-    },
-    {
-      "id": "app-v1.9.0",
-      "date": "2026-10-07",
-      "version": "App 1.9.0",
-      "title": "Recorded work, validated check-ins and a plan that watches its load",
-      "changes": [
-        "Training energy now comes from the least heart-rate-dependent source: bike power, running and walking from distance, gradient and body mass (1 kcal per kg per km on the flat), and the watch for swims. The watch's number is shown beside it and large gaps are flagged.",
-        "Each check-in and workout report keeps the 3-day rate, biggest day and 28-day load it was made in, so later formula changes never move your history. Older reports can be rebuilt once through a preview.",
-        "Validated check-in questions: the Hooper questionnaire (fatigue, sleep, stress, soreness, 1\u20137), pain by site (0\u201310, kept apart from soreness), session effort on the CR-10 scale and the weekly OSTRC injury questionnaire.",
-        "Plan load outlook: your recorded and planned 3-day rate, biggest day and 28-day load against the phase's target, with report-gated running steps (3\u201310%) and sessions that went well in the last 90 days.",
-        "After a bad report (pain 5+, pain getting worse, soreness well above usual) the Hub holds running and asks a short re-check that evening and the next morning before deciding to resume, stay reduced or step back.",
-        "Body workload: an Overall ring of every region, group views with magnifying graphs, bars stacked by source and 28-day carried totals. Also: completed-workout reports, actual strength and swim logging, and a more responsive ride screen."
-      ],
-      "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/app-v1.9.0"
-    },
-    {
-      "id": "app-v1.8.1",
-      "date": "2026-10-05",
-      "version": "App 1.8.1",
-      "title": "Your music library and clearer workout records",
-      "changes": [
-        "Added a private music folder library with songs, albums, artists, cover art and available tempo estimates. macOS has a native folder picker; other systems can use files from their browser.",
-        "Unified cycling creation in the typed workout builder, including watt ranges, cadence ranges, time targets and reusable starter rides.",
-        "Recorded and partial workouts show actual time separately from planned time; imported activity totals remain visible without a matching prescription.",
-        "Fixed music setup refresh and idle video timing; unavailable integrations are explicitly marked in progress.",
-        "Added browser and home-screen app icons and corrected the Windows credential-permissions test."
-      ],
-      "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/app-v1.8.1",
-      "image": "/web/icons/sbt-hex-1024.png"
-    },
-    {
-      "id": "app-2026-10-05-run-walk-test",
-      "date": "2026-10-05",
-      "version": "App update",
-      "title": "A run-walk test for coming back to running",
-      "changes": [
-        "At 60% of a running hold, a three-day test: a short run-walk, then how walking feels the next day, then stairs. A good result offers to start winding the hold down; anything else tries again in a week.",
-        "End on the ride screen now ends the whole ride: the workout and the route together.",
-        "The Hub now tells you when an update is out (checked at most twice a day; you can turn it off here).",
-        "Personal music folders and files from this device are available. Video playback no longer builds up in memory."
-      ],
-      "image": "/web/sports/phase-recovery.jpg"
-    },
-    {
-      "id": "mcp-v1.8.0",
-      "date": "2026-10-05",
-      "version": "MCP 1.8.0",
-      "title": "The run-walk test for your assistant",
-      "changes": [
-        "Added run_walk_test: your assistant can walk you through the three days and record each answer.",
-        "Assistant instructions match the new test and the End-ride behaviour."
-      ],
-      "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/mcp-v1.8.0"
-    },
-    {
-      "id": "app-2026-10-03-art-history",
-      "date": "2026-10-03",
-      "version": "App update",
-      "title": "Morning inspiration and a visible update history",
-      "changes": [
-        "Gave the morning diagnostic its own mountain-sunrise artwork.",
-        "Added this local update history with links to release details and the wiki."
-      ],
-      "image": "/web/sports/morning-diagnostic-sunrise.jpg"
-    },
-    {
-      "id": "mcp-v1.7.0",
-      "date": "2026-10-03",
-      "version": "MCP 1.7.0",
-      "title": "Clearer workouts and reliable reports",
-      "changes": [
-        "Fixed effort reports for completed lifts without watch imports.",
-        "Added illustrated test guides and separate workout instructions and planning explanations.",
-        "Check-ins review explanations and update only what needs changing."
-      ],
-      "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/mcp-v1.7.0",
-      "image": "/web/sports/test-assessment.jpg"
-    },
-    {
-      "id": "mcp-v1.6.1",
-      "date": "2026-10-03",
-      "version": "MCP 1.6.1",
-      "title": "Count the lift you actually performed",
-      "changes": [
-        "Added pauses, weighted holds and failure reports to the lifting tools.",
-        "Aligned assistant instructions with the current hold calculation."
-      ],
-      "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/mcp-v1.6.1"
-    },
-    {
-      "id": "mcp-v1.6.0",
-      "date": "2026-10-03",
-      "version": "MCP 1.6.0",
-      "title": "A more complete coaching routine",
-      "changes": [
-        "Added check-in attention lists and recorded race predictions.",
-        "Exposed current calibration, cross-sport rules and structured lifting through the assistant."
-      ],
-      "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/mcp-v1.6.0"
-    },
-    {
-      "id": "mcp-v1.5.0",
-      "date": "2026-10-03",
-      "version": "MCP 1.5.0",
-      "title": "Review the whole sequence",
-      "changes": [
-        "Added a two-week running and lifting outlook.",
-        "Preview and approve calendar repairs and evidence-supported capacity changes."
-      ],
-      "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/mcp-v1.5.0"
-    },
-    {
-      "id": "mcp-v1.4.0",
-      "date": "2026-10-03",
-      "version": "MCP 1.4.0",
-      "title": "Guided setup and progression",
-      "changes": [
-        "Added guided bike setup and recent-week review.",
-        "Expanded phase-specific starter progression and the simulated athlete journey."
-      ],
-      "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/mcp-v1.4.0"
-    },
-    {
-      "id": "mcp-v1.3.0",
-      "date": "2026-10-02",
-      "version": "MCP 1.3.0",
-      "title": "Apply the plan you reviewed",
-      "changes": [
-        "Locked program changes to an exact reviewed draft.",
-        "Added calendar evidence, formula inspection and swim equipment including fins and snorkels."
-      ],
-      "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/mcp-v1.3.0"
-    },
-    {
-      "id": "mcp-v1.2.1",
-      "date": "2026-10-02",
-      "version": "MCP 1.2.1",
-      "title": "Smaller, more usable planning context",
-      "changes": [
-        "Made program previews easier for assistants to read.",
-        "Verified the desktop extension installation and planning workflow."
-      ],
-      "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/mcp-v1.2.1"
-    },
-    {
-      "id": "mcp-v1.2.0",
-      "date": "2026-10-02",
-      "version": "MCP 1.2.0",
-      "title": "Build and compare programs",
-      "changes": [
-        "Added program preview, apply and progress evidence.",
-        "Compare three proposed workloads before choosing a starter program."
-      ],
-      "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/mcp-v1.2.0"
-    },
-    {
-      "id": "mcp-v1.1.0",
-      "date": "2026-09-30",
-      "version": "MCP 1.1.0",
-      "title": "Bring lifting into the Hub",
-      "changes": [
-        "Added lifting prescriptions, logs, follow-ups and Sunday reviews."
-      ],
-      "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/mcp-v1.1.0"
-    },
-    {
-      "id": "mcp-v1.0.0",
-      "date": "2026-09-30",
-      "version": "MCP 1.0.0",
-      "title": "Connect an assistant",
-      "changes": [
-        "Published the first one-file MCP bundle for coaching, rides, imports and training load."
-      ],
-      "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/mcp-v1.0.0"
-    },
-    {
-      "id": "outset",
-      "date": "2026-09-27",
-      "version": "The outset",
-      "title": "The first public release",
-      "changes": [
-        "The repository began its public history as a stationary-bike training hub.",
-        "During the following week it grew into a shared place for coaching, multisport load, recovery and program planning."
-      ],
-      "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/commit/97395bd"
-    }
-  ]
+ "latest": "app-v1.11.0",
+ "entries": [
+  {
+   "id": "app-v1.11.0",
+   "date": "2026-10-11",
+   "version": "App 1.11.0",
+   "title": "One-line install, assistant-led setup and evidence-led planning",
+   "changes": [
+    "Install the whole hub in one line: claude mcp add --scope user s-bike-hub -- uvx s-bike-training-hub. The assistant starts the hub for you, and updates arrive automatically. GitHub installs keep their data where it is.",
+    "Assistant-led setup: the welcome page shows whether your assistant is connected and offers a prompt to copy; the manual form gains a gender field.",
+    "Health and history: a short health check following the ACSM's 2015 screening logic, plus conditions, injuries, medications and clinician advice the plan respects.",
+    "Two-pass planning: a season of placeholder sessions, then each week's workouts from your weekly volumes and reports, with a mirror against your recent weeks.",
+    "Improvement beyond volume: efficiency against heart rate, matched with similar earlier sessions, with an optional air-temperature lookup.",
+    "Holds come from your reports; model readings and checklists are shown as evidence. A lifting joint framework lets the assistant compose original sessions."
+   ],
+   "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/blob/main/docs/releases/APP-1.11.0.md"
+  },
+  {
+   "id": "app-v1.10.3",
+   "date": "2026-10-11",
+   "version": "App 1.10.3",
+   "title": "Training calendar, optional events and sport history",
+   "changes": [
+    "Training calendar shows saved phases and recorded days, local Today highlighting, month navigation and compact upcoming-event selection.",
+    "Optional event URL previews extract public details for review before scheduling; permitted organizer artwork can be displayed. Removing an event leaves its workouts intact.",
+    "Today follows the local date and protects open editors during midnight rollover.",
+    "Sport training history adds saved benchmark lifts, dated session comparisons, searchable saved strength estimates, and recorded weekly running/cycling totals.",
+    "Lifting comparisons include TANK in estimated external work (kJ), with clickable assumptions and ranges; recorded volume remains available. Work estimates are not metabolic calories or recovery predictions.",
+    "Body workload can be filtered by sport. Calendar export, photo albums and personalized recovery forecasting are not included."
+   ],
+   "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/blob/main/docs/releases/APP-1.10.3.md"
+  },
+  {
+   "id": "app-v1.10.2",
+   "date": "2026-10-09",
+   "version": "App 1.10.2",
+   "title": "Editable planned workouts and clearer swim comparisons",
+   "changes": [
+    "Today pencils reopen unfinished workouts in the shared text editor. Saves update the selected workout without duplicates and preserve completed neighbors, recording links and route settings.",
+    "Plan swim breakdowns have a larger credited front/back body-map donut, aligned panels and separate vertical keys: estimated intensity left, stroke distance right.",
+    "Swim history uses tightly spaced vertical columns, dates below and a fixed stroke order. Choose distance or percentages, session or day, and 5–90 days. Compare stacks Planned above Watch detection with a shared scale.",
+    "Planned includes existing recorded written breakdowns, falling back to the plan captured at association. Named drills use slashes in their stroke color; optional work detail can be hidden. Unknown watch drills remain unresolved; missing written workouts stay blank.",
+    "Thin zero markers keep absent stroke colors visible without adding distance or changing percentages. Completing a distance-based swim faster than its estimated duration receives a full calendar check.",
+    "Fitness Dashboard stroke stacks and legends now follow the same consistent hierarchy. Includes the earlier calorie-unit, watch-import, library, report and ride improvements. Keep MCP 1.10.0."
+   ],
+   "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/app-v1.10.2"
+  },
+  {
+   "id": "app-v1.10.1",
+   "date": "2026-10-09",
+   "version": "App 1.10.1",
+   "title": "Windows watch imports corrected",
+   "changes": [
+    "Fixes Windows file locking during FIT/TCX validation. Imported files are closed before the workout reader opens them; temporary validation files are cleaned up.",
+    "Includes the App 1.10.0 coach, swim-history, energy-unit, library and normal ride improvements listed below. Use with MCP 1.10.0."
+   ],
+   "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/app-v1.10.1"
+  },
+  {
+   "id": "app-v1.10.0",
+   "date": "2026-10-09",
+   "version": "App 1.10.0",
+   "title": "Clearer workout records, swim timing and linked watch data",
+   "changes": [
+    "Choose calories/kcal per minute or joules/watts in Settings; quiet equivalent readings retain clear metabolic-versus-mechanical labels and uncertainty ranges.",
+    "Watch imports can be linked to scheduled sessions or added as new workouts on their recorded date. Bike and watch recordings combine once, with a clock-adjustment preview and recorded metric sources.",
+    "Consistent workout cards and reports for swimming, cycling, strength, running, walking and other activities. Daily Hooper recovery stays separate; saved session reports collapse across views.",
+    "Workout library hearts start red for saved entries. Most recent performance cards, persistent comparison metrics, card navigation and repeat-click close controls make history easier to browse.",
+    "Plain-text strength editing preserves warm-up, main work and cool-down, optional planned/reported effort, set corrections and clearly labeled output estimates. Missing readings stay unknown.",
+    "Swim builder accepts goal-to-expected completion times: 400 FS 6 to 8 minutes. Watch lengths/laps compare by distance and order; consecutive drills stay combined unless you optionally report individual drill times. Timing drafts require three comparable performances and review.",
+    "Cancelled and missed workouts keep their sport icon and red cross. A finished day with no recorded work shows a separate checked recovery moon. Completion and plan revisions are tracked separately.",
+    "Phone ride controls are clearer, personal audio/video share a private local library, outlook flags are easier to scan, and incomplete route history no longer blocks ghost lookup.",
+    "Plan workout details use the same View/Hide control across sports and remain inside Plan, including today’s swims.",
+    "Swim Plan cards show a sectioned workout, stroke-distance donut and the existing front/back body heat map with a concise five-color key. Stroke-distance history offers 5, 10, 20, 30, 40, 60 and 90 days, grouped by session or day. Distance, duration, average HR and descriptive HR × minutes stay separate; missing readings remain unknown.",
+    "Fitness Dashboard adds full-size swim history, custom dates and 1–12-month presets. Compare month, quarter, saved training phase or custom month groups using up to twelve body-map donuts, three per page or all together. Plan retains the compact 90-day history; Today stays unchanged."
+   ],
+   "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/app-v1.10.0"
+  },
+  {
+   "id": "mcp-v1.10.0",
+   "date": "2026-10-09",
+   "version": "MCP 1.10.0",
+   "title": "Shared workout recording tools",
+   "changes": [
+    "114 published tools, including watch-link review, completed workout library saves and optional swim drill split reports. Use with App 1.10.0."
+   ],
+   "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/mcp-v1.10.0"
+  },
+  {
+   "id": "app-v1.9.0",
+   "date": "2026-10-07",
+   "version": "App 1.9.0",
+   "title": "Recorded work, validated check-ins and a plan that watches its load",
+   "changes": [
+    "Training energy now comes from the least heart-rate-dependent source: bike power, running and walking from distance, gradient and body mass (1 kcal per kg per km on the flat), and the watch for swims. The watch's number is shown beside it and large gaps are flagged.",
+    "Each check-in and workout report keeps the 3-day rate, biggest day and 28-day load it was made in, so later formula changes never move your history. Older reports can be rebuilt once through a preview.",
+    "Validated check-in questions: the Hooper questionnaire (fatigue, sleep, stress, soreness, 1–7), pain by site (0–10, kept apart from soreness), session effort on the CR-10 scale and the weekly OSTRC injury questionnaire.",
+    "Plan load outlook: your recorded and planned 3-day rate, biggest day and 28-day load against the phase's target, with report-gated running steps (3–10%) and sessions that went well in the last 90 days.",
+    "After a bad report (pain 5+, pain getting worse, soreness well above usual) the Hub holds running and asks a short re-check that evening and the next morning before deciding to resume, stay reduced or step back.",
+    "Body workload: an Overall ring of every region, group views with magnifying graphs, bars stacked by source and 28-day carried totals. Also: completed-workout reports, actual strength and swim logging, and a more responsive ride screen."
+   ],
+   "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/app-v1.9.0"
+  },
+  {
+   "id": "app-v1.8.1",
+   "date": "2026-10-05",
+   "version": "App 1.8.1",
+   "title": "Your music library and clearer workout records",
+   "changes": [
+    "Added a private music folder library with songs, albums, artists, cover art and available tempo estimates. macOS has a native folder picker; other systems can use files from their browser.",
+    "Unified cycling creation in the typed workout builder, including watt ranges, cadence ranges, time targets and reusable starter rides.",
+    "Recorded and partial workouts show actual time separately from planned time; imported activity totals remain visible without a matching prescription.",
+    "Fixed music setup refresh and idle video timing; unavailable integrations are explicitly marked in progress.",
+    "Added browser and home-screen app icons and corrected the Windows credential-permissions test."
+   ],
+   "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/app-v1.8.1",
+   "image": "/web/icons/sbt-hex-1024.png"
+  },
+  {
+   "id": "app-2026-10-05-run-walk-test",
+   "date": "2026-10-05",
+   "version": "App update",
+   "title": "A run-walk test for coming back to running",
+   "changes": [
+    "At 60% of a running hold, a three-day test: a short run-walk, then how walking feels the next day, then stairs. A good result offers to start winding the hold down; anything else tries again in a week.",
+    "End on the ride screen now ends the whole ride: the workout and the route together.",
+    "The Hub now tells you when an update is out (checked at most twice a day; you can turn it off here).",
+    "Personal music folders and files from this device are available. Video playback no longer builds up in memory."
+   ],
+   "image": "/web/sports/phase-recovery.jpg"
+  },
+  {
+   "id": "mcp-v1.8.0",
+   "date": "2026-10-05",
+   "version": "MCP 1.8.0",
+   "title": "The run-walk test for your assistant",
+   "changes": [
+    "Added run_walk_test: your assistant can walk you through the three days and record each answer.",
+    "Assistant instructions match the new test and the End-ride behaviour."
+   ],
+   "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/mcp-v1.8.0"
+  },
+  {
+   "id": "app-2026-10-03-art-history",
+   "date": "2026-10-03",
+   "version": "App update",
+   "title": "Morning inspiration and a visible update history",
+   "changes": [
+    "Gave the morning diagnostic its own mountain-sunrise artwork.",
+    "Added this local update history with links to release details and the wiki."
+   ],
+   "image": "/web/sports/morning-diagnostic-sunrise.jpg"
+  },
+  {
+   "id": "mcp-v1.7.0",
+   "date": "2026-10-03",
+   "version": "MCP 1.7.0",
+   "title": "Clearer workouts and reliable reports",
+   "changes": [
+    "Fixed effort reports for completed lifts without watch imports.",
+    "Added illustrated test guides and separate workout instructions and planning explanations.",
+    "Check-ins review explanations and update only what needs changing."
+   ],
+   "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/mcp-v1.7.0",
+   "image": "/web/sports/test-assessment.jpg"
+  },
+  {
+   "id": "mcp-v1.6.1",
+   "date": "2026-10-03",
+   "version": "MCP 1.6.1",
+   "title": "Count the lift you actually performed",
+   "changes": [
+    "Added pauses, weighted holds and failure reports to the lifting tools.",
+    "Aligned assistant instructions with the current hold calculation."
+   ],
+   "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/mcp-v1.6.1"
+  },
+  {
+   "id": "mcp-v1.6.0",
+   "date": "2026-10-03",
+   "version": "MCP 1.6.0",
+   "title": "A more complete coaching routine",
+   "changes": [
+    "Added check-in attention lists and recorded race predictions.",
+    "Exposed current calibration, cross-sport rules and structured lifting through the assistant."
+   ],
+   "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/mcp-v1.6.0"
+  },
+  {
+   "id": "mcp-v1.5.0",
+   "date": "2026-10-03",
+   "version": "MCP 1.5.0",
+   "title": "Review the whole sequence",
+   "changes": [
+    "Added a two-week running and lifting outlook.",
+    "Preview and approve calendar repairs and evidence-supported capacity changes."
+   ],
+   "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/mcp-v1.5.0"
+  },
+  {
+   "id": "mcp-v1.4.0",
+   "date": "2026-10-03",
+   "version": "MCP 1.4.0",
+   "title": "Guided setup and progression",
+   "changes": [
+    "Added guided bike setup and recent-week review.",
+    "Expanded phase-specific starter progression and the simulated athlete journey."
+   ],
+   "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/mcp-v1.4.0"
+  },
+  {
+   "id": "mcp-v1.3.0",
+   "date": "2026-10-02",
+   "version": "MCP 1.3.0",
+   "title": "Apply the plan you reviewed",
+   "changes": [
+    "Locked program changes to an exact reviewed draft.",
+    "Added calendar evidence, formula inspection and swim equipment including fins and snorkels."
+   ],
+   "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/mcp-v1.3.0"
+  },
+  {
+   "id": "mcp-v1.2.1",
+   "date": "2026-10-02",
+   "version": "MCP 1.2.1",
+   "title": "Smaller, more usable planning context",
+   "changes": [
+    "Made program previews easier for assistants to read.",
+    "Verified the desktop extension installation and planning workflow."
+   ],
+   "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/mcp-v1.2.1"
+  },
+  {
+   "id": "mcp-v1.2.0",
+   "date": "2026-10-02",
+   "version": "MCP 1.2.0",
+   "title": "Build and compare programs",
+   "changes": [
+    "Added program preview, apply and progress evidence.",
+    "Compare three proposed workloads before choosing a starter program."
+   ],
+   "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/mcp-v1.2.0"
+  },
+  {
+   "id": "mcp-v1.1.0",
+   "date": "2026-09-30",
+   "version": "MCP 1.1.0",
+   "title": "Bring lifting into the Hub",
+   "changes": [
+    "Added lifting prescriptions, logs, follow-ups and Sunday reviews."
+   ],
+   "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/mcp-v1.1.0"
+  },
+  {
+   "id": "mcp-v1.0.0",
+   "date": "2026-09-30",
+   "version": "MCP 1.0.0",
+   "title": "Connect an assistant",
+   "changes": [
+    "Published the first one-file MCP bundle for coaching, rides, imports and training load."
+   ],
+   "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/mcp-v1.0.0"
+  },
+  {
+   "id": "outset",
+   "date": "2026-09-27",
+   "version": "The outset",
+   "title": "The first public release",
+   "changes": [
+    "The repository began its public history as a stationary-bike training hub.",
+    "During the following week it grew into a shared place for coaching, multisport load, recovery and program planning."
+   ],
+   "url": "https://github.com/JHarp199345/S-Bike-Training-Hub/commit/97395bd"
+  }
+ ]
 }

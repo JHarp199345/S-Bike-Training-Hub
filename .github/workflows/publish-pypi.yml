@@ -1,0 +1,35 @@
+name: Publish to PyPI
+
+# One package: the hub app and its MCP server (packaging/build_package.py). Runs when an app release tag is pushed,
+# e.g. app-v1.11.0, and publishes with PyPI trusted publishing (no stored passwords or tokens).
+on:
+  push:
+    tags: ["app-v*"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install build
+      - run: python packaging/build_package.py --version "${GITHUB_REF_NAME#app-v}" --dist dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1

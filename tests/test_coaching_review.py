@@ -161,7 +161,7 @@ async def main():
         assert code==200,json.loads(raw)
         assert (base/'coach.json').read_bytes()==unchanged
         code,_,raw,_=await mapserver.coach_api(bridge,b'POST','/api/coach/test','/api/coach/test',json.dumps({'test':'benchmark_run','date':TODAY}).encode())
-        assert code==400 and 'hold' in json.loads(raw)['error']
+        assert 'hold' not in json.loads(raw).get('error','')   # no hard-coded hold: model readings are evidence (2026-10-11)
     tools={t['name']:t for t in mcp_server.handle({'id':1,'method':'tools/list'})['tools']}
     assert tools['get_coaching_review']['annotations']['readOnlyHint']
     assert not tools['preview_coaching_change']['annotations']['readOnlyHint']

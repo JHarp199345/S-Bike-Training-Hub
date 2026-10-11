@@ -4,9 +4,11 @@ The complete reference: every model and assumption. The [README](../README.md) i
 
 ## Status of the models
 
-This reference grew release by release, so some sections describe models the hub has moved away from. As of app 1.10.3:
+This reference grew release by release, so some sections describe models the hub has moved away from. As of app 1.11.0:
 
 - **Current:** recorded work and energy (from bike power, then distance and gradient, then the watch); report snapshots; the standard check-ins (Hooper, pain by site, CR-10 session effort, OSTRC); the plan load outlook; report-anchored running response; lifting doses and regional shares; swim timing; CP and W′ for the bike.
+- **Holds (1.11.0):** running is held only for symptoms the athlete has reported and not yet resolved, a check-in reporting feet or legs at 7/10 or more or pain at a site at 5/10 or more, or a waiting period the athlete chose. Model readings, the hop test, readiness verdicts and functional checklists described below are shown as evidence for the athlete and the assistant, not rules that block training. Calendar drafts list model limits the same way.
+- **Planning (1.11.0):** the assistant plans from the planning context: each sport's weekly volumes in its own units, efficiency against heart rate matched with similar sessions (with optional air temperature), the athlete's calibration and health records, reports as a 45-day half-life trend plus the last 7 days verbatim, and an evidence playbook. Pass 1 places the season's placeholder sessions; pass 2 plans each week's workouts on request.
 - **Legacy:** the **running block model** (blocks, the 0.8–1.5 band, block calibration and block growth). It was one rider's experience turned into rules, and it isn't backed by research, so the hub is moving to recovery estimated from each athlete's own reports. It remains for installations that still use it; it doesn't govern the report-based running response.
 - **In development, off by default:** recovery curves learned from your own history (`HUB_RECOVERY_LEARNING=1` turns them on for testing).
 

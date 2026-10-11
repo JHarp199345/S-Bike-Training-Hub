@@ -341,14 +341,14 @@ def preview(d,load,done,workouts,today,base,revision,fields):
             coach.set_sessions(candidate,date,change['sessions'])
             candidate['plans'][date].pop('test',None)
         after=outlook(candidate,load,done,workouts,today)
-        gate=after['running_gate'];violations=[]
+        gate=after['running_gate'];violations=[];evidence=[]   # 2026-10-11: model limits are evidence; reported symptoms and the athlete's rules block
         # A hold from recent running load alone clears on the model's own projection: it blocks runs before that
         # date (later runs still face their forecast). Symptoms, hop tests, readiness or the return-to-run protocol
         # block every run in the window.
         held,clear_by=run_hold(gate,today)
         for row in after['sessions']:
             if row['date'] not in seen:continue
-            if row['status'] not in ('within_projected_limits','response_review','test'):violations.append(row['date']+': '+str(row['name'])+' has unknown or excessive projected load')
+            if row['status'] not in ('within_projected_limits','response_review','test'):evidence.append(row['date']+': '+str(row['name'])+' has unknown or excessive projected load')
             if row['sport']=='run' and held(row['date']):violations.append(row['date']+': current running hold remains in force'+(f' (projected to clear {clear_by})' if clear_by else ''))
             if any(__import__('progression').affected(s,[symptom]) for symptom in after['active_symptoms'] for s in B.sessions(candidate['plans'][row['date']])):violations.append(row['date']+': unresolved symptom overlap')
         # Flag newly introduced or worsened limit breaches across all sports, including later days.
@@ -361,11 +361,11 @@ def preview(d,load,done,workouts,today,base,revision,fields):
                 if day['date'] in seen and any(s['sport']=='run' for s in B.sessions(candidate['plans'][day['date']])):
                     m=next((x for x in day['readings'] if x['key']=='run_mechanical'),{})
                     if m.get('after') is not None and m['after']>deload['target'][1]:
-                        violations.append(day['date']+f': automatic running deload: runs stay at or under {deload["target"][1]} blocks')
+                        evidence.append(day['date']+f': automatic running deload suggests runs at or under {deload["target"][1]} blocks')
         rp_before=before.get('running_progression') or {}
         cap=rp_after.get('weekly_cap_blocks')
         if cap is not None and rp_after.get('planned_week_blocks',0)>cap and rp_after['planned_week_blocks']>rp_before.get('planned_week_blocks',0)+.005:
-            violations.append(today+f': weekly running load {rp_after["planned_week_blocks"]} blocks is over the cap of {cap}')
+            evidence.append(today+f': weekly running load {rp_after["planned_week_blocks"]} blocks is over the model cap of {cap}')
         for day in after['daily_readings']:
             for m in day['readings']:
                 # The combined utilization reading is advisory: its block parts (running, swim, each lifting region)
@@ -374,21 +374,23 @@ def preview(d,load,done,workouts,today,base,revision,fields):
                 if m['key']=='mechanical':continue
                 old=prior.get((day['date'],m['key']),{})
                 if m.get('after') is not None and m.get('limit') is not None and m['after']>=m['limit'] and (old.get('after') is None or m['after']>old['after']+.005):
-                    violations.append(day['date']+': worsened '+m['key']+' forecast limit')
+                    evidence.append(day['date']+': worsened '+m['key']+' forecast limit')
         for row in after['sessions']:
-            if row['status']=='conflict':violations.append(row['date']+': remaining '+str(row['name'])+' conflict in reviewed sequence')
+            if row['status']=='conflict':evidence.append(row['date']+': remaining '+str(row['name'])+' conflict in reviewed sequence')
         # Training rules: a change may not introduce a pattern that breaks one; cautions are listed to weigh.
         had={(f['rule'],tuple(f['dates'])) for f in before.get('training_rules',[])}
         for f in after.get('training_rules',[]):
             if f['severity']=='breaks' and (f['rule'],tuple(f['dates'])) not in had and any(x in seen for x in f['dates']):
                 violations.append(f['dates'][-1]+': training rule '+f['rule']+' - '+f['why'])
         payload={'kind':kind,'changes' :[{'date':c['date'],'sessions':copy.deepcopy(B.sessions(candidate['plans'][c['date']]))} for c in changes],'original':originals,
-            'before':before,'after':after,'violations':sorted(set(violations)),
+            'before':before,'after':after,'violations':sorted(set(violations)),'evidence':sorted(set(evidence)),
             'cautions':[f for f in after.get('training_rules',[]) if f['severity']=='caution' and any(x in seen for x in f['dates'])]
                 +[{'rule':'test_day_changed','severity':'caution','dates':[o['date']],
                    'why':'This day holds a scheduled test ('+str((d.get('plans',{}).get(o['date']) or {}).get('test'))+'): replacing its sessions removes the test.'}
                   for o in originals if (d.get('plans',{}).get(o['date']) or {}).get('test')],
-            'notice':'Review the whole 14-day sequence. Holds, unknown loads and symptom overlap block Apply; compare shortening, spacing, substitutions or rest.'}
+            'notice':'Review the whole 14-day sequence. Reported symptoms and the athlete\'s rules block Apply; model readings are listed as evidence to weigh with the athlete.'}
+        import planning_context
+        payload['mirror']=planning_context.mirror(load.get('activities',[]),today,{c['date']:B.sessions(candidate['plans'][c['date']]) for c in changes})
     else:raise ValueError('Review kind is calendar or capacity')
     return _store(base,payload,revision)
 

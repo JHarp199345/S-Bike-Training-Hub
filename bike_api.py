@@ -27,7 +27,7 @@ _busy = {"what": None}     # one radio job at a time: scan, inspect, capture or 
 
 
 def _base(bridge):
-    return Path(bridge.csv_path).parent.parent if getattr(bridge, "csv_path", None) else HERE
+    return Path(bridge.csv_path).parent.parent if getattr(bridge, "csv_path", None) else __import__("paths").DATA
 
 
 def _ok(obj, code=200):

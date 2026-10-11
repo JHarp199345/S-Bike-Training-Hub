@@ -254,7 +254,7 @@ def describe_command(v: bytes) -> str:
     return f"{OPCODES.get(op, 'command')} ({v.hex()})"
 
 
-STATE = Path(__file__).resolve().parent / "state.json"
+STATE = __import__("paths").DATA / "state.json"
 RESUME_WITHIN = 15 * 60     # seconds: a crash older than this starts a fresh ride
 RESUME = STATE.with_name("resume.json")   # the workout in progress: survives End, a reload, a restart (until it finishes)
 RESUME_AFTER = 30           # seconds of pedalling before a workout is worth resuming (or replaces the saved one)
@@ -379,7 +379,7 @@ class Bridge:
         except (OSError, ValueError):
             self.resume = None       # {"name", "steps": [[seconds, watts]], "active", "date", "saved"}
         self._had_workout = False
-        self.workouts = load_workouts(Path(__file__).resolve().parent / "workouts")
+        self.workouts = load_workouts(__import__("workouts").FOLDER)
         self.bike_sims = True        # assume hill simulation works until the bike says otherwise
         self.res_range = (1.0, 32.0)  # replaced by the bike's own range on connect
         self.level_sent = None       # level last sent to the bike
@@ -1066,7 +1066,7 @@ class Bridge:
 
     def reload_workouts(self):
         """After the builder saves or deletes one."""
-        self.workouts = load_workouts(Path(__file__).resolve().parent / "workouts")
+        self.workouts = load_workouts(__import__("workouts").FOLDER)
 
     def workout_start_id(self, wid):
         for i, w in enumerate(self.workouts):
@@ -1638,6 +1638,8 @@ async def main():
                     help="panel on this Mac only: no phone remote over Wi-Fi")
     ap.add_argument("-v", action="store_true", help="debug logging")
     args = ap.parse_args()
+    import paths                          # your data folder (paths.py): rides, logs, coach.json and the rest live here
+    os.chdir(paths.seed())
     logging.basicConfig(level=logging.DEBUG if args.v else logging.INFO,
                         format="%(asctime)s  %(message)s", datefmt="%H:%M:%S",
                         handlers=[logging.StreamHandler(), logging.FileHandler("bridge.log")])

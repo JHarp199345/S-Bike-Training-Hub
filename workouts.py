@@ -17,7 +17,9 @@ from pathlib import Path
 
 import live
 
-FOLDER = Path(__file__).resolve().parent / "workouts"
+FOLDER = __import__("paths").DATA / "workouts"
+if not FOLDER.exists():          # a new data folder starts with the sample workouts (paths.seed)
+    __import__("paths").seed()
 RAMP_STAGES = 3             # equal time; each stage advances a third of the planned rise
 MAX_MINUTES = 6 * 60
 

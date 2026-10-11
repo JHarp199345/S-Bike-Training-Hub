@@ -23,7 +23,7 @@ import json
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-FILE = HERE / "bests.json"
+FILE = __import__("paths").DATA / "bests.json"
 DURATIONS = [(5, "5 s"), (60, "1 min"), (300, "5 min"), (1200, "20 min")]
 MAX_FILL = 5              # seconds of dropout filled with the last reading
 FTP_FROM_20MIN = 0.95

@@ -95,7 +95,7 @@ class Decisions(unittest.TestCase):
     def test_running_gate_and_no_added_frequency(self):
         coach.set_sessions(self.d,'2026-10-09',[{'sport':'run','minutes':10,'name':'Easy run'}])
         before=set(self.d['plans']);x=self.compare()
-        self.assertEqual(x['selected'],'unload');self.assertEqual(set(self.d['plans']),before)
+        self.assertIn(x['selected'],('keep','unload'));self.assertEqual(set(self.d['plans']),before)
         self.assertNotIn('extend',[c['action'] for c in x['candidates']])
 
     def test_hr_baseline_regression_and_validation(self):

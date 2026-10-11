@@ -61,9 +61,9 @@ def main():
               for a in sheet["animals"].values() for gd in a["gaits"].values()))
     walkers = [k for k, a in sheet["animals"].items() if "walk" in a["gaits"]]
     check(f"the farm animals walk as well as gallop, so pace can show as a change of gait ({', '.join(walkers)})", len(walkers) >= 8)
-    real = mapserver.HERE
+    real = mapserver.DATA                 # the forms are the rider's data (paths.py): isolate the data folder
     try:
-        mapserver.HERE = pathlib.Path(tempfile.mkdtemp())
+        mapserver.DATA = pathlib.Path(tempfile.mkdtemp())
         call = lambda m, b=b"": asyncio.run(mapserver.handle(None, m, "/api/course/forms", b, "localhost"))
         check("no forms chosen yet: a default line-up", json.loads(call(b"GET")[2])["forms"] == ["unicorn", "wolf", "eagle", "dragon"])
         r = call(b"POST", json.dumps({"forms": ["horse", "gorilla", "fox", "dragon"]}).encode())
@@ -75,7 +75,7 @@ def main():
         sneaky = asyncio.run(mapserver.handle(None, b"GET", "/web/../profile.json", b"", "localhost"))
         check("nothing outside the web folders is served", sneaky[0] == 404)
     finally:
-        mapserver.HERE = real
+        mapserver.DATA = real
     print("ALL PASS" if ok else "SOME FAILED")
     return ok
 

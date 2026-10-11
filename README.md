@@ -6,15 +6,18 @@ A free training hub for cycling, swimming, running and strength that runs on you
 
 <p align="center"><img src="docs/screens/plan.jpg" width="880" alt="Plan: the goal race, available time, sport priorities and the program's phases"></p>
 
-**Current version: app 1.10.3** with MCP 1.10.0 · [what's new](CHANGELOG.md)
+**Current version: app 1.11.0** with MCP 1.11.0 · [what's new](CHANGELOG.md)
 
 ## What it does
 
+- **Sets you up through your AI assistant:** your basics, a quick health check, what you do now and what you're aiming for, one question at a time.
+- **Plans in two passes:** a season of placeholder sessions toward your goal, then each coming week's actual workouts from how the last one went. You preview every change before it's saved.
 - **Plans a program toward your goal:** test week, foundation, development, event preparation, taper and race week. You preview every change before it's saved.
 - **A training calendar** of the whole program, three months at a time, with every day's planned and recorded sessions.
 - **Daily and weekly check-ins** built on standard sports-science questionnaires: Hooper (fatigue, sleep, stress, soreness), pain by body site, session effort on the CR-10 scale, and the OSTRC overuse questionnaire.
 - **Workouts for every sport,** written in plain text with live previews: cycling power workouts, run/walk and interval runs, swim sets with send-offs, and strength sessions. Or import a photo or PDF of a written workout.
 - **Your watch data:** import `.fit` and `.tcx` files from COROS, Garmin and others, or have your assistant fetch them. Bike and watch recordings of the same ride count once.
+- **Improvement beyond volume:** pace or power against heart rate for each session, matched with your closest earlier session, with the day's air temperature if you turn that on.
 - **A Fitness Dashboard:** recorded energy and work, where the work went in your body, swim history by stroke, lifting records and strength estimates.
 - **Your rules,** in plain sentences: *"I can't do pull ups"*, *"No barbell deadlifts"*. Every workout and every assistant follows them.
 - **A smart-bike bridge** (tested on the Merach S29): ERG workouts, virtual gears, hills turned into resistance, 3D routes and ride games, and sharing the bike with your watch and apps like Kinomap.
@@ -26,9 +29,28 @@ The [user guide](docs/guide.md) tours every page.
 
 ## Set it up
 
-You need **Python 3.11+**.
-
 ### 1. Install
+
+**The one-line way** (macOS, Windows or Linux; needs [uv](https://docs.astral.sh/uv/getting-started/installation/)). This installs the whole hub and connects it to your assistant:
+
+```bash
+claude mcp add --scope user s-bike-hub -- uvx s-bike-training-hub
+```
+
+For **Claude Desktop**, add this to its config file (Settings → Developer → Edit Config), then restart Claude:
+
+```json
+{ "mcpServers": { "s-bike-hub": { "command": "uvx", "args": ["s-bike-training-hub"] } } }
+```
+
+Then ask your assistant: *"Set me up with S-Bike Training Hub."* It starts the hub for you (at <http://127.0.0.1:8729>) and walks you through setup. Updates arrive automatically: `uvx` runs the latest release each time.
+
+- **Start the app yourself:** `uvx --from s-bike-training-hub s-bike-hub`
+- **Maps and route planning (optional, large):** `uvx --from s-bike-training-hub s-bike-hub-maps`
+- **Your data** lives in your own data folder, never in the app: macOS `~/Library/Application Support/S-Bike Hub`, Windows `%APPDATA%\S-Bike Hub`, Linux `~/.local/share/s-bike-hub`.
+- **A smart bike on macOS:** start the app once from Terminal (`uvx --from s-bike-training-hub s-bike-hub`) so macOS can ask for Bluetooth permission. Everything except live bike control works without it.
+
+**From GitHub** (the full source, with setup scripts and the Desktop launcher). You need **Python 3.11+**.
 
 **macOS** (everything, including the bike bridge, menu-bar icon, route planner and 3D maps):
 
@@ -55,26 +77,23 @@ powershell -ExecutionPolicy Bypass -File setup.ps1 -NoBike   # no smart bike
 ./setup-linux.sh --no-bike   # no smart bike
 ```
 
-Setup creates the Python environment, installs what it needs and makes a launcher: **S-Bike Hub** on your Desktop on macOS and Windows, `./s-bike-hub.sh` on Linux. Your browser opens the hub at <http://127.0.0.1:8729>, starting with the **welcome page**.
+Setup creates the Python environment, installs what it needs and makes a launcher: **S-Bike Hub** on your Desktop on macOS and Windows, `./s-bike-hub.sh` on Linux. Your browser opens the hub at <http://127.0.0.1:8729>, starting with the **welcome page**. A GitHub install keeps your data in its own folder, as it always has.
 
 - **Maps:** on Linux, route planning also needs Java, and map downloads for your region ask first. On Windows, maps aren't set up yet.
 - **Testing:** installing and the simulated bike are tested on all three systems on every change. A real bike and watch have been tested on macOS only.
 
 ### 2. Tell it about you
 
-On the welcome page, under **Set yourself up**:
-- **About you:** your sports and experience in each, body weight and heart rates.
-- **Your running:** whether you run now and how much you'd like to run in a week (40 minutes is about one good run), plus any pain or niggles. The **running calibration** in your first week measures where you are.
-- **Your rules:** plain sentences that steer every workout (see [Rules](docs/guide.md#rules)).
-- **A running injury:** if you're coming back from one, tick the box for a more careful return to running.
+The easiest way: ask your connected assistant to set you up (the welcome page has a prompt to copy). It asks for your basics, runs a short health check, asks about your sports, what you do now and what you're aiming for, then builds your program with you. You approve every step.
 
-Then **Build my program**. The hub drafts a program toward your goal that you preview and edit before applying. Your lifting split is your choice: full body, upper/lower, push/pull, push/pull/legs, or knee/hip/push/pull.
+No assistant? On the welcome page, open **No assistant? Set up by hand**: your sports and experience, body weight, gender and heart rates, your running, and your rules (plain sentences that steer every workout; see [Rules](docs/guide.md#rules)). Then **Build my program**: the hub drafts a starter program that you preview and edit before applying.
 
 ### 3. Connect your AI assistant (optional, recommended)
 
 The hub keeps the record; your assistant plans with you. It works with any app that supports MCP servers.
 
-- **Claude Desktop:** download the `.mcpb` bundle (MCP 1.10.0) from the [releases page](https://github.com/JHarp199345/S-Bike-Training-Hub/releases), then **Settings → Extensions → Advanced settings → Install extension**. Leave the hub address at `http://127.0.0.1:8729`.
+- **The one-line install** above already connects it.
+- **Claude Desktop (bundle):** download the `.mcpb` bundle (MCP 1.11.0) from the [releases page](https://github.com/JHarp199345/S-Bike-Training-Hub/releases), then **Settings → Extensions → Advanced settings → Install extension**. Leave the hub address at `http://127.0.0.1:8729`.
 - **Claude Code:** `claude mcp add --scope user s-bike-hub -- "$PWD/.venv/bin/python" "$PWD/mcp_server.py"` (on Windows: `.venv\Scripts\python.exe`).
 - **Other MCP apps:** point them at `mcp_server.py` with the `.venv` Python.
 
@@ -134,6 +153,10 @@ python tests/run_all.py     # every test; macOS-only tests are skipped elsewhere
 ```
 
 Tests run on Linux, macOS and Windows in GitHub Actions on every push, installing with each system's setup script.
+
+## Privacy
+
+Your records stay on your computer. The only outside request the hub can make is an **optional** air-temperature lookup for outdoor sessions, off until you turn it on: it sends a place rounded to about 10 km and a date to [Open-Meteo](https://open-meteo.com), and caches the answer locally. A cloud AI assistant receives what you choose to share with it; a local model keeps the whole conversation on your computer.
 
 ## ⚠️ Safety
 

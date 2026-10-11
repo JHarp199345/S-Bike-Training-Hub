@@ -14,7 +14,7 @@ async def main():
   override=os.environ.get('S_BIKE_TEST_BUNDLE')
   bundle = pathlib.Path(override) if override else ROOT/f'mcpb/s-bike-hub-mcp-{version}.mcpb'
   if bundle.exists() and not override:
-   assert hashlib.sha256(bundle.read_bytes()).hexdigest() == json.loads((ROOT/'server.json').read_text())['packages'][0]['fileSha256']
+   assert hashlib.sha256(bundle.read_bytes()).hexdigest() == next(p for p in json.loads((ROOT/'server.json').read_text())['packages'] if p['registryType']=='mcpb')['fileSha256']
   elif not bundle.exists():
    if override: raise FileNotFoundError(bundle)
    # Release archives are ignored by Git; a fresh checkout tests the same source layout.

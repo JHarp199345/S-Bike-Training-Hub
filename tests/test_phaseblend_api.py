@@ -16,7 +16,7 @@ async def main():
         with patch.object(coach,'today',return_value='2026-10-02'),patch.object(mapserver,'load_state',return_value={}):
             before=(base/'coach.json').read_text()
             code,r=await call({'action':'preview','start':'2026-10-05','weeks':4,'profile':'ride'})
-            assert code==200 and r['current']['enabled'] and r['current']['sports']['run']['role']=='hold'
+            assert code==200 and r['current']['enabled'] and r['current']['sports']['run']['role']!='hold'
             assert (base/'coach.json').read_text()==before
             code,r=await call({'start':'2026-10-05','weeks':4,'profile':'ride'});assert code==200
             saved=coach.load(base/'coach.json');assert saved['plans']==d['plans'];assert len(saved['phase_profiles'])==1

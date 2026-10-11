@@ -2,7 +2,7 @@
 import json
 from pathlib import Path
 
-FILE = Path(__file__).resolve().parent / "theme.json"
+FILE = __import__("paths").DATA / "theme.json"
 OPTIONS = ("classic", "honeybee", "rattlesnake", "peacock", "harpy_eagle", "cherry_blossom")
 ALIASES = {"diamondback": "rattlesnake"}      # an earlier name
 

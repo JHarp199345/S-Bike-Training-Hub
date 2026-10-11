@@ -51,14 +51,15 @@ def main():
     assert "feet" in prompts and "hops" not in prompts
     load = {"headline": {"mechanical": {"remodeling_blocks": 13.25, "block_limit": 1.5}}}
     gate = B.running_gate({"training_block": {"hop_status": "unresolved"}}, load)
-    assert gate["status"] == "hold" and "mechanical running load" in gate["reasons"][0]
+    assert gate["status"] == "open_for_review" and any("mechanical running load" in r for r in gate["evidence"])   # evidence, not a hold
+    gate = {**gate, "status": "hold", "reasons": ["reported symptom: calf"]}   # a hold comes from a report
     blocked = {"plans": {}, "events": []}
     coach.set_sessions(blocked, "2026-10-05", [{"sport": "run", "minutes": 20, "name": "Easy run"}])
     try:
         B.create(blocked, "2026-09-30", start_date="2026-10-05", run_gate=gate)
-        assert False, "run week repeated despite mechanical hold"
+        assert False, "run week repeated despite a reported symptom"
     except ValueError as e:
-        assert "mechanical running load" in str(e)
+        assert "reported symptom" in str(e)
     assert "2026-10-12" not in blocked["plans"]
     d["weekly"]["2026-10-04"]["feet"] = 3
     r = B.review(d, "2026-10-04", done, gate)

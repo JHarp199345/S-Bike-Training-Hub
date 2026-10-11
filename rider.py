@@ -7,7 +7,7 @@ import datetime as dt
 import json
 from pathlib import Path
 
-PATH = Path(__file__).resolve().parent / "profile.json"
+PATH = __import__("paths").DATA / "profile.json"
 DEFAULT = {"ftp": 150, "ftp_source": "a starting guess - take the FTP ramp test on the panel", "history": [],
            "weekly_rides": 3, "weight_kg": 80.0}
 

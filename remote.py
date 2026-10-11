@@ -18,7 +18,7 @@ import socket
 import time
 from pathlib import Path
 
-FILE = Path(__file__).resolve().parent / "remote.json"      # PIN and paired tokens (kept out of git)
+FILE = __import__("paths").DATA / "remote.json"      # PIN and paired tokens (kept out of git)
 COOKIE = "sbikeremote"
 MAC_ONLY = (b"/stop",)
 # Connecting Strava (the OAuth callback comes back to 127.0.0.1) and its keys: this Mac only.

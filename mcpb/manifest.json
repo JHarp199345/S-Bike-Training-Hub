@@ -2,9 +2,9 @@
   "manifest_version": "0.3",
   "name": "s-bike-hub",
   "display_name": "S-Bike Training Hub",
-  "version": "1.10.0",
+  "version": "1.11.0",
   "description": "Coach from your smart-bike training hub: check-ins, plans, rides, lifting, workouts and training load for bike, run and swim.",
-  "long_description": "Use the current local Hub through 114 tools: reviewed training plans, workout text parsing and corrections, swim timing targets and optional drill splits, watch recording associations, session reports, library histories, work rates and recovery check-ins. Requires Hub app 1.10.0. Athlete files stay local; returned context follows the external AI provider\u2019s policies.",
+  "long_description": "Use the local Hub through 122 tools: assistant-led setup (one question at a time), a health and history record, two-pass planning (a season of placeholders, then each week's workouts from your reports), efficiency against heart rate with the day's temperature, the lifting joint framework, reviewed calendar changes, session reports and recovery check-ins. Requires Hub app 1.11.0, or install everything in one package: uvx s-bike-training-hub. Athlete files stay local; returned context follows the external AI provider's policies.",
   "author": {
     "name": "JHarp199345",
     "url": "https://github.com/JHarp199345"
@@ -63,7 +63,7 @@
     },
     {
       "name": "record_activity_report",
-      "description": "Record the athlete\u2019s explicit effort and discomfort for one imported activity, planned or unplanned, through the normal session-report protocol. Preserves prescriptions and completed activity, adds no duplicate load. Existing symptom/progression rules apply; this does not recalibrate a recovery curve or clear a hold. Read get_activity_report again afterward and ask for delayed response."
+      "description": "Record the athlete’s explicit effort and discomfort for one imported activity, planned or unplanned, through the normal session-report protocol. Preserves prescriptions and completed activity, adds no duplicate load. Existing symptom/progression rules apply; this does not recalibrate a recovery curve or clear a hold. Read get_activity_report again afterward and ask for delayed response."
     },
     {
       "name": "get_recorded_swim_draft",
@@ -71,11 +71,11 @@
     },
     {
       "name": "record_completed_swim_details",
-      "description": "Attach the athlete\u2019s actual swim sets and coaching summary to ONE imported watch swim, preserving its recorded time/distance/load and avoiding duplicate sessions. Preview with save=false first, review parser issues and distance differences, then save=true. Text or section fields, unit yd/m. Do not invent unreported drills or benefits."
+      "description": "Attach the athlete’s actual swim sets and coaching summary to ONE imported watch swim, preserving its recorded time/distance/load and avoiding duplicate sessions. Preview with save=false first, review parser issues and distance differences, then save=true. Text or section fields, unit yd/m. Do not invent unreported drills or benefits."
     },
     {
       "name": "preview_strength_workout",
-      "description": "Parse the athlete\u2019s text with the same deterministic parser used by the Hub creator. Fields warmup/main/cooldown or text; returns unresolved text, per-set dose and existing load evaluation. Nothing is scheduled or logged. Clarify unresolved input before saving. Library rules still apply."
+      "description": "Parse the athlete’s text with the same deterministic parser used by the Hub creator. Fields warmup/main/cooldown or text; returns unresolved text, per-set dose and existing load evaluation. Nothing is scheduled or logged. Clarify unresolved input before saving. Library rules still apply."
     },
     {
       "name": "record_completed_lift_details",
@@ -87,11 +87,11 @@
     },
     {
       "name": "preview_sled_effort",
-      "description": "Estimate TANK M4/MX friction-sled weight equivalent from Torque\u2019s published speed/level chart. Distance and time per leg; equal front/rear settings. Outside 1\u20136 mph stays unknown. Not pounds of pushing force, lifted mass, or clearance. RPE cannot identify force. Returns source and uncertainty; changes no logs or model references."
+      "description": "Estimate TANK M4/MX friction-sled weight equivalent from Torque’s published speed/level chart. Distance and time per leg; equal front/rear settings. Outside 1–6 mph stays unknown. Not pounds of pushing force, lifted mass, or clearance. RPE cannot identify force. Returns source and uncertainty; changes no logs or model references."
     },
     {
       "name": "get_activity_effort_windows",
-      "description": "Inspect candidate heart-rate response windows from an imported workout. Timed effort has priority, then the athlete\u2019s duration estimate; HR rise/peak/fall is supporting uncertain evidence, not exact work timing or force. No exercise labels, assumed lag correction, or automatic logging. Ask the athlete to confirm candidates."
+      "description": "Inspect candidate heart-rate response windows from an imported workout. Timed effort has priority, then the athlete’s duration estimate; HR rise/peak/fall is supporting uncertain evidence, not exact work timing or force. No exercise labels, assumed lag correction, or automatic logging. Ask the athlete to confirm candidates."
     },
     {
       "name": "update_session_explanation",
@@ -99,7 +99,7 @@
     },
     {
       "name": "get_coaching_review",
-      "description": "Read the next 1\u201314 days of running/lifting outlook, forecast conflicts, holds, symptoms and evidence-based capacity review candidates. Does not save or clear holds."
+      "description": "Read the next 1–14 days of running/lifting outlook, forecast conflicts, holds, symptoms and evidence-based capacity review candidates. Does not save or clear holds."
     },
     {
       "name": "preview_coaching_change",
@@ -147,7 +147,7 @@
     },
     {
       "name": "get_training_calendar",
-      "description": "Read 1\u201314 days of saved workout prescriptions, actual completions, reports, phase context and projected load readings. Stable session IDs change when prescriptions change. Does not save or modify training."
+      "description": "Read 1–14 days of saved workout prescriptions, actual completions, reports, phase context and projected load readings. Stable session IDs change when prescriptions change. Does not save or modify training."
     },
     {
       "name": "explain_training_reading",
@@ -159,7 +159,7 @@
     },
     {
       "name": "record_capacity_followup",
-      "description": "Record explicit delayed recovery 1\u201314 days after a completed, effort-reported session. good/difficult/uncertain are athlete reports, not inferred from silence. Does not change limits, holds or training."
+      "description": "Record explicit delayed recovery 1–14 days after a completed, effort-reported session. good/difficult/uncertain are athlete reports, not inferred from silence. Does not change limits, holds or training."
     },
     {
       "name": "get_capacity_review",
@@ -264,6 +264,38 @@
     {
       "name": "get_lifting",
       "description": "Lifting and functional strength. Read before planning or scoring a gym session: the rider's RULES (never plan what a 'No ...' rule excludes; use favourites), the coaching GUIDANCE, the STEER (restorative or build, the suggested restorative share of the session and why, from the load the rider carries), sessions the rider built that are waiting for you to score (unscored_sessions), the exercise library, estimated one-rep maxes, recent sessions, the follow-up that's due, and each region's recovery block. Units: the rider's (lb or kg). All load numbers are estimates."
+    },
+    {
+      "name": "get_planning_context",
+      "description": "Start here when planning, in two passes, both on the athlete's request. scope=program (pass 1): placeholders for the whole macrocycle - sport, day, role improve or maintain, a minutes band and, for lifting, joint groups - saved with preview_program. scope=week (pass 2): the coming week's real workouts inside those placeholders, drafted with preview_coaching_change kind=calendar (its mirror compares the draft with recent weeks). Returns each sport's last 28 days as four weekly totals, average/best/last week and a 13-week trend in the sport's own units; the athlete's calibration (current routine, past best); reports as a 45-day half-life trend plus the last 7 days verbatim; the goal, days to the event, phases and the week's placeholders; the running gate; and a playbook of evidence written as what works. Reason from it, explain 'why this week', show the draft, and ask: approve, regenerate, or what would you change? Apply only after approval."
+    },
+    {
+      "name": "set_sport_baseline",
+      "description": "Save the athlete's own calibration for a sport when there's little recorded history: their current routine (now) and their past best (best, with when). Use the athlete's words; it is provisional until recorded weeks and reports confirm it. Ask during setup or whenever a plan looks far too easy or too hard."
+    },
+    {
+      "name": "get_setup_status",
+      "description": "Start here with a new athlete, or whenever they ask to set up: what's done and what's next in setup (basics, a health check, sports and experience, current routine, goal/time/days, program, first week), what the hub already knows, and how to ask the next question. Ask one question at a time, help with answers they're unsure of, confirm before saving, then call this again for the next step."
+    },
+    {
+      "name": "save_athlete_basics",
+      "description": "Save the athlete's basics from setup: weight (with unit lb or kg), age, gender (female, male, another, prefer_not), sports (bike, run, swim, lift) with experience each (new, returning, regular), optional resting/maximum heart rate and the watch's VO2max, and start (fresh or loaded). Anything not given keeps its saved value. Confirm with the athlete before saving."
+    },
+    {
+      "name": "get_health_history",
+      "description": "The health and history records the athlete has chosen to share: the latest pre-exercise screening (ten questions following the ACSM 2015 screening logic: no doctor needed, check before vigorous training, check before starting, or pause and see a doctor), conditions, past and current injuries, medications (marked when they change heart rate) and what a doctor or physiotherapist advised. Read before planning; plan around it as the athlete's own guidance. Never diagnose, never clear anyone to exercise, never override a clinician. Local only."
+    },
+    {
+      "name": "record_health_history",
+      "description": "Save what the athlete shares about their health, in their own words, only with their agreement. action=screening with answers {active_now, heart_disease, metabolic_disease, kidney_disease, symptoms, pregnant, bone_joint, heart_rate_medication, supervised_only: true/false; intensity: light/moderate/vigorous} - ask each question as get_health_history words it, one at a time, and help with unsure answers (optional clearance {obtained, date, by, note}); action=add/update/remove with kind condition {name, category, status, since, note}, injury {site, when, status healed/flares/current, aggravated_by, note}, medication {name, affects_heart_rate, note} or guidance {text, source, date}. Kept only on the athlete's computer."
+    },
+    {
+      "name": "get_lifting_framework",
+      "description": "The joint framework to plan lifting inside: six joints (shoulder, elbow, wrist, spine, hip, knee, ankle) in three groups (upper, trunk, lower), each joint's movement directions, the body regions and which joints they move, load levels (light 30-60%, medium 60-80%, heavy 80-90% of an estimated one-rep max), and the session shapes: one group with 1-3 main exercises, two or three groups with 1-6, plus up to 3 minor ones. Compose original sessions from your own exercise knowledge, giving every exercise region shares; use it for exercise ideas mid-session too, and search the web for exercises when you can. Structure only: training rules are still being written, so plan conservatively. Manual workouts are not bound by it. Read with get_lifting (the rider's rules and maxes)."
+    },
+    {
+      "name": "describe_lift_structure",
+      "description": "Describe a drafted lift session against the joint framework before planning it: each exercise's joint and group percentages, the session's blend (weighted by sets), the groups its main exercises work (a group counts from 25% of an exercise), and whether the shape fits. Describes structure only; it does not judge the session or save anything."
     },
     {
       "name": "plan_lift_session",
@@ -455,7 +487,7 @@
     },
     {
       "name": "record_running_response_feedback",
-      "description": "Record the athlete\u2019s impression of the current running estimate using its context_token from get_load.running_response. Preserve direction and note as subjective calibration evidence, not an automatic score delta or clearance. Read feedback back through get_running_response."
+      "description": "Record the athlete’s impression of the current running estimate using its context_token from get_load.running_response. Preserve direction and note as subjective calibration evidence, not an automatic score delta or clearance. Read feedback back through get_running_response."
     },
     {
       "name": "get_workout_imports",

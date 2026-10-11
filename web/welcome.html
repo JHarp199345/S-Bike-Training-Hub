@@ -50,19 +50,28 @@
 
 <h2>HOW IT WORKS</h2>
 <div class="how">
- <div class="card"><div class="n">1</div><h3>You train and report</h3><p>Your fitness tracker records every session. A quick morning check-in, a follow-up after lifting and a Sunday look back say how your body actually feels.</p></div>
- <div class="card"><div class="n">2</div><h3>The hub estimates the load</h3><p>Heart-and-lungs load for every sport, and mechanical load tissue by tissue: running blocks for bones and tendons (slow to heal), leg muscles, shoulders from swimming, each muscle you lift with.</p></div>
- <div class="card"><div class="n">3</div><h3>It learns your recovery</h3><p>Every model starts from a careful guess and tunes itself to your reports, so the numbers become yours: how much you can take, and how long each part of you needs.</p></div>
- <div class="card"><div class="n">4</div><h3>Your AI plans with it</h3><p>Your AI assistant reads the numbers and plans your days: when to push, when to ease off, and what kind of session fits. You decide; your call always wins.</p></div>
+ <div class="card"><div class="n">1</div><h3>Your assistant sets you up</h3><p>Talk it through with your AI assistant: your basics, a quick health check, what you do now and what you're aiming for. It asks one question at a time and helps with anything you're unsure of.</p></div>
+ <div class="card"><div class="n">2</div><h3>You train and report</h3><p>Your fitness tracker records every session. A quick morning check-in and a few words after a workout say how your body actually feels.</p></div>
+ <div class="card"><div class="n">3</div><h3>The hub keeps the record</h3><p>What you did in each sport, how efficient it was (pace or power against heart rate, with the day's temperature), and where the work landed on your body. Your reports are the evidence that matters most.</p></div>
+ <div class="card"><div class="n">4</div><h3>Your assistant plans with it</h3><p>It lays out your season, then plans the coming week's workouts from how the last one went. You see every change first, and your call always wins.</p></div>
+</div>
+
+<h2 id="start-ai">GET STARTED WITH YOUR AI</h2>
+<div class="card">
+ <p style="margin-top:0"><b>1. Connect your assistant</b> (the steps are just below). <span id="aistatus" class="fine" role="status">Checking for your assistant…</span></p>
+ <p><b>2. Copy this into your assistant</b> to begin, or just talk to it in your own words:</p>
+ <pre id="starterprompt" style="white-space:pre-wrap">I just installed S-Bike Training Hub. Please call get_setup_status and walk me through setting up: my basics, a quick health check, my current routine and my goals, then my first program. Ask one question at a time and help me with anything I'm not sure about.</pre>
+ <p><button type="button" id="promptcopy">Copy the prompt</button></p>
+ <p class="fine" style="margin-bottom:0">Setup works through the assistant's connection to the hub (MCP): that's how it reads what the hub needs and saves your answers safely. An assistant that isn't connected can chat, but it can't set anything up. No assistant? <a href="#setup">Set up by hand</a> below.</p>
 </div>
 
 <h2 id="ai">BUILT TO WORK WITH AN AI ASSISTANT</h2>
-<div class="card"><p style="margin-top:0">The hub keeps the numbers; your AI does the coaching conversation. It works with a <b>frontier model</b> (like Claude) or a <b>local model</b> running free on your own computer, through any app that supports MCP servers. The hub stores your records on your Mac. A cloud AI receives the information you choose to share with it; use a local model for an entirely local coaching conversation.</p>
+<div class="card"><p style="margin-top:0">The hub keeps the numbers; your AI does the coaching conversation. It works with a <b>frontier model</b> (like Claude) or a <b>local model</b> running free on your own computer, through any app that supports MCP servers. The hub stores your records on your computer. A cloud AI receives the information you choose to share with it; use a local model for an entirely local coaching conversation.</p>
  <div class="modes">
   <div class="card"><h3>🧭 Consult me</h3><em>"Look at my training load and plan me a lifting session that fits my triathlon plan for the next three weeks. Let's discuss it."</em><p class="fine">Your AI leads with your numbers and the hub's suggestions, and you shape the plan together.</p></div>
   <div class="card"><h3>📋 I have a plan</h3><em>"I have a workout: goblet squats 3 × 8 at 35, dead hangs 3 × 30 seconds…"</em><p class="fine">Your AI records it as you said it and scores it, so the load counts. Your plan stands.</p></div>
  </div>
- <p class="fine" style="margin-bottom:6px">Connect it (after setup):</p>
+ <p class="fine" style="margin-bottom:6px">Connect it (Claude Code):</p>
  <pre id="mcpcmd">claude mcp add --scope user s-bike-hub -- "…/.venv/bin/python" "…/mcp_server.py"</pre>
  <p class="fine">Claude Desktop and other MCP apps: install <b>io.github.JHarp199345/s-bike-hub</b> from the MCP Registry, or the one-file bundle from the <a href="https://github.com/JHarp199345/S-Bike-Training-Hub/releases" target="_blank" rel="noopener">GitHub releases</a>. More in <a href="https://github.com/JHarp199345/S-Bike-Training-Hub/wiki/Training-with-your-AI" target="_blank" rel="noopener">Training with your AI</a>.</p></div>
 
@@ -110,13 +119,15 @@
  <tr><td>Daily steps</td><td>Walking load toward the running budget</td><td>Walking not counted</td></tr>
 </table></div>
 
-<h2 id="setup">SET YOURSELF UP</h2>
-<form class="card" id="form" autocomplete="off">
+<h2 id="setup">SET UP BY HAND</h2>
+<details class="card" id="manual"><summary><b>No assistant? Set up by hand</b></summary>
+<form id="form" autocomplete="off" style="margin-top:12px">
  <p style="margin-top:0" class="fine">Two minutes. These set your starting points; your check-ins and reports tune them from there. You can change anything later.</p>
  <div class="row">
   <label>Units<select id="unit"><option value="lb">pounds</option><option value="kg">kilograms</option></select></label>
   <label>Body weight <span id="wunit" class="fine">(lb)</span><input id="weight" type="number" step="0.1" inputmode="decimal" required></label>
   <label>Age<input id="age" type="number" inputmode="numeric" min="10" max="100"></label>
+  <label>Gender<select id="gender"><option value="">Choose…</option><option value="female">Female</option><option value="male">Male</option><option value="another">Another gender</option><option value="prefer_not">Prefer not to say</option></select></label>
  </div>
  <div class="row">
   <label>Resting heart rate <span class="fine">(bpm, from your watch)</span><input id="hr_rest" type="number" inputmode="numeric" placeholder="e.g. 58"></label>
@@ -126,7 +137,7 @@
  <h3 style="margin-top:6px">Your sports, and your experience in each</h3>
  <div id="sports"></div>
  <label style="margin:12px 0"><span><input type="checkbox" id="smart_bike"> I have a smart bike connected to the hub</span></label>
- <label style="margin:0 0 12px"><span><input type="checkbox" id="return_to_run"> I'm coming back from a running injury (shin, foot, knee, hip)</span><span class="fine">Turns on the careful return-to-run protocol: longer gaps between runs and strength, balance and loading checks before running progresses.</span></label>
+ <label style="margin:0 0 12px"><span><input type="checkbox" id="return_to_run"> I'm coming back from a running injury (shin, foot, knee, hip)</span><span class="fine">Running starts gently and your reports decide how fast it builds. Record the injury in your health history so the plan works around it.</span></label>
  <div id="running" hidden>
  <h3>Your running</h3>
  <div class="seg" id="runsnow"><button type="button" data-v="no" class="on">I don't run yet</button><button type="button" data-v="yes">I already run</button></div>
@@ -138,7 +149,7 @@
  </div>
  <h3>Where you're starting from</h3>
  <div class="seg" id="start"><button type="button" data-v="fresh" class="on">Fresh: feeling good, no aches</button><button type="button" data-v="loaded">Loaded: sore joints or a heavy block behind me</button></div>
- <p class="fine">Loaded starts every limit 30% more cautious, and asks for the hop test before your first run.</p>
+ <p class="fine">Loaded starts your limits 30% more cautious; your reports adjust them from there.</p>
  <h3>Numbers you already know <span class="fine">(optional)</span></h3>
  <div class="row">
   <label>Bike FTP <span class="fine">(watts)</span><input id="ftp" type="number" inputmode="numeric"></label>
@@ -146,14 +157,15 @@
   <label>A recent 5K <span class="fine">(min:sec)</span><input id="run5k" placeholder="e.g. 27:30"></label>
  </div>
 
- <h3>Your starting program</h3><p class="fine">Choose the sports above, then a workload to preview. Basic exercises and sessions are editable. We fill at most 12 weeks of details; you can plan a longer macro cycle and program the extra weeks yourself or with your assistant.</p>
+ <h3>Your starting program</h3><p class="fine">Choose the sports above, then a workload to preview. Basic exercises and sessions are editable. By hand, the starter fills up to 12 weeks of sessions. With an assistant, your season is laid out and each week's workouts are planned from how the last one went.</p>
  <div class="row"><label>Planning horizon (weeks)<input id="starterweeks" type="number" min="1" max="52" value="12"></label><label>Event / peak date (optional)<input id="startertarget" type="date"></label><label>Available hours / week<input id="starterhours" type="number" min="0.5" max="40" step="0.5" value="3.5"></label></div>
  <div class="how" id="starterchoices"><button type="button" data-level="easy" class="on"><h3>Easy</h3>Lower volume · establish consistency</button><button type="button" data-level="moderate"><h3>Moderate</h3>More volume · review recovery closely</button><button type="button" data-level="higher"><h3>Higher load</h3>Largest starter dose · compare limits first</button></div><p id="startermatch" class="fine"></p>
  <details><summary>Strength starting weights & calibration</summary><div class="row"><label>Start the program with<select id="starterassessment"><option value="week">Calibration / familiarization week</option><option value="existing">My reported sets · skip tests</option></select></label><label>Strength equipment<select id="starterequipment"><option value="basic">Bodyweight + resistance band</option><option value="barbell">Barbell basics</option></select></label></div><p class="fine">Enter a recent comfortable set for barbell prescriptions. Weight includes the bar, in your selected units. Prefer 6–10 reps with 2–3 reps left. If you don't know, do a familiarization session and report the result before assigning future barbell weights.</p><div id="welcomeanchors"></div></details>
- <p class="fine">Setup matches your selected sports and experience. The draft compares fatigue, conditioning and local recovery forecasts before you accept. Week one establishes tolerance; later increases are provisional, with consolidation weeks. No max-effort tests required.</p>
+ <p class="fine">Setup matches your selected sports and experience. Week one establishes what you handle comfortably; your reports guide every increase, with lighter weeks along the way. No max-effort tests required.</p>
  <label>Your rules, one per line <span class="fine">(optional: "No barbell squats", "Favorite lift: incline dumbbell press")</span><textarea id="rules" rows="3"></textarea></label>
  <p style="margin-bottom:0"><button class="go" type="submit">Set me up</button> <span id="msg" class="fine"></span></p>
 </form>
+</details>
 
 <div id="welcome" hidden>
  <h2>WELCOME</h2>
@@ -242,6 +254,10 @@ $('bikeyes').onclick=async()=>{$('bikeyes').disabled=true;$('bikepedal').hidden=
 $('bikecopy').onclick=()=>{navigator.clipboard&&navigator.clipboard.writeText($('bikesay').textContent);$('bikecopy').textContent='Copied ✓';};
 $('bikecancel').onclick=async()=>{await bikeApi('cancel',{}).catch(()=>{});bikeShow(['bikestart']);bikeStatus();};
 bikeStatus();
+$('promptcopy').onclick=()=>{navigator.clipboard&&navigator.clipboard.writeText($('starterprompt').textContent);$('promptcopy').textContent='Copied ✓';};
+async function aiStatus(){try{const j=await (await fetch('/api/assistant/status',{cache:'no-store'})).json();$('aistatus').textContent=j.connected?'● Your assistant is connected.':'○ Not connected yet: follow the steps below, then ask it anything.';$('aistatus').style.color=j.connected?'var(--good,#4caf7d)':'';}catch(e){$('aistatus').textContent='';}setTimeout(aiStatus,10000);}
+aiStatus();
+if(location.hash==='#setup')$('manual').open=true;document.querySelectorAll('a[href="#setup"]').forEach(a=>a.addEventListener('click',()=>{$('manual').open=true;}));
 $('form').onsubmit=async ev=>{ ev.preventDefault();
   const sports=SP.map(([k])=>k).filter(k=>$('sp-'+k).checked);
   if(!sports.length){ $('msg').textContent='Pick at least one sport.'; return; }
@@ -251,7 +267,7 @@ $('form').onsubmit=async ev=>{ ev.preventDefault();
   starterQuery=new URLSearchParams({program:'setup',starter:'1',sports:sports.map(s=>({bike:'ride',lift:'gym'}[s]||s)).join(','),weeks:String(weeks),hours:String(hours),target,level:starterLevel}).toString();
   const anchors=['BB squat','BB bench press','BB row'].flatMap((name,i)=>Number($('anchorweight'+i).value)?[{name,weight:Number($('anchorweight'+i).value),reps:Number($('anchorreps'+i).value),rir:Number($('anchorrir'+i).value),unit:$('unit').value}]:[]);
   sessionStorage.setItem('starterSetup',JSON.stringify({anchors,unit:$('unit').value,equipment:$('starterequipment').value,assessment:$('starterassessment').value}));
-  const body={unit:$('unit').value,weight:+$('weight').value,age:$('age').value||null,hr_rest:$('hr_rest').value||null,hr_max:$('hr_max').value||null,vo2max:$('vo2max').value||null,
+  const body={unit:$('unit').value,weight:+$('weight').value,age:$('age').value||null,gender:$('gender').value||null,hr_rest:$('hr_rest').value||null,hr_max:$('hr_max').value||null,vo2max:$('vo2max').value||null,
     sports,experience:Object.fromEntries(sports.map(k=>[k,$('ex-'+k).value])),smart_bike:$('smart_bike').checked,return_to_run:$('return_to_run').checked,start,
     ftp:$('ftp').value||null,css:$('css').value||null,run5k:$('run5k').value||null,rules:$('rules').value.split('\n').map(x=>x.trim()).filter(Boolean)};
   if(sports.includes('run')){const m=runMin==='more'?Number($('runmoremin').value):runMin;

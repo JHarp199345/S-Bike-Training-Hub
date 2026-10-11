@@ -3,6 +3,7 @@ Tests marked '# macOS only' are skipped elsewhere (they use Apple's own librarie
 import os
 import pathlib
 import subprocess
+import tempfile
 import sys
 import time
 
@@ -35,7 +36,11 @@ for t in sorted(HERE.glob("test_*.py")):
         continue
     t0 = time.monotonic()
     try:
+        # every test gets a throwaway data folder (paths.py), so one that forgets to isolate itself can never
+        # touch a real athlete's data
+        scratch = tempfile.mkdtemp(prefix="hub-test-data-")
         r = subprocess.run([sys.executable, str(t)], cwd=HERE.parent, capture_output=True, text=True, timeout=300,
+                           env={**os.environ, "S_BIKE_HUB_DATA": scratch},
                            encoding="utf-8", errors="replace")
         code, out = r.returncode, r.stdout + r.stderr
     except subprocess.TimeoutExpired as e:

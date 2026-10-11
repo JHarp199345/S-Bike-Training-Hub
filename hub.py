@@ -258,7 +258,7 @@ def main(argv=None):
         out = {"imported": [], "skipped": []}
         if urls:
             out = call("/api/activities/import", {"urls": urls})
-        dest = __import__("pathlib").Path(__file__).resolve().parent / "activities"
+        dest = __import__("paths").DATA / "activities"
         dest.mkdir(exist_ok=True)
         for f in files:
             src = __import__("pathlib").Path(f)

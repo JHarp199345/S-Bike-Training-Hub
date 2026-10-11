@@ -4,7 +4,10 @@ from pathlib import Path
 
 
 def locate(root=None):
-    root = Path(root or Path(__file__).resolve().parent)
+    if root is None:                     # a packaged install keeps its large map downloads with your data (paths.py)
+        import paths
+        root = paths.DATA if paths.packaged() else paths.CODE
+    root = Path(root)
     if os.environ.get('S_BIKE_MAPS'):
         return Path(os.environ['S_BIKE_MAPS']).expanduser().resolve()
     local = root / 'maps'

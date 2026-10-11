@@ -77,7 +77,12 @@ def _from_fit(p):
              "d": r.get("distance"), "alt": r.get("altitude"), "v": r.get("speed"),
              "vo": r.get("vertical_oscillation"), "vr": r.get("vertical_ratio"), "step": r.get("step_length")}
             for r in a["records"] if "timestamp" in r]
+    temps = [r["temperature"] for r in a["records"] if isinstance(r.get("temperature"), (int, float))]
+    first = next((r for r in a["records"] if r.get("lat") and r.get("lon")), None)
+    semi = 180 / 2 ** 31                           # FIT positions are semicircles
     return {"id": Path(p).stem, "source": "watch", "start": a["start"], "sport": sport,
+            "watch_temp_c": s.get("avg_temperature") if isinstance(s.get("avg_temperature"), (int, float)) else (round(sum(temps) / len(temps), 1) if temps else None),
+            "place": [round(first["lat"] * semi, 1), round(first["lon"] * semi, 1)] if first else None,   # rounded to ~10 km
             "minutes": (s.get("total_timer_time") or (len(recs))) / 60, "distance_m": s.get("total_distance") or 0,
             "descent_m": s.get("total_descent") or 0, "records": recs,
             "session": s, "laps": a.get("laps", []), "events": a.get("events", []),     # the rest of what the watch saw (insights.py)
@@ -93,7 +98,7 @@ def _from_tcx(p):
     if act is None:
         return None
     sport = {"Running": "run", "Biking": "bike", "Other": "gym"}.get(act.get("Sport"), "gym")
-    recs = []
+    recs, place = [], None
     for tp in act.iter("{%s}Trackpoint" % ns["t"]):
         t = tp.find("t:Time", ns)
         if t is None:
@@ -105,6 +110,9 @@ def _from_tcx(p):
         cad = tp.find("t:Cadence", ns)
         if cad is None:
             cad = tp.find(".//{*}RunCadence")
+        lat, lon = tp.find("t:Position/t:LatitudeDegrees", ns), tp.find("t:Position/t:LongitudeDegrees", ns)
+        if place is None and lat is not None and lon is not None:
+            place = [round(float(lat.text), 1), round(float(lon.text), 1)]          # rounded to ~10 km
         recs.append({"t": dt.datetime.fromisoformat(t.text.replace("Z", "+00:00")).timestamp(),
                      "hr": float(hr.text) if hr is not None else None, "w": float(w.text) if w is not None else None,
                      "rpm": float(cad.text) if cad is not None else None,
@@ -113,7 +121,7 @@ def _from_tcx(p):
         return None
     recs.sort(key=lambda r: r["t"])
     dist = max((r["d"] or 0) for r in recs)
-    return {"id": Path(p).stem, "source": "watch", "start": recs[0]["t"], "sport": sport,
+    return {"id": Path(p).stem, "source": "watch", "start": recs[0]["t"], "sport": sport, "place": place, "watch_temp_c": None,
             "minutes": (recs[-1]["t"] - recs[0]["t"]) / 60, "distance_m": dist, "descent_m": _descent(recs),
             "records": recs}
 
@@ -524,6 +532,7 @@ def analyse(acts, prof, today=None, meta=None, feet_reports=None, daily_steps=No
                        "calories_kcal": (a.get("session") or {}).get("total_calories"),
                        "calories_basis": "watch-reported total (active/resting split unknown)" if (a.get("session") or {}).get("total_calories") is not None else None,
                        "avg_hr": _avg_hr(a), "descent_m": round(a.get("descent_m") or 0),
+                       "place": a.get("place"), "watch_temp_c": a.get("watch_temp_c"), "start_ts": a.get("start"),
                        "energy_kcal": en["energy_kcal"], "energy_source": en["energy_source"],
                        "energy_estimates": en["estimates"], "energy_gap_ratio": en["gap_ratio"],
                        **{x: round(s[x], 1) for x in SYSTEMS},

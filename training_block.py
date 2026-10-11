@@ -36,6 +36,10 @@ def hard(session):
     return any(re.search(r"\b" + re.escape(word) + r"\b", text) for word in HARD_WORDS)
 
 
+REPORT_HOLD_SORENESS = 7    # proposed: a check-in of 7/10 or more for feet or legs holds running that day
+REPORT_HOLD_PAIN = 5        # proposed: pain at a site of 5/10 or more holds running that day
+
+
 def running_gate(d, load=None, checkin=None):
     """The actual running decision inputs: mechanical backlog and reported response."""
     load = load or {}
@@ -67,12 +71,26 @@ def running_gate(d, load=None, checkin=None):
     # The athlete's mechanical lock is independent of a good hop report or tail exception.
     if blocks is not None and blocks>=limit and not any("mechanical running load" in x for x in reasons):
         reasons.append(f"mechanical running load {blocks:.2f} blocks must fall below {limit:g}")
-    # All symptom, readiness, personal-wait and functional-check reasons above
-    # still produce a hold. Missing retired block units alone must not lock a
-    # reviewed response-model prescription after those checks are satisfied.
-    return {"progression":progression,"status": "hold" if reasons else "review" if blocks is None and not active else "open_for_review",
+    # 2026-10-11: no hold is hard-coded. Model readings, the hop test, readiness and functional checklists
+    # are evidence for the athlete and the assistant to weigh. Only symptoms the athlete has reported, and not yet
+    # reported resolved, hold running.
+    import coach, progression as prog
+    symptoms = prog.active_symptoms(d, coach.today()) or []
+    held = [f"reported symptom: {x.get('label') or x.get('site') or x.get('key') or 'unresolved report'}" if isinstance(x, dict) else f"reported symptom: {x}"
+            for x in symptoms]
+    c = checkin or {}
+    for part in ("feet", "legs"):              # the day's check-in reports them sore enough to hold (proposed: 7 of 10)
+        v = c.get(part)
+        if isinstance(v, (int, float)) and not isinstance(v, bool) and v >= REPORT_HOLD_SORENESS:
+            held.append(f"today's check-in: {part} {v}/10")
+    for site, v in (c.get("pain") or {}).items():   # pain by site (proposed: 5 of 10)
+        if isinstance(v, (int, float)) and not isinstance(v, bool) and v >= REPORT_HOLD_PAIN:
+            held.append(f"today's check-in: {site} pain {v}/10")
+    held += [r for r in reasons if r.startswith("Personal minimum wait")]   # the athlete's own choice
+    reasons = [r for r in reasons if not r.startswith("Personal minimum wait")]
+    return {"progression":progression,"status": "hold" if held else "open_for_review",
             "blocks": blocks, "limit": limit, "model_days": forecast_days,
-            "hop_response": response, "reasons": reasons}
+            "hop_response": response, "reasons": held, "evidence": reasons}
 
 
 def _week(d, start, done=None):

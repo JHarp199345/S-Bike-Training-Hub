@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "s-bike-training-hub"
+version = "@VERSION@"
+description = "A free, local training hub for cycling, running, swimming and lifting, with an MCP server for your AI assistant."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+authors = [{ name = "JHarp199345" }]
+keywords = ["mcp", "training", "cycling", "running", "swimming", "strength", "smart-bike", "fitness"]
+classifiers = ["Programming Language :: Python :: 3", "Operating System :: OS Independent", "Topic :: Scientific/Engineering :: Medical Science Apps."]
+dependencies = [@DEPENDENCIES@]
+
+[project.urls]
+Homepage = "https://github.com/JHarp199345/S-Bike-Training-Hub"
+Wiki = "https://github.com/JHarp199345/S-Bike-Training-Hub/wiki"
+
+[project.scripts]
+s-bike-training-hub = "s_bike_hub.cli:mcp"
+s-bike-hub = "s_bike_hub.cli:hub"
+s-bike-hub-maps = "s_bike_hub.cli:maps"
+
+[tool.setuptools]
+packages = ["s_bike_hub"]
+include-package-data = true
+
+[tool.setuptools.package-data]
+s_bike_hub = [".packaged", "web/**/*", "workouts/*.json", "bike_profiles/**/*", "regions.json"]

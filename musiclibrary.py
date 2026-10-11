@@ -22,8 +22,8 @@ import time
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-INDEX = HERE / "music_library.json"
-CACHE = HERE / "music_cache"
+INDEX = __import__("paths").DATA / "music_library.json"
+CACHE = __import__("paths").DATA / "music_cache"
 AUDIO_EXTS = {".mp3", ".m4a", ".aac", ".flac", ".wav", ".aif", ".aiff", ".ogg", ".opus"}
 VIDEO_EXTS = {".mp4", ".m4v", ".webm", ".mov"}       # browser-playable video; other containers need converting first
 EXTS = AUDIO_EXTS | VIDEO_EXTS
