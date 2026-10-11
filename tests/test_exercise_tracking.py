@@ -1,3 +1,4 @@
+import sys, pathlib; sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 import unittest,copy
 import exercise_tracking as tracking
 class TrackingTest(unittest.TestCase):
