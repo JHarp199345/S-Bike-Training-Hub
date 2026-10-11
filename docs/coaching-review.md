@@ -26,6 +26,8 @@ The hub lists. Apart from the opt-in progression policy (at most one bounded cha
 
 ## Running load: targets, deloads and weekly adaptation
 
+> **Legacy (block model).** The targets, deloads and block growth below apply to installations still on the running block model. The report-based running response doesn't use them; see [how it works](how-it-works.md#status-of-the-models).
+
 These are provisional product policies (the rider's design), not validated thresholds.
 
 **Targets.** `outlook.running_progression` compares the blocks carried on the coming week's run days with a target for the athlete's current state:

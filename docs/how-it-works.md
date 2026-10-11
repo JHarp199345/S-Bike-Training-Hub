@@ -1,10 +1,20 @@
 # S-Bike Training Hub: how it works, in full
 
-The complete reference: every feature, model and assumption. The [README](../README.md) is the short tour.
+The complete reference: every model and assumption. The [README](../README.md) is the short tour and the [user guide](guide.md) covers the pages.
+
+## Status of the models
+
+This reference grew release by release, so some sections describe models the hub has moved away from. As of app 1.10.3:
+
+- **Current:** recorded work and energy (from bike power, then distance and gradient, then the watch); report snapshots; the standard check-ins (Hooper, pain by site, CR-10 session effort, OSTRC); the plan load outlook; report-anchored running response; lifting doses and regional shares; swim timing; CP and W′ for the bike.
+- **Legacy:** the **running block model** (blocks, the 0.8–1.5 band, block calibration and block growth). It was one rider's experience turned into rules, and it isn't backed by research, so the hub is moving to recovery estimated from each athlete's own reports. It remains for installations that still use it; it doesn't govern the report-based running response.
+- **In development, off by default:** recovery curves learned from your own history (`HUB_RECOVERY_LEARNING=1` turns them on for testing).
+
+Sections about the block model are marked below.
 
 **A free personal training companion for planning workouts, managing recovery, and working toward long-term fitness and event goals. Bring cycling, swimming, running, and lifting into one calendar, with detailed training-load estimates, projected loads, and personal check-ins to inform your next decisions.**
 
-The Hub runs locally on your Mac, with no Hub subscription. An optional AI assistant can read your training history, help build and revise plans, and record your reports. You can also use the Coach and training tools **without a smart bike**.
+The Hub runs locally on your computer (macOS, Windows or Linux), with no Hub subscription. An optional AI assistant can read your training history, help build and revise plans, and record your reports. You can also use the Coach and training tools **without a smart bike**.
 
 For supported stationary bikes, it adds connected workouts, automatic shifting and resistance control, offline 3D routes, a phone/tablet remote, and an interactive ride experience. It began as a bike bridge and has grown into a training hub.
 
@@ -124,8 +134,8 @@ The tested S29 only accepts **one** Bluetooth connection, and it ignores the "hi
 
 ## What you need
 
-- **A Mac** with Bluetooth, running macOS 13 or newer. The hub uses Apple's Bluetooth and drawing libraries, so it's macOS-only.
-- **Python 3.11+** (`brew install python`) and, for the route planner, **Java** (`brew install openjdk`).
+- **A computer** running macOS 13 or newer, Windows 10/11 or Linux. Bluetooth for a smart bike. Real bikes and watches have been tested on macOS; Windows and Linux are tested with a simulated bike.
+- **Python 3.11+** and, for the route planner, **Java** (on macOS: `brew install python openjdk`).
 - **Optional smart bike** for connected cycling. Tested: Merach S29. Coach, workout planning, importing, and load tracking can run without one.
 - **Disk space for maps:** roughly 1–10 GB depending on the regions you choose. The bridge alone needs almost nothing.
 - **Optional:** a watch that pairs with Bluetooth power/cadence sensors (tested: COROS Pace 4), and a phone or tablet for the handlebar remote.
@@ -275,6 +285,8 @@ The journal is your own words, and it never moves a number by itself: letting wo
 Each flag waits for you: **It's real - count it** or **It's fine**. Only a confirmed flag counts, the way moving its slider would: bone or muscle read as 6/10 that day (then judged by the phase rules), illness makes heart & lungs easy. An AI coach can settle a flag (`settle_journal_flag`) only on your say-so.
 
 ### Feet & bones: steps, force, and blocks
+
+> **Legacy (block model).** This section describes the running block model, which the hub is moving away from. See [status of the models](#status-of-the-models).
 
 Running is the scarcest resource, and it's the most closely managed.
 
@@ -464,7 +476,7 @@ Future swim forecasts start from the fitted swim recovery model's recent and rep
 
 A persistent 4-to-6 week coaching block (`get_training_block` MCP tool, `/api/coach/block`) tracks planned versus completed minutes, cross-sport demanding sessions, and Sunday review recommendations (`advance`, `repeat`, `hold`, `reduce`).
 
-Running has a dedicated gate in the block forecast: its accumulated mechanical score and 1.5-block line, plus the latest reported lower-leg response. A gate on hold prevents the block creator from repeating a week with runs and prevents a Sunday review from advancing running. The mechanical dose itself sets the accumulated curve's plateau. Feet, leg, and hop reports during that plateau affect the day-to-day run/rest decision **without moving the accumulated curve**. Only reports after the plateau adjust its decline duration.
+*(Legacy block model; see [status of the models](#status-of-the-models).)* Running has a dedicated gate in the block forecast: its accumulated mechanical score and 1.5-block line, plus the latest reported lower-leg response. A gate on hold prevents the block creator from repeating a week with runs and prevents a Sunday review from advancing running. The mechanical dose itself sets the accumulated curve's plateau. Feet, leg, and hop reports during that plateau affect the day-to-day run/rest decision **without moving the accumulated curve**. Only reports after the plateau adjust its decline duration.
 
 ### Ride display
 
@@ -501,7 +513,7 @@ A carry-over table estimates how much training one sport builds another, compare
 - **Each value** shows an 80% range and whether it's still the research's number, learning, or learned.
 - **Fitness carry-over is slow to pin down.** Weeks where the mix changes, plus test weeks, are what sharpen it.
 
-## Your data stays on your Mac
+## Your data stays on your computer
 
 Everything lives in the project folder and is git-ignored: rides (`rides/`), watch activities and daily steps (`activities/`), saved routes, your profile, FTP and load tuning, personal bests, check-ins, the phone-pairing PIN and tokens, and optional Strava keys. The Hub does not automatically upload your training records to a cloud account. Optional Strava posting and any data you share with an external AI assistant or connector leave the Mac under those services' own policies. Map setup downloads external map data; the phone remote serves authorized devices on your local network.
 
@@ -536,6 +548,8 @@ tests/run_all.sh        # Runs every tests/test_*.py file; reports failures by e
 This software changes the resistance on real exercise equipment and relies on reverse-engineered, bike-specific behavior. Use it at your own risk, and keep a way to stop pedaling safely. It's not medical advice. Check with a doctor before starting a training program, and stop if something hurts.
 
 ## Credits
+
+The complete list with licenses is in [CREDITS.md](../CREDITS.md).
 
 - **Map data:** © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors (ODbL), via [Protomaps](https://protomaps.com).
 - **Terrain:** [Mapzen terrain tiles](https://github.com/tilezen/joerd/blob/master/docs/attribution.md) (AWS Open Data).
@@ -587,6 +601,8 @@ as unavailable rather than fabricated zeros.
 exposes the same action to the assisted journaling workflow.
 
 ### Tentative running progression
+
+> **Legacy (block model).** This section describes the running block model, which the hub is moving away from. See [status of the models](#status-of-the-models).
 
 `recovery.py` includes the originating athlete's conservative example policy; it is not medical
 clearance or a research-validated waiting period. The first 60% of the accumulated plateau
