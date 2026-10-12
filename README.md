@@ -6,7 +6,7 @@ A free training hub for cycling, swimming, running and strength that runs on you
 
 <p align="center"><img src="docs/screens/plan.jpg" width="880" alt="Plan: the goal race, available time, sport priorities and the program's phases"></p>
 
-**Current version: app 1.12.0** with MCP 1.12.0 · [what's new](CHANGELOG.md)
+**Current version: app 1.12.0** with MCP 1.12.0 · [what's new](CHANGELOG.md) · [community on Strava](https://www.strava.com/clubs/s-bike-training-hub)
 
 ## What it does
 
@@ -163,6 +163,10 @@ Your records stay on your computer. The only outside request the hub can make is
 ## ⚠️ Safety
 
 The training figures are estimates, not medical advice or injury prediction. Check with a doctor before starting a program, and stop if something hurts. Shortness of breath or a heart-rate issue is a reason to ease off all training and get checked. The bike connection changes resistance on real equipment: keep a way to stop pedaling safely.
+
+## Community
+
+Join the **[S-Bike Training Hub club on Strava](https://www.strava.com/clubs/s-bike-training-hub)**: ride, swim and run with other people using the hub, and say what to build next. Questions and bugs go to [GitHub issues](https://github.com/JHarp199345/S-Bike-Training-Hub/issues).
 
 ## Credits and license
 
