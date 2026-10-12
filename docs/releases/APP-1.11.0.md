@@ -7,7 +7,7 @@
 The whole hub (app, web pages and MCP server) is now one package on PyPI, `s-bike-training-hub`:
 
 ```bash
-claude mcp add --scope user s-bike-hub -- uvx s-bike-training-hub
+claude mcp add --scope user s-bike-hub -- uvx s-bike-training-hub@latest
 ```
 
 Ask your assistant to set you up: the MCP server starts the hub by itself when it isn't running. `uvx` runs the latest release, so updates arrive automatically. A packaged install keeps your data in your own data folder (macOS `~/Library/Application Support/S-Bike Hub`), never in the app. **GitHub installs are unchanged:** their data stays exactly where it is.

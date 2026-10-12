@@ -34,14 +34,16 @@ The [user guide](docs/guide.md) tours every page.
 **The one-line way** (macOS, Windows or Linux; needs [uv](https://docs.astral.sh/uv/getting-started/installation/)). This installs the whole hub and connects it to your assistant:
 
 ```bash
-claude mcp add --scope user s-bike-hub -- uvx s-bike-training-hub
+claude mcp add --scope user s-bike-hub -- uvx s-bike-training-hub@latest
 ```
 
 For **Claude Desktop**, add this to its config file (Settings → Developer → Edit Config), then restart Claude:
 
 ```json
-{ "mcpServers": { "s-bike-hub": { "command": "uvx", "args": ["s-bike-training-hub"] } } }
+{ "mcpServers": { "s-bike-hub": { "command": "uvx", "args": ["s-bike-training-hub@latest"] } } }
 ```
+
+If Claude Desktop can't find `uvx`, put its full path in `"command"` (run `which uvx` to see it). `@latest` makes each start check for a new version.
 
 Then ask your assistant: *"Set me up with S-Bike Training Hub."* It starts the hub for you (at <http://127.0.0.1:8729>) and walks you through setup. Updates arrive automatically: `uvx` runs the latest release each time.
 

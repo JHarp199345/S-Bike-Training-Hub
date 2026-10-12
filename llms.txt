@@ -2,7 +2,7 @@
 
 > Free, open-source, local training hub for cycling, running, swimming and lifting, on macOS, Windows or Linux, with an MCP server so an AI assistant can set the athlete up, read their training and plan it with them. Optional smart-bike bridge (tested on the Merach S29: ERG, virtual gears, hills, routes). Records stay on the athlete's computer.
 
-Install everything in one line (needs uv): `claude mcp add --scope user s-bike-hub -- uvx s-bike-training-hub`. The MCP server starts the hub app (http://127.0.0.1:8729) when it isn't running. Claude Desktop: `{"mcpServers": {"s-bike-hub": {"command": "uvx", "args": ["s-bike-training-hub"]}}}`. Or clone the repository and run its setup script.
+Install everything in one line (needs uv): `claude mcp add --scope user s-bike-hub -- uvx s-bike-training-hub@latest`. The MCP server starts the hub app (http://127.0.0.1:8729) when it isn't running. Claude Desktop: `{"mcpServers": {"s-bike-hub": {"command": "uvx", "args": ["s-bike-training-hub@latest"]}}}`. Or clone the repository and run its setup script.
 
 ## For an AI assistant
 

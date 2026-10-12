@@ -7,7 +7,7 @@
    "version": "App 1.11.0",
    "title": "One-line install, assistant-led setup and evidence-led planning",
    "changes": [
-    "Install the whole hub in one line: claude mcp add --scope user s-bike-hub -- uvx s-bike-training-hub. The assistant starts the hub for you, and updates arrive automatically. GitHub installs keep their data where it is.",
+    "Install the whole hub in one line: claude mcp add --scope user s-bike-hub -- uvx s-bike-training-hub@latest. The assistant starts the hub for you, and updates arrive automatically. GitHub installs keep their data where it is.",
     "Assistant-led setup: the welcome page shows whether your assistant is connected and offers a prompt to copy; the manual form gains a gender field.",
     "Health and history: a short health check following the ACSM's 2015 screening logic, plus conditions, injuries, medications and clinician advice the plan respects.",
     "Two-pass planning: a season of placeholder sessions, then each week's workouts from your weekly volumes and reports, with a mirror against your recent weeks.",

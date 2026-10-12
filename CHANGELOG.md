@@ -6,7 +6,7 @@ The app and the assistant bundle (MCP) have their own version numbers. The **Wha
 
 Use with MCP 1.11.0.
 
-- **One-line install:** `claude mcp add --scope user s-bike-hub -- uvx s-bike-training-hub` installs the whole hub; the assistant starts it for you and updates arrive automatically. Packaged installs keep data in your own data folder; GitHub installs are unchanged.
+- **One-line install:** `claude mcp add --scope user s-bike-hub -- uvx s-bike-training-hub@latest` installs the whole hub; the assistant starts it for you and updates arrive automatically. Packaged installs keep data in your own data folder; GitHub installs are unchanged.
 - **Assistant-led setup:** the welcome page shows whether your assistant is connected and offers a prompt to copy; the assistant asks one question at a time. The manual form stays, with a gender field.
 - **Health and history:** a short health check following the ACSM's 2015 screening logic, plus conditions, injuries, medications and clinician advice the plan respects.
 - **Two-pass planning:** a season of placeholder sessions, then each week's workouts from your weekly volumes and reports, with a mirror against your recent weeks.

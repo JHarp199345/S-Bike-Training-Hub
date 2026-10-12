@@ -28,7 +28,7 @@ assistant can set you up, read your training and plan it with you. Your data sta
 
 **Install and connect your assistant in one line** (needs [uv](https://docs.astral.sh/uv/)):
 
-    claude mcp add --scope user s-bike-hub -- uvx s-bike-training-hub
+    claude mcp add --scope user s-bike-hub -- uvx s-bike-training-hub@latest
 
 Then ask your assistant: "Set me up with S-Bike Training Hub." It starts the hub app for you and walks you through
 setup one question at a time. The app is at http://127.0.0.1:8729 once it's running.
