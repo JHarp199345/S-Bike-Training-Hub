@@ -17,7 +17,7 @@ assert F.groups_of({}) == {"upper": 0, "trunk": 0, "lower": 0}
 
 # load levels
 assert F.load_level(30) == "light" and F.load_level(60) == "light" and F.load_level(75) == "medium"
-assert F.load_level(88) == "heavy" and F.load_level(95) == "maximal" and F.load_level(None) is None
+assert F.load_level(88) == "heavy" and F.load_level(104) == "heavy" and F.load_level(108) == "maximal" and F.load_level(None) is None   # heavy goes to 105% (2026-10-11)
 
 # a sled push and hip thrusts: two groups, two mains, a minor curl on top; fits
 d = F.describe([
@@ -32,7 +32,7 @@ assert d["exercises"][1]["load"] == "medium"
 press = {"pecs": 60, "triceps": 40}
 d = F.describe([{"name": f"Press {i}", "shares": press} for i in range(4)]
                + [{"name": f"Curl {i}", "role": "minor", "shares": {"biceps": 1}} for i in range(4)]
-               + [{"name": "Max", "shares": press, "load_pct": 97}, {"name": "Mystery"}])
+               + [{"name": "Max", "shares": press, "load_pct": 108}, {"name": "Mystery"}])
 assert not d["fits_framework"] and len(d["notes"]) == 4, d["notes"]
 
 # library lookup by name, and the framework lists the library tagged by group

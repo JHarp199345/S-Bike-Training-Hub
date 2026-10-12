@@ -53,10 +53,11 @@ REGION_JOINTS = {
     "calves": {"ankle": 0.85, "knee": 0.15},
 }
 # Load levels as a share of the athlete's estimated one-rep maximum. Maximal (above heavy) is for tests only.
-LOADS = {
+LOADS = {   # one intensity scale, % of the estimated max; heavy goes as far as is safe, never maxing
     "light": {"min_pct": 30, "max_pct": 60, "note": "Light can go well below 60% when 60% is hard for what is asked."},
-    "medium": {"min_pct": 60, "max_pct": 80},
-    "heavy": {"min_pct": 80, "max_pct": 90},
+    "medium": {"min_pct": 61, "max_pct": 80, "note": "Where most building happens: about 70-80% builds well."},
+    "heavy": {"min_pct": 81, "max_pct": 105, "note": "As far as is safe, in small steps (for long-time lifters 1% is a lot). "
+                                                     "The hub never prescribes maxing; it estimates the max instead."},
 }
 # The shapes a session can take: main exercises by how many groups are worked.
 MAIN_RANGE = {1: (1, 3), 2: (1, 6), 3: (1, 6)}
@@ -110,7 +111,7 @@ def describe(exercises, library=None):
     rows, blend, notes = [], {g: 0.0 for g in GROUPS}, []
     for ex in exercises or []:
         name = str(ex.get("name") or "").strip()
-        shares = ex.get("shares") or (library.get(name.lower()) or {}).get("shares")
+        shares = ex.get("shares") or ex.get("regions") or (library.get(name.lower()) or library.get(_key(name)) or {}).get("shares")
         if not shares:
             notes.append(f"{name or 'An exercise'} has no region shares and was left out of the blend.")
             rows.append({"name": name, "role": ex.get("role", "main"), "joints": None, "groups": None, "works": []})
@@ -167,3 +168,163 @@ def framework(library=None):
                                         "Easy day: all three groups, 1 exercise, light, a few sets"]},
         "library": tagged, "status": STATUS,
     }
+
+
+# --- Session classifiers (2026-10-11) ----------------------------------
+# Type = how many muscle groups the main exercises work (1-3). Duration = main exercises per group (1-3).
+# Intensity = light / medium / heavy on the one % of max scale above. Style = how the weight is moved. Every session
+# also carries two supporting minors (sport support and core), outside type and duration. Each lift is judged against
+# its own record: the athlete's estimated max for it and what they actually moved the last time they did it.
+STYLES = {
+    "standard": {"sets": [3, 4], "reps": [6, 12], "about": "Regular sets, e.g. 3 x 10: the accepted volume; at medium (70-80%) a solid workout."},
+    "endurance": {"sets": [2, 3], "reps": [15, 25], "about": "Few sets of many reps."},
+    "power_explosive": {"sets": [5, 8], "reps": [1, 4], "about": "Many short sets, each moved fast, full rest between."},
+    "power_heavy": {"sets": [1, 3], "reps": [1, 5], "about": "Few sets of few reps at a high load."},
+}
+STYLE_TARGET_PCT = {"light": 45, "medium": 70, "heavy": 85}
+SPORT_SUPPORT = {
+    "swim": ["Band external rotation", "Straight-arm pulldown"],
+    "run": ["Single-leg calf raise", "Side-lying hip abduction"],
+    "ride": ["Single-leg glute bridge", "Step-up"],
+}
+CORE = {"anti-rotation": ["Pallof press", "Side plank", "Dead bug"], "rotation": ["Cable chop", "Russian twist", "Half-kneeling cable lift"]}
+
+
+def style_of(sets, reps):
+    """How the weight was moved, from sets and reps (more can be added)."""
+    sets, reps = float(sets or 0), float(reps or 0)
+    if not sets or not reps:
+        return None
+    if reps >= 15:
+        return "endurance"
+    if reps <= 4 and sets >= 5:
+        return "power_explosive"
+    if reps <= 5:
+        return "power_heavy"
+    return "standard"
+
+
+def _key(name):
+    import re
+    return re.sub(r"[^a-z0-9]+", " ", str(name).lower()).strip()
+
+
+def _total(x):
+    """Total weight moved: weight x reps x sets, counted once for a per-side lift so sessions compare like for like;
+    None when not recorded."""
+    rows = x.get("set_details") or []
+    if rows:
+        t = sum(float(r.get("weight") or 0) * float(r.get("reps") or 0) for r in rows)
+    else:
+        if not x.get("weight") or not x.get("reps"):
+            return None
+        t = float(x["weight"]) * float(x["reps"]) * float(x.get("sets") or 1)
+    return round(t, 1) or None
+
+
+def last_time(name, logs, before):
+    """The most recent logged performance of this lift before a date."""
+    k = _key(name)
+    for log in sorted(logs or [], key=lambda l: l.get("date", ""), reverse=True):
+        if log.get("date", "") >= before:
+            continue
+        done = [x for x in log.get("lifts") or [] if _key(x.get("name")) == k and _total(x)]
+        if done:   # every entry of the lift that session (warm-up and working sets), its heaviest set shown
+            top = max(done, key=lambda x: float(x.get("weight") or 0))
+            return {"date": log["date"], "weight": top.get("weight"), "reps": top.get("reps"), "sets": sum(int(x.get("sets") or 1) for x in done),
+                    "entries": len(done), "total": round(sum(_total(x) for x in done), 1)}
+    return None
+
+
+def classify(exercises, logs=None, strength=None, date="9999-12-31", library=None, unit="lb"):
+    """Type, duration, intensity and style of a session, and each lift against its own record.
+    exercises: [{name, section or role (main|minor), sets, reps, weight, per_side, regions/shares}]."""
+    import math
+    library, strength = library or {}, strength or {}
+    kg = {"kg": 1.0, "lb": 0.45359237}[unit]
+    rows, counts = [], {}
+    for x in exercises or []:
+        role = "minor" if (x.get("section") or x.get("role")) == "minor" else "main"
+        shares = x.get("regions") or x.get("shares") or (library.get(_key(x.get("name"))) or library.get(str(x.get("name", "")).lower()) or {}).get("shares")
+        groups = groups_of(shares) if shares else {}
+        works = worked(groups) if groups else []
+        e1rm = (strength.get(_key(x.get("name"))) or {}).get("e1rm_kg")
+        pct_max = round(float(x["weight"]) * kg / e1rm * 100) if e1rm and x.get("weight") else None
+        prev = last_time(x.get("name"), logs, date)
+        total = _total(x)
+        pct_last = round(total / prev["total"] * 100) if total and prev else None
+        level = load_level(pct_max) if pct_max is not None else (load_level(pct_last) if pct_last is not None else None)
+        row = {"name": x.get("name"), "role": role, "works": works, "sets": x.get("sets"), "reps": x.get("reps"),
+               "weight": x.get("weight"), "total_moved": total, "pct_of_estimated_max": pct_max,
+               "last_time": prev, "pct_of_last_time": pct_last, "intensity": level, "style": style_of(x.get("sets"), x.get("reps"))}
+        rows.append(row)
+        if role == "main" and works:
+            counts[works[0]] = counts.get(works[0], 0) + 1
+    mains = [r for r in rows if r["role"] == "main"]
+    groups = [g for g in GROUPS if g in counts]
+    typ = len(groups) or None
+    duration = max(counts.values()) if counts else None
+    weighted = [(r["pct_of_estimated_max"] if r["pct_of_estimated_max"] is not None else r["pct_of_last_time"], r["total_moved"] or 1)
+                for r in mains if (r["pct_of_estimated_max"] is not None or r["pct_of_last_time"] is not None)]
+    pct = round(sum(p * w for p, w in weighted) / sum(w for _, w in weighted)) if weighted else None
+    styles = [r["style"] for r in mains if r["style"]]
+    style = max(set(styles), key=styles.count) if styles else None
+    intensity = load_level(pct)
+    label = " · ".join(v for v in (f"Type {typ}" if typ else None, f"Duration {duration}" if duration else None,
+                                   intensity.title() if intensity else None, (style or "").replace("_", " ").title() or None) if v)
+    return {"label": label, "type": typ, "groups": groups, "duration": duration, "main_per_group": counts,
+            "intensity": intensity, "pct": pct, "style": style, "exercises": rows,
+            "minors": [r["name"] for r in rows if r["role"] == "minor"],
+            "basis": "Intensity is % of each lift's estimated max (or of what was moved last time when no max is known), "
+                     "weighted by total weight moved. Heavy goes as far as is safe; the hub never prescribes maxing."}
+
+
+def design_context(lift_state, groups, duration, intensity, style, date, improving=(), unit="lb", week=None):
+    """Everything to compose one session inside the classifiers, in one answer: the rules, per group the athlete's
+    lifts with their last time and a target weight for the intensity, the style's sets and reps, and the two minors."""
+    import datetime as dt
+    groups = [g for g in groups if g in GROUPS]
+    if not groups:
+        raise ValueError("groups: one or more of upper, trunk, lower")
+    if intensity not in LOADS or style not in STYLES:
+        raise ValueError("intensity is light, medium or heavy; style is " + ", ".join(STYLES))
+    duration = max(1, min(3, int(duration or 1)))
+    kg = {"kg": 1.0, "lb": 0.45359237}[unit]
+    logs, strength = lift_state.get("logs") or [], lift_state.get("strength") or {}
+    seen = {}
+    for log in logs:
+        for x in log.get("lifts") or []:
+            if x.get("name") and (x.get("regions") or x.get("shares")):
+                seen[_key(x["name"])] = (x["name"], x.get("regions") or x.get("shares"))
+    for k, v in (lift_state.get("library") or {}).items():
+        if v.get("shares"):
+            seen.setdefault(_key(v.get("name") or k), (v.get("name") or k, v["shares"]))
+    rules = [r.get("text") for r in lift_state.get("rules") or []]
+    never = [str(r.get("excludes") or "").lower() for r in lift_state.get("rules") or [] if r.get("kind") == "never" and r.get("excludes")]
+    pct = STYLE_TARGET_PCT[intensity]
+    by_group = {g: [] for g in groups}
+    for k, (name, shares) in seen.items():
+        if any(n and n in k for n in never):
+            continue
+        g = groups_of(shares)
+        w = worked(g)
+        if not w or w[0] not in by_group:
+            continue
+        e1rm = (strength.get(k) or {}).get("e1rm_kg")
+        by_group[w[0]].append({"name": name, "works": w, "last_time": last_time(name, logs, date),
+                               "estimated_max": round(e1rm / kg) if e1rm else None,
+                               "target_weight": (round(e1rm * pct / 100 / kg / 5) * 5) if e1rm else None})
+    for g in by_group:
+        by_group[g].sort(key=lambda r: (r["last_time"] is None, r["name"]))
+    iso = (week or dt.date.fromisoformat(date).isocalendar()[1])
+    core_kind = "anti-rotation" if iso % 2 == 0 else "rotation"
+    support = [x for s in improving for x in SPORT_SUPPORT.get(s, [])] or SPORT_SUPPORT["run"]
+    return {"target": {"type": len(groups), "groups": groups, "duration": duration, "main_exercises": len(groups) * duration,
+                       "intensity": {"name": intensity, **LOADS[intensity], "aim_pct": pct}, "style": {"name": style, **STYLES[style]}},
+            "rules": rules, "candidates_by_group": by_group,
+            "minors": {"sport_support": support, "core": {"this_week": core_kind, "options": CORE[core_kind]},
+                       "dose": "2 x 10-15, light to medium; outside type and duration; chosen away from tissue a hard session loads that day"},
+            "how": ("Pick the main exercises from the candidates (or search the web for others that fit the group and the "
+                    "athlete's rules; name the source), set each one's weight from its target or last time, use the style's "
+                    "sets and reps, add the two minors, then check with describe_lift_structure, which now returns the "
+                    "classifiers. Judge each lift against its own last time. Never prescribe maxing.")}

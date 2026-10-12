@@ -2172,7 +2172,18 @@ async def _coach_api(bridge, method, path, p, body):
                 if sub == "/framework" and method == b"GET":
                     return js(lifting_framework.framework(library))
                 if sub == "/framework/describe" and method == b"POST":
-                    return js(lifting_framework.describe(req.get("exercises"), library))
+                    out = lifting_framework.describe(req.get("exercises"), library)
+                    ls = lifting.state(d)
+                    out["classifiers"] = lifting_framework.classify(req.get("exercises"), ls.get("logs"), ls.get("strength"),
+                                                                    req.get("date") or coach.today(), library, ls.get("unit", "lb"))
+                    return js(out)
+                if sub == "/framework/design" and method == b"POST":
+                    # one answer for composing a session inside the classifiers
+                    ls = lifting.state(d)
+                    improving = [s for s, m in ((d.get("program_goal") or {}).get("priorities") or {}).items() if m == "improve" and s != "gym"]
+                    return js(lifting_framework.design_context(ls, req.get("groups") or [], req.get("duration", 1), req.get("intensity", "medium"),
+                                                               req.get("style", "standard"), req.get("date") or coach.today(),
+                                                               req.get("improving") or improving, ls.get("unit", "lb")))
                 return js({"error": "not found"}, 404)
             ctx = lift_ctx(rides.parent, d, date)
             if sub == "" and method == b"GET":

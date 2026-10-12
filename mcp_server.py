@@ -365,7 +365,11 @@ def t_lift_framework(a):
 
 
 def t_lift_describe(a):
-    return call("/api/coach/lifting/framework/describe", {"exercises": a.get("exercises") or []})
+    return call("/api/coach/lifting/framework/describe", {"exercises": a.get("exercises") or [], **({"date": a["date"]} if a.get("date") else {})})
+
+
+def t_lift_design(a):
+    return call("/api/coach/lifting/framework/design", {k: a[k] for k in ("groups", "duration", "intensity", "style", "date", "improving") if k in a})
 
 
 def t_lift_plan(a):
@@ -989,15 +993,30 @@ TOOLS = [
      "Read with get_lifting (the rider's rules and maxes).", S(), t_lift_framework),
     ("describe_lift_structure", "Describe a drafted lift session against the joint framework before planning it: each "
      "exercise's joint and group percentages, the session's blend (weighted by sets), the groups its main exercises "
-     "work (a group counts from 25% of an exercise), and whether the shape fits. Describes structure only; it does "
-     "not judge the session or save anything.",
+     "work (a group counts from 25% of an exercise), whether the shape fits, and the session's classifiers: Type (groups), "
+     "Duration (main exercises per group), Intensity (light/medium/heavy by % of each lift's estimated max, or of what "
+     "was moved last time), Style, with each lift against its own last time. Give sets, reps and weight to get them. "
+     "Describes; it does not judge the session or save anything.",
      S(exercises={"type": "array", "items": {"type": "object", "properties": {
          "name": STR("Exercise name"), "role": STR("main or minor", enum=["main", "minor"]),
          "shares": {"type": "object", "description": "Region shares adding to ~1 or ~100 (regions from get_lifting_framework); "
                     "omit to use the library's shares for a known exercise", "additionalProperties": {"type": "number", "minimum": 0}},
-         "sets": {"type": "number", "minimum": 1}, "load": STR("Load level", enum=["light", "medium", "heavy"]),
+         "sets": {"type": "number", "minimum": 1}, "reps": {"type": "number", "minimum": 1}, "weight": {"type": "number", "minimum": 0},
+         "per_side": {"type": "boolean"}, "load": STR("Load level", enum=["light", "medium", "heavy"]),
          "load_pct": {"type": "number", "minimum": 0, "maximum": 110}},
-         "required": ["name"]}}), t_lift_describe),
+         "required": ["name"]}}, date=DATE), t_lift_describe),
+    ("design_lift_session", "Start here to compose a lifting session inside the classifiers, in one call: Type = the "
+     "groups (upper, trunk, lower), Duration = main exercises per group (1-3), Intensity = light (30-60% of the "
+     "estimated max), medium (61-80%) or heavy (81-105%, as far as is safe; never maxing), Style = standard, endurance, "
+     "power_explosive or power_heavy. Returns the athlete's rules, per group their lifts with the last time done and a "
+     "target weight, the style's sets and reps, and the two supporting minors (sport support for the sports being built, "
+     "and core alternating anti-rotation and rotation by week). Choose from it or search the web for exercises that "
+     "fit, check with describe_lift_structure, then plan_lift_session after the athlete approves.",
+     S(groups={"type": "array", "items": {"type": "string", "enum": ["upper", "trunk", "lower"]}},
+       duration=INT("Main exercises per group", 1, 3), intensity=STR("light, medium or heavy", enum=["light", "medium", "heavy"]),
+       style=STR("How the weight is moved", enum=["standard", "endurance", "power_explosive", "power_heavy"]), date=DATE,
+       improving={"type": "array", "description": "Sports being built (default from the program)", "items": {"type": "string", "enum": ["ride", "swim", "run"]}}),
+     t_lift_design),
     ("plan_lift_session", "Put a scored gym session on a day's plan - one you designed from the rider's goals, rules and "
      "the steer (search the web for exercises when you can), or the rider's own draft that you're scoring. Each exercise: "
      "name, how (one line), kind, style (restorative/build), sets, reps OR seconds, weight (omit for bodyweight), tempo, "
@@ -1270,6 +1289,8 @@ for name, _, schema, _ in TOOLS:
     if name == "link_workout_recording":schema["required"] = ["activity_id", "mode"]
     if name in ("import_activities",):
         schema["required"] = ["urls"]
+    if name == "design_lift_session":
+        schema["required"] = ["groups", "duration", "intensity", "style"]
     if name in ("plan_lift_session", "evaluate_lift_session"):
         schema["required"] = ["lifts"]
     if name == "record_health_history":
@@ -1391,8 +1412,9 @@ GUIDES = {
             'Retain test calibration for intensity, duration and measured sport capacity. '
             'In an inactive legacy installation, get_coaching_review describes its legacy running targets; do not transplant those targets into the selected response model. '
         )},
-    'lifting': {"about": "Lifting sessions: structure, sets by phase, the athlete's rules, planning, logging and sled timing.",
+    'lifting': {"about": "Lifting sessions: the classifiers (type, duration, intensity, style), structure, the athlete's rules, planning, logging and sled timing.",
         "text": (
+            'CLASSIFIERS: compose every session with design_lift_session: Type = groups worked (1-3), Duration = main exercises per group (1-3), Intensity = light 30-60%, medium 61-80%, heavy 81-105% of each lift\'s estimated max (as far as is safe; never prescribe maxing; building sits around 70-80%), Style = standard, endurance, power_explosive or power_heavy, plus two supporting minors (sport support and core). Judge each lift against its own last time, choose intensity and style from the goal, the load carried and the reports, and name the classifiers in the session (e.g. Type 2 · Duration 2 · Medium · Standard). '
             'Per-date responses stay distinct, and delayed lifting follow-ups may cover several sessions. '
             'An external-weight total is not tissue force. '
             'Optional exercise tempo/range descriptions are estimates; do not invent force or work from machine-labelled pounds. '
