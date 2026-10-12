@@ -20,7 +20,10 @@ class Blends(unittest.TestCase):
         r=P.resolve(self.d,'2026-10-06');self.assertEqual(r['sports']['swim']['role'],'prepare');self.assertTrue(r['sports']['swim']['can_progress'])
     def test_recovery_hold_and_pause_override_priorities(self):
         self.save();self.d['events']=[{'name':'Swim meet','sport':'swim','kind':'race','date':'2027-06-05'}]
+        # model readings alone don't hold running (holds come from reports or the athlete's choices)
         r=P.resolve(self.d,'2026-10-06',headline={'mechanical':{'remodeling_blocks':12.0,'block_limit':1.5}})
+        self.assertNotEqual(r['sports']['run']['role'],'hold')
+        r=P.resolve(self.d,'2026-10-06',readiness={'running':{'verdict':'rest','why':["Today's check-in does not support progression"]}})
         self.assertEqual(r['sports']['run']['role'],'hold');self.assertEqual(r['sports']['run']['priority_share'],0)
         self.save(kind='recovery');r=P.resolve(self.d,'2026-10-06');self.assertFalse(any(x['can_progress'] for x in r['sports'].values()))
         self.save(modes={'ride':'improve','swim':'pause','gym':'maintain','run':'pause'})

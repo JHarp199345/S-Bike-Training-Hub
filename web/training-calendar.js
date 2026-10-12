@@ -38,7 +38,7 @@
  const fullDate=value=>date(value).toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric',year:'numeric'});
  function create(options){
   const {dialog,body,getProgram,getToday,loadWeek,icon=()=>'',sessionState=s=>s.skipped_id?'cancelled':s.completion||s.completed?'completed':s.missed?'missed':'planned',renderWorkout=()=>''}=options;
-  let program={},phases=[],events=[],start,end,selected=null,revision=0,observer=null,focusMonth=null,detailOpen=false,detailRow,focusedEventId=null;
+  let program={},plannedBy=new Map(),phases=[],events=[],start,end,selected=null,revision=0,observer=null,focusMonth=null,detailOpen=false,detailRow,focusedEventId=null;
   let records=new Map(),requests=new Map(),queued=new Set(),loading=new Set(),failed=new Set(),queue=[],busy=0,shownPhases=true;
   const notice=message=>{dialog.querySelector('#tc-status').textContent=message;};
   const eventWindow=document.createElement('dialog');eventWindow.id='tc-eventdialog';eventWindow.setAttribute('aria-labelledby','tc-eventtitle');document.body.append(eventWindow);
@@ -82,17 +82,20 @@
    observer?.disconnect();let html='',year='';
    for(const m of months()){if(m.slice(0,4)!==year){if(year)html+='</div></section>';year=m.slice(0,4);html+=`<section class="tc-year" aria-labelledby="tc-year-${year}"><h3 id="tc-year-${year}">${year}</h3><div class="tc-month-grid">`;}html+=monthHtml(m);}
    if(year)html+='</div></section>';
-   body.innerHTML=`${eventGroups()}<div class="tc-range-tools"><button type="button" data-range="earlier">↑ Earlier months</button><span>${E(start)} – ${E(end)}</span></div><div class="tc-years">${html}</div><div class="tc-range-tools"><span>Only saved workouts are shown.</span><button type="button" data-range="later">Later months ↓</button></div>`;
+   body.innerHTML=`${eventGroups()}<div class="tc-range-tools"><button type="button" data-range="earlier">↑ Earlier months</button><span>${E(start)} – ${E(end)}</span></div><div class="tc-years">${html}</div><div class="tc-range-tools"><span>Saved workouts, plus your program’s planned sessions (faded).</span><button type="button" data-range="later">Later months ↓</button></div>`;
    body.classList.toggle('tc-hide-phases',!shownPhases);
    body.querySelectorAll('.tc-day').forEach(updateTile);
    observer=new IntersectionObserver(entries=>entries.filter(e=>e.isIntersecting).forEach(e=>loadMonth(e.target)),{root:dialog,rootMargin:'180px'});
    body.querySelectorAll('[data-month]').forEach(el=>{if(monthDays(el.dataset.month).filter(value=>monthOf(value)===el.dataset.month).every(value=>records.has(value)))el.querySelector('.tc-month-state').textContent='Saved plans and recorded sessions.';observer.observe(el);});
   }
+  function plannedMap(prog){const m=new Map();for(const w of prog.weeks||[])for(const x of w.slots||[])if(x.date&&x.sport&&x.sport!=='rest'&&x.source!=='scheduled')(m.get(x.date)||m.set(x.date,[]).get(x.date)).push(x);return m;}
+  function plannedFor(value,items){return items.length?[]:(plannedBy.get(value)||[]);}
+  const plannedText=x=>`${SPORT[x.sport]||x.sport}${x.purpose?': '+x.purpose:''}${Array.isArray(x.minutes)?` · ${x.minutes[0]}–${x.minutes[1]} min`:''}`;
   function updateTile(el){
    const value=el.dataset.date,row=records.get(value),p=phaseAt(phases,value),items=sessionsFor(row),state=items.map(sessionState),marks=el.querySelector('.tc-marks');
-   marks.innerHTML=items.slice(0,3).map((s,i)=>`<span class="tc-mark tc-sport-${E(s.sport)}" title="${E((s.name||SPORT[s.sport]||s.sport)+' · '+state[i])}">${icon(s.sport)}<small>${({completed:'✓',partial:'◐',cancelled:'−',missed:'×'})[state[i]]||''}</small></span>`).join('')+(items.length>3?`<small>+${items.length-3}</small>`:'');
-   el.setAttribute('aria-label',`${fullDate(value)}${p?' · '+p.label:''}${items.length?' · '+items.map((s,i)=>(s.name||SPORT[s.sport]||'Workout')+': '+state[i]).join(', '):row?' · No saved workouts':' · Select to load workouts'}`);
-   el.title=el.getAttribute('aria-label');el.classList.toggle('tc-has-work',!!items.length);
+   const plan=plannedFor(value,items);marks.innerHTML=plan.length?plan.slice(0,3).map(x=>`<span class="tc-mark tc-mark-planned tc-sport-${E(x.sport)}" title="${E('Planned · '+plannedText(x))}">${icon(x.sport)}</span>`).join(''):items.slice(0,3).map((s,i)=>`<span class="tc-mark tc-sport-${E(s.sport)}" title="${E((s.name||SPORT[s.sport]||s.sport)+' · '+state[i])}">${icon(s.sport)}<small>${({completed:'✓',partial:'◐',cancelled:'−',missed:'×'})[state[i]]||''}</small></span>`).join('')+(items.length>3?`<small>+${items.length-3}</small>`:'');
+   el.setAttribute('aria-label',`${fullDate(value)}${p?' · '+p.label:''}${items.length?' · '+items.map((s,i)=>(s.name||SPORT[s.sport]||'Workout')+': '+state[i]).join(', '):plan.length?' · Planned: '+plan.map(plannedText).join(', '):row?' · No saved workouts':' · Select to load workouts'}`);
+   el.title=el.getAttribute('aria-label');el.classList.toggle('tc-has-work',!!items.length);el.classList.toggle('tc-has-plan',!!plan.length);
    el.classList.toggle('tc-selected',value===selected);el.setAttribute('aria-pressed',String(value===selected));
   }
   function update(){body.querySelectorAll('.tc-day').forEach(updateTile);if(detailOpen&&selected&&records.has(selected)&&records.get(selected)!==detailRow)showDetails(selected);}
@@ -116,7 +119,7 @@
   }
   function showDetails(value,error=false){
    const el=dialog.querySelector('#tc-day-detail'),p=phaseAt(phases,value),row=records.get(value),items=sessionsFor(row),evs=events.filter(e=>e.date===value);
-   detailOpen=true;detailRow=row;el.hidden=false;el.innerHTML=`<header><div><small>Selected day${value===getToday()?' · Today':''}</small><h3>${E(fullDate(value))}</h3></div><button type="button" data-detail-close aria-label="Close selected day">✕</button></header>${p?`<p class="tc-day-phase" style="--tc-phase:${COLORS[p.color]||COLORS.blue}">${E(p.label)} · ${phaseState(p,getToday())}<small>${E(p.purpose||'')}</small></p>`:''}${evs.map(e=>`<div class="tc-day-event"><b>${E(e.name)}</b><small>${E(e.kind)} · ${E(SPORT[e.sport]||e.sport)}</small>${e.note?`<p>${E(e.note)}</p>`:''}</div>`).join('')}${error?'<p role="status">Workout records could not load. <button type="button" data-detail-retry>Try again</button></p>':!row?'<p role="status">Loading this day…</p>':items.length?items.map(renderSession).join(''):'<p>No workouts saved for this day.</p>'}${row&&!items.length&&value<getToday()?'<small>No record does not establish that this was a rest day.</small>':''}`;
+   detailOpen=true;detailRow=row;el.hidden=false;el.innerHTML=`<header><div><small>Selected day${value===getToday()?' · Today':''}</small><h3>${E(fullDate(value))}</h3></div><button type="button" data-detail-close aria-label="Close selected day">✕</button></header>${p?`<p class="tc-day-phase" style="--tc-phase:${COLORS[p.color]||COLORS.blue}">${E(p.label)} · ${phaseState(p,getToday())}<small>${E(p.purpose||'')}</small></p>`:''}${evs.map(e=>`<div class="tc-day-event"><b>${E(e.name)}</b><small>${E(e.kind)} · ${E(SPORT[e.sport]||e.sport)}</small>${e.note?`<p>${E(e.note)}</p>`:''}</div>`).join('')}${error?'<p role="status">Workout records could not load. <button type="button" data-detail-retry>Try again</button></p>':!row?'<p role="status">Loading this day…</p>':items.length?items.map(renderSession).join(''):plannedFor(value,items).length?`<section class="tc-planned"><h4>Planned in your program</h4>${plannedFor(value,items).map(x=>`<article class="tc-session tc-session-planned"><header>${icon(x.sport)}<div><h4>${E(x.purpose||SPORT[x.sport]||'Session')}</h4><p>${E(SPORT[x.sport]||x.sport)}${Array.isArray(x.minutes)?' · '+E(x.minutes[0])+'–'+E(x.minutes[1])+' min':''}${x.role?' · '+E(x.role==='improve'?'build':'maintain'):''}${Array.isArray(x.lift_groups)?' · '+E(x.lift_groups.join(', ')):''} · <span class="tc-session-state">planned</span></p></div></header></article>`).join('')}<small>A placeholder from your program. The actual workout is written the week before, from your reports.</small></section>`:'<p>No workouts saved for this day.</p>'}${row&&!items.length&&value<getToday()?'<small>No record does not establish that this was a rest day.</small>':''}`;
   }
   async function select(value){
    date(value);selected=value;showDetails(value);body.querySelectorAll('.tc-day').forEach(updateTile);
@@ -128,7 +131,7 @@
    focusMonth=m;const el=body.querySelector(`[data-month="${m}"]`);if(el){el.scrollIntoView({block:'start',behavior:'instant'});loadMonth(el);}notice(date(m+'-01').toLocaleDateString(undefined,{month:'long',year:'numeric'}));
   }
   async function open(){
-   const previous=dialog.open;program=getProgram()||{};phases=(program.phases||[]).slice().sort((a,b)=>a.start.localeCompare(b.start));
+   const previous=dialog.open;program=getProgram()||{};plannedBy=plannedMap(program);phases=(program.phases||[]).slice().sort((a,b)=>a.start.localeCompare(b.start));
    events=(program.events||[]).filter(e=>/^\d{4}-\d{2}-\d{2}$/.test(e.date||'')).slice().sort((a,b)=>a.date.localeCompare(b.date));
    revision++;requests=new Map();records=new Map();queued=new Set();failed=new Set();queue=[];
    (options.getKnownDays?.()||[]).forEach(row=>records.set(row.date,row));
@@ -154,7 +157,7 @@
   dialog.querySelector('#tc-phases').onchange=e=>{shownPhases=e.target.checked;body.classList.toggle('tc-hide-phases',!shownPhases);};
   dialog.querySelector('#tc-close').onclick=()=>dialog.close();
   dialog.addEventListener('close',()=>{if(eventWindow.open)eventWindow.close();if(upcomingWindow.open)upcomingWindow.close();observer?.disconnect();revision++;queue=[];});
-  return {open,select,jump,refreshEvents:()=>{program=getProgram()||{};events=(program.events||[]).filter(e=>/^\d{4}-\d{2}-\d{2}$/.test(e.date||'')).slice().sort((a,b)=>a.date.localeCompare(b.date));refreshEventGroups();body.querySelectorAll('.tc-day').forEach(updateTile);},openEventById:(id,value,name)=>openEvent(events.findIndex(e=>id?e.id===id:e.date===value&&e.name===name))};
+  return {open,select,jump,refreshEvents:()=>{program=getProgram()||{};plannedBy=plannedMap(program);events=(program.events||[]).filter(e=>/^\d{4}-\d{2}-\d{2}$/.test(e.date||'')).slice().sort((a,b)=>a.date.localeCompare(b.date));refreshEventGroups();body.querySelectorAll('.tc-day').forEach(updateTile);},openEventById:(id,value,name)=>openEvent(events.findIndex(e=>id?e.id===id:e.date===value&&e.name===name))};
  }
  const api={date,iso,addDays,monthOf,shiftMonth,monthDays,phaseAt,phaseState,overlapsMonth,dayDifference,weekStart,sessionsFor,create};
  if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.TrainingCalendar=api;

@@ -113,11 +113,8 @@ def resolve(d,today,readiness=None,headline=None):
         r=ready.get('running' if s=='run' else 'swimming' if s=='swim' else 'verdict')
         verdict=r.get('verdict') if isinstance(r,dict) else r
         if s=='gym':verdict=((ready.get('systems') or {}).get('engine') or {}).get('level')
-        held=verdict=='rest'
-        if s=='run':
-            blocks=mech.get('remodeling_blocks');limit=mech.get('block_limit',1.5)
-            held=held or blocks is not None and blocks>=limit
-        if held:role='hold';weight=0;why.append('Existing readiness or mechanical restriction takes precedence')
+        held=verdict=='rest'      # the day's verdict: for running it holds only on reports or the athlete's choices
+        if held:role='hold';weight=0;why.append('A reported symptom, a poor check-in or the athlete\'s own wait takes precedence')
         result['sports'][s]={'name':NAMES[s],'mode':mode,'role':role,'phase':phase,'weight':weight,
             'can_progress':role in ('improve','prepare') and phase in ('base','build') and verdict not in ('easy','rest'),
             'events':es,'why':why,'maintenance':maintenance(s)}
@@ -129,7 +126,7 @@ def resolve(d,today,readiness=None,headline=None):
 
 def maintenance(sport):
     if sport=='gym':return 'Retain meaningful relative resistance. Reduced weekly volume can maintain adaptations; calibrate working sets against actual strength and physique, age and training history.'
-    if sport=='run':return 'Aerobic transfer does not guarantee maintained running skill or impact tolerance. A running hold remains a hold; no minimum exposure overrides it.'
+    if sport=='run':return 'Aerobic transfer does not guarantee maintained running skill or impact tolerance. A running hold (from reports or the athlete\'s own choice) remains a hold; no minimum exposure overrides it.'
     return 'General endurance maintenance studies support lower frequency or duration with intensity retained. Use established tolerated sessions and sport-specific performance checks; two sessions is a research starting point, not a guaranteed athlete minimum.'
 
 

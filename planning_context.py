@@ -54,16 +54,16 @@ PLAYBOOK = [
                   "efficiency section's matched comparisons and trend with the conditions (heat, duration, illness). When "
                   "efficiency is climbing, holding volume steady still counts as building; when volume rises and efficiency "
                   "holds, the athlete is absorbing the work."},
-    {"topic": "Running",
+    {"topic": "Running", "sports": ["run"],
      "principle": "For recreational runners, frequency and some intensity drive aerobic gains: 2-3 sessions a week work. "
                   "Tissue tolerance sets the pace of increases, so spreading runs through the week lets volume grow. One "
                   "longer run with shorter ones suits building.",
      "sources": ["Recreational-runner interval frequency study 2025 (PMC12451023)"]},
-    {"topic": "Swimming",
+    {"topic": "Swimming", "sports": ["swim"],
      "principle": "Frequency matters more than session length: three swims a week improve, two maintain. Drills build "
                   "technique, and beginners weight them heavily.",
      "sources": ["USA Triathlon and coaching consensus (not controlled studies)"]},
-    {"topic": "Lifting",
+    {"topic": "Lifting", "sports": ["lift"],
      "principle": "Plan by joint groups with get_lifting_framework: which groups on which days, how many main exercises, "
                   "a load level. One hard set per exercise maintains strength; more weekly sets build it. When lifting is "
                   "being built and the load allows, three sessions; otherwise one session covering all three groups with "
@@ -73,7 +73,7 @@ PLAYBOOK = [
      "principle": "Running costs the other sports most, cycling next, swimming least; cycling carries over to running, little "
                   "carries into swimming, and only running loads bone and tendon (get_transfer). Space sessions that load "
                   "the same tissue."},
-    {"topic": "Strength with endurance",
+    {"topic": "Strength with endurance", "sports": ["lift"],
      "principle": "When strength matters, about six hours between a lift and an endurance session works best; in one "
                   "session, lift first for strength, endurance first for aerobic gains. The effect is mostly felt by "
                   "trained athletes at high volume."},
@@ -465,3 +465,129 @@ def mirror(activities, today, days):
         out[sp] = row
     return {"days": sorted(days or {}), "by_sport": out,
             "note": "A description against recent recorded weeks, not a verdict. Days outside the draft are not counted."}
+
+
+# --- The brief and its sections (2026-10-11) -------------------------------------------------------------------
+# A planning call used to return everything at once (about 60,000 characters). Now the default is a brief: the facts
+# that should be obvious first, then an index of sections to ask for, each filtered to one sport when that's all the
+# decision needs. Nothing is summarised away: every section still returns its full detail on request.
+
+SECTIONS = {
+    "volume": "each sport's last 28 days as four weekly totals, average/best/last week, longest session, 13-week trend",
+    "efficiency": "efficiency against heart rate: matched comparisons with conditions and a 4-week trend (detail=true adds every session of 90 days)",
+    "reports": "the 90-day report trend (45-day half-life) and the last 7 days verbatim: check-ins, session reports, weekly, lift follow-ups",
+    "calibration": "the athlete's own current routine and past best per sport",
+    "health_history": "screening, conditions, injuries, medications and clinician guidance",
+    "program": "goal, events, current phase, every remaining phase and the week's placeholders and saved sessions",
+    "running_gate": "running hold status, reasons and the evidence to weigh",
+    "playbook": "evidence written as what works (general topics, plus the sport-specific ones for the sport asked)",
+}
+WORSE_WHEN_HIGHER = ("legs", "feet", "shoulders", "breathing", "hooper_fatigue", "hooper_sleep", "hooper_stress",
+                     "hooper_soreness")   # breathing: 1 normal and easy, 10 unusually difficult
+FLAG_STEP = 1.5            # a latest report this far above its weighted usual is called out
+
+
+def _sport_filter(sport):
+    if not sport:
+        return None
+    s = SPORT_OF.get(str(sport).lower())
+    if not s:
+        raise ValueError("sport is bike, run, swim or lift")
+    return s
+
+
+def _short(text, limit=240):
+    text = str(text or "")
+    return text if len(text) <= limit else text[:limit].rsplit(" ", 1)[0] + " …"
+
+
+def _efficiency_brief(eff, detail=False):
+    if detail:
+        return eff
+    keep = ("date", "minutes", "km", "avg_hr", "efficiency", "conditions", "temp_c")
+    out = {}
+    for s, x in eff.get("by_sport", {}).items():
+        comps = []
+        for c in x.get("matched_comparisons", []):
+            row = {k: v for k, v in c.items() if k not in ("session", "match")}
+            row["session"] = {k: c["session"].get(k) for k in keep if c["session"].get(k) is not None}
+            if c.get("match"):
+                row["match"] = {k: c["match"].get(k) for k in keep if c["match"].get(k) is not None}
+            comps.append(row)
+        out[s] = {"sport": x.get("sport"), "trend": x.get("trend"), "matched_comparisons": comps,
+                  "sessions_90_days": len(x.get("sessions_90_days", []))}
+    return {**{k: v for k, v in eff.items() if k != "by_sport"}, "by_sport": out}
+
+
+def section(d, activities, today, name, sport=None, detail=False, week_from=None, gate=None, state=None, full=None):
+    """One section in full, filtered to a sport where that makes sense."""
+    if name not in SECTIONS:
+        raise ValueError("section is one of " + ", ".join(SECTIONS))
+    s = _sport_filter(sport)
+    full = full if full is not None else context(d, activities, today, "program", week_from, gate, state)
+    if name == "volume":
+        v = full["volume"]
+        return {k: x for k, x in v.items() if not s or k == s}
+    if name == "efficiency":
+        eff = _efficiency_brief(full["efficiency"], detail)
+        if s:
+            eff = {**eff, "by_sport": {k: x for k, x in eff["by_sport"].items() if k == s}}
+        return eff
+    if name == "calibration":
+        c = full["calibration"]
+        return {k: x for k, x in c.items() if not s or k == s}
+    if name == "playbook":
+        return [t for t in PLAYBOOK if not t.get("sports") or (s and s in t["sports"]) or (not s and detail)]
+    return full[name]
+
+
+def brief(d, activities, today, scope="week", week_from=None, gate=None, state=None):
+    """The default answer: what should be obvious, then where the detail lives."""
+    full = context(d, activities, today, scope, week_from, gate, state)
+    prog, rep, vol = full["program"], full["reports"], full["volume"]
+    eff = full["efficiency"].get("by_sport", {})
+    phases = prog.get("phases") or []
+    now = prog.get("current_phase")
+    nxt = next((p for p in phases if now and p.get("start", "") >= now.get("end", "")), None)
+    gate_view = full.get("running_gate") or {}
+    holds = {"running": "held" if gate_view.get("reasons") else "not held",
+             **({"reasons": gate_view["reasons"]} if gate_view.get("reasons") else {}),
+             **({"evidence_to_weigh": gate_view["evidence"]} if gate_view.get("evidence") else {})}
+    trend = rep.get("trend", {})
+    flags = [f"{k}: {v['latest']} on {v['latest_date']} vs usual {v['weighted_average']}" for k, v in trend.items()
+             if (k in WORSE_WHEN_HIGHER or k.startswith("pain_")) and isinstance(v.get("latest"), (int, float))
+             and v["latest"] - v["weighted_average"] >= FLAG_STEP]
+    recent = rep.get(f"last_{VERBATIM_DAYS}_days", {})
+    checkins = [{**{k: v for k, v in c.items() if k != "journal"}, **({"journal": _short(c["journal"])} if c.get("journal") else {})}
+                for c in recent.get("checkins", [])]
+    usual = {}
+    for s, x in vol.items():
+        usual[s] = {"average_week": x["average_week"], "last_week": x["last_week"], "best_week": x["best_week"],
+                    **({"efficiency_change_pct": eff[s]["trend"].get("change_pct")} if s in eff and eff[s]["trend"].get("change_pct") is not None else {})}
+    hh = full["health_history"]
+    health = ("no health check recorded yet" if not hh.get("screening") else f"health check on {hh['screening'].get('date')}: {hh['screening'].get('result') or hh['screening'].get('outcome')}")
+    shared = {k: len(hh.get(k) or []) for k in ("conditions", "injuries", "medications", "guidance") if hh.get(k)}
+    ask = lambda name: f"get_planning_context(scope={scope}, sections=['{name}']" + (", sport=…" if name in ("volume", "efficiency", "calibration", "playbook") else "") + ")"
+    return {
+        "scope": scope, "today": today, "how_to_plan": full["how_to_plan"],
+        "at_a_glance": {
+            "goal": {**prog.get("goal", {}), "days_to_event": prog.get("days_to_event")},
+            "phase_now": {k: now.get(k) for k in ("label", "stage", "start", "end", "modes") if now and now.get(k) is not None} if now else None,
+            "next_phase": {k: nxt.get(k) for k in ("label", "stage", "start", "end") if nxt.get(k) is not None} if nxt else None,
+            "holds": holds,
+            "report_flags": flags or ["no report is well above its usual"],
+            "usual_week_by_sport": usual,
+            "athlete_calibration": full["calibration"] or None,
+            "health": {"status": health, **({"shared": shared} if shared else {}),
+                       **({"heart_rate_note": hh["heart_rate_note"]} if hh.get("heart_rate_note") else {})},
+            "upcoming_events": prog.get("events", []),
+        },
+        "last_7_days": {"checkins": checkins,
+                        "session_reports": [{**r, **({"note": _short(r["note"], 160)} if r.get("note") else {})} for r in recent.get("session_reports", [])],
+                        "weekly": recent.get("weekly", []), "lift_followups": recent.get("lift_followups", [])},
+        "week": prog.get("week") if scope == "week" else None,
+        "phases": [{k: p.get(k) for k in ("label", "stage", "start", "end", "modes")} for p in phases] if scope == "program" else None,
+        "playbook": [t for t in PLAYBOOK if not t.get("sports")],
+        "more": {name: {"what": what, "ask": ask(name)} for name, what in SECTIONS.items()},
+        "notes": full["notes"] + ["This is the brief. Journals and notes are shortened here; sections=['reports'] has them in full."],
+    }

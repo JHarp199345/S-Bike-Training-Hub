@@ -1754,7 +1754,7 @@ async def _coach_api(bridge, method, path, p, body):
                 import report_protocol
                 rc=report_protocol.on_report(d,"workout",date,entry,date)
                 if rc:entry["recheck"]=rc["id"]
-                if entry.get('activity_id'):
+                if entry.get('activity_id') and not str(entry['activity_id']).startswith('lift-'):   # hub-logged lifts have no file
                     import activity_reports,swim_timing
                     activity=activity_reports.read_activity(rides.parent,entry['activity_id'])
                     if activity['sport']=='swim':
@@ -2111,8 +2111,17 @@ async def _coach_api(bridge, method, path, p, body):
             st = load_state(rides.parent)
             gate = training_block.running_gate(d, st, d["checkins"].get(coach.today()))
             try:
-                return js(planning_context.context(d, st.get("activities", []), coach.today(), (q.get("scope") or ["week"])[0],
-                                                   (q.get("from") or [None])[0], gate, st))
+                args = (d, st.get("activities", []), coach.today())
+                scope, week_from = (q.get("scope") or ["week"])[0], (q.get("from") or [None])[0]
+                wanted = [x for x in ",".join(q.get("sections") or []).split(",") if x]
+                sport, detail = (q.get("sport") or [None])[0], (q.get("detail") or [""])[0] in ("1", "true", "yes")
+                if not wanted:        # the brief: what should be obvious, then where the detail lives
+                    return js(planning_context.brief(*args, scope, week_from, gate, st))
+                full = planning_context.context(*args, scope, week_from, gate, st)
+                if wanted == ["all"]:
+                    return js(full)
+                return js({"scope": scope, "today": coach.today(), **({"sport": sport} if sport else {}),
+                           "sections": {name: planning_context.section(*args, name, sport, detail, week_from, gate, st, full) for name in wanted}})
             except ValueError as e:
                 return js({"error": str(e)}, 400)
         if p == "/api/coach/health":

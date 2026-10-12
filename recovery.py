@@ -81,19 +81,22 @@ def status(d, remodel=None, today=None):
     current=journal.effective((d.get('checkins') or {}).get(key) or {})
     poor_today=(any(current.get(k) is not None and current[k]>=6 for k in ('feet','legs'))
                 or current.get('hops') is not None and current['hops']<=3 or current.get('gut')=='no')
-    reasons=[]
-    if poor_today:reasons.append("Today's check-in does not support progression")
+    # Holds come from what the athlete reports or chooses (2026-10-11): a poor check-in today and their own
+    # minimum wait. Model readings and the functional-check checklist are evidence to weigh, not reasons to hold.
+    holds,evidence=[],[]
+    if poor_today:holds.append("Today's check-in does not support progression")
     if not response_model:
-        if remodel.get('score') is None: reasons.append('Mechanical running load is unavailable')
-        elif remodel['score']>=remodel.get('threshold_blocks',1.5): reasons.append('Mechanical running load is still at or above its planning limit')
-    if min_days and (elapsed is None or elapsed<min_days): reasons.append(f'Personal minimum wait: {min_days} days since the latest run')
-    if not repeated or not set(CHECK_KINDS)<=kinds: reasons.append('Repeated comfortable strength, balance and loading checks with dated next-day responses are still needed')
+        if remodel.get('score') is None: evidence.append('Mechanical running load is unavailable')
+        elif remodel['score']>=remodel.get('threshold_blocks',1.5): evidence.append('Mechanical running load is still at or above its planning limit')
+    if min_days and (elapsed is None or elapsed<min_days): holds.append(f'Personal minimum wait: {min_days} days since the latest run')
+    if not repeated or not set(CHECK_KINDS)<=kinds: evidence.append('Repeated comfortable strength, balance and loading checks with dated next-day responses are still needed')
+    reasons=holds+evidence
     rt=run_test_status(d,remodel,today)
     test_ok=bool(rt.get('last') and rt['last']['verdict']=='good' and (today-_date(rt['last']['finished'])).days<=7)
     review_ok=(remodel.get('phase')=='plateau' and progress is not None and progress>=PROTECTED_FRACTION
                and ((repeated and {'strength','balance'}<=kinds) or test_ok) and not poor_today)
     return {'protected_fraction':PROTECTED_FRACTION,'plateau_progress':progress,'run_test':rt,
-            'review_eligible':review_ok,'run_eligible':not reasons,'run_reasons':reasons,
+            'review_eligible':review_ok,'run_eligible':not reasons,'run_reasons':reasons,'run_hold_reasons':holds,'run_evidence':evidence,
             'minimum_run_days':min_days,'days_since_run':elapsed,'successful_checks':len(good),
             'latest_setback':bad or None,'checks':checks[-12:], 'reviews':state.get('reviews',[])[-6:],
             'stage':'running review' if not reasons else 'functional response checks' if response_model else 'awaiting metrics' if remodel.get('score') is None else 'preparatory checks' if remodel.get('phase')!='plateau' or progress is not None and progress>=PROTECTED_FRACTION else 'protected recovery',

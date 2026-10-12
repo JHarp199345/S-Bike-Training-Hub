@@ -350,3 +350,61 @@ body:has(.programhero) main{max-width:1140px}
 :root[data-theme][data-embedded] body.fitness-landscape{background:none}
 
 .fitness-dashboard-surface,:root[data-theme] body.fitness-landscape{background-position:center,center calc(48% + var(--fitness-pan,0%))}
+
+/* Phase day grid (phase-grid.js): calendar rows, Monday to Sunday; cells keep their size however long the phase. */
+.program-phase-settings{display:grid;grid-template-columns:repeat(2,minmax(0,1fr)) auto;gap:12px;align-items:end;margin:12px 0}
+.program-phase-settings .program-check{padding-bottom:10px}
+.pg-hint{margin:10px 0 8px}
+.pg-grid{display:flex;flex-direction:column;gap:4px;user-select:none;-webkit-user-select:none;touch-action:none}
+.pg-days,.pg-row{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.pg-days span{font-size:11px;color:var(--muted);text-align:center;letter-spacing:.04em}
+.pg-cell{min-height:58px;padding:5px 6px;border-radius:9px;border:1px solid var(--line);background:var(--deep);color:var(--text);display:flex;flex-direction:column;align-items:flex-start;gap:4px;font-weight:400;cursor:pointer;min-width:0}
+.pg-cell:hover{border-color:var(--phase-color,var(--info))}
+.pg-cell small{font-size:11px;color:var(--text2)}
+.pg-out{background:transparent;border-style:dashed;opacity:.25;cursor:default}
+.pg-auto em{font-size:10px;color:var(--muted);font-style:normal}
+.pg-sel{border-color:var(--phase-color,var(--info));box-shadow:inset 0 0 0 2px var(--phase-color,var(--info));background:color-mix(in srgb,var(--phase-color,var(--info)) 18%,var(--deep))}
+.pg-pending{border-color:var(--warn,#ffac62);box-shadow:inset 0 0 0 2px var(--warn,#ffac62)}
+.pg-icons{display:flex;gap:3px;flex-wrap:wrap}
+.pg-dot{width:22px;height:22px;border-radius:50%;display:inline-grid;place-items:center;background:#ffffff14}
+.pg-dot .sporticon{width:18px;height:18px}
+.pg-ride{background:#359cff33}.pg-swim{background:#18ced033}.pg-gym{background:#b584ff33}.pg-run{background:#ff9b4233}
+.pg-more{margin-top:8px;font-size:12px;padding:6px 10px}
+.pg-confirm{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px;padding:10px 12px;border:1px solid var(--warn,#ffac62);border-radius:10px;background:var(--deep)}
+.pg-confirm b{flex-basis:100%}
+.pg-menu{position:fixed;z-index:20;min-width:230px;max-width:300px;padding:10px;border-radius:12px;border:1px solid var(--line);background:var(--card);box-shadow:0 12px 30px #0009;display:flex;flex-direction:column;gap:8px}
+.pg-menu[hidden]{display:none}
+.pg-menu b{font-size:13px}
+.pg-menu-types{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.pg-menu-types button{display:flex;align-items:center;gap:6px;justify-content:flex-start;padding:8px}
+.pg-menu-types .sporticon{width:20px;height:20px}
+.pg-menu-actions{display:flex;flex-wrap:wrap;gap:6px}.pg-menu-actions button{font-size:12px;padding:6px 9px}
+@media(max-width:680px){.program-phase-settings{grid-template-columns:1fr 1fr}.pg-cell{min-height:48px;padding:4px}.pg-dot{width:18px;height:18px}.pg-dot .sporticon{width:14px;height:14px}}
+.pg-saved{border-color:#ffffff59;border-style:solid;background:color-mix(in srgb,var(--phase-color,var(--info)) 10%,var(--deep))}
+.pg-saved small:after{content:' · saved';color:var(--muted)}
+
+/* Smart goal field and the event read from a pasted web address. */
+.goal-smart small{font-size:11px;color:var(--muted);font-weight:400}
+.goal-import{display:flex;gap:16px;align-items:stretch;margin:14px 0;padding:14px;border:1px solid var(--line);border-radius:14px;background:linear-gradient(135deg,color-mix(in srgb,var(--info) 10%,var(--card)),var(--deep))}
+.goal-import[hidden]{display:none}
+.goal-import-done{border-color:color-mix(in srgb,var(--info) 55%,var(--line))}
+.goal-import-error{border-color:var(--warn,#ffac62)}
+.goal-import img{width:150px;min-height:100px;object-fit:cover;border-radius:10px;flex:none}
+.goal-import-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+.goal-import-body small{font-size:11px;letter-spacing:.08em;color:var(--muted)}
+.goal-import-body h4{margin:0;font-size:20px}
+.goal-import-body p{margin:0}
+.goal-import-facts{display:flex;flex-wrap:wrap;gap:6px}
+.goal-import-facts span{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:#ffffff12;font-size:13px}
+.goal-import-facts .sporticon{width:16px;height:16px}
+.goal-import-actions{display:flex;gap:10px;align-items:center;margin-top:4px}
+.goal-import-actions a{color:var(--info);font-size:13px}
+.goal-import-loading{display:flex;align-items:center;gap:10px;color:var(--text2)}
+.goal-spinner{width:16px;height:16px;border-radius:50%;border:2px solid #ffffff30;border-top-color:var(--info);animation:goalspin .8s linear infinite}
+@keyframes goalspin{to{transform:rotate(360deg)}}
+.goal-import-choices{display:grid;gap:6px}
+.goal-import-choices button{display:flex;flex-direction:column;align-items:flex-start;text-align:left;gap:2px;padding:9px 12px}
+.goal-import-choices span{font-size:12px;color:var(--text2);font-weight:400}
+.program-assistant{margin:16px 0;padding:12px 14px;border:1px dashed var(--line);border-radius:14px}
+.program-assistant>summary{font-weight:700}
+@media(max-width:680px){.goal-import{flex-direction:column}.goal-import img{width:100%;height:140px}}

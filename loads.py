@@ -784,7 +784,10 @@ def readiness(state, checkin=None):
             run_level=max(run_level,"easy",key=lambda v:order[v]);run_why.extend(notes)
     progression=state.get("run_progression")
     if progression and not progression.get("run_eligible"):
-        run_level="rest";run_why.extend(progression.get("run_reasons",[]))
+        holds=progression.get("run_hold_reasons")
+        if holds is None:holds=progression.get("run_reasons",[])        # a state saved before the split
+        if holds:run_level="rest";run_why.extend(holds)                 # only reports and the athlete's own choices hold
+        run_why.extend("evidence to weigh: "+e for e in progression.get("run_evidence",[]))
     run_how = {
         "rest": "Skip running today. Recheck the recent response and how your feet feel tomorrow; use the bike or pool if comfortable.",
         "easy": "Keep it flat and short: try 1 minute of easy jogging, 2 minutes walking, for about 10 minutes. Stop if discomfort builds and check again tomorrow.",

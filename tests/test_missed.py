@@ -94,7 +94,12 @@ with patch.object(coach, "today", return_value=TODAY):
     res = [json.loads(l) for l in out.stdout.splitlines() if l.strip()]
     instr = res[0]["result"]["instructions"]
     check("the assistant is told it is the planner and to plan around what actually happened",
-          "You are the planner" in instr and "Missed sessions are information" in instr and "peak" in instr.lower())
+          "You are the planner" in instr and "get_guide" in instr and "planning (" in instr)
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
+    import mcp_server
+    plan_guide = mcp_server.GUIDES["planning"]["text"]
+    check("the planning guide says to plan around what actually happened and to plan two peaks",
+          "Missed sessions are information" in plan_guide and "peak" in plan_guide.lower())
     weeks = json.loads(res[1]["result"]["content"][0]["text"])["weeks"]
     check("get_recent_weeks gives the assistant the same picture", any(w["missed"] for w in weeks))
 loop.call_soon_threadsafe(loop.stop)

@@ -60,87 +60,164 @@ function workspaceReschedule(){
  workspacePhases.forEach(p=>{if(p.date_placements&&p.start&&p.start!==cursor){const delta=draftSpan(p.start,cursor);p.date_placements=Object.fromEntries(Object.entries(p.date_placements).map(([date,slots])=>[draftDate(date,delta),slots]));}p.id=p.start=cursor;p.days=Number(p.days);p.weeks=Math.round(p.days/7*100)/100;p.end=draftDate(cursor,p.days);cursor=p.end;});
  if(workspacePhases.length){$('programhorizon').value=workspacePhases.reduce((n,p)=>n+p.days,0);}
 }
-function workspaceWeeklyHtml(p){
- const pattern=p.weekly_pattern;
- return `<label class="program-check"><input type="checkbox" data-custom-week ${pattern?'checked':''}>Arrange this phase’s weekly sessions manually</label><div class="program-manual-week" ${pattern?'':'hidden'}>${workspaceDays.map((name,i)=>{
- const raw=pattern?.[i],slots=Array.isArray(raw)?raw:raw?[raw]:[{sport:'rest',purpose:'Rest / open day'}];
- return `<div><b>${name}</b>${[0,1,2].map(j=>`<select aria-label="${name} session ${j+1}" data-week-day="${i}" data-week-session="${j}"><option value="">${j?'No additional session':'Rest'}</option>${Object.entries(phaseSports).map(([s,n])=>`<option value="${s}" ${slots[j]?.sport===s?'selected':''}>${esc(n)}</option>`).join('')}</select>`).join('')}<input aria-label="${name} session purpose" data-week-note="${i}" value="${esc(slots[0]?.purpose||'')}" placeholder="Purpose / focus"></div>`;
- }).join('')}</div>`;
+/* The phase day grid (phase-grid.js): click a day, or shift/Cmd-click several, then pick a session type; drag to select
+   a block to copy, paste or fill forward. Every change can be undone. */
+const gridSel={phase:-1,dates:new Set(),drag:null,pending:null,clip:null,all:new Set(),last:null};
+const gridTypes=[['ride','Bike'],['swim','Swim'],['gym','Lift'],['run','Run']];
+let workspaceUndo=[],workspaceRedo=[];
+function workspaceHistoryButtons(){$('programundo').disabled=!workspaceUndo.length;$('programredo').disabled=!workspaceRedo.length;}
+function workspaceSnapshot(){workspaceUndo.push(JSON.stringify(workspacePhases));if(workspaceUndo.length>100)workspaceUndo.shift();workspaceRedo=[];workspaceHistoryButtons();}
+function workspaceHistoryReset(){workspaceUndo=[];workspaceRedo=[];workspaceHistoryButtons();}
+function workspaceHistory(back){
+ const from=back?workspaceUndo:workspaceRedo,to=back?workspaceRedo:workspaceUndo;if(!from.length)return;
+ to.push(JSON.stringify(workspacePhases));workspacePhases=JSON.parse(from.pop());gridClose(true);workspaceDirty(back?'Undone.':'Redone.');workspaceRender();workspaceHistoryButtons();
 }
+function gridDayLabel(p,iso){const d=new Date(iso+'T12:00');return d.getDate()===1||iso===p.start?d.toLocaleDateString('en-US',{month:'short',day:'numeric'}):String(d.getDate());}
+/* Saved calendar workouts by date, from the active program's weeks (the same sessions the calendar shows). */
+function gridSavedFromProgram(){const map={};for(const w of programState?.weeks||[])for(const s of w.slots||[])if(s.source==='scheduled'&&s.sport!=='rest')(map[s.date]=map[s.date]||[]).push({sport:s.sport,purpose:s.purpose});PhaseGrid.setSaved(map);}
+function gridHtml(p,i){
+ const rows=PhaseGrid.rows(p),auto=!PhaseGrid.manual(p),folded=rows.length>6&&!gridSel.all.has(i),shown=folded?rows.slice(0,6):rows;
+ const pending=gridSel.pending?.phase===i?Object.fromEntries(gridSel.pending.targets.map(t=>[t.date,t.slots])):{};
+ const cell=c=>{
+  if(!c.inside)return '<span class="pg-cell pg-out" aria-hidden="true"></span>';
+  const saved=PhaseGrid.isSaved(c.date),now=PhaseGrid.shown(p,c.date),incoming=pending[c.date],show=incoming||now||[];
+  const said=saved?'saved workout, '+now.map(x=>phaseSports[x.sport]||x.sport).join(' and '):now===null?'placed automatically':now.length?now.map(x=>phaseSports[x.sport]||x.sport).join(' and '):'nothing planned';
+  return `<button type="button" class="pg-cell${gridSel.phase===i&&gridSel.dates.has(c.date)?' pg-sel':''}${incoming?' pg-pending':''}${now===null?' pg-auto':''}${saved?' pg-saved':''}" data-cell="${c.date}" aria-label="${esc(c.date)}: ${esc(said)}" ${saved?`title="Saved workout: ${esc(now.map(x=>x.purpose||phaseSports[x.sport]).join(' + '))}. Change it on the calendar."`:''}><small>${esc(gridDayLabel(p,c.date))}</small><span class="pg-icons">${now===null&&!incoming?'<em>auto</em>':show.map(x=>`<i class="pg-dot pg-${esc(x.sport)}" title="${esc(phaseSports[x.sport]||x.sport)}">${ICON[x.sport]||''}</i>`).join('')}</span></button>`;
+ };
+ const n=gridSel.pending?.phase===i?gridSel.pending.conflicts:0;
+ return `<p class="sub pg-hint">${auto?'Sessions here are placed automatically when you review. Click a day to plan this phase by hand.':'Click a day, or shift-click several, to add a session. Drag across days to copy, paste or fill them forward. Days with a saved workout (outlined) show it and change on the calendar.'}</p>
+ <div class="pg-grid"><div class="pg-days" aria-hidden="true">${workspaceDays.map(d=>`<span>${d}</span>`).join('')}</div>${shown.map(r=>`<div class="pg-row">${r.map(cell).join('')}</div>`).join('')}</div>
+ ${rows.length>6?`<button type="button" class="pg-more" data-grid-all>${folded?`Show all ${rows.length} weeks`:'Show fewer weeks'}</button>`:''}
+ ${n?`<div class="pg-confirm" role="alertdialog" aria-label="Replace planned days"><b>Replace ${n} planned day${n===1?'':'s'}?</b><span class="sub">The highlighted days show what would go in.</span><button type="button" class="blue" data-pending="replace">Replace</button><button type="button" data-pending="empty">Fill empty days only</button><button type="button" data-pending="cancel">Cancel</button></div>`:''}`;
+}
+function gridRender(i){const host=document.querySelector(`[data-grid="${i}"]`);if(host&&workspacePhases[i])host.innerHTML=gridHtml(workspacePhases[i],i);}
+function gridChange(i,fn,message){workspaceSnapshot();const r=fn(workspacePhases[i]);workspaceDirty(message);gridRender(i);return r;}
+function gridMenu(){let m=$('pgmenu');if(!m){m=document.createElement('div');m.id='pgmenu';m.className='pg-menu';m.hidden=true;m.setAttribute('role','menu');$('programdialog').append(m);}return m;}
+function gridClose(clearSelection){const m=$('pgmenu');if(m)m.hidden=true;if(clearSelection){const i=gridSel.phase;gridSel.dates=new Set();gridSel.pending=null;if(i>=0)gridRender(i);}}
+function gridOpen(){
+ const i=gridSel.phase,n=gridSel.dates.size;if(i<0||!n)return;
+ const m=gridMenu(),anchor=document.querySelector(`[data-grid="${i}"] [data-cell="${gridSel.last}"]`)||document.querySelector(`[data-grid="${i}"] .pg-sel`);
+ m.innerHTML=`<b>Add to ${n} day${n===1?'':'s'}</b><div class="pg-menu-types">${gridTypes.map(([s,t])=>`<button type="button" role="menuitem" data-menu-add="${s}">${ICON[s]||''}${t}</button>`).join('')}</div><div class="pg-menu-actions"><button type="button" role="menuitem" data-menu="copy">Copy</button><button type="button" role="menuitem" data-menu="paste" ${gridSel.clip?'':'disabled'}>Paste</button><button type="button" role="menuitem" data-menu="fill">Fill to end of phase</button><button type="button" role="menuitem" data-menu="clear">Clear</button><button type="button" role="menuitem" data-menu="close">Cancel</button></div>`;
+ m.hidden=false;const r=(anchor||$('programphasecards')).getBoundingClientRect(),w=m.offsetWidth,h=m.offsetHeight;
+ m.style.left=Math.max(8,Math.min(innerWidth-w-8,r.left))+'px';m.style.top=(r.bottom+h+8<innerHeight?r.bottom+6:Math.max(8,r.top-h-6))+'px';
+ m.querySelector('button')?.focus();
+}
+function gridPlace(i,targets){
+ if(!targets.length){$('programmessage').textContent='There are no days after the selection to fill.';return;}
+ const conflicts=PhaseGrid.conflicts(workspacePhases[i],targets);
+ if(!conflicts.length){gridChange(i,p=>PhaseGrid.apply(p,targets),`Placed ${targets.length} day${targets.length===1?'':'s'}. Review before applying.`);return;}
+ gridSel.pending={phase:i,targets,conflicts:conflicts.length};gridRender(i);
+}
+function gridAction(action,sport){
+ const i=gridSel.phase,p=workspacePhases[i],all=[...gridSel.dates].sort();if(i<0||!p)return;
+ gridClose(false);
+ const chosen=['add','clear'].includes(action)?all.filter(d=>!PhaseGrid.isSaved(d)):all,skipped=all.length-chosen.length;
+ if(['add','clear'].includes(action)&&!chosen.length){$('programmessage').textContent='Those days have saved workouts. Change them on the calendar.';gridSel.dates=new Set();gridRender(i);return;}
+ if(action==='add'){const r=gridChange(i,q=>PhaseGrid.addType(q,chosen,sport),`Added ${phaseSports[sport]} to ${chosen.length} day${chosen.length===1?'':'s'}. Review before applying.`);if(skipped)$('programmessage').textContent+=` ${skipped} day${skipped===1?' has a saved workout':'s have saved workouts'} and stayed as planned.`;if(r.full)$('programmessage').textContent=`${r.full} day${r.full===1?' already has':'s already have'} three sessions and stayed as ${r.full===1?'it was':'they were'}.`;}
+ else if(action==='copy'){gridSel.clip=PhaseGrid.copy(p,chosen);$('programmessage').textContent=`Copied ${chosen.length} day${chosen.length===1?'':'s'}. Select a day and choose Paste, here or in another phase.`;}
+ else if(action==='paste'&&gridSel.clip){gridSel.dates=new Set();gridPlace(i,PhaseGrid.targets(p,gridSel.clip,chosen[0]));return;}
+ else if(action==='fill'){gridSel.dates=new Set();gridPlace(i,PhaseGrid.fillTargets(p,chosen));return;}
+ else if(action==='clear')gridChange(i,q=>PhaseGrid.clear(q,chosen),'Cleared. Review before applying.');
+ gridSel.dates=new Set();gridRender(i);
+}
+function gridRange(p,a,b){const [lo,hi]=a<b?[a,b]:[b,a];return PhaseGrid.dates(p).filter(d=>d>=lo&&d<=hi);}
+function gridDrag(cellDate){
+ const d=gridSel.drag;if(!d)return;const p=workspacePhases[d.phase];
+ const next=new Set(d.base);if(d.toggle&&cellDate===d.from)next.delete(cellDate);else gridRange(p,d.from,cellDate).forEach(x=>next.add(x));
+ gridSel.dates=next;gridSel.last=cellDate;
+ document.querySelectorAll(`[data-grid="${d.phase}"] [data-cell]`).forEach(c=>c.classList.toggle('pg-sel',next.has(c.dataset.cell)));
+}
+(function gridEvents(){
+ const cards=$('programphasecards');
+ cards.addEventListener('pointerdown',e=>{
+  const cell=e.target.closest('[data-cell]');if(!cell||e.button!==0)return;e.preventDefault();
+  const i=Number(cell.closest('[data-draft-index]').dataset.draftIndex);if(gridSel.pending)return;
+  const more=e.shiftKey||e.metaKey||e.ctrlKey;gridMenu().hidden=true;
+  if(gridSel.phase!==i){const old=gridSel.phase;gridSel.phase=i;gridSel.dates=new Set();if(old>=0)gridRender(old);}
+  gridSel.drag={phase:i,from:cell.dataset.cell,base:more?new Set(gridSel.dates):new Set(),toggle:more&&gridSel.dates.has(cell.dataset.cell),more};
+  gridDrag(cell.dataset.cell);
+ });
+ cards.addEventListener('pointerover',e=>{const cell=e.target.closest('[data-cell]');if(cell&&gridSel.drag&&cell.closest(`[data-grid="${gridSel.drag.phase}"]`))gridDrag(cell.dataset.cell);});
+ addEventListener('pointerup',()=>{const d=gridSel.drag;if(!d)return;gridSel.drag=null;if(!d.more&&gridSel.dates.size)gridOpen();});
+ addEventListener('keyup',e=>{if(['Shift','Meta','Control'].includes(e.key)&&!gridSel.drag&&gridSel.dates.size&&gridMenu().hidden&&$('programdialog').open)gridOpen();});
+ cards.addEventListener('click',e=>{
+  const all=e.target.closest('[data-grid-all]');if(all){const i=Number(all.closest('[data-draft-index]').dataset.draftIndex);gridSel.all.has(i)?gridSel.all.delete(i):gridSel.all.add(i);gridRender(i);return;}
+  const b=e.target.closest('[data-pending]');if(!b||!gridSel.pending)return;
+  const {phase,targets}=gridSel.pending;gridSel.pending=null;
+  if(b.dataset.pending==='cancel'){gridRender(phase);$('programmessage').textContent='Nothing changed.';return;}
+  const n=gridChange(phase,p=>PhaseGrid.apply(p,targets,b.dataset.pending),'');$('programmessage').textContent=`${b.dataset.pending==='empty'?'Filled':'Placed'} ${n} day${n===1?'':'s'}. Review before applying.`;
+ });
+ gridMenu().addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.menuAdd)gridAction('add',b.dataset.menuAdd);else if(b.dataset.menu==='close')gridClose(true);else gridAction(b.dataset.menu);});
+ $('programdialog').addEventListener('pointerdown',e=>{if(!e.target.closest('#pgmenu,[data-cell],.pg-confirm')&&(gridSel.dates.size||!gridMenu().hidden))gridClose(true);},true);
+ $('programdialog').addEventListener('keydown',e=>{
+  if(e.target.closest('input,textarea,select'))return;
+  const mod=e.metaKey||e.ctrlKey,k=e.key.toLowerCase(),chosen=gridSel.dates.size;
+  if(mod&&k==='z'){e.preventDefault();workspaceHistory(!e.shiftKey);}
+  else if(mod&&k==='y'){e.preventDefault();workspaceHistory(false);}
+  else if(mod&&k==='c'&&chosen){e.preventDefault();gridAction('copy');}
+  else if(mod&&k==='v'&&chosen&&gridSel.clip){e.preventDefault();gridAction('paste');}
+  else if((e.key==='Delete'||e.key==='Backspace')&&chosen){e.preventDefault();gridAction('clear');}
+  else if(e.key==='Escape'&&(chosen||gridSel.pending||!gridMenu().hidden)){e.preventDefault();gridClose(true);}
+ });
+})();
 function workspaceRender(){
- const expanded=new Set(Array.from($('programphasecards').querySelectorAll('details[open]')).map(e=>e.dataset.phaseSettings));
+ gridSel.pending=null;gridSel.dates=new Set();gridMenu().hidden=true;gridSavedFromProgram();
  workspaceReschedule();
  $('programphasecards').innerHTML=workspacePhases.length?workspacePhases.map((p,i)=>`<article class="program-draft-phase phase-${esc(p.color||workspaceColors[i%5])}" data-draft-index="${i}">
  <div class="program-draft-art phasephoto"><img src="${esc(artFile(phasePhoto(p,'draft')))}" style="${artPosition(phasePhoto(p,'draft'))}" alt="${esc(p.label)} inspiration"><div class="program-duration-controls"><button type="button" data-duration-delta="-1" aria-label="Decrease phase ${i+1} by one day" ${p.locked?'disabled':''}>−</button><label><input type="number" data-phase-days min="1" max="366" aria-label="Phase ${i+1} days" value="${p.days}" ${p.locked?'disabled':''}> days</label><button type="button" data-duration-delta="1" aria-label="Increase phase ${i+1} by one day" ${p.locked?'disabled':''}>＋</button></div></div>
  <div class="program-draft-phase-body"><input data-phase-label aria-label="Phase ${i+1} name" value="${esc(p.label)}"><small>${esc(p.start)} → ${esc(p.end)}</small>
  <div class="program-phase-order"><button type="button" data-move="-1" aria-label="Move phase ${i+1} earlier" ${i===0?'disabled':''}>←</button><button type="button" data-move="1" aria-label="Move phase ${i+1} later" ${i===workspacePhases.length-1?'disabled':''}>→</button><button type="button" data-duplicate>Duplicate</button><button type="button" data-remove>Remove</button></div>
- <details data-phase-settings="${i}" ${expanded.has(String(i))?'open':''}><summary>Purpose, priorities & weekly placement</summary>
- <label>Training purpose<select data-phase-stage>${Object.entries(workspacePurpose).map(([s,[name]])=>`<option value="${s}" ${draftStage(p)===s?'selected':''}>${name}</option>`).join('')}</select></label>
+ <div class="program-phase-settings"><label>Training purpose<select data-phase-stage>${Object.entries(workspacePurpose).map(([s,[name]])=>`<option value="${s}" ${draftStage(p)===s?'selected':''}>${name}</option>`).join('')}</select></label>
  <label>Color<select data-phase-color>${workspaceColors.map(c=>`<option ${p.color===c?'selected':''}>${c}</option>`).join('')}</select></label>
- <label class="program-check"><input data-phase-lock type="checkbox" ${p.locked?'checked':''}>Lock duration during redistribution</label>
- <label>Purpose / coaching intent<textarea data-phase-purpose rows="2">${esc(p.purpose||'')}</textarea></label>
- <div class="program-phase-priorities">${Object.entries(phaseSports).map(([s,name])=>`<label>${esc(name)}<select data-phase-mode="${s}">${[['improve','Build'],['maintain','Maintain'],['pause','Pause']].map(([v,t])=>`<option value="${v}" ${p.modes[s]===v?'selected':''}>${t}</option>`).join('')}</select><input type="number" min="1" max="100" step="1" data-phase-weight="${s}" aria-label="${esc(name)} priority weight" value="${p.weights?.[s]|| (p.modes[s]==='improve'?2:1)}"></label>`).join('')}</div>
- ${workspaceWeeklyHtml(p)}<details class="program-dated-settings"><summary>Individual date exceptions</summary><p class="sub">Override the recurring placement for a specific date. Existing detailed workouts still take precedence.</p><label>Date<input type="date" data-placement-date min="${p.start}" max="${draftDate(p.end,-1)}" value="${p.start}"></label><div class="program-dated-sports">${[0,1,2].map(j=>`<select data-placement-sport aria-label="Dated session ${j+1}"><option value="">${j?'No additional session':'Rest'}</option>${Object.entries(phaseSports).map(([s,n])=>`<option value="${s}">${esc(n)}</option>`).join('')}</select>`).join('')}</div><input data-placement-purpose aria-label="Dated session purpose" placeholder="Purpose / focus"><button type="button" data-placement-save>Save date in draft</button><ul>${Object.entries(p.date_placements||{}).sort().map(([date,slots])=>`<li>${esc(date)} · ${slots.map(s=>esc(phaseSports[s.sport]||'Rest')).join(' + ')} <button type="button" data-placement-remove="${date}" aria-label="Remove placement on ${date}">Remove</button></li>`).join('')}</ul></details></details></div></article>`).join(''):'<p class="sub">No draft phases. Create evenly spaced phases, add a phase, or request a suggestion.</p>';
+ <label class="program-check"><input data-phase-lock type="checkbox" ${p.locked?'checked':''}>Lock duration</label></div>
+ <div class="phase-grid-host" data-grid="${i}">${gridHtml(p,i)}</div></div></article>`).join(''):'<p class="sub">No draft phases. Create evenly spaced phases, add a phase, or request a suggestion.</p>';
  $('programphasecards').querySelectorAll('[data-draft-index]').forEach(card=>{
   const i=Number(card.dataset.draftIndex),p=workspacePhases[i];
-  const update=(selector,key,read=e=>e.value)=>{const e=card.querySelector(selector);e.onchange=()=>{p[key]=read(e);workspaceDirty();if(key==='color'||key==='locked')workspaceRender();};};
-  update('[data-phase-label]','label');update('[data-phase-color]','color');update('[data-phase-lock]','locked',e=>e.checked);update('[data-phase-purpose]','purpose');
-  card.querySelector('[data-phase-stage]').onchange=e=>{p.stage=e.target.value;p.kind=workspacePurpose[p.stage][1];p.profile=p.stage==='recovery'?'recovery':$('programfocus').value;workspaceDirty();workspaceRender();};
+  const update=(selector,key,read=e=>e.value)=>{const e=card.querySelector(selector);e.onchange=()=>{workspaceSnapshot();p[key]=read(e);workspaceDirty();if(key==='color'||key==='locked')workspaceRender();};};
+  update('[data-phase-label]','label');update('[data-phase-color]','color');update('[data-phase-lock]','locked',e=>e.checked);
+  card.querySelector('[data-phase-stage]').onchange=e=>{workspaceSnapshot();p.stage=e.target.value;p.kind=workspacePurpose[p.stage][1];p.profile=p.stage==='recovery'?'recovery':$('programfocus').value;workspaceDirty();workspaceRender();};
   card.querySelector('[data-phase-days]').onchange=e=>workspaceChangeDays(i,Number(e.target.value));
   card.querySelectorAll('[data-duration-delta]').forEach(b=>b.onclick=()=>workspaceChangeDays(i,p.days+Number(b.dataset.durationDelta)));
-  card.querySelectorAll('[data-move]').forEach(b=>b.onclick=()=>{const j=i+Number(b.dataset.move);[workspacePhases[i],workspacePhases[j]]=[workspacePhases[j],workspacePhases[i]];workspaceDirty();workspaceRender();});
+  card.querySelectorAll('[data-move]').forEach(b=>b.onclick=()=>{workspaceSnapshot();const j=i+Number(b.dataset.move);[workspacePhases[i],workspacePhases[j]]=[workspacePhases[j],workspacePhases[i]];workspaceDirty();workspaceRender();});
   card.querySelector('[data-duplicate]').onclick=()=>workspaceAdd(draftCopy(p));
   card.querySelector('[data-remove]').onclick=()=>{
    try{if(p.locked)throw Error('Unlock this phase before removing it.');const next=workspacePhases.filter((_,j)=>j!==i).map(x=>({...x}));
     if($('programduration').value==='fixed'&&next.length){const recipient=next.findIndex(x=>!x.locked);if(recipient<0)throw Error('Unlock a remaining phase before redistributing these days.');next[recipient].days+=p.days;if(next[recipient].days>366)throw Error('This would exceed the phase duration limit.');}
-    workspacePhases=next;workspaceDirty();workspaceRender();
+    workspaceSnapshot();workspacePhases=next;workspaceDirty();workspaceRender();
    }catch(e){$('programmessage').textContent=e.message;}
   };
-  card.querySelectorAll('[data-phase-mode]').forEach(e=>e.onchange=()=>{p.modes[e.dataset.phaseMode]=e.value;workspaceDirty();});
-  card.querySelectorAll('[data-phase-weight]').forEach(e=>e.onchange=()=>{p.weights={...p.weights,[e.dataset.phaseWeight]:Number(e.value)};workspaceDirty();});
-  card.querySelector('[data-placement-save]').onclick=()=>{
-   const date=card.querySelector('[data-placement-date]').value;if(date<p.start||date>=p.end){$('programmessage').textContent='Choose a date within this phase.';return;}
-   const purpose=card.querySelector('[data-placement-purpose]').value||p.label,slots=Array.from(card.querySelectorAll('[data-placement-sport]')).filter(e=>e.value).map(e=>({sport:e.value,purpose}));
-   p.date_placements={...p.date_placements,[date]:slots.length?slots:[{sport:'rest',purpose:'Rest / open day'}]};workspaceDirty();workspaceRender();
-  };
-  card.querySelectorAll('[data-placement-remove]').forEach(b=>b.onclick=()=>{delete p.date_placements[b.dataset.placementRemove];workspaceDirty();workspaceRender();});
-  const saveWeek=()=>{p.weekly_pattern=workspaceDays.map((_,d)=>{
-   const sportEls=Array.from(card.querySelectorAll(`[data-week-day="${d}"]`));const note=card.querySelector(`[data-week-note="${d}"]`).value||p.label;
-   const slots=sportEls.filter(e=>e.value).map(e=>({sport:e.value,purpose:note}));return slots.length?slots:[{sport:'rest',purpose:'Rest / open day'}];
-  });workspaceDirty();};
-  card.querySelector('[data-custom-week]').onchange=e=>{card.querySelector('.program-manual-week').hidden=!e.target.checked;if(e.target.checked)saveWeek();else{delete p.weekly_pattern;workspaceDirty();}};
-  card.querySelectorAll('[data-week-day],[data-week-note]').forEach(e=>e.onchange=saveWeek);
  });
 }
 function workspaceChangeDays(i,days){
- try{const next=ProgramDraftMath.redistribute(workspacePhases,i,days,$('programduration').value==='fixed');if(next.reduce((n,p)=>n+p.days,0)>366)throw Error('Keep the planning horizon within 366 days.');workspacePhases=next;workspaceDirty('Duration changed; other unlocked days were adjusted where required. Review the dates.');workspaceRender();}
+ try{const before=JSON.stringify(workspacePhases);const next=ProgramDraftMath.redistribute(workspacePhases,i,days,$('programduration').value==='fixed');if(next.reduce((n,p)=>n+p.days,0)>366)throw Error('Keep the planning horizon within 366 days.');workspaceUndo.push(before);workspaceRedo=[];workspaceHistoryButtons();workspacePhases=next;workspaceDirty('Duration changed; other unlocked days were adjusted where required. Review the dates.');workspaceRender();}
  catch(e){$('programmessage').textContent=e.message;workspaceRender();}
 }
-function workspaceNewPhase(days=7){return {days,label:'Development',kind:'build',stage:'build',profile:$('programfocus').value,purpose:'Develop the selected priorities with reviewed progression.',color:workspaceColors[workspacePhases.length%5],modes:workspaceFields().priorities,weights:{},locked:false};}
+function workspaceNewPhase(days=7){return {days,label:'Development',kind:'build',stage:'build',profile:$('programfocus').value,purpose:'Development',color:workspaceColors[workspacePhases.length%5],modes:workspaceFields().priorities,weights:{},locked:false,weekly_pattern:Array.from({length:7},()=>[{...PhaseGrid.REST}]),date_placements:{}};}
 function workspaceAdd(phase){
- try{if(workspacePhases.length>=24)throw Error('Use at most 24 phases.');phase=phase||workspaceNewPhase();phase.locked=false;
+ try{if(workspacePhases.length>=24)throw Error('Use at most 24 phases.');const fresh=!phase,before=JSON.stringify(workspacePhases);phase=phase||workspaceNewPhase();phase.locked=false;
   const days=phase.days;const next=[...workspacePhases,draftCopy(phase)];
   if($('programduration').value==='fixed'&&workspacePhases.length){next.at(-1).days=0;workspacePhases=ProgramDraftMath.redistribute(next,next.length-1,days,true);}else workspacePhases=next;
-  if(workspacePhases.reduce((n,p)=>n+p.days,0)>366){workspacePhases.pop();throw Error('Keep the planning horizon within 366 days.');}
-  workspaceDirty();workspaceRender();
+  if(workspacePhases.reduce((n,p)=>n+p.days,0)>366){workspacePhases=JSON.parse(before);throw Error('Keep the planning horizon within 366 days.');}
+  if(fresh&&workspacePhases.length>1){workspaceReschedule();PhaseGrid.seedFrom(workspacePhases.at(-2),workspacePhases.at(-1));}
+  workspaceUndo.push(before);workspaceRedo=[];workspaceHistoryButtons();workspaceDirty();workspaceRender();
  }catch(e){$('programmessage').textContent=e.message;}
 }
 function workspaceEven(){
  const count=Number($('programcount').value),span=$('programpath').value==='event'?draftSpan($('programstart').value,$('programtarget').value)+workspaceEventExtra:Number($('programhorizon').value);
  if(!Number.isInteger(count)||count<1||count>24||!Number.isInteger(span)||span<count||span>366){$('programmessage').textContent='Choose 1–24 phases and enough days for at least one day per phase, up to 366 days.';return;}
- workspacePhases=Array.from({length:count},(_,i)=>({...workspaceNewPhase(Math.floor(span/count)+(i<span%count?1:0)),label:'Development '+(i+1),color:workspaceColors[i%5]}));workspaceDirty();workspaceRender();
+ workspaceSnapshot();workspacePhases=Array.from({length:count},(_,i)=>({...workspaceNewPhase(Math.floor(span/count)+(i<span%count?1:0)),label:'Development '+(i+1),color:workspaceColors[i%5]}));workspaceDirty();workspaceRender();
 }
 function workspaceRevise(){
  workspaceSource='revise';workspaceSetFields(programState?.goal);const start=$('programstart').value;
  workspacePhases=(programState?.phases||[]).filter(p=>p.end>start).map(p=>({...draftCopy(p),start:p.start<start?start:p.start,days:draftSpan(p.start<start?start:p.start,p.end),locked:p.locked??['specific','taper'].includes(draftStage(p))}));
- workspaceDirty('Current program copied into a draft. Completed history stays in place.');workspaceRender();
+ workspaceHistoryReset();workspaceDirty('Current program copied into a draft. Completed history stays in place.');workspaceRender();
 }
 async function workspaceSuggest(){
  workspaceDirty('Preparing a suggestion…');const fields=workspaceFields(),revision=workspaceRevision;
  const r=await post('/api/coach/program-builder',{...fields,action:'preview'});
  if(revision!==workspaceRevision||!$('programdialog').open)return;
  if(!r.ok){$('programmessage').textContent=r.j.error||'Could not build a suggestion.';return;}
- workspaceSource='suggest';workspacePhases=r.j.phases.map(p=>({...p,locked:['specific','taper'].includes(draftStage(p))}));workspaceRender();$('programmessage').textContent='Suggestion ready to edit. Review it before applying.';
+ workspaceSnapshot();workspaceSource='suggest';workspacePhases=r.j.phases.map(p=>({...p,locked:['specific','taper'].includes(draftStage(p))}));workspaceRender();$('programmessage').textContent='Suggestion ready to edit. Review it before applying.';
 }
 async function openProgram(){
  if(!programState)await loadProgram();workspaceRevise();
@@ -160,11 +237,12 @@ function workspaceReviewHtml(r){
  ${workspaceCapacityHtml(r.capacity_review)}${workspaceStarterHtml(r.starter)}${macroHtml(r.weeks)}</section>`;
 }
 $('programopen').onclick=openProgram;$('rulesprogramopen').onclick=openProgram;$('rulesphaseopen').onclick=()=>openPhaseEditor();
-$('programrevise').onclick=workspaceRevise;$('programsuggest').onclick=workspaceSuggest;
-$('programblank').onclick=()=>{workspaceSource='blank';workspacePhases=[];workspaceDirty('Blank draft ready. Create phases or add them individually.');workspaceRender();};
-$('programclear').onclick=()=>{workspacePhases=[];workspaceDirty('Draft cleared. Your active program is unchanged.');workspaceRender();};
+$('programsuggest').onclick=workspaceSuggest;
+$('programblank').onclick=()=>{workspaceSnapshot();workspaceSource='blank';workspacePhases=[];workspaceDirty('Blank draft ready. Create phases or add them individually.');workspaceRender();};
+$('programclear').onclick=()=>{workspaceSnapshot();workspacePhases=[];workspaceDirty('Draft cleared. Your active program is unchanged.');workspaceRender();};
 $('programcreate').onclick=workspaceEven;$('programadd').onclick=()=>workspaceAdd();
 $('programclose').onclick=()=>$('programdialog').close();
+$('programundo').onclick=()=>workspaceHistory(true);$('programredo').onclick=()=>workspaceHistory(false);
 $('programdialog').addEventListener('close',()=>{workspaceRevision++;workspaceReview=null;programDraft=null;programPreviewData=null;});
 $('programdialog').querySelectorAll('.lgrid input,.lgrid select').forEach(e=>e.onchange=()=>{
  workspaceDirty();workspacePath();
@@ -215,3 +293,44 @@ function workspaceAnchors(){return ['BB squat','BB bench press','BB row'].flatMa
 
 $('programneutral').onchange=()=>workspaceDirty();
 $('programanchorunit').onchange=()=>workspaceDirty();
+
+/* One goal field: a typed goal ("225 lb bench press") stays as written; an event's web address is read
+   (/api/coach/event-url-preview, the same reader as Events & goals) and fills in the event name, its date (the peak),
+   the planning horizon and the goal sport. Nothing is saved until the draft is reviewed and applied. */
+const goalSports={run:'run',bike:'ride',swim:'swim',tri:'tri',gym:'gym'};
+const goalLooksLikeUrl=v=>{const t=(v||'').trim();return !!t&&!/\s/.test(t)&&/^(https?:\/\/)?([a-z0-9-]+\.)+[a-z]{2,}(:\d+)?([\/?#]\S*)?$/i.test(t);};
+let goalImportUndo=null,goalImportRun=0,goalLast='',goalBefore='';
+function goalFields(){return {goal:$('programgoal').value,path:$('programpath').value,target:$('programtarget').value,sport:$('programsport').value,horizon:$('programhorizon').value,url:workspaceBaseGoal.event_url};}
+function goalRestore(f){$('programgoal').value=f.goal;$('programpath').value=f.path;$('programtarget').value=f.target;$('programsport').value=f.sport;$('programhorizon').value=f.horizon;if(f.url)workspaceBaseGoal.event_url=f.url;else delete workspaceBaseGoal.event_url;workspacePath();$('programtarget').dispatchEvent(new Event('change'));}
+function goalPrettyDate(iso){return iso?new Date(iso+'T12:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'}):'';}
+function goalCard(html,state){const box=$('programgoalimport');box.hidden=false;box.className='goal-import goal-import-'+state;box.innerHTML=html;}
+function goalApply(c,url){
+ goalImportUndo=goalImportUndo||{...goalFields(),goal:goalBefore};
+ if(c.name)$('programgoal').value=c.name;
+ $('programpath').value='event';if(c.date)$('programtarget').value=c.date;
+ if(goalSports[c.sport])$('programsport').value=goalSports[c.sport];
+ workspaceBaseGoal.event_url=c.source_url||url;workspacePath();$('programtarget').dispatchEvent(new Event('change'));
+ const filled=['the goal name',c.date&&'the event date and planning horizon',goalSports[c.sport]&&'the goal sport'].filter(Boolean);
+ const img=(c.image_candidates||[])[0];
+ goalCard(`${img?`<img src="${esc(img)}" alt="" referrerpolicy="no-referrer" onerror="this.remove()">`:''}<div class="goal-import-body"><small>EVENT FROM THE WEB</small><h4>${esc(c.name||'Event')}</h4><p class="goal-import-facts">${[c.date&&`<span>${ICON.test||''}${esc(goalPrettyDate(c.date))}${c.time?' · '+esc(c.time):''}</span>`,c.location&&`<span>${esc(c.location)}</span>`,goalSports[c.sport]&&`<span>${ICON[goalSports[c.sport]]||''}${esc(phaseSports[goalSports[c.sport]]||(c.sport==='tri'?'Triathlon':c.sport))}</span>`,c.distance&&`<span>${esc(c.distance)}</span>`].filter(Boolean).join('')}</p>
+ <p class="sub">Filled in ${esc(filled.join(', '))}.${c.date?'':' <b>The page didn’t give a date. Choose the event date below.</b>'} Check them before reviewing.</p>
+ <div class="goal-import-actions"><a href="${esc(c.source_url||url)}" target="_blank" rel="noopener">Open event page ↗</a><button type="button" data-goal-undo>Undo</button></div></div>`,'done');
+ if(!c.date)$('programtarget').focus();
+ workspaceDirty('Event details filled in from the page. Check them, then review the draft.');
+}
+async function goalImport(raw){
+ goalLast=raw;const url=/^https?:\/\//i.test(raw.trim())?raw.trim():'https://'+raw.trim(),run=++goalImportRun;
+ goalCard(`<div class="goal-import-body"><small>READING THE EVENT PAGE</small><p class="goal-import-loading"><span class="goal-spinner" aria-hidden="true"></span>${esc(new URL(url).hostname)}…</p></div>`,'loading');
+ let r;try{r=await post('/api/coach/event-url-preview',{url});}catch(e){r={ok:false,j:{}};}
+ if(run!==goalImportRun)return;
+ const found=(r.ok&&r.j.candidates||[]).filter(c=>c.name||c.date);
+ if(!found.length){goalCard(`<div class="goal-import-body"><small>COULDN’T READ THAT PAGE</small><p>${esc(r.j?.error||'No event details were found on that page.')}</p><p class="sub">Type the event name in Goal and pick its date instead.</p></div>`,'error');return;}
+ if(found.length===1)return goalApply(found[0],url);
+ goalCard(`<div class="goal-import-body"><small>THIS PAGE LISTS ${found.length} EVENTS · CHOOSE YOURS</small><div class="goal-import-choices">${found.slice(0,8).map((c,i)=>`<button type="button" data-goal-pick="${i}"><b>${esc(c.name||'Event')}</b><span>${esc(goalPrettyDate(c.date)||'date not listed')}${c.location?' · '+esc(c.location):''}</span></button>`).join('')}</div></div>`,'choose');
+ $('programgoalimport').querySelectorAll('[data-goal-pick]').forEach(b=>b.onclick=()=>goalApply(found[Number(b.dataset.goalPick)],url));
+}
+$('programgoal').addEventListener('focus',()=>{const v=$('programgoal').value;if(!goalLooksLikeUrl(v))goalBefore=v;});
+$('programgoal').addEventListener('change',()=>{const v=$('programgoal').value;if(goalLooksLikeUrl(v)&&v!==goalLast)goalImport(v);});
+$('programgoal').addEventListener('paste',()=>setTimeout(()=>{const v=$('programgoal').value;if(goalLooksLikeUrl(v)&&v!==goalLast)goalImport(v);},0));
+$('programgoalimport').addEventListener('click',e=>{if(!e.target.closest('[data-goal-undo]')||!goalImportUndo)return;goalRestore(goalImportUndo);goalImportUndo=null;goalLast='';$('programgoalimport').hidden=true;workspaceDirty('Event details undone.');});
+$('programdialog').addEventListener('close',()=>{goalImportUndo=null;$('programgoalimport').hidden=true;});
