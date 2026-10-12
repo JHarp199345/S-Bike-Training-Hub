@@ -657,15 +657,22 @@ def analyse(acts, prof, today=None, meta=None, feet_reports=None, daily_steps=No
             "profile": {k2: prof[k2] for k2 in ("weight_kg", "hr_rest", "hr_max", "ftp")}}
 
 
+# 2026-10-12: the athlete's reports decide; model readings (load ratios, blocks, the lifting carry-over and
+# overlap advice) are evidence to weigh, shown with every verdict but never setting it. A report-fitted recovery curve
+# per person is the long-term aim. The overnight watch reading (HRV, resting HR, sleep) is a measurement of the
+# athlete, so it still counts.
+REPORTS_DECIDE = True
+
+
 def readiness(state, checkin=None):
-    """Weakest link: each system's state from its load ratio and the rider's own report."""
+    """Weakest link: each system's state from the rider's own reports, with the model's readings as evidence."""
     import journal
     checkin = journal.effective(checkin or {})                  # a confirmed journal flag counts like a slider
     out = {}
     order = {"go": 0, "easy": 1, "rest": 2}
     for x in SYSTEMS:
         s = state["systems"][x]
-        level, why = "go", []
+        level, why, reported = "go", [], None
         if x == "engine" and not s.get("tuned"):
             if s["form"] < -30:
                 level, why = "easy", [f"big engine load for your base (form {s['form']})"]
@@ -674,8 +681,8 @@ def readiness(state, checkin=None):
             why=['Running response model: no block countdown or fitted clearance threshold']
             if not observed or response.get('last_run_date') and observed['date']<response['last_run_date']:
                 level='easy';why.append('A current foot/leg response after the latest run is still needed')
-            elif observed['rating']>=8:level='rest';why.append(f"Feet reported {observed['rating']:g}/10 on {observed['date']}")
-            elif observed['rating']>=6:level='easy';why.append(f"Feet reported {observed['rating']:g}/10 on {observed['date']}")
+            elif observed['rating']>=8:level='rest';why.append(f"Feet reported {observed['rating']:g}/10 on {observed['date']}");reported=('rest',why[-1])
+            elif observed['rating']>=6:level='easy';why.append(f"Feet reported {observed['rating']:g}/10 on {observed['date']}");reported=('easy',why[-1])
             if observed and observed['date']==response.get('last_run_date'):why.append('Same-day response; delayed recovery is not yet established')
         elif x == "impact" and s.get("tissue"):
             recent = s["tissue"].get("event")
@@ -725,6 +732,10 @@ def readiness(state, checkin=None):
                 level, why = "easy", [f"{x} was at {max(recent)}x its usual in the last week - still settling"]
         elif s["last7"] and s["prev7"] and s["last7"] > 1.5 * s["prev7"]:
             level, why = "easy", [f"{x} load up {round(s['last7'] / s['prev7'], 1)}x on last week"]
+        evidence, model_level = [], level
+        if REPORTS_DECIDE:      # what the model found becomes evidence; a report the athlete made still counts
+            evidence = ["evidence to weigh: " + w for w in why if not (reported and w == reported[1])]
+            level, why = (reported[0], [reported[1]]) if reported else ("go", [])
         mo = state.get("morning")
         if x == "engine" and mo and mo["level"] != "go":           # the watch overnight: HRV, resting HR, sleep
             level = max(level, mo["level"], key=lambda v: order[v])
@@ -739,7 +750,7 @@ def readiness(state, checkin=None):
                 level = "rest"; why.append(said)
             elif report >= 6 and level == "go":
                 level = "easy"; why.append(said)
-        out[x] = {"level": level, "why": why}
+        out[x] = {"level": level, "why": why, "evidence": evidence, "model_level": model_level}
     # Two verdicts: the bike (engine and leg muscles - no impact on the bike) and running (feet and bones).
     names = {"engine": "heart and lungs", "impact": "feet and bones", "muscle": "leg muscles"}
     bike = [x for x in SYSTEMS if x != "impact"]
@@ -768,9 +779,13 @@ def readiness(state, checkin=None):
             return None, None
         return ("rest" if best[0] >= 1.5 else "easy"), (f"lifting: {best[1].lower()} carrying {best[2]:.2f} blocks "
                                                          f"(participation weight {best[3]:.2f}; weighted indicator {best[0]:.2f})")
+    bike_evidence = [w for x in bike for w in out[x]["evidence"]]
+    run_why = run_why + [w for x in ("impact", "muscle") for w in out[x]["evidence"]]
     for sport in ("bike", "run"):
         lv, why = carry(sport)
-        if lv and sport == "bike":
+        if lv and REPORTS_DECIDE:
+            (bike_evidence if sport == "bike" else run_why).append("evidence to weigh: " + why)
+        elif lv and sport == "bike":
             worst = max(worst, lv, key=lambda v: order[v])
             limiting.append(why)
         elif lv:
@@ -778,7 +793,9 @@ def readiness(state, checkin=None):
             run_why = run_why + [why]
     for sport in ("bike", "run", "swim"):
         notes=bodymap.overlap_advice(shared_body,sport)
-        if notes and sport=="bike":
+        if notes and REPORTS_DECIDE and sport in ("bike","run"):
+            (bike_evidence if sport=="bike" else run_why).extend("evidence to weigh: "+n for n in notes)
+        elif notes and sport=="bike":
             worst=max(worst,"easy",key=lambda v:order[v]);limiting.extend(notes)
         elif notes and sport=="run":
             run_level=max(run_level,"easy",key=lambda v:order[v]);run_why.extend(notes)
@@ -797,7 +814,9 @@ def readiness(state, checkin=None):
     swim_blocks = swim_state.get("score")
     swim_level = out["engine"]["level"]
     swim_why = list(out["engine"]["why"])
-    if swim_blocks is not None:
+    if swim_blocks is not None and REPORTS_DECIDE:
+        swim_why.append(f"evidence to weigh: swim recovery {swim_blocks:.2f} blocks (provisional limit {swim_state['threshold_blocks']})")
+    elif swim_blocks is not None:
         if swim_blocks >= swim_state["threshold_blocks"]:
             swim_level = "rest"
             swim_why.append(f"swim recovery {swim_blocks:.2f} blocks (provisional limit 1.5)")
@@ -805,17 +824,21 @@ def readiness(state, checkin=None):
             swim_level = max(swim_level, "easy", key=lambda v: order[v])
             swim_why.append(f"swim recovery {swim_blocks:.2f} blocks")
     lv, why = carry("swim")
-    if lv:
+    if lv and REPORTS_DECIDE:
+        swim_why.append("evidence to weigh: " + why)
+    elif lv:
         swim_level = max(swim_level, lv, key=lambda v: order[v])
         swim_why.append(why)
     notes=bodymap.overlap_advice(shared_body,"swim")
-    if notes:
+    if notes and REPORTS_DECIDE:
+        swim_why.extend("evidence to weigh: "+n for n in notes)
+    elif notes:
         swim_level=max(swim_level,"easy",key=lambda v:order[v]);swim_why.extend(notes)
     shoulders = checkin.get("shoulders")
     if shoulders is not None and shoulders >= 6:
         swim_level = max(swim_level, "rest" if shoulders >= 8 else "easy", key=lambda v: order[v])
         swim_why.append(f"shoulders {shoulders}/10")
-    return {"systems": out, "verdict": worst, "limited_by": limiting,
+    return {"systems": out, "verdict": worst, "limited_by": limiting, "evidence": bike_evidence,
             "running": {"verdict": run_level, "why": run_why, "how": run_how},
             "swimming": {"verdict": swim_level, "why": swim_why,
                          "how": {"go": "Swim within a recently comfortable volume; check your shoulders afterward.",

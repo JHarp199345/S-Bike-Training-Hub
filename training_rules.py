@@ -27,7 +27,8 @@ HARD_WORDS = ("test", "race", "brick", "quality", "steady", "interval", "tempo",
               "openers", "calibration", "ftp")
 RULES = {
     "hard_after_legs": ("breaks", "A hard ride or run the day after leg lifting: the legs are shared and still recovering."),
-    "same_tissue_double": ("breaks", "Two sessions the same day on the same tissue: pair different tissue (swim with a run, a ride with upper-body lifting)."),
+    # e.g. a ride and a leg lift on one day are fine while the combined load stays manageable
+    "same_tissue_double": ("caution", "Two sessions the same day on the same tissue: fine while the day's combined load stays manageable; check the projected load, or pair different tissue (swim with a run, a ride with upper-body lifting)."),
     "full_body_48h": ("breaks", "Full-body lifting needs 48 hours between sessions."),
     "lift_days_in_row": ("breaks", "More lifting days in a row than the athlete's split allows."),
     "region_48h": ("breaks", "A lifting region trained hard again the next day: give each region 48-72 hours."),

@@ -18,9 +18,11 @@ def main():
     check("the week after a race is recovery", P.phase(ev(-3), T)["phase"] == "recovery")
     check("no race: base", P.phase({}, T)["phase"] == "base")
     st = lambda sport, rd, mech: P.load_state(sport, rd, {"mechanical": mech})[0]
-    check("running: rest verdict -> not ready; easy -> heavy; go with blocks carried -> moderate; clear -> fresh",
+    check("running: rest verdict -> not ready; easy -> heavy; go with blocks carried -> fresh, the blocks shown as evidence; clear -> fresh",
           st("run", {"running": {"verdict": "rest"}}, {}) == "not_ready" and st("run", {"running": {"verdict": "easy"}}, {}) == "heavy"
-          and st("run", {"running": {"verdict": "go"}}, {"remodeling_ratio": 0.6}) == "moderate" and st("run", {"running": {"verdict": "go"}}, {}) == "fresh")
+          and st("run", {"running": {"verdict": "go"}}, {"remodeling_ratio": 0.6}) == "fresh"
+          and any("evidence" in w for w in P.load_state("run", {"running": {"verdict": "go"}}, {"mechanical": {"remodeling_ratio": 0.6}})[1])
+          and st("run", {"running": {"verdict": "go"}}, {}) == "fresh")
     check("the load caps the tier; heavy suggests easy; the phase suggests the key session",
           P.tier_for("fresh", "peak") == ("very_hard", "very_hard") and P.tier_for("moderate", "peak") == ("hard", "hard")
           and P.tier_for("heavy", "build") == ("moderate", "easy") and P.tier_for("not_ready", "base") == (None, None))

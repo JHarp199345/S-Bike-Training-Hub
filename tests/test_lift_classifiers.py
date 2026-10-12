@@ -46,3 +46,24 @@ two = [{"date": "2026-10-08", "lifts": [{"name": "Hip thrust machine", "weight":
 lt = F.last_time("Hip thrust machine", two, "2026-10-12")
 assert lt["total"] == 5160 and lt["weight"] == 195 and lt["sets"] == 3
 print("PASS lift classifiers: type, duration, intensity by max or last time, style, rules respected, minors")
+
+# recommending intensity from the phase and the athlete's own responses
+state2 = {"logs": logs, "strength": strength, "followups": {}, "library": {}}
+assert F.recommend(state2, {}, "build")["intensity"] == "medium"
+fb_ok = {"a": {"sport": "gym", "date": "2026-10-01", "effort": "as_intended"}, "b": {"sport": "gym", "date": "2026-10-05", "effort": "as_intended"}}
+up = F.recommend(state2, fb_ok, "build")
+assert up["intensity"] == "heavy" and "stepped up" in up["why"][-1], up["why"]
+assert F.recommend(state2, fb_ok, "maintain")["intensity"] == "medium", "no step up unless building"
+sore = {**state2, "followups": {"2026-10-05": {"regions": {"lats": 7}, "compare": "worse"}}}
+down = F.recommend(sore, fb_ok, "build")
+assert down["intensity"] == "light" and "stepped down" in down["why"][-1]
+tap = F.recommend(state2, {}, "taper")
+assert tap["intensity"] == "light" and tap["volume"]["cut_range"] == [0.4, 0.6]
+assert F.recommend(state2, {}, "build", {"legs": 7})["intensity"] == "light", "a sore check-in today eases it"
+assert [r["date"] for r in up["past_responses"]] == ["2026-10-01", "2026-10-05"] and up["past_responses"][1]["label"]
+print("PASS lift recommendation: phase start, stepped by the athlete's own responses and today's check-in")
+rest = F.classify([{"name": "Medicine-ball lunge hold", "style": "restorative", "sets": 2, "weight": 20, "regions": {"quads": 0.5, "glutes": 0.5}},
+                   {"name": "Deep squat hold", "style": "restorative", "sets": 1, "regions": {"glutes": 0.6, "adductors": 0.4}},
+                   {"name": "Preacher curl", "style": "build", "sets": 2, "reps": 8, "weight": 50, "regions": {"biceps": 1}}], [], {}, "2026-10-12")
+assert rest["style"] == "restorative" and rest["intensity"] == "light", rest["label"]
+print("PASS a mostly-restorative session reads as restorative and light")

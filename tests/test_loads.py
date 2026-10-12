@@ -4,6 +4,7 @@ weakest-link verdict, and one activity counted once however many copies there ar
 import sys, pathlib; sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 import datetime as dt, math, struct, tempfile
 import damage, fit, loads
+loads.REPORTS_DECIDE = False   # these check the model's own readings; with reports deciding they're evidence (test_reports_decide.py)
 
 
 def fit_bytes(records, sport=2, start=None):

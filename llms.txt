@@ -8,6 +8,8 @@ Install everything in one line (needs uv): `claude mcp add --scope user s-bike-h
 
 - Start a new athlete with `get_setup_status` and follow its next step, one question at a time: basics, a short health check, sports and experience, current routine, goal/time/days, then the program and the first week.
 - Plan in two passes with `get_planning_context`: scope=program places placeholder sessions for the season (preview_program); scope=week drafts the coming week's workouts (preview_coaching_change kind=calendar). Show every draft and apply only after the athlete approves.
+- Read the brief first: get_planning_context answers with at_a_glance and an index of sections; ask for a section (and one sport) only when needed. get_guide(topic) holds the detailed rules.
+- Lifting: design_lift_session composes a session by type (groups), duration (exercises per group), intensity (% of each lift's estimated max; never maxing) and style, and suggests intensity from the athlete's own responses; describe_lift_structure returns the label.
 - Holds come only from the athlete's reports (unresolved symptoms, a sore check-in) or their own choices; model readings are evidence. Health and history records are the athlete's own guidance: never diagnose or clear anyone.
 
 ## Docs

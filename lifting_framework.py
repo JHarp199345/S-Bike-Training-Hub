@@ -256,7 +256,8 @@ def classify(exercises, logs=None, strength=None, date="9999-12-31", library=Non
         level = load_level(pct_max) if pct_max is not None else (load_level(pct_last) if pct_last is not None else None)
         row = {"name": x.get("name"), "role": role, "works": works, "sets": x.get("sets"), "reps": x.get("reps"),
                "weight": x.get("weight"), "total_moved": total, "pct_of_estimated_max": pct_max,
-               "last_time": prev, "pct_of_last_time": pct_last, "intensity": level, "style": style_of(x.get("sets"), x.get("reps"))}
+               "last_time": prev, "pct_of_last_time": pct_last, "intensity": level,
+               "style": "restorative" if x.get("style") == "restorative" else style_of(x.get("sets"), x.get("reps"))}
         rows.append(row)
         if role == "main" and works:
             counts[works[0]] = counts.get(works[0], 0) + 1
@@ -268,8 +269,12 @@ def classify(exercises, logs=None, strength=None, date="9999-12-31", library=Non
                 for r in mains if (r["pct_of_estimated_max"] is not None or r["pct_of_last_time"] is not None)]
     pct = round(sum(p * w for p, w in weighted) / sum(w for _, w in weighted)) if weighted else None
     styles = [r["style"] for r in mains if r["style"]]
+    if styles.count("restorative") * 2 > len(styles):   # mostly holds, mobility and loaded stretching
+        intensity_note = "restorative"
+    else:
+        intensity_note = None
     style = max(set(styles), key=styles.count) if styles else None
-    intensity = load_level(pct)
+    intensity = "light" if intensity_note else load_level(pct)
     label = " · ".join(v for v in (f"Type {typ}" if typ else None, f"Duration {duration}" if duration else None,
                                    intensity.title() if intensity else None, (style or "").replace("_", " ").title() or None) if v)
     return {"label": label, "type": typ, "groups": groups, "duration": duration, "main_per_group": counts,
@@ -328,3 +333,58 @@ def design_context(lift_state, groups, duration, intensity, style, date, improvi
                     "athlete's rules; name the source), set each one's weight from its target or last time, use the style's "
                     "sets and reps, add the two minors, then check with describe_lift_structure, which now returns the "
                     "classifiers. Judge each lift against its own last time. Never prescribe maxing.")}
+
+
+# --- Choosing intensity and style from the athlete's own responses (v1, 2026-10-12) ---------------------------------
+# Start from the phase (build ~70-80%, maintain light-medium, taper light at 40-60% of usual volume, recovery light),
+# then let the last few sessions' responses move it: a "too hard" report or next-day soreness of 6+ steps down one
+# level; clean reports allow a step up when building. Every step says why. Fitting a personal response curve from the
+# reports is the long-term aim; this is the transparent first version.
+LEVELS = ("light", "medium", "heavy")
+PHASE_START = {"build": ("medium", "standard", 2), "improve": ("medium", "standard", 2), "maintain": ("medium", "standard", 1),
+               "base": ("medium", "standard", 1), "taper": ("light", "standard", 1), "recovery": ("light", "standard", 1)}
+
+
+def past_responses(lift_state, feedback=None, limit=5):
+    """The last sessions with their classifiers, how they were reported and the next-day follow-up."""
+    logs = sorted(lift_state.get("logs") or [], key=lambda l: l.get("date", ""))
+    follow = lift_state.get("followups") or {}
+    fb = {}
+    for f in (feedback or {}).values():
+        if f.get("sport") == "gym" and f.get("date"):
+            fb.setdefault(f["date"], f)
+    out = []
+    for log in logs[-limit:]:
+        c = classify(log.get("lifts"), logs, lift_state.get("strength"), log.get("date", "9999"), lift_state.get("library"), lift_state.get("unit", "lb"))
+        fu = follow.get(log.get("date")) or {}
+        sore = max((v for v in (fu.get("regions") or {}).values() if isinstance(v, (int, float))), default=None)
+        rep = fb.get(log.get("date")) or {}
+        out.append({"date": log.get("date"), "label": c["label"] or None, "intensity": c["intensity"], "style": c["style"],
+                    "effort": rep.get("effort") or (log.get("rpe") and f"rpe {log['rpe']}"), "next_day_soreness_max": sore,
+                    "next_day_compare": fu.get("compare")})
+    return out
+
+
+def recommend(lift_state, feedback=None, phase="build", checkin=None):
+    """A starting intensity, style and duration for the next session, and why."""
+    intensity, style, duration = PHASE_START.get(phase, PHASE_START["maintain"])
+    why = [f"{phase} phase starts at {intensity}, {style}, duration {duration}"]
+    volume = None
+    if phase == "taper":
+        volume = {"cut_range": [0.4, 0.6], "cut": 0.5,
+                  "why": "Taper: about half the usual lifting volume until the reports show how long fitness holds for this athlete."}
+    recent = past_responses(lift_state, feedback, 3)
+    hard = [r for r in recent if r["effort"] == "too_hard" or (r["next_day_soreness_max"] or 0) >= 6 or r["next_day_compare"] == "worse"]
+    clean = recent and all(r["effort"] in ("as_intended", "too_easy") and (r["next_day_soreness_max"] or 0) <= 3 for r in recent)
+    i = LEVELS.index(intensity)
+    if hard:
+        i = max(0, i - 1)
+        why.append(f"stepped down: {hard[-1]['date']} was reported hard or sore the next day")
+    elif clean and phase in ("build", "improve") and i < 2:
+        i += 1
+        why.append("stepped up: the last sessions were reported as intended with little next-day soreness")
+    sore_now = max((float((checkin or {}).get(k) or 0) for k in ("legs", "shoulders")), default=0)
+    if sore_now >= 6:
+        i = max(0, i - 1)
+        why.append(f"today's check-in reports {sore_now:g}/10 soreness: one level easier")
+    return {"intensity": LEVELS[i], "style": style, "duration": duration, "volume": volume, "why": why, "past_responses": recent}

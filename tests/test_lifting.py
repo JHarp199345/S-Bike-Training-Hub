@@ -2,6 +2,8 @@
 import sys, pathlib; sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 import datetime as dt
 import coach, lifting
+import loads
+loads.REPORTS_DECIDE = False   # these check the model's own readings; with reports deciding they're evidence (test_reports_decide.py)
 
 new = lambda: {"checkins": {}, "plans": {}, "ratings": {}}
 

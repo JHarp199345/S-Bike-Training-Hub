@@ -89,6 +89,9 @@ def load_state(sport, readiness, headline):
         return "not_ready", why
     if v == "easy":
         return "heavy", why
+    import loads
+    if extra >= 0.5 and loads.REPORTS_DECIDE:   # a model reading: evidence, not a cap (2026-10-12)
+        return "fresh", (why or []) + [f"evidence to weigh: some load still carried (model reading {extra:.2f})"]
     if extra >= 0.5:
         return "moderate", why or ["some load still carried"]
     return "fresh", why or ["everything well under its limit"]

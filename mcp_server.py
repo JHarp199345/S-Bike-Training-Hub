@@ -19,7 +19,7 @@ import urllib.error
 import urllib.request
 
 BASE = __import__("os").environ.get("S29_HUB_URL", "http://127.0.0.1:8729")   # tests point this at a scratch server
-VERSION = "1.11.0"
+VERSION = "1.12.0"
 
 
 class HubError(Exception):
@@ -369,7 +369,7 @@ def t_lift_describe(a):
 
 
 def t_lift_design(a):
-    return call("/api/coach/lifting/framework/design", {k: a[k] for k in ("groups", "duration", "intensity", "style", "date", "improving") if k in a})
+    return call("/api/coach/lifting/framework/design", {k: a[k] for k in ("groups", "duration", "intensity", "style", "date", "improving", "phase") if k in a})
 
 
 def t_lift_plan(a):
@@ -1010,12 +1010,15 @@ TOOLS = [
      "estimated max), medium (61-80%) or heavy (81-105%, as far as is safe; never maxing), Style = standard, endurance, "
      "power_explosive or power_heavy. Returns the athlete's rules, per group their lifts with the last time done and a "
      "target weight, the style's sets and reps, and the two supporting minors (sport support for the sports being built, "
-     "and core alternating anti-rotation and rotation by week). Choose from it or search the web for exercises that "
-     "fit, check with describe_lift_structure, then plan_lift_session after the athlete approves.",
+     "and core alternating anti-rotation and rotation by week). Leave intensity, style or duration out and the hub "
+     "recommends them from the phase and the athlete's last sessions (their reports and next-day soreness), with the "
+     "reasons and those sessions listed; phase=taper also gives the volume cut (40-60%). Choose from it or search the "
+     "web for exercises that fit, check with describe_lift_structure, then plan_lift_session after the athlete approves.",
      S(groups={"type": "array", "items": {"type": "string", "enum": ["upper", "trunk", "lower"]}},
        duration=INT("Main exercises per group", 1, 3), intensity=STR("light, medium or heavy", enum=["light", "medium", "heavy"]),
        style=STR("How the weight is moved", enum=["standard", "endurance", "power_explosive", "power_heavy"]), date=DATE,
-       improving={"type": "array", "description": "Sports being built (default from the program)", "items": {"type": "string", "enum": ["ride", "swim", "run"]}}),
+       improving={"type": "array", "description": "Sports being built (default from the program)", "items": {"type": "string", "enum": ["ride", "swim", "run"]}},
+       phase=STR("Lifting's role now (default from the program)", enum=["build", "maintain", "taper", "recovery"])),
      t_lift_design),
     ("plan_lift_session", "Put a scored gym session on a day's plan - one you designed from the rider's goals, rules and "
      "the steer (search the web for exercises when you can), or the rider's own draft that you're scoring. Each exercise: "
@@ -1290,7 +1293,7 @@ for name, _, schema, _ in TOOLS:
     if name in ("import_activities",):
         schema["required"] = ["urls"]
     if name == "design_lift_session":
-        schema["required"] = ["groups", "duration", "intensity", "style"]
+        schema["required"] = ["groups"]
     if name in ("plan_lift_session", "evaluate_lift_session"):
         schema["required"] = ["lifts"]
     if name == "record_health_history":

@@ -2,6 +2,18 @@
 
 The app and the assistant bundle (MCP) have their own version numbers. The **What's new** button in the Coach header shows the same history inside the hub.
 
+## App 1.12.0 · 2026-10-12 · plan by hand, your reports decide, lifting classifiers, a leaner assistant connection
+
+Use with MCP 1.12.0.
+
+- **Plan by hand on a day grid:** Each phase is a Monday-to-Sunday grid of its days: click or shift-click days and pick a session type; copy, paste and fill forward with a preview before anything is replaced; undo and redo. Saved workouts show on it.
+- **One goal field:** Type a goal, or paste an event's web address and the hub fills in the name, the peak date, the planning horizon and the sport.
+- **Your program on the calendar:** Planned sessions show faded on every day until the week's workouts are written.
+- **Your reports decide:** The daily verdicts come from what you report (feet, legs, shoulders, breathing, illness, the overnight watch reading). Load ratios, recovery blocks and lifting carry-over are shown as evidence to weigh. Two sessions on the same tissue in a day are a caution judged by the combined load.
+- **Lifting by type, duration, intensity and style:** Sessions are described by how many muscle groups they work, exercises per group, intensity (light 30-60%, medium 61-80%, heavy 81-105% of each lift's estimated max; never maxing) and style, each lift judged against what you moved last time. The assistant designs a session in one call and the hub suggests the intensity from your phase and your own responses.
+- **A faster assistant connection:** Planning reads come as a short brief with sections on request; programs and reviews are compact by default; the server's instructions are a short core with topic guides. The same planning conversation uses about a fifth of the data.
+- **Hub-logged lifts take session reports:** No watch file needed.
+
 ## App 1.11.0 · 2026-10-11 · one-line install, assistant-led setup, evidence-led planning
 
 Use with MCP 1.11.0.

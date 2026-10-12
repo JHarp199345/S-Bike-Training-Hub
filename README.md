@@ -6,7 +6,7 @@ A free training hub for cycling, swimming, running and strength that runs on you
 
 <p align="center"><img src="docs/screens/plan.jpg" width="880" alt="Plan: the goal race, available time, sport priorities and the program's phases"></p>
 
-**Current version: app 1.11.0** with MCP 1.11.0 · [what's new](CHANGELOG.md)
+**Current version: app 1.12.0** with MCP 1.12.0 · [what's new](CHANGELOG.md)
 
 ## What it does
 
@@ -95,7 +95,7 @@ No assistant? On the welcome page, open **No assistant? Set up by hand**: your s
 The hub keeps the record; your assistant plans with you. It works with any app that supports MCP servers.
 
 - **The one-line install** above already connects it.
-- **Claude Desktop (bundle):** download the `.mcpb` bundle (MCP 1.11.0) from the [releases page](https://github.com/JHarp199345/S-Bike-Training-Hub/releases), then **Settings → Extensions → Advanced settings → Install extension**. Leave the hub address at `http://127.0.0.1:8729`.
+- **Claude Desktop (bundle):** download the `.mcpb` bundle (MCP 1.12.0) from the [releases page](https://github.com/JHarp199345/S-Bike-Training-Hub/releases), then **Settings → Extensions → Advanced settings → Install extension**. Leave the hub address at `http://127.0.0.1:8729`.
 - **Claude Code:** `claude mcp add --scope user s-bike-hub -- "$PWD/.venv/bin/python" "$PWD/mcp_server.py"` (on Windows: `.venv\Scripts\python.exe`).
 - **Other MCP apps:** point them at `mcp_server.py` with the `.venv` Python.
 

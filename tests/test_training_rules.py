@@ -35,7 +35,9 @@ check("…an easy run after leg lifting is fine", "hard_after_legs" not in rules
 check("…a hard ride after upper-body lifting is fine", "hard_after_legs" not in rules({0: [gym("upper")], 1: [ride("Tempo ride", "moderate")]})[0])
 check("…a strength check (one comfortable set) doesn't count", "hard_after_legs" not in
       rules({0: [{**gym("full", "Strength check"), "shape": "check"}], 1: [run("Running calibration", "easy")]})[0])
-check("two sessions on the same tissue the same day break a rule", "same_tissue_double" in rules({0: [swim(), gym("upper")]})[0])
+same_day = rules({0: [swim(), gym("upper")]})[1]
+check("two sessions on the same tissue the same day are a caution, judged by the combined load",
+      any(f["rule"] == "same_tissue_double" and f["severity"] == "caution" for f in same_day))
 check("…a swim with a run is fine", "same_tissue_double" not in rules({0: [swim(), run()]})[0])
 check("…a brick (ride then run) is fine", "same_tissue_double" not in rules({0: [ride(), run("Brick run (straight off the bike)")]})[0])
 check("full-body lifting two days running breaks a rule", "full_body_48h" in rules({0: [gym()], 1: [gym()]})[0])

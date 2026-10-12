@@ -2,9 +2,9 @@
   "manifest_version": "0.3",
   "name": "s-bike-hub",
   "display_name": "S-Bike Training Hub",
-  "version": "1.11.0",
+  "version": "1.12.0",
   "description": "Coach from your smart-bike training hub: check-ins, plans, rides, lifting, workouts and training load for bike, run and swim.",
-  "long_description": "Use the local Hub through 122 tools: assistant-led setup (one question at a time), a health and history record, two-pass planning (a season of placeholders, then each week's workouts from your reports), efficiency against heart rate with the day's temperature, the lifting joint framework, reviewed calendar changes, session reports and recovery check-ins. Requires Hub app 1.11.0, or install everything in one package: uvx s-bike-training-hub. Athlete files stay local; returned context follows the external AI provider's policies.",
+  "long_description": "Use the local Hub through 124 tools: assistant-led setup (one question at a time), a health and history record, two-pass planning (a season of placeholders, then each week's workouts from your reports) with a short planning brief and sections on request, efficiency against heart rate with the day's temperature, lifting designed by type, duration, intensity and style and judged against each lift's own record, reviewed calendar changes, session reports and recovery check-ins; your reports decide, model readings are evidence. Requires Hub app 1.12.0, or install everything in one package: uvx s-bike-training-hub@latest. Athlete files stay local; returned context follows the external AI provider's policies.",
   "author": {
     "name": "JHarp199345",
     "url": "https://github.com/JHarp199345"
@@ -171,7 +171,7 @@
     },
     {
       "name": "get_program",
-      "description": "Read the saved macro program, phases and weekly placements. Does not change anything."
+      "description": "Read the saved macro program: goal, phases, weekly session counts and capacity notes, compact by default. detail=true returns the full phases (placements, review criteria), every week and the capacity review, which preview_program needs; phase=<label> returns one phase in full. Does not change anything."
     },
     {
       "name": "preview_program",
@@ -267,7 +267,7 @@
     },
     {
       "name": "get_planning_context",
-      "description": "Start here when planning, in two passes, both on the athlete's request. scope=program (pass 1): placeholders for the whole macrocycle - sport, day, role improve or maintain, a minutes band and, for lifting, joint groups - saved with preview_program. scope=week (pass 2): the coming week's real workouts inside those placeholders, drafted with preview_coaching_change kind=calendar (its mirror compares the draft with recent weeks). Returns each sport's last 28 days as four weekly totals, average/best/last week and a 13-week trend in the sport's own units; the athlete's calibration (current routine, past best); reports as a 45-day half-life trend plus the last 7 days verbatim; the goal, days to the event, phases and the week's placeholders; the running gate; and a playbook of evidence written as what works. Reason from it, explain 'why this week', show the draft, and ask: approve, regenerate, or what would you change? Apply only after approval."
+      "description": "Start here when planning, in two passes, both on the athlete's request. scope=program (pass 1): placeholders for the whole macrocycle - sport, day, role improve or maintain, a minutes band and, for lifting, joint groups - saved with preview_program. scope=week (pass 2): the coming week's real workouts inside those placeholders, drafted with preview_coaching_change kind=calendar (its mirror compares the draft with recent weeks). Returns a brief first: at_a_glance (goal and days to it, the phase now and next, holds, reports well above their usual, each sport's usual week, calibration, health status, events), the last 7 days of reports (journals shortened), the phases or the week, the general playbook, and 'more': an index of sections. Ask for a section only when the decision needs it (sections=['volume'], sport='run'): volume, efficiency, reports in full, calibration, health_history, program, running_gate, playbook for one sport. Reason from it, explain 'why this week', show the draft, and ask: approve, regenerate, or what would you change? Apply only after approval."
     },
     {
       "name": "set_sport_baseline",
@@ -295,7 +295,11 @@
     },
     {
       "name": "describe_lift_structure",
-      "description": "Describe a drafted lift session against the joint framework before planning it: each exercise's joint and group percentages, the session's blend (weighted by sets), the groups its main exercises work (a group counts from 25% of an exercise), and whether the shape fits. Describes structure only; it does not judge the session or save anything."
+      "description": "Describe a drafted lift session against the joint framework before planning it: each exercise's joint and group percentages, the session's blend (weighted by sets), the groups its main exercises work (a group counts from 25% of an exercise), whether the shape fits, and the session's classifiers: Type (groups), Duration (main exercises per group), Intensity (light/medium/heavy by % of each lift's estimated max, or of what was moved last time), Style, with each lift against its own last time. Give sets, reps and weight to get them. Describes; it does not judge the session or save anything."
+    },
+    {
+      "name": "design_lift_session",
+      "description": "Start here to compose a lifting session inside the classifiers, in one call: Type = the groups (upper, trunk, lower), Duration = main exercises per group (1-3), Intensity = light (30-60% of the estimated max), medium (61-80%) or heavy (81-105%, as far as is safe; never maxing), Style = standard, endurance, power_explosive or power_heavy. Returns the athlete's rules, per group their lifts with the last time done and a target weight, the style's sets and reps, and the two supporting minors (sport support for the sports being built, and core alternating anti-rotation and rotation by week). Leave intensity, style or duration out and the hub recommends them from the phase and the athlete's last sessions (their reports and next-day soreness), with the reasons and those sessions listed; phase=taper also gives the volume cut (40-60%). Choose from it or search the web for exercises that fit, check with describe_lift_structure, then plan_lift_session after the athlete approves."
     },
     {
       "name": "plan_lift_session",
@@ -544,6 +548,10 @@
     {
       "name": "apply_report_snapshots",
       "description": "Apply exactly the previewed report back-fill after the athlete approves it. Requires the preview token and approved=true; a changed ledger or record is rejected (preview again). Writes a receipt; idempotent."
+    },
+    {
+      "name": "get_guide",
+      "description": "Read the detailed rules for one kind of work before doing it: planning, capacity, rules, running, lifting, reports, checkins, workouts, races or work_rate (the server instructions list what each covers). Read once per conversation per topic."
     }
   ],
   "tools_generated": false
