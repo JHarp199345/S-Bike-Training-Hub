@@ -6,6 +6,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 import coach, mapserver, panel, rider, workouts
 ROOT = pathlib.Path(__file__).resolve().parent.parent
+assert len(json.loads((ROOT/'server.json').read_text())['description']) <= 100  # the MCP registry's limit
 
 async def main():
  with tempfile.TemporaryDirectory(prefix='sbike-bundle-test-') as temp:
