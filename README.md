@@ -166,7 +166,7 @@ The training figures are estimates, not medical advice or injury prediction. Che
 
 ## Community
 
-Join the **[S-Bike Training Hub club on Strava](https://www.strava.com/clubs/s-bike-training-hub)**: ride, swim and run with other people using the hub, and say what to build next. Questions and bugs go to [GitHub issues](https://github.com/JHarp199345/S-Bike-Training-Hub/issues).
+Join the **[S-Bike Training Hub club on Strava](https://www.strava.com/clubs/s-bike-training-hub)**: ride, swim and run with other people using the hub, and say what to build next. In the app, **Community ↗** in the top row of the Coach page opens the club in your browser. Questions and bugs go to [GitHub issues](https://github.com/JHarp199345/S-Bike-Training-Hub/issues).
 
 ## Credits and license
 

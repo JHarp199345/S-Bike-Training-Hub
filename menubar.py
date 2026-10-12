@@ -26,8 +26,11 @@ from watchdog import Watchdog
 
 HERE = Path(__file__).resolve().parent
 PANEL = "http://127.0.0.1:8729"
-LAUNCHER = Path.home() / "Desktop" / "S-Bike Hub.command"
-AGENT = Path.home() / "Library" / "LaunchAgents" / "com.sbikehub.menubar.plist"
+# Installs from before the S-Bike rename still use the S29 names; use whichever this Mac has.
+_first = lambda paths: next((x for x in paths if x.exists()), paths[0])
+LAUNCHER = _first([Path.home() / "Desktop" / n for n in ("S-Bike Hub.command", "S29 Hub.command")])
+AGENT = _first([Path.home() / "Library" / "LaunchAgents" / n for n in ("com.sbikehub.menubar.plist", "com.s29hub.menubar.plist")])
+LABEL = AGENT.name[:-len(".plist")]
 
 
 def call(path, post=False, timeout=1.5):
@@ -150,13 +153,13 @@ class SBikeHub(rumps.App):
         """launchd brings the icon back if it ever stops, so a real Quit has to
         unload it; it comes back at the next login."""
         if AGENT.exists():
-            subprocess.Popen(["launchctl", "bootout", f"gui/{os.getuid()}/com.sbikehub.menubar"])
+            subprocess.Popen(["launchctl", "bootout", f"gui/{os.getuid()}/{LABEL}"])
         rumps.quit_application()
 
     def on_login(self, item):
         """Only about the NEXT login: switching it off never closes the icon now
         (it used to unload it on the spot, which made the icon vanish)."""
-        label = f"gui/{os.getuid()}/com.sbikehub.menubar"
+        label = f"gui/{os.getuid()}/{LABEL}"
         if item.state:
             subprocess.run(["launchctl", "disable", label], capture_output=True)
             item.state = False
@@ -174,7 +177,7 @@ def login_disabled():
     try:
         out = subprocess.run(["launchctl", "print-disabled", f"gui/{os.getuid()}"], capture_output=True,
                              text=True, timeout=3).stdout
-        return any("com.sbikehub.menubar" in l and ("true" in l or "disabled" in l) for l in out.splitlines())
+        return any(LABEL in l and ("true" in l or "disabled" in l) for l in out.splitlines())
     except (OSError, subprocess.SubprocessError):
         return False
 
@@ -184,7 +187,7 @@ def install_login_item():
     that stays a click)."""
     AGENT.parent.mkdir(parents=True, exist_ok=True)
     AGENT.write_bytes(plistlib.dumps({
-        "Label": "com.sbikehub.menubar",
+        "Label": LABEL,
         "ProgramArguments": [str(HERE / ".venv" / "bin" / "python"), str(HERE / "menubar.py")],
         "WorkingDirectory": str(HERE),
         "RunAtLoad": True,
