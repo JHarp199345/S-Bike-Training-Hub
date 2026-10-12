@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#14283a"/><stop offset="1" stop-color="#0b141d"/></linearGradient></defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <g transform="translate(192,250) scale(16)"><path d="M1 30 17 3l10 17 5-8 8 18Z" fill="#19cbd0"/><path d="m8 30 13-19 12 19Z" fill="#359cff"/></g>
+  <text x="512" y="860" text-anchor="middle" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="96" font-weight="700" fill="#ffffff" letter-spacing="2">S-BIKE HUB</text>
+</svg>
