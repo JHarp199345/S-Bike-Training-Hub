@@ -6,6 +6,8 @@ A free training hub for cycling, swimming, running and strength that runs on you
 
 <p align="center"><img src="docs/screens/plan.jpg" width="880" alt="Plan: the goal race, available time, sport priorities and the program's phases"></p>
 
+<p align="center"><a href="https://www.strava.com/clubs/s-bike-training-hub"><img src="https://img.shields.io/badge/Strava-Join%20the%20club-FC4C02?logo=strava&logoColor=white" alt="Join the S-Bike Training Hub club on Strava"></a></p>
+
 **Current version: app 1.12.0** with MCP 1.12.0 · [what's new](CHANGELOG.md) · [community on Strava](https://www.strava.com/clubs/s-bike-training-hub)
 
 ## What it does
