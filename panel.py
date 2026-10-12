@@ -354,6 +354,26 @@ async def serve(bridge, port=8729, lan=True):
             except ValueError:
                 body = b'{"ok":false}'
             ctype = "application/json"
+        elif path.startswith(b"/mode/") and method == b"POST":
+            # Ride World packs: /mode/start/<id>, /mode/grade/<percent>, /mode/mark/<text>, /mode/end[/<result>]
+            from urllib.parse import unquote
+            parts = [unquote(x.decode()) for x in path.split(b"?")[0].split(b"/")[2:]]
+            out = {"ok": True}
+            try:
+                if parts[0] == "start" and len(parts) > 1:
+                    bridge.mode_start(parts[1][:60], parts[2][:80] if len(parts) > 2 else None)
+                elif parts[0] == "grade" and len(parts) > 1:
+                    ok, g = bridge.mode_grade(float(parts[1]))
+                    out = {"ok": ok, "grade": g} if ok else {"ok": False, "why": g}
+                elif parts[0] == "mark" and len(parts) > 1:
+                    bridge.mode_mark(parts[1])
+                elif parts[0] == "end":
+                    bridge.mode_end(parts[1] if len(parts) > 1 else None)
+                else:
+                    out = {"ok": False, "why": "unknown mode request"}
+            except (ValueError, IndexError):
+                out = {"ok": False, "why": "bad mode request"}
+            body, ctype = json.dumps(out).encode(), "application/json"
         elif path.startswith(b"/gear/") and method == b"POST":
             try:
                 bridge.shift(int(path.split(b"/")[2]))
@@ -391,4 +411,14 @@ async def serve(bridge, port=8729, lan=True):
 
     # With the phone remote on, listen on the Wi-Fi too; remote.py turns away
     # anything that isn't this Mac or a paired phone.
-    return await asyncio.start_server(handle, "0.0.0.0" if lan else "127.0.0.1", port)
+    server = await asyncio.start_server(handle, "0.0.0.0" if lan else "127.0.0.1", port)
+    if lan:
+        # the same doors over https at port + 1 (tls.py): tablets share their tilt sensor only with secure pages
+        try:
+            import tls
+            ctx = tls.context()
+            if ctx:
+                await asyncio.start_server(handle, "0.0.0.0", port + 1, ssl=ctx)
+        except (OSError, ImportError) as e:
+            print(f"https for tablets is off: {e}")
+    return server

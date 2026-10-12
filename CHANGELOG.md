@@ -2,6 +2,12 @@
 
 The app and the assistant bundle (MCP) have their own version numbers. The **What's new** button in the Coach header shows the same history inside the hub.
 
+## Unreleased · ride modes
+
+- **Ride modes (games):** The hub runs game packs on one shared, built-in game engine, and only packs signed by the publisher whose files are unchanged since signing. A game reads live power, cadence, speed and your FTP, can set the hill (the hub clamps it, refuses during a route, and flattens it if the game goes quiet), marks moments, and finishes with a result in the ride's events.
+- **Lean to steer:** Games can read a lean from a tilted tablet or phone (a phone on a bike on a rocker plate works too) or from your camera, which looks only at your head and shoulders, keeps the video in your browser and is off until you turn it on.
+- **A secure port for tablets:** The hub also listens with its own certificate on port 8730 (one above the usual port), since browsers share motion sensors and cameras only with secure pages.
+
 ## App 1.12.0 · 2026-10-12 · plan by hand, your reports decide, lifting classifiers, a leaner assistant connection
 
 Use with MCP 1.12.0.

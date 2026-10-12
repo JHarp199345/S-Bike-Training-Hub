@@ -23,6 +23,7 @@ A free training hub for cycling, swimming, running and strength that runs on you
 - **A Fitness Dashboard:** recorded energy and work, where the work went in your body, swim history by stroke, lifting records and strength estimates.
 - **Your rules,** in plain sentences: *"I can't do pull ups"*, *"No barbell deadlifts"*. Every workout and every assistant follows them.
 - **A smart-bike bridge** (tested on the Merach S29): ERG workouts, virtual gears, hills turned into resistance, 3D routes and ride games, and sharing the bike with your watch and apps like Kinomap.
+- **Ride modes (games) on the bike:** the hub runs game packs on its own built-in game engine. A game reads your live power, cadence and speed, sets the hills, and is calibrated to your own FTP, so the fun part is also the workout. Escape moves like sprinting or leaning come from your pedalling, a tilted tablet, or your camera (head and shoulders only, on your device). The hub runs only packs signed by the publisher and unchanged since signing.
 - **An AI assistant connection (MCP):** Claude Desktop, Claude Code or any MCP app can read your record and plan with you, using the same operations as the app's buttons.
 
 <p align="center"><img src="docs/screens/calendar.jpg" width="880" alt="The training calendar: three months per row, sport icons on each day, checks for completed sessions and phase colors"></p>
@@ -160,7 +161,7 @@ Tests run on Linux, macOS and Windows in GitHub Actions on every push, installin
 
 ## Privacy
 
-Your records stay on your computer. The only outside request the hub can make is an **optional** air-temperature lookup for outdoor sessions, off until you turn it on: it sends a place rounded to about 10 km and a date to [Open-Meteo](https://open-meteo.com), and caches the answer locally. A cloud AI assistant receives what you choose to share with it; a local model keeps the whole conversation on your computer.
+Your records stay on your computer. The only outside request the hub can make is an **optional** air-temperature lookup for outdoor sessions, off until you turn it on: it sends a place rounded to about 10 km and a date to [Open-Meteo](https://open-meteo.com), and caches the answer locally. **Camera lean in ride modes** is off until you turn it on: the camera looks only at where your head and shoulders are, the video stays in your browser, and nothing is shown, recorded or sent. A cloud AI assistant receives what you choose to share with it; a local model keeps the whole conversation on your computer.
 
 ## ⚠️ Safety
 

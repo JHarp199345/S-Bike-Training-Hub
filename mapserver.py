@@ -33,6 +33,7 @@ from pathlib import Path
 import routes
 import places
 import ideas
+import packs
 
 HERE = Path(__file__).resolve().parent
 import paths as _paths
@@ -41,7 +42,14 @@ from map_paths import locate as map_folder
 MAPS = map_folder()
 WEB = HERE / "web"
 TYPES = {".mjs": "text/javascript", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg", ".glb": "model/gltf-binary", ".webp": "image/webp",
-         ".html": "text/html; charset=utf-8", ".json": "application/json", ".map": "application/json"}
+         ".html": "text/html; charset=utf-8", ".json": "application/json", ".map": "application/json",
+         ".wasm": "application/wasm", ".pck": "application/octet-stream", ".ico": "image/x-icon", ".ogg": "audio/ogg",
+         ".mp3": "audio/mpeg", ".wav": "audio/wav", ".txt": "text/plain; charset=utf-8"}
+VISION_FILES = {"vision_bundle.mjs", "vision_wasm_internal.js", "vision_wasm_internal.wasm",
+                "vision_wasm_nosimd_internal.js", "vision_wasm_nosimd_internal.wasm", "pose_landmarker_lite.task"}
+# Godot's engine wants a cross-origin-isolated page (and the hub's own origin is the only one it loads from).
+ISOLATED = {"Cross-Origin-Opener-Policy": "same-origin", "Cross-Origin-Embedder-Policy": "require-corp",
+            "Cross-Origin-Resource-Policy": "same-origin"}
 
 _maps = None
 _maps_at = 0.0
@@ -278,6 +286,41 @@ async def handle(bridge, method, path, body, host):
         return 200, TYPES[".html"], (WEB / f"{p[1:]}.html").read_bytes(), {}
     if p == "/manifest.webmanifest":
         return 200, "application/manifest+json", (WEB / "manifest.webmanifest").read_bytes(), {"Cache-Control": "max-age=3600"}
+    if p == "/api/modes":
+        return 200, "application/json", json.dumps({"packs": packs.installed()}).encode(), {}
+    if p.startswith("/engine/"):
+        # the shared Godot engine every pack runs on: only the engine's own files
+        v, _, name = p[8:].partition("/")
+        d = packs.engine_dir(v) if name in packs.ENGINE_FILES else None
+        if not d:
+            return 404, "text/plain", b"not found", {}
+        return 200, TYPES[Path(name).suffix], (d / name).read_bytes(), {"Cache-Control": "max-age=604800", **ISOLATED}
+    if p.startswith("/vision/"):
+        # lean for ride modes: the hub's own script, and the pose model (MediaPipe, Apache 2.0) it runs in the browser
+        name = p[8:]
+        if name == "lean.js":
+            return 200, TYPES[".js"], (WEB / "ride-lean.js").read_bytes(), {"Cache-Control": "no-cache", **ISOLATED}
+        f = next((d / name for d in (DATA / "vision", WEB / "vision") if name in VISION_FILES and (d / name).is_file()), None)
+        if not f:
+            return 404, "text/plain", b"not found", {}
+        return 200, TYPES.get(f.suffix, "application/octet-stream"), f.read_bytes(), {"Cache-Control": "max-age=604800", **ISOLATED}
+    if p.startswith("/modes/"):
+        # Ride World packs (packs.py): the hub's own page runs a pack's game on the shared engine, and only for a pack
+        # signed by a trusted key whose files all match what was signed. Only files the signed manifest lists are served.
+        pid, _, name = p[7:].partition("/")
+        folder = (DATA / "modes" / pid).resolve()
+        if not pid or not folder.is_relative_to((DATA / "modes").resolve()) or not folder.is_dir():
+            return 404, "text/plain", b"not found", {}
+        m, why = packs.verified(folder)
+        if not why and not packs.engine_dir(m.get("engine")):
+            why = f"This pack needs engine {m.get('engine')}, which this hub doesn't have yet."
+        if why:
+            return 403, TYPES[".html"], packs.error_page(why), {"Cache-Control": "no-cache"}
+        if not name:
+            return 200, TYPES[".html"], packs.page({**m, "id": pid}), {"Cache-Control": "no-cache", **ISOLATED}
+        if name not in m["files"]:
+            return 404, "text/plain", b"not found", {}
+        return 200, TYPES.get(Path(name).suffix, "application/octet-stream"), (folder / name).read_bytes(), {"Cache-Control": "no-cache", **ISOLATED}
     if p.startswith("/web/scenes/") and p.endswith((".html", ".js", ".png", ".json", ".glb", ".webp")):
         # installable riding scenes (scenes.py): anything inside web/scenes/, nothing outside it
         f = (WEB / p[5:]).resolve()

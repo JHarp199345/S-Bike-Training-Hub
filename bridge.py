@@ -357,6 +357,7 @@ class Bridge:
         self.test = None             # an FTP ramp test in progress
         self.moving_since = None     # wall-clock start of this ride's movement, for the ghost
         self.ghost_name = None
+        self.mode = None             # a Ride World mode (a game pack) in charge of the hills; see mode_start
         self.route_ride = None       # a planned route being ridden (replaces Kinomap's grades)
         self.route_fed = None        # last grade fed from the route (0.5% steps)
         self.route_started = None    # wall-clock time the route began, for its ghost
@@ -439,6 +440,7 @@ class Bridge:
     def status(self):
         r, secs = self.ride, int(time.monotonic() - self.started)
         return {"name": self.args.broadcast, "elapsed": f"{secs // 60}:{secs % 60:02d}",
+                "mode": {k: self.mode[k] for k in ("id", "name", "grade")} if self.mode else None,
                 "no_bike": bool(getattr(self.args, "no_bike", False)),
                 "bike": bool(self.bike and self.bike.is_connected),
                 "watch": max(self.seen["power"], self.seen["cadence"]), "kinomap": self.seen["kinomap"],
@@ -458,7 +460,7 @@ class Bridge:
                 "resume": self.resume_offer(),
                 "workouts": [w["name"] for w in self.workouts], "grade": round(r.grade, 1),
                 "power": int(r.power), "cadence": int(r.cadence), "speed": round(r.road_kmh(), 1),
-                "distance": round(r.road_m() / 1000, 2),
+                "distance": round(r.road_m() / 1000, 2), "mass": round(r.mass, 1),
                 **self.live.status(time.time()),
                 "bests": self.bests.status(),
                 "pb": self.pb_flash if self.pb_flash and time.time() - self.pb_flash["t"] < 12 else None,
@@ -1114,6 +1116,50 @@ class Bridge:
             self.ghost.route_id, self.ghost.match, self.ghost.points = None, None, []
             self.hill_to_level(0.0)
 
+    # ── Ride World modes: a game pack asks for the hill; the hub decides and keeps the ride safe ──
+    MODE_GRADE = (-10.0, 15.0)     # the steepest a game may ask for, %
+    MODE_QUIET_S = 5.0             # a game that stops asking for this long gets a flat road back
+
+    def mode_start(self, mode_id, name=None):
+        self.mode = {"id": mode_id, "name": name or mode_id, "since": time.time(), "grade": None, "grade_at": None, "marks": []}
+        self.event(f"Ride mode started: {self.mode['name']}")
+
+    def mode_grade(self, grade):
+        """The game's hill, in 0.5% steps within MODE_GRADE. Refused while a route is setting the hills."""
+        if not self.mode:
+            return False, "start a ride mode first"
+        if self.route_ride:
+            return False, "a route is setting the hills"
+        lo, hi = self.MODE_GRADE
+        g = round(max(lo, min(hi, float(grade))) * 2) / 2
+        self.mode["grade_at"] = time.monotonic()
+        if g != self.mode["grade"]:
+            self.mode["grade"] = g
+            self.hill_to_level(g)
+        return True, g
+
+    def mode_mark(self, text):
+        if self.mode:
+            self.mode["marks"].append({"t": time.time(), "text": text[:120]})
+            self.event(f"{self.mode['name']}: {text[:120]}")
+
+    def mode_end(self, result=None):
+        if not self.mode:
+            return
+        self.event(f"Ride mode finished: {self.mode['name']}" + (f" - {result[:120]}" if result else ""))
+        if self.mode["grade"] not in (None, 0.0) and not self.route_ride:
+            self.hill_to_level(0.0)
+        self.mode = None
+
+    def feed_mode(self):
+        """Once a second: a mode that has gone quiet gets a flat road, so a frozen game never leaves you on a climb."""
+        m = self.mode
+        if m and m["grade_at"] and time.monotonic() - m["grade_at"] > self.MODE_QUIET_S and m["grade"] not in (None, 0.0):
+            m["grade"], m["grade_at"] = 0.0, None
+            if not self.route_ride:
+                self.hill_to_level(0.0)
+            self.event(f"{m['name']} went quiet: back to a flat road")
+
     def feed_route(self):
         """Once a second while riding a route: the road's grade at your
         distance becomes the hill, in 0.5% steps."""
@@ -1541,6 +1587,7 @@ class Bridge:
             r.tick()
             self.refresh_focus()
             self.feed_route()
+            self.feed_mode()
             self.feed_ghost()
             # the workout clock runs only while pedalling with the bike connected: stopping pauses it
             self.erg.tick_clock(time.monotonic(), r.cadence, bool(self.bike and self.bike.is_connected))
