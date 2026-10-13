@@ -10,5 +10,3 @@
 .rw-badge{font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;padding:2px 8px;border-radius:999px}
 .rw-free{background:rgba(24,160,162,.2);color:#7fe0e1}.rw-itch{background:#fa5c5c;color:#fff}
 .ride-builder{width:min(1100px,96vw);height:min(92vh,960px);padding:0;overflow:hidden}.ride-builder iframe{width:100%;height:100%;border:0;background:transparent}
-
-#game-key-paste{width:min(100%,320px);box-sizing:border-box;padding:10px;border:1px solid #59748a;border-radius:8px;background:#0b141d;color:#dbe7f0;cursor:text}#game-import-review label{display:block;margin-top:12px}#game-import-review select{margin-left:8px}

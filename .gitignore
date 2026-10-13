@@ -110,3 +110,6 @@ tls/
 
 # Local customer activation certificates and identifiers
 licenses/
+
+# Deferred private prototypes; never publish
+/.private/

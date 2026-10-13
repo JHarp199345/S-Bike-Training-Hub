@@ -1,11 +1,3 @@
-## 1.12.1 — Purchased game activation
-
-- Activate a purchased game by pasting its key in the Ride-menu drop area, or by dropping an activation file.
-- Review the selected game and Keygen disclosure before any activation request.
-- Signed, installation-bound offline certificates; paid packs require an intact official signed Hub release.
-- Older Hubs reject paid pack format 2; free format 1 modules and built-in scenery continue to work.
-- Customer keys and certificates stay out of the application release and Git history.
-
 # Changelog
 
 ## Unreleased — October 13, 2026

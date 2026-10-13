@@ -25,7 +25,6 @@ from pathlib import Path
 import paths
 
 FORMAT = 1
-LICENSED_FORMAT = 2  # Older Hubs reject this format instead of ignoring licensing.
 # Public keys whose packs this hub runs (hex). The private key never leaves the publisher's computer.
 TRUSTED_KEYS = {
     "jharp-2026": "d2933161537b1ca15936d0c2587fa8ab0e9b414d4a415d12ae43cdfada656be1",
@@ -149,10 +148,8 @@ def check(folder, keys=None):
         m = json.loads((folder / "manifest.json").read_text())
     except (OSError, ValueError):
         return None, "This pack has no readable manifest."
-    if m.get("format") not in (FORMAT, LICENSED_FORMAT):
+    if m.get("format") != FORMAT:
         return m, "This pack was made for a different version of the hub."
-    if m.get("licensing") is not None and m.get("format") != LICENSED_FORMAT:
-        return m, "This paid game needs a licensing-aware Hub and pack format."
     sig = m.get("signature") or {}
     key = keys.get(sig.get("key"))
     try:
@@ -217,7 +214,7 @@ def installed(folder=None):
             if not why and not engine_dir((m or {}).get("engine")):
                 why = f"This pack needs engine {m.get('engine')}, which this hub doesn't have yet."
             out.append({"id": d.name, "name": (m or {}).get("name", d.name), "version": (m or {}).get("version"),
-                        "ok": not why, "why": why, "license_required": bool((m or {}).get("licensing"))})
+                        "ok": not why, "why": why})
     return out
 
 
@@ -228,18 +225,15 @@ def page(m):
     """Trusted host shell; all pack code executes only in an opaque iframe."""
     pid = m["id"]
     title = html.escape(m.get("name", pid))
-    config = json.dumps({"id": pid, "license_required": bool(m.get("licensing"))}).replace("<", "\\u003c")
+    config = json.dumps({"id": pid}).replace("<", "\\u003c")
     sensors = SENSOR_CONTROLS
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{title} · S-Bike Training Hub</title><style>html,body{{margin:0;height:100%;background:#0b141d;color:#dbe7f0;font:15px system-ui}}#module-game{{width:100%;height:100%;border:0}}#status{{position:fixed;inset:0;display:grid;place-items:center;pointer-events:none}}[hidden]{{display:none!important}}</style></head><body>
-<iframe id="module-game" title="{title}" sandbox="allow-scripts" allow="fullscreen" allowfullscreen src="about:blank" data-src="/modes/{pid}/sandbox"></iframe>
+<iframe id="module-game" title="{title}" sandbox="allow-scripts" allow="fullscreen" allowfullscreen src="/modes/{pid}/sandbox"></iframe>
 <a href="/ride?setup=1" target="_top" aria-label="Return to Ride menu" style="position:fixed;top:10px;right:12px;z-index:10;padding:7px 12px;background:rgba(11,20,29,.85);border:1px solid #2c4458;border-radius:8px;color:#dbe7f0;text-decoration:none">← Return to Ride menu</a>
 <div id="status">Connecting {title}…</div>{sensors}
-<form id="game-activation" hidden style="position:fixed;inset:0;margin:auto;max-width:360px;height:fit-content;padding:24px;background:#152735;border:1px solid #2c4458;border-radius:12px;z-index:9">
-<h2>Activate {title}</h2><label>Game license key<input id="game-license-key" type="password" autocomplete="off" required maxlength="1024" style="display:block;width:95%;padding:10px;margin:12px 0"></label>
-<p>Your license key and a random installation ID are sent to Keygen. Your training readings and records stay here.</p><button type="submit">Activate game</button><p id="game-activation-message" role="status"></p></form>
 <script id="module-config" type="application/json">{config}</script>
-<script>const q=new URLSearchParams(location.search); if(q.has("dev")) document.getElementById("module-game").dataset.src+="?dev=1";</script>
+<script>const q=new URLSearchParams(location.search); if(q.has("dev")) document.getElementById("module-game").src+="?dev=1";</script>
 <script src="/vision/lean.js"></script><script src="/web/module-host.js"></script></body></html>""".encode()
 
 def runtime_page(m, nonce):
@@ -296,7 +290,7 @@ def sign_pack(folder, key_id, secret_hex):
     folder = Path(folder)
     m = json.loads((folder / "manifest.json").read_text())
     m.pop("signature", None)
-    m["format"] = LICENSED_FORMAT if m.get("licensing") is not None else FORMAT
+    m["format"] = FORMAT
     m["files"] = {f.name: fingerprint(f) for f in sorted(folder.iterdir()) if f.is_file() and f.name != "manifest.json"}
     m["signature"] = {"key": key_id, "sig": sign(bytes.fromhex(secret_hex), signed_bytes(m)).hex()}
     (folder / "manifest.json").write_text(json.dumps(m, indent=2))

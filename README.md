@@ -8,7 +8,7 @@ A free training hub for cycling, swimming, running and strength that runs on you
 
 <p align="center"><a href="https://www.strava.com/clubs/s-bike-training-hub"><img src="https://img.shields.io/badge/Strava-Join%20the%20club-FC4C02?logo=strava&logoColor=white" alt="Join the S-Bike Training Hub club on Strava"></a></p>
 
-**Current version: app 1.12.1** with MCP 1.12.1 · [what's new](CHANGELOG.md) · [community on Strava](https://www.strava.com/clubs/s-bike-training-hub)
+**Current version: app 1.12.0** with MCP 1.12.0 · [what's new](CHANGELOG.md) · [community on Strava](https://www.strava.com/clubs/s-bike-training-hub)
 
 ## What it does
 
@@ -98,7 +98,7 @@ No assistant? On the welcome page, open **No assistant? Set up by hand**: your s
 The hub keeps the record; your assistant plans with you. It works with any app that supports MCP servers.
 
 - **The one-line install** above already connects it.
-- **Claude Desktop (bundle):** download the `.mcpb` bundle (MCP 1.12.1) from the [releases page](https://github.com/JHarp199345/S-Bike-Training-Hub/releases), then **Settings → Extensions → Advanced settings → Install extension**. Leave the hub address at `http://127.0.0.1:8729`.
+- **Claude Desktop (bundle):** download the `.mcpb` bundle (MCP 1.12.0) from the [releases page](https://github.com/JHarp199345/S-Bike-Training-Hub/releases), then **Settings → Extensions → Advanced settings → Install extension**. Leave the hub address at `http://127.0.0.1:8729`.
 - **Claude Code:** `claude mcp add --scope user s-bike-hub -- "$PWD/.venv/bin/python" "$PWD/mcp_server.py"` (on Windows: `.venv\Scripts\python.exe`).
 - **Other MCP apps:** point them at `mcp_server.py` with the `.venv` Python.
 
@@ -191,11 +191,7 @@ single-player add-on with optional donations: https://jharp199345.itch.io/monste
 
 In the Ride menu, drop the game ZIP into **Add a module**, review its access, and
 install it. Monster Chase's donation release does not require a license key or
-payment. The game is not a standalone app; use Hub 1.12.1 or later.
-
-For future purchased modules, the same area accepts a pasted activation key or
-optional activation file. Activation sends only the key and a random installation
-identifier to Keygen, not training readings or records. See [activation](docs/games/activation.md).
+payment. The game is not a standalone app; use the current GitHub Hub source. The published PyPI 1.12.0 package predates the module installer/runtime.
 
 Signatures and file fingerprints are checked before modules run. Customer records,
 keys and private design notes are never included in Hub releases.

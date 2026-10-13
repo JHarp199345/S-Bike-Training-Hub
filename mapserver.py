@@ -25,7 +25,6 @@ import asyncio
 import os
 import itertools
 import json
-import re
 import threading
 import time
 import weakref
@@ -207,21 +206,6 @@ _assistant = {}          # when the assistant's tool server last reached the hub
 async def handle(bridge, method, path, body, host):
     """(status, content type, body bytes, extra headers) for map paths, or None."""
     p = path.split("?")[0]
-    if p == "/api/modes/activate":
-        import game_licenses
-        try:
-            if method != b"POST" or len(body) > 2048:
-                raise ValueError("Use a small POST request for game activation")
-            data = json.loads(body)
-            if not isinstance(data, dict) or set(data) != {"id", "license_key"} or not re.fullmatch(r"[a-z0-9-]{1,60}", str(data["id"])):
-                raise ValueError("Invalid activation request")
-            manifest, why = packs.verified(DATA / "modes" / data["id"])
-            if why:
-                raise ValueError(why)
-            result = await asyncio.to_thread(game_licenses.activate, manifest, data["license_key"])
-            return 200, "application/json", json.dumps(result).encode(), {"Cache-Control": "no-store"}
-        except (ValueError, TypeError, KeyError) as error:
-            return 403, "application/json", json.dumps({"error": str(error)}).encode(), {"Cache-Control": "no-store"}
     if p == "/api/modes/session":
         import module_sandbox
         try:
@@ -371,11 +355,6 @@ async def handle(bridge, method, path, body, host):
         if not name:
             return 200, TYPES[".html"], packs.page({**m, "id": pid}), {"Cache-Control": "no-cache", **ISOLATED,
                 "Content-Security-Policy": "frame-ancestors 'self'; object-src 'none'; base-uri 'none'", "Referrer-Policy": "no-referrer"}
-        import game_licenses
-        try:
-            game_licenses.require(m)
-        except ValueError as error:
-            return 403, TYPES[".html"], packs.error_page(str(error)), {"Cache-Control": "no-store"}
         if name == "sandbox":
             import module_sandbox, secrets
             nonce = secrets.token_urlsafe(24)

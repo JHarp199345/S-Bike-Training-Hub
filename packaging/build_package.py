@@ -81,9 +81,6 @@ def stage(version, out):
     (out / "README.md").write_text(README)
     deps = ", ".join(f"'{d}'" for d in dependencies())   # TOML literal strings: markers contain double quotes
     (out / "pyproject.toml").write_text((HERE / "pyproject.template.toml").read_text().replace("@VERSION@", version).replace("@DEPENDENCIES@", deps))
-    inventory = HERE / "hub-release.json"
-    if inventory.exists():
-        shutil.copy2(inventory, pkg / "hub-release.json")
     return out
 
 
@@ -97,11 +94,6 @@ def main():
     if a.stage_only:
         print(out)
         return
-    # A release must contain a publisher-signed inventory matching this exact stage.
-    # The private signing key stays off GitHub/CI. Stage and sign locally first.
-    subprocess.run([sys.executable, "-c",
-        "import sys;sys.path.insert(0,sys.argv[1]);import hub_release;hub_release.require()",
-        str(out / "s_bike_hub")], check=True)
     builder = shutil.which("uv")
     cmd = [builder, "build", "--out-dir", a.dist, str(out)] if builder else [sys.executable, "-m", "build", "--outdir", a.dist, str(out)]
     subprocess.run(cmd, check=True)
