@@ -122,6 +122,8 @@ def handle(bridge, method, body):
         manifest, why = packs.verified(paths.DATA / "modes" / pid)
         if why or not packs.isolated_engine_dir((manifest or {}).get("engine")):
             raise ValueError(why or "The game engine is unavailable")
+        import game_licenses
+        game_licenses.require(manifest)
         for token, session in list(_sessions.items()):
             if session["bridge"] is bridge:
                 _revoke(bridge, token)

@@ -28,4 +28,4 @@ packages = ["s_bike_hub"]
 include-package-data = true
 
 [tool.setuptools.package-data]
-s_bike_hub = [".packaged", "web/**/*", "workouts/*.json", "bike_profiles/**/*", "regions.json"]
+s_bike_hub = [".packaged", "hub-release.json", "web/**/*", "workouts/*.json", "bike_profiles/**/*", "regions.json"]

@@ -20,8 +20,20 @@
   finally{pollBusy=false;}
  }
  const initialized=api('open',{id:config.id}).then(out=>{
-  token=out.token;capabilities=out.capabilities;return poll();
- }).catch(e=>{closed=true;status.textContent=e.message;});
+  token=out.token;capabilities=out.capabilities;frame.src=frame.dataset.src;return poll();
+ }).catch(e=>{closed=true;status.textContent=e.message;
+  if(config.license_required)document.getElementById('game-activation').hidden=false;});
+ const activation=document.getElementById('game-activation');
+ activation?.addEventListener('submit',async e=>{
+  e.preventDefault();const button=activation.querySelector('button'),message=document.getElementById('game-activation-message');
+  button.disabled=true;message.textContent='Checking license…';
+  try{
+   const r=await fetch('/api/modes/activate',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({id:config.id,license_key:document.getElementById('game-license-key').value})});
+   const result=await r.json();if(!r.ok)throw Error(result.error||'Activation failed');
+   document.getElementById('game-license-key').value='';location.reload();
+  }catch(error){message.textContent=error.message;}finally{button.disabled=false;}
+ });
  addEventListener('message',async e=>{
   if(e.source===frame.contentWindow&&e.origin==='null'){
    const m=e.data;
@@ -53,7 +65,7 @@
    else parent.postMessage({type:e.data.type},location.origin);
   }
  });
- setInterval(()=>{if(ready)poll();},100);
+ setInterval(poll,100);
  addEventListener('pagehide',()=>{
   closed=true;if(token)navigator.sendBeacon('/api/modes/session',new Blob([JSON.stringify({action:'close',token})],{type:'application/json'}));
  });

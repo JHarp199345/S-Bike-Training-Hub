@@ -8,7 +8,7 @@ A free training hub for cycling, swimming, running and strength that runs on you
 
 <p align="center"><a href="https://www.strava.com/clubs/s-bike-training-hub"><img src="https://img.shields.io/badge/Strava-Join%20the%20club-FC4C02?logo=strava&logoColor=white" alt="Join the S-Bike Training Hub club on Strava"></a></p>
 
-**Current version: app 1.12.0** with MCP 1.12.0 · [what's new](CHANGELOG.md) · [community on Strava](https://www.strava.com/clubs/s-bike-training-hub)
+**Current version: app 1.12.1** with MCP 1.12.1 · [what's new](CHANGELOG.md) · [community on Strava](https://www.strava.com/clubs/s-bike-training-hub)
 
 ## What it does
 
@@ -98,7 +98,7 @@ No assistant? On the welcome page, open **No assistant? Set up by hand**: your s
 The hub keeps the record; your assistant plans with you. It works with any app that supports MCP servers.
 
 - **The one-line install** above already connects it.
-- **Claude Desktop (bundle):** download the `.mcpb` bundle (MCP 1.12.0) from the [releases page](https://github.com/JHarp199345/S-Bike-Training-Hub/releases), then **Settings → Extensions → Advanced settings → Install extension**. Leave the hub address at `http://127.0.0.1:8729`.
+- **Claude Desktop (bundle):** download the `.mcpb` bundle (MCP 1.12.1) from the [releases page](https://github.com/JHarp199345/S-Bike-Training-Hub/releases), then **Settings → Extensions → Advanced settings → Install extension**. Leave the hub address at `http://127.0.0.1:8729`.
 - **Claude Code:** `claude mcp add --scope user s-bike-hub -- "$PWD/.venv/bin/python" "$PWD/mcp_server.py"` (on Windows: `.venv\Scripts\python.exe`).
 - **Other MCP apps:** point them at `mcp_server.py` with the `.venv` Python.
 
@@ -182,3 +182,26 @@ Built by JHarp199345 with Claude and ChatGPT. The hub stands on OpenStreetMap, P
 The Hub works without any game installed. Free scenery remains in the Ride menu. Download an official signed module ZIP, then use **Ride → Add a module**. Review its requested readings and controls before installing it. Paid game files are distributed separately; they are not included in this repository. See [Security: modules](SECURITY.md#modules).
 
 The Hub includes the non-threaded Godot 4.7.1 browser runtime, under the MIT license. No Godot editor installation is needed to play a module.
+
+
+### Purchased Ride World games
+
+The Hub remains free and works without purchased games. Monster Chase is an optional
+single-player add-on: https://jharp199345.itch.io/monster-chase
+
+In the Ride menu, drop the game ZIP into **Add a module**, review its access, and
+install it. On your itch.io purchase page, claim and copy the activation key. Paste
+it into **Paste activation key here** in the same drop area, then approve activation.
+With multiple paid games installed, choose the one this key belongs to. A small
+activation file is also accepted; no file is needed when you copy the key.
+
+Activation sends only the key and a random installation identifier to Keygen.
+Your training readings and records are not sent. The license permits two Hub
+installations and a renewable 30-day offline certificate. To renew, paste the same
+key while online. Installation recovery currently requires publisher support;
+there is no self-service deactivation screen yet.
+
+Official paid-game sessions check the publisher signature, application fingerprints,
+and the license certificate. Modified local software can replace these checks;
+this is not remote attestation. Signed release inventories contain application files,
+never athlete data or private design notes.

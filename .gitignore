@@ -107,3 +107,6 @@ weather_cache.json
 build/
 dist/
 tls/
+
+# Local customer activation certificates and identifiers
+licenses/
