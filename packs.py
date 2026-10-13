@@ -234,7 +234,7 @@ def page(m):
 <div id="status">Connecting {title}…</div>{sensors}
 <script id="module-config" type="application/json">{config}</script>
 <script>const q=new URLSearchParams(location.search); if(q.has("dev")) document.getElementById("module-game").src+="?dev=1";</script>
-<script src="/vision/lean.js"></script><script src="/web/module-host.js"></script></body></html>""".encode()
+<link rel="stylesheet" href="/web/hub-support.css"><script src="/web/support-policy.js"></script><script src="/web/hub-support.js"></script><script src="/vision/lean.js"></script><script src="/web/module-host.js"></script></body></html>""".encode()
 
 def runtime_page(m, nonce):
     """The hub's own page for a pack: the shared engine runs the pack's game data. Packs bring no page or scripts."""

@@ -2,6 +2,8 @@
 
 ## Unreleased — October 13, 2026
 
+- Quiet Ko-fi help badge with one optional invitation after three module rides, deferred until the ride ends. Local browser counts, permanent dismissal/opt-out, FAQs and reviewed GitHub feedback.
+
 - Optional signed game ZIP/folder installation with a permissions review and replacement backup.
 - Isolated game frames, a bounded ride-data/control bridge and the non-threaded Godot 4.7.1 engine.
 - Ride World selection, optional module catalogue, in-place workout builder and retained free scenery.

@@ -195,3 +195,11 @@ payment. The game is not a standalone app; use the current GitHub Hub source. Th
 
 Signatures and file fingerprints are checked before modules run. Customer records,
 keys and private design notes are never included in Hub releases.
+
+### Support development
+
+If the Hub or games have been useful, you can [buy me a coffee on Ko-fi](https://ko-fi.com/jharp199345). Support is optional. The Hub’s quiet help badge offers one invitation after three rides with a new module, once the ride ends; dismiss it or choose **Don’t ask again**. Counts stay in your browser. Help and feedback remain available from the badge, with an explicit preview before opening a public GitHub issue.
+
+- [Monster Chase on itch.io](https://jharp199345.itch.io/monster-chase)
+- [Our Strava club](https://www.strava.com/clubs/2379636)
+- [Ko-fi](https://ko-fi.com/jharp199345)

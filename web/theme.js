@@ -66,6 +66,10 @@
     if(location.pathname==='/panel'&&!window.EnergyUnits&&!document.querySelector('script[src="/web/energy-units.js"]')){
       const units=document.createElement('script');units.src='/web/energy-units.js';document.head.append(units);
     }
+    if(window===top&&root.dataset.embedded!=='true'){
+      const css=document.createElement('link');css.rel='stylesheet';css.href='/web/hub-support.css';document.head.append(css);
+      const policy=document.createElement('script');policy.src='/web/support-policy.js';policy.onload=()=>{const ui=document.createElement('script');ui.src='/web/hub-support.js';document.head.append(ui);};document.head.append(policy);
+    }
     if(root.dataset.embedded==='true')return;
     const menu = document.querySelector('#drawer') || document.querySelector('#side');
     const btn = document.createElement('button');

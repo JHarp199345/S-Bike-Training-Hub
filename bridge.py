@@ -440,7 +440,7 @@ class Bridge:
     def status(self):
         r, secs = self.ride, int(time.monotonic() - self.started)
         return {"name": self.args.broadcast, "elapsed": f"{secs // 60}:{secs % 60:02d}",
-                "mode": {k: self.mode[k] for k in ("id", "name", "grade")} if self.mode else None,
+                "mode": {k: self.mode[k] for k in ("id", "name", "grade", "since")} if self.mode else None,
                 "no_bike": bool(getattr(self.args, "no_bike", False)),
                 "bike": bool(self.bike and self.bike.is_connected),
                 "watch": max(self.seen["power"], self.seen["cadence"]), "kinomap": self.seen["kinomap"],
