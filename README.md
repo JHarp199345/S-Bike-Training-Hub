@@ -184,24 +184,18 @@ The Hub works without any game installed. Free scenery remains in the Ride menu.
 The Hub includes the non-threaded Godot 4.7.1 browser runtime, under the MIT license. No Godot editor installation is needed to play a module.
 
 
-### Purchased Ride World games
+### Ride World games
 
-The Hub remains free and works without purchased games. Monster Chase is an optional
-single-player add-on: https://jharp199345.itch.io/monster-chase
+The Hub is free and works without game modules. Monster Chase is currently a free,
+single-player add-on with optional donations: https://jharp199345.itch.io/monster-chase
 
 In the Ride menu, drop the game ZIP into **Add a module**, review its access, and
-install it. On your itch.io purchase page, claim and copy the activation key. Paste
-it into **Paste activation key here** in the same drop area, then approve activation.
-With multiple paid games installed, choose the one this key belongs to. A small
-activation file is also accepted; no file is needed when you copy the key.
+install it. Monster Chase's donation release does not require a license key or
+payment. The game is not a standalone app; use Hub 1.12.1 or later.
 
-Activation sends only the key and a random installation identifier to Keygen.
-Your training readings and records are not sent. The license permits two Hub
-installations and a renewable 30-day offline certificate. To renew, paste the same
-key while online. Installation recovery currently requires publisher support;
-there is no self-service deactivation screen yet.
+For future purchased modules, the same area accepts a pasted activation key or
+optional activation file. Activation sends only the key and a random installation
+identifier to Keygen, not training readings or records. See [activation](docs/games/activation.md).
 
-Official paid-game sessions check the publisher signature, application fingerprints,
-and the license certificate. Modified local software can replace these checks;
-this is not remote attestation. Signed release inventories contain application files,
-never athlete data or private design notes.
+Signatures and file fingerprints are checked before modules run. Customer records,
+keys and private design notes are never included in Hub releases.
