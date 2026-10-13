@@ -32,13 +32,49 @@ see the [changelog](CHANGELOG.md)). Update before reporting, if you can.
   only on secure pages. It uses a certificate the hub makes on your computer.
 - **Camera lean** is off until you turn it on. Only where your head and shoulders are is read, in the browser; the
   video is never shown, recorded, saved or sent.
-- **Ride modes (game packs)** run only when signed by the publisher and unchanged since signing. The hub plays a pack
-  inside the browser; a pack cannot change the hub itself.
+- **Modules (ride modes, game packs)** run only when signed by a trusted publisher and unchanged since signing; see
+  [Modules](#modules) below.
+
+## Modules
+
+Modules (ride modes such as Monster Chase) are where a Trojan horse would hide, so the hub treats every module as
+untrusted until it proves otherwise.
+
+**Official modules** are signed by the S-Bike Training Hub publisher and sold or shared only through the project's
+itch.io page and the games list the hub reads from this repository. Today the hub trusts one publisher key, listed in
+[`packs.py`](packs.py) (`TRUSTED_KEYS`), and no other.
+
+**What protects you today**
+
+- **Signature and fingerprints.** Before a module runs, the hub checks that its signature comes from a trusted key and
+  that every file matches what was signed. A modified, repackaged or unsigned module is refused, with the reason.
+- **No code in the hub.** A module is game data that runs inside the browser. The hub never runs a module's code
+  itself, and a module cannot install, add or change anything in the hub.
+- **Only listed files.** The hub serves only the files a module's signed list names, of a few allowed kinds, and its
+  own page starts the game: a module can't bring its own web page or scripts.
+
+**The current limit.** A module runs on the hub's own address, so a module's code could, in principle, ask the hub
+for the same information the hub's pages can see. That is why only modules from the trusted publisher run. A module
+sandbox is being built so that this no longer depends on trusting the publisher: modules would run behind their own
+door that answers only the ride numbers a game needs (power, cadence, speed, FTP, weight) and accepts only game
+requests (the hill, moments, the result), with no access to your records and no internet.
+
+**Your part**
+
+- Install modules only from the project's itch.io page or the hub's own games list. Never install a module someone
+  sends you, and never "fix" a refused module.
+- Never add a publisher key to `TRUSTED_KEYS` unless you trust that publisher with everything the hub can see.
+- If a module asks for anything beyond a game, or a site offers "free" or "unlocked" versions, report it (below).
+
+**Other publishers.** The hub doesn't accept modules from other publishers yet. If it ever does, it will be only
+behind the module sandbox, with each publisher's key added by you, and with the module's abilities shown in plain
+words before it installs.
 
 ## In scope
 
-The hub's own code in this repository: its local server and pages, pairing, the secure port and certificate, pack
-signature checks, the assistant connection (MCP), and how records are stored and shared.
+The hub's own code in this repository: its local server and pages, pairing, the secure port and certificate, module
+signature checks and what modules can reach, the assistant connection (MCP), and how records are stored and shared.
+A module that misbehaves, or a way to make the hub run something it should refuse, is in scope.
 
 ## Out of scope
 

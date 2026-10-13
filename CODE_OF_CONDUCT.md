@@ -1,32 +1,28 @@
 # Code of conduct
 
-S-Bike Training Hub is for anyone who wants to train, whatever their age, body, ability, experience or background.
-The same goes for the people around the project: in issues, discussions, the wiki, the Strava club and anywhere else
-the project is represented.
+This covers the places where people meet around S-Bike Training Hub: this repository's issues, pull requests,
+discussions and wiki, and the project's Strava club. The app itself has no chat or profiles.
 
-## Expected
+## The rules
 
-- Be kind and patient. Many people here are new to training, to cycling or to software.
-- Talk about the work, not the person. Disagree with ideas respectfully.
-- Respect privacy. Training and health details are personal: don't ask for them, and don't share anyone's without
-  their permission.
-- Give health and training information carefully. Nothing here replaces a doctor.
-
-## Not acceptable
-
-- Harassment, insults, threats, or demeaning comments about anyone's body, fitness, ability, identity or background.
-- Sexual language or imagery, and unwelcome attention.
-- Publishing someone's private information (their location, health data, identity or contact details).
-- Spam, scams, and promoting harmful training or health advice.
+- **No harassment.** No insults, threats, or demeaning comments about anyone's body, fitness, ability, identity or
+  background.
+- **Keep private information private.** Don't post anyone else's location, health data, identity or contact details.
+  Think before posting your own: issues and discussions are public, so leave out health details a bug report doesn't
+  need.
+- **No harmful advice.** Don't push dangerous training, diet or health advice. The hub is not a doctor, and neither is
+  anyone here.
+- **No spam or scams,** including links to modules, downloads or "fixes" that don't come from this project (see the
+  [security policy](SECURITY.md#modules)).
 
 ## Reporting
 
-Use GitHub's built-in tools: **Report content** on any comment, issue or discussion, or GitHub's
-[abuse report form](https://github.com/contact/report-abuse). For a security problem, see the
-[security policy](SECURITY.md).
+Use GitHub's **Report content** on any comment, issue or discussion, or GitHub's
+[abuse report form](https://github.com/contact/report-abuse). Report security problems privately, as the
+[security policy](SECURITY.md) describes.
 
 ## Consequences
 
-Content that breaks this code may be edited or removed, and people who break it may be blocked from the project.
+Content that breaks these rules may be edited or removed, and the people posting it may be blocked from the project.
 
-This code is based on the ideas of the [Contributor Covenant](https://www.contributor-covenant.org).
+Based on the ideas of the [Contributor Covenant](https://www.contributor-covenant.org).
