@@ -1,4 +1,4 @@
-"""lifting_framework.py - the joint framework the assistant plans lifting with (2026-10-11).
+"""lifting_framework.py - the joint framework the assistant plans lifting with (Jesse's design, 2026-10-11).
 
 Private brief: docs/design/lifting-joint-framework.md. This module is the structure only: the joints, how they
 group, which ways they move, the load levels and the shapes a session can take, plus a way to describe what a
@@ -53,7 +53,7 @@ REGION_JOINTS = {
     "calves": {"ankle": 0.85, "knee": 0.15},
 }
 # Load levels as a share of the athlete's estimated one-rep maximum. Maximal (above heavy) is for tests only.
-LOADS = {   # one intensity scale, % of the estimated max; heavy goes as far as is safe, never maxing
+LOADS = {   # 2026-10-11: one intensity scale, % of the estimated max; heavy goes as far as is safe, never maxing
     "light": {"min_pct": 30, "max_pct": 60, "note": "Light can go well below 60% when 60% is hard for what is asked."},
     "medium": {"min_pct": 61, "max_pct": 80, "note": "Where most building happens: about 70-80% builds well."},
     "heavy": {"min_pct": 81, "max_pct": 105, "note": "As far as is safe, in small steps (for long-time lifters 1% is a lot). "
@@ -170,7 +170,7 @@ def framework(library=None):
     }
 
 
-# --- Session classifiers (2026-10-11) ----------------------------------
+# --- Session classifiers (2026-10-11; docs/design/lifting-classifiers.md) ----------------------------------
 # Type = how many muscle groups the main exercises work (1-3). Duration = main exercises per group (1-3).
 # Intensity = light / medium / heavy on the one % of max scale above. Style = how the weight is moved. Every session
 # also carries two supporting minors (sport support and core), outside type and duration. Each lift is judged against
@@ -191,7 +191,7 @@ CORE = {"anti-rotation": ["Pallof press", "Side plank", "Dead bug"], "rotation":
 
 
 def style_of(sets, reps):
-    """How the weight was moved, from sets and reps (more can be added)."""
+    """How the weight was moved, from sets and reps (Jesse's styles; more can be added)."""
     sets, reps = float(sets or 0), float(reps or 0)
     if not sets or not reps:
         return None

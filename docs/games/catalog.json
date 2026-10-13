@@ -1,0 +1,13 @@
+{
+  "note": "The Ride World games list the hub's Ride menu shows under Find more games. Each game: name, pitch, what it trains, its itch.io page.",
+  "games": [
+    {
+      "id": "monster-chase",
+      "name": "Monster Chase",
+      "pitch": "Something is following you down a haunted forest path. Stay ahead, sprint or lean to dodge its lunge, and pedal hard to break free.",
+      "trains": "steady pacing, repeated surges and hard sprints, all scaled to your own FTP",
+      "features": ["three riders and nine bikes", "sprint or lean to escape (camera, tablet tilt or rocker plate)", "a tug-of-war struggle when grabbed", "the path's hills set your trainer"],
+      "itch": ""
+    }
+  ]
+}

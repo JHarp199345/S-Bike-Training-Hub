@@ -16,6 +16,9 @@ library. Verifying one signature takes a few milliseconds.
 """
 import hashlib
 import json
+import html
+import secrets
+import re
 import os
 from pathlib import Path
 
@@ -182,9 +185,19 @@ def verified(folder):
     return _checked[folder][1]
 
 
+def isolated_engine_dir(version):
+    if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", str(version)):
+        return None
+    for base in (paths.CODE / "web/module-engine", paths.DATA / "module-engine"):
+        d = base / str(version)
+        if all((d / f).is_file() for f in ENGINE_FILES):
+            return d
+    return None
+
+
 def engine_dir(version):
     """The shared engine for a Godot version: the data folder's copy first, then one shipped with the app."""
-    for base in (paths.DATA / "engine", paths.CODE / "web" / "engine"):
+    for base in (paths.DATA / "engine", paths.CODE / "web" / "engine", paths.CODE / "web/module-engine", paths.DATA / "module-engine"):
         d = base / str(version)
         if all((d / f).is_file() for f in ENGINE_FILES):
             return d
@@ -196,7 +209,7 @@ def installed(folder=None):
     root = Path(folder or paths.DATA / "modes")
     out = []
     for d in sorted(root.iterdir()) if root.is_dir() else []:
-        if d.is_dir():
+        if d.is_dir() and not d.name.startswith("."):
             m, why = check(d)
             if not why and not engine_dir((m or {}).get("engine")):
                 why = f"This pack needs engine {m.get('engine')}, which this hub doesn't have yet."
@@ -205,34 +218,53 @@ def installed(folder=None):
     return out
 
 
+SENSOR_CONTROLS = '<style>.lean{position:fixed;left:12px;bottom:12px;z-index:2;max-width:330px;background:rgba(11,20,29,.88);color:#dbe7f0;\nborder:1px solid #2c4458;border-radius:12px;padding:12px 14px;font:14px/1.4 system-ui}.lean b{display:block;font-size:15px;margin-bottom:4px}\n.lean button{margin:8px 8px 0 0;padding:7px 12px;border-radius:8px;border:0;background:#2c4458;color:#fff;font:600 14px system-ui;cursor:pointer}\n.lean .go{background:#18a0a2}#lean-live,#lean-later{padding:7px 10px}#lean-live button{margin:0 0 0 8px;padding:4px 10px}</style>\n<div id="lean-card" class="lean" hidden><b>Lean with your camera</b>Your camera looks only at where your head and shoulders\nare, so leaning left or right steers. The video stays on this device: nothing is shown, recorded or sent anywhere.\n<br><button id="lean-yes" class="go">Turn on</button><button id="lean-no">Not now</button></div>\n<div id="lean-live" class="lean" hidden>&#9679; Camera: head and shoulders only<button id="lean-off">Off</button></div>\n<button id="lean-later" class="lean" hidden>Lean with camera<span id="lean-why"></span></button>\n<button id="tilt-ask" class="lean" hidden style="left:auto;right:12px">Turn on lean (tilt)</button>\n'
+
+
 def page(m):
+    """Trusted host shell; all pack code executes only in an opaque iframe."""
+    pid = m["id"]
+    title = html.escape(m.get("name", pid))
+    config = json.dumps({"id": pid}).replace("<", "\\u003c")
+    sensors = SENSOR_CONTROLS
+    return f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{title} · S-Bike Training Hub</title><style>html,body{{margin:0;height:100%;background:#0b141d;color:#dbe7f0;font:15px system-ui}}#module-game{{width:100%;height:100%;border:0}}#status{{position:fixed;inset:0;display:grid;place-items:center;pointer-events:none}}[hidden]{{display:none!important}}</style></head><body>
+<iframe id="module-game" title="{title}" sandbox="allow-scripts" allow="fullscreen" allowfullscreen src="/modes/{pid}/sandbox"></iframe>
+<a href="/ride?setup=1" target="_top" aria-label="Return to Ride menu" style="position:fixed;top:10px;right:12px;z-index:10;padding:7px 12px;background:rgba(11,20,29,.85);border:1px solid #2c4458;border-radius:8px;color:#dbe7f0;text-decoration:none">← Return to Ride menu</a>
+<div id="status">Connecting {title}…</div>{sensors}
+<script id="module-config" type="application/json">{config}</script>
+<script>const q=new URLSearchParams(location.search); if(q.has("dev")) document.getElementById("module-game").src+="?dev=1";</script>
+<script src="/vision/lean.js"></script><script src="/web/module-host.js"></script></body></html>""".encode()
+
+def runtime_page(m, nonce):
     """The hub's own page for a pack: the shared engine runs the pack's game data. Packs bring no page or scripts."""
     v, pid = m["engine"], m["id"]
     config = {"args": [], "canvasResizePolicy": 2, "emscriptenPoolSize": 8, "ensureCrossOriginIsolationHeaders": False,
-              "executable": f"/engine/{v}/godot", "mainPack": f"/modes/{pid}/{m.get('main', 'game.pck')}",
+              "executable": f"/module-engine/{v}/godot", "mainPack": f"/modes/{pid}/{m.get('main', 'game.pck')}",
               "experimentalVK": False, "focusCanvas": True, "gdextensionLibs": [], "godotPoolSize": 4}
-    title = json.dumps(m.get("name", pid))[1:-1].replace("<", "&lt;")
+    title = html.escape(m.get("name", pid))
+    js_title = json.dumps(m.get("name", pid)).replace("<", "\\u003c")
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, user-scalable=no">
 <title>{title} · S-Bike Training Hub</title>
 <style>html,body,#canvas{{margin:0;padding:0;height:100%;width:100%;background:#0b141d;color:#dbe7f0;font-family:system-ui,sans-serif;overflow:hidden}}
 #status{{position:fixed;inset:0;display:grid;place-items:center;text-align:center}}</style></head>
 <body><canvas id="canvas">Your browser doesn't support this ride mode.</canvas><div id="status">Loading {title}…</div>
-<style>.lean{{position:fixed;left:12px;bottom:12px;z-index:2;max-width:330px;background:rgba(11,20,29,.88);color:#dbe7f0;
-border:1px solid #2c4458;border-radius:12px;padding:12px 14px;font:14px/1.4 system-ui}}.lean b{{display:block;font-size:15px;margin-bottom:4px}}
-.lean button{{margin:8px 8px 0 0;padding:7px 12px;border-radius:8px;border:0;background:#2c4458;color:#fff;font:600 14px system-ui;cursor:pointer}}
-.lean .go{{background:#18a0a2}}#lean-live,#lean-later{{padding:7px 10px}}#lean-live button{{margin:0 0 0 8px;padding:4px 10px}}</style>
-<div id="lean-card" class="lean" hidden><b>Lean with your camera</b>Your camera looks only at where your head and shoulders
-are, so leaning left or right steers. The video stays on this device: nothing is shown, recorded or sent anywhere.
-<br><button id="lean-yes" class="go">Turn on</button><button id="lean-no">Not now</button></div>
-<div id="lean-live" class="lean" hidden>&#9679; Camera: head and shoulders only<button id="lean-off">Off</button></div>
-<button id="lean-later" class="lean" hidden>Lean with camera<span id="lean-why"></span></button>
-<button id="tilt-ask" class="lean" hidden style="left:auto;right:12px">Turn on lean (tilt)</button>
-<script src="/vision/lean.js"></script>
-<script src="/engine/{v}/godot.js"></script>
-<script>
-const engine = new Engine({json.dumps(config)});
-engine.startGame().then(() => document.getElementById('status').remove(),
-  e => {{ document.getElementById('status').textContent = 'This ride mode could not start: ' + (e && e.message || e); }});
+<script src="/web/module-runtime.js" crossorigin="anonymous"></script>
+<script src="/module-engine/{v}/godot.js" crossorigin="anonymous"></script>
+<script nonce="{nonce}">
+const gameName = {js_title};
+const status = document.getElementById('status');
+const say = (t) => {{ if (status) status.textContent = t; }};
+window.addEventListener('error', (e) => say('This ride mode hit a problem: ' + (e.message || e.error || 'unknown')));
+const missing = Engine.getMissingFeatures({{threads: false}});
+if (missing.length) {{
+  say('This device or browser is missing what the game needs: ' + missing.join(', ') + '. Try another browser, or the computer running the hub.');
+}} else {{
+  const engine = new Engine({json.dumps(config)});
+  engine.startGame({{onProgress: (done, total) => {{ if (total > 0) say('Loading ' + gameName + '… ' + Math.round(100 * done / total) + '%'); }}}})
+    .then(() => status && status.remove(),
+      (e) => say('This ride mode could not start: ' + (e && e.message || e)));
+}}
 </script></body></html>""".encode()
 
 

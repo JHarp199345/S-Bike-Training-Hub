@@ -206,6 +206,13 @@ _assistant = {}          # when the assistant's tool server last reached the hub
 async def handle(bridge, method, path, body, host):
     """(status, content type, body bytes, extra headers) for map paths, or None."""
     p = path.split("?")[0]
+    if p == "/api/modes/session":
+        import module_sandbox
+        try:
+            result = module_sandbox.handle(bridge, method, body)
+            return 200, "application/json", json.dumps(result).encode(), {"Cache-Control": "no-store"}
+        except (ValueError, TypeError, KeyError) as error:
+            return 403, "application/json", json.dumps({"error": str(error)}).encode(), {"Cache-Control": "no-store"}
     if p in ("/api/assistant/seen", "/api/assistant/status"):
         # the welcome page's connection light: the assistant's tool server (mcp_server.py) says hello as it works
         if p.endswith("/seen") and method == b"POST":
@@ -275,26 +282,55 @@ async def handle(bridge, method, path, body, host):
             if view not in ("map", "game", "pixel", "haunted"): view = "game"
             return 302, "text/plain", b"Open shared ride screen", {"Location": "/ride?view=" + view}
         name = "ride.html" if p.endswith("map") else "course.html"
-        return 200, TYPES[".html"], (WEB / name).read_bytes(), {}
+        return 200, TYPES[".html"], (WEB / name).read_bytes(), ISOLATED
     if p == "/ride":
-        return 200, TYPES[".html"], (WEB / "ride-hub.html").read_bytes(), {}
+        return 200, TYPES[".html"], (WEB / "ride-hub.html").read_bytes(), ISOLATED
     if p == "/api/map/status":
         return 200, "application/json", json.dumps({"engine": (MAPS / "web/maplibre/maplibre-gl.mjs").exists(), "maps": bool(list((MAPS / "map").glob("*.pmtiles"))), "routing": (MAPS / "brouter/segments4").is_dir()}).encode(), {}
     if p == "/workouts":                 # the old block builder is gone: workouts are written on the coach page
         return 302, "text/plain", b"Write a workout on the coach page", {"Location": "/coach#write-ride"}
+    if p == "/hub-certificate":
+        import tls
+        cert = tls.authority_certificate()
+        if not cert:
+            return 404, "text/plain", b"The hub's secure connection is not set up on this computer.", {}
+        return 200, "application/x-x509-ca-cert", cert, {"Content-Disposition": 'attachment; filename="S-Bike-Hub.crt"',
+                                                          "Cache-Control": "no-cache"}
+    if p == "/coach" and "embed=ride" in path:
+        # the Ride screen's own workout builder: the Ride page is cross-origin isolated (for its games), and an
+        # isolated page can only embed pages that are isolated too
+        return 200, TYPES[".html"], (WEB / "coach.html").read_bytes(), ISOLATED
     if p in ("/ride", "/plan", "/fitness", "/milestones", "/coach", "/course", "/dashboard", "/welcome"):
         return 200, TYPES[".html"], (WEB / f"{p[1:]}.html").read_bytes(), {}
     if p == "/manifest.webmanifest":
         return 200, "application/manifest+json", (WEB / "manifest.webmanifest").read_bytes(), {"Cache-Control": "max-age=3600"}
+    if p == "/api/modes/import" and method == b"POST":
+        import pack_install
+        q = parse_qs(urlsplit(path).query)
+        try:
+            result = await asyncio.to_thread(pack_install.inspect, body, approve=q.get('approve') == ['1'], replace=q.get('replace') == ['1'])
+            return 200, "application/json", json.dumps(result).encode(), {}
+        except (ValueError, TypeError) as error:
+            return 400, "application/json", json.dumps({'error': str(error)}).encode(), {}
+        except Exception:
+            return 500, "application/json", b'{"error":"Could not install this game. The previous copy is preserved."}', {}
     if p == "/api/modes":
         return 200, "application/json", json.dumps({"packs": packs.installed()}).encode(), {}
+    if p.startswith("/module-engine/"):
+        import module_sandbox
+        v, _, name = p[len("/module-engine/"):].partition("/")
+        d = packs.isolated_engine_dir(v) if name in packs.ENGINE_FILES else None
+        if not d:
+            return 404, "text/plain", b"not found", {}
+        return 200, TYPES[Path(name).suffix], (d / name).read_bytes(), {"Cache-Control": "max-age=604800", **module_sandbox.ASSET_HEADERS}
     if p.startswith("/engine/"):
         # the shared Godot engine every pack runs on: only the engine's own files
         v, _, name = p[8:].partition("/")
         d = packs.engine_dir(v) if name in packs.ENGINE_FILES else None
         if not d:
             return 404, "text/plain", b"not found", {}
-        return 200, TYPES[Path(name).suffix], (d / name).read_bytes(), {"Cache-Control": "max-age=604800", **ISOLATED}
+        import module_sandbox
+        return 200, TYPES[Path(name).suffix], (d / name).read_bytes(), {"Cache-Control": "max-age=604800", **ISOLATED, **module_sandbox.ASSET_HEADERS}
     if p.startswith("/vision/"):
         # lean for ride modes: the hub's own script, and the pose model (MediaPipe, Apache 2.0) it runs in the browser
         name = p[8:]
@@ -312,15 +348,22 @@ async def handle(bridge, method, path, body, host):
         if not pid or not folder.is_relative_to((DATA / "modes").resolve()) or not folder.is_dir():
             return 404, "text/plain", b"not found", {}
         m, why = packs.verified(folder)
-        if not why and not packs.engine_dir(m.get("engine")):
+        if not why and not packs.isolated_engine_dir(m.get("engine")):
             why = f"This pack needs engine {m.get('engine')}, which this hub doesn't have yet."
         if why:
             return 403, TYPES[".html"], packs.error_page(why), {"Cache-Control": "no-cache"}
         if not name:
-            return 200, TYPES[".html"], packs.page({**m, "id": pid}), {"Cache-Control": "no-cache", **ISOLATED}
+            return 200, TYPES[".html"], packs.page({**m, "id": pid}), {"Cache-Control": "no-cache", **ISOLATED,
+                "Content-Security-Policy": "frame-ancestors 'self'; object-src 'none'; base-uri 'none'", "Referrer-Policy": "no-referrer"}
+        if name == "sandbox":
+            import module_sandbox, secrets
+            nonce = secrets.token_urlsafe(24)
+            return 200, TYPES[".html"], packs.runtime_page({**m, "id": pid}, nonce), {
+                "Cache-Control": "no-store", **ISOLATED, **module_sandbox.runtime_headers(host, pid, m["engine"], nonce)}
         if name not in m["files"]:
             return 404, "text/plain", b"not found", {}
-        return 200, TYPES.get(Path(name).suffix, "application/octet-stream"), (folder / name).read_bytes(), {"Cache-Control": "no-cache", **ISOLATED}
+        import module_sandbox
+        return 200, TYPES.get(Path(name).suffix, "application/octet-stream"), (folder / name).read_bytes(), {"Cache-Control": "no-cache", **ISOLATED, **module_sandbox.ASSET_HEADERS}
     if p.startswith("/web/scenes/") and p.endswith((".html", ".js", ".png", ".json", ".glb", ".webp")):
         # installable riding scenes (scenes.py): anything inside web/scenes/, nothing outside it
         f = (WEB / p[5:]).resolve()
@@ -331,7 +374,8 @@ async def handle(bridge, method, path, body, host):
         f = (WEB / p[5:]).resolve()
         if f.parent not in (WEB.resolve(), (WEB / "sprites").resolve(), (WEB / "vendor").resolve(), (WEB / "sports").resolve(), (WEB / "graveyard").resolve(), (WEB / "graveyard/Textures").resolve(), (WEB / "icons").resolve()) or not f.exists():
             return 404, "text/plain", b"not found", {}
-        return 200, TYPES[f.suffix], f.read_bytes(), {}
+        import module_sandbox
+        return 200, TYPES[f.suffix], f.read_bytes(), module_sandbox.ASSET_HEADERS if p == "/web/module-runtime.js" else {}
     if p.startswith("/lib/"):
         f = (MAPS / "web" / "maplibre" / p[5:]).resolve()
         if f.parent != (MAPS / "web" / "maplibre").resolve() or not f.exists():
@@ -2221,7 +2265,7 @@ async def _coach_api(bridge, method, path, p, body):
                                                                     req.get("date") or coach.today(), library, ls.get("unit", "lb"))
                     return js(out)
                 if sub == "/framework/design" and method == b"POST":
-                    # one answer for composing a session inside the classifiers
+                    # one answer for composing a session inside the classifiers (docs/design/lifting-classifiers.md)
                     ls = lifting.state(d)
                     improving = [s for s, m in ((d.get("program_goal") or {}).get("priorities") or {}).items() if m == "improve" and s != "gym"]
                     phase = req.get("phase") or (((d.get("program_goal") or {}).get("priorities") or {}).get("gym") or "maintain")

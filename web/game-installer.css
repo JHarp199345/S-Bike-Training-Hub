@@ -1,0 +1,12 @@
+#game-drop{min-height:120px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:8px;border:2px dashed #59748a;border-radius:14px;text-align:center;cursor:pointer;background:#ffffff03;padding:18px;box-sizing:border-box}#game-drop:hover,#game-drop:focus-visible,#game-drop.drag-over{border-color:#8fdedb;background:#8fdedb0c;outline:none}#game-drop span,#game-drop small{color:var(--muted,#9aabba);font-size:14px}#game-folder-choose{font-size:13px;margin-top:10px}#game-import-review{padding:12px 0}#game-import-review button{margin-right:8px}#game-import-status{font-size:14px;overflow-wrap:anywhere}
+.rw-games{display:grid;gap:8px;margin:6px 0 10px}.rw-game{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 10px;border-radius:10px;background:rgba(255,255,255,.06)}
+.rw-game span{display:grid;gap:2px}.rw-game small{opacity:.75}.rw-trains{opacity:.9}.rw-play{padding:6px 12px;border-radius:8px;background:#18a0a2;color:#fff;text-decoration:none;font-weight:600;white-space:nowrap}
+.rw-note{font-size:.85em;opacity:.7;margin:4px 0}#game-installer h4{margin:12px 0 6px}
+/* Ride menu layout (2026-10-12): every section a full-width row */
+#ride-setup .ride-setup-grid>.rs-wide{grid-column:1/-1}
+.rw-tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin:8px 0 12px}
+.rw-tile{display:grid;gap:6px;justify-items:start;text-align:left;padding:12px 14px;border-radius:12px;border:1px solid var(--line,#31404a);background:var(--control,#253348);color:inherit;font:inherit;cursor:pointer;margin:0!important}
+.rw-tile[aria-pressed="true"]{border-color:#18a0a2;box-shadow:0 0 0 2px #18a0a2 inset}.rw-tile:disabled{opacity:.5;cursor:default}
+.rw-badge{font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;padding:2px 8px;border-radius:999px}
+.rw-free{background:rgba(24,160,162,.2);color:#7fe0e1}.rw-itch{background:#fa5c5c;color:#fff}
+.ride-builder{width:min(1100px,96vw);height:min(92vh,960px);padding:0;overflow:hidden}.ride-builder iframe{width:100%;height:100%;border:0;background:transparent}

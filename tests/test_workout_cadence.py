@@ -46,7 +46,7 @@ def main():
     check(f"starters are written in watts at the athlete's FTP ({z2['typed_workout']['main']})", z2['typed_workout']['main'] == '40 minutes at 124 watts')
     code, _, _, extra = asyncio.run(mapserver.handle(None, b"GET", "/workouts", b"", "127.0.0.1"))
     check("the old builder page is gone: /workouts opens Write your workout", code == 302 and extra["Location"] == "/coach#write-ride")
-    check("ride screens link to the one builder", '/coach#write-ride' in (ROOT / 'web/ride-hub.html').read_text() and '/coach#write-ride' in (ROOT / 'web/ride.html').read_text()
+    check("ride screens use the one builder (the Ride view embeds it)", '/coach?embed=ride#write-ride' in (ROOT / 'web/ride-world.js').read_text() and 'ride-build-open' in (ROOT / 'web/ride-hub.html').read_text() and '/coach#write-ride' in (ROOT / 'web/ride.html').read_text()
           and not (ROOT / 'web/workouts.html').exists())
     if shutil.which('node'):
         js = ("const P=require('./web/ride-parser.js');const r=P.parse({main:'3 x 9 minutes at 140-160 watts, 85-95 rpm with 3 minutes at 90-110 watts between intervals'},1);"

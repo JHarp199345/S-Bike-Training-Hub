@@ -22,7 +22,7 @@ def main():
     check("the Mac gets the panel without pairing", h(peer=MAC, p=b"/") is None)
     check("the Mac can stop the bridge", h(peer=MAC, m=b"POST", p=b"/stop") is None)
     r = h(p=b"/")
-    check("an unpaired phone asking for the panel is sent to /pair", r[0] == 302 and r[3]["Location"] == "/pair")
+    check("an unpaired phone asking for the panel is sent to /pair, and back afterwards", r[0] == 302 and r[3]["Location"].startswith("/pair?next=/"))
     check("an unpaired phone can't shift", h(m=b"POST", p=b"/gear/1")[0] == 401)
     check("an unpaired phone can't read status", h(p=b"/status")[0] == 401)
     check("an unpaired phone can't read the PIN", h(p=b"/remote/info")[0] == 403)

@@ -39,6 +39,20 @@ def _events(path):
     return [(t.isoformat(), e) for t, e in adherence._events(path)]
 
 
+def footer(events):
+    """The caption's last line: the hub by name, and any Ride World game played (from the ride's event log).
+    The athlete sees and can edit the caption before anything is posted."""
+    games = []
+    for _, e in events:
+        if e.startswith("Ride mode started: "):
+            name = e[len("Ride mode started: "):].strip()
+            if name and name != "Connection test" and name not in games:
+                games.append(name)
+    if games:
+        return f"Played {' and '.join(games)} in S-Bike Training Hub 🛠"
+    return "Ridden with S-Bike Training Hub 🛠"
+
+
 def _fmt_min(m):
     m = round(m)
     return f"{m // 60}h {m % 60:02d}m" if m >= 60 else f"{m} min"
@@ -288,7 +302,7 @@ def build(path):
     lines = [f"{h['icon']} {h['text']}" + (f" ({h['detail']})" if h["detail"] else "") for h in highlights[:5]]
     caption = "\n".join(lines + ["", f"{stats['time']} · {stats['km']} km · {stats['climb_m']} m up · "
                                      f"{stats['avg_w']} W avg · {stats['kcal']} kcal", "", challenge,
-                                 "", "Ridden on my own offline bike bridge 🛠"])
+                                 "", footer(events)])
 
     forecast = None
     try:

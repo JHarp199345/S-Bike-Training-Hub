@@ -57,3 +57,7 @@ Formulas were cross-checked against [GoldenCheetah](https://github.com/GoldenChe
 ## A recommendation
 
 [GoSwimFast's training hub](https://goswimfast.com/training) is a swim workout library and generator the hub's creator uses. It's an independent recommendation, not an integration.
+
+## Optional game engine
+
+- **Godot 4.7.1:** shared non-threaded Web engine from the official export templates (MIT). License: [web/module-engine/LICENSE.txt](web/module-engine/LICENSE.txt). Game packs are distributed separately.

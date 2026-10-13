@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased — October 13, 2026
+
+- Optional signed game ZIP/folder installation with a permissions review and replacement backup.
+- Isolated game frames, a bounded ride-data/control bridge and the non-threaded Godot 4.7.1 engine.
+- Ride World selection, optional module catalogue, in-place workout builder and retained free scenery.
+- Reliable return from standalone game pages to the Ride menu; normal Hub page navigation remains available.
+- Games are optional: the Hub's planning, reports and free riding remain available without installed modules.
+
+
 The app and the assistant bundle (MCP) have their own version numbers. The **What's new** button in the Coach header shows the same history inside the hub.
 
 ## Unreleased · ride modes

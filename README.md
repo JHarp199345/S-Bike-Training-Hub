@@ -176,3 +176,9 @@ Join the **[S-Bike Training Hub club on Strava](https://www.strava.com/clubs/s-b
 Built by JHarp199345 with Claude and ChatGPT. The hub stands on OpenStreetMap, Protomaps, MapLibre, BRouter, Mapzen terrain, Three.js, body-highlighter, Kenney, Quaternius and many open-source Python packages. The full list, with licenses: **[CREDITS.md](CREDITS.md)**.
 
 [MIT license](LICENSE).
+
+### Optional Ride World modules
+
+The Hub works without any game installed. Free scenery remains in the Ride menu. Download an official signed module ZIP, then use **Ride → Add a module**. Review its requested readings and controls before installing it. Paid game files are distributed separately; they are not included in this repository. See [Security: modules](SECURITY.md#modules).
+
+The Hub includes the non-threaded Godot 4.7.1 browser runtime, under the MIT license. No Godot editor installation is needed to play a module.

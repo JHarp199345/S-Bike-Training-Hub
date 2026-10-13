@@ -175,15 +175,38 @@ PAIR_PAGE = """<!doctype html><html><head><meta charset="utf-8"><title>S-Bike Hu
 </style></head><body><div>
 <h1>S-Bike Hub</h1><p id="lead">Type the PIN shown on the Mac's panel to use this phone as the handlebar remote.</p>
 <form id="f"><input id="pin" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code" autofocus>
-<button>Pair this phone</button></form><div id="err"></div></div>
+<button>Pair this phone</button></form><div id="err"></div>
+<section id="cert" hidden><p id="cert-lead">One more step for games on this device: trust your hub.</p>
+<a id="cert-get" href="/hub-certificate" download="S-Bike-Hub.crt"><button type="button">Get certificate</button></a>
+<p id="cert-how" style="margin:14px 0 0;text-align:left;font-size:15px"></p>
+<button id="cert-done" type="button">Done, open the ride</button>
+<p style="margin:12px 0 0;font-size:13px">It only works for your home network, never for a real website.</p></section></div>
 <script>
 const $=id=>document.getElementById(id);
+const nextUp=(()=>{const n=new URLSearchParams(location.search).get('next')||'/ride';return n.startsWith('/')&&!n.startsWith('//')?n:'/ride';})();
+const securePort=location.protocol==='https:'?location.port:String((Number(location.port)||80)+1);
+const secureURL=p=>'https://'+location.hostname+':'+securePort+p;
+// Paired: games need the hub's secure door. If this device already trusts the hub, go straight there; if not, the one
+// step that makes it trusted is offered right here (a device only adds a trusted certificate with its owner's yes).
+async function afterPair(){
+  if(location.protocol==='https:'){location.href=nextUp;return;}
+  const ac=new AbortController(),t=setTimeout(()=>ac.abort(),3000);
+  try{await fetch(secureURL('/status'),{mode:'no-cors',cache:'no-store',signal:ac.signal});location.href=secureURL(nextUp);return;}catch(e){}finally{clearTimeout(t);}
+  $('f').hidden=true;$('lead').textContent='Paired.';$('cert').hidden=false;
+  const ios=/iPad|iPhone|iPod/.test(navigator.userAgent)||(/Macintosh/.test(navigator.userAgent)&&navigator.maxTouchPoints>1);
+  const android=/Android/i.test(navigator.userAgent);
+  $('cert-how').innerHTML=ios?'Then: <b>Settings → Profile Downloaded → Install</b>, and <b>Settings → General → About → Certificate Trust Settings</b> → turn on <b>S-Bike Training Hub</b>.'
+    :android?'Then: <b>Settings → Security → Encryption &amp; credentials → Install a certificate → CA certificate</b> → choose <b>S-Bike-Hub.crt</b>.'
+    :'Then open the downloaded file and trust it for websites.';
+  $('cert-done').onclick=()=>{location.href=secureURL(nextUp);};
+}
 async function pair(body){ const r=await fetch('/pair',{method:'POST',body}); const j=await r.json();
-  if(r.ok){ history.replaceState(null,'','/pair'); location.href='/ride'; } else $('err').textContent=j.error; return r.ok; }
+  if(r.ok){ history.replaceState(null,'','/pair'); afterPair(); } else $('err').textContent=j.error; return r.ok; }
 $('f').onsubmit=e=>{ e.preventDefault(); pair($('pin').value); };
 // Opened from the QR on the Mac's panel: pair straight away (a script, so link previews can't use the code up).
 const code=new URLSearchParams(location.search).get('code');
 if(code){ $('lead').textContent='Pairing this phone…'; pair(JSON.stringify({code})).then(ok=>{ if(!ok) $('lead').textContent="Scan the QR on the Mac's panel again, or type the PIN:"; }); }
+else fetch('/status',{cache:'no-store'}).then(r=>{ if(!r.ok) return; if(new URLSearchParams(location.search).has('cert')){ $('lead').textContent='Checking the secure connection…'; afterPair(); } else location.replace(nextUp); }).catch(()=>{});   // already paired: carry on (or set up the secure connection)
 </script></body></html>"""
 
 
@@ -201,7 +224,7 @@ def handle(peer, method, path, headers, body):
         if not tok:
             return 403, "application/json", json.dumps({"error": err}).encode(), {}
         return 200, "application/json", b'{"ok":true}', {
-            "Set-Cookie": f"{COOKIE}={tok}; Max-Age=31536000; Path=/; HttpOnly; SameSite=Strict"}
+            "Set-Cookie": f"{COOKIE}={tok}; Max-Age=31536000; Path=/; HttpOnly; SameSite=Lax"}
     if p == b"/pair":
         return 200, "text/html; charset=utf-8", PAIR_PAGE.encode(), {}
     if p == b"/remote/forget" and method == b"POST":
@@ -229,5 +252,6 @@ def handle(peer, method, path, headers, body):
     if is_local(peer) or paired(headers):                    # paired, but a Mac-only action
         return 403, "application/json", b'{"error":"only from the Mac"}', {}
     if method == b"GET" and not p.startswith((b"/api/", b"/status", b"/tiles/", b"/terrain/", b"/lib/")):
-        return 302, "text/plain", b"", {"Location": "/pair"}
+        from urllib.parse import quote
+        return 302, "text/plain", b"", {"Location": "/pair?next=" + quote(path.decode(errors="replace"), safe="/")}
     return 401, "application/json", b'{"error":"pair this device first"}', {}

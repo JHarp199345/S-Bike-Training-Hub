@@ -115,6 +115,9 @@ PAGE = """<!doctype html><html><head><meta charset="utf-8"><title>S-Bike Hub</ti
    <span id="qrleft"></span></div>
   <div class="sub" style="margin:10px 0 2px">Or open <span id="addr"></span> and type this PIN:</div>
   <div class="pin" id="pin"></div></div></div>
+ <div class="sub" style="margin:12px 0 4px"><b>Games on a tablet or phone:</b> scanning the code also sets up the
+  secure connection games need: after pairing, the device offers this hub's certificate to install once, so games,
+  camera lean and tilt open with no "not private" warning.</div>
  <button id="forget">Forget paired phones &amp; new PIN</button></div>
 <section class="phone" aria-labelledby="energy-setting-title"><h2 id="energy-setting-title">Training display</h2><label for="energy-unit">Energy units</label><select id="energy-unit" data-energy-unit style="display:block;width:100%;box-sizing:border-box;margin:10px 0;padding:12px;background:#0b0f14;color:#eef1f5;border:1px solid #2a3441;border-radius:10px;font:inherit"><option value="calories">Calories (kcal)</option><option value="joules">Joules &amp; watts (J / W)</option></select><p class="sub" style="margin:8px 0">Saved in this browser. Training totals and history use your choice. Calories shows kcal/min; Joules &amp; watts shows W. The equivalent appears in smaller text. Nominal lifting work remains a mechanical estimate, not calories burned.</p><a href="/coach#fitness" style="color:var(--info)">View recorded training</a></section>
 <script src="/web/energy-units.js"></script>
@@ -223,6 +226,13 @@ async def serve(bridge, port=8729, lan=True):
             k, _, v = line.partition(b":")
             headers[k.strip().lower()] = v.strip()
         body = b""
+        import module_sandbox
+        if not module_sandbox.request_allowed(method, path, headers):
+            payload = b'{"error":"This request cannot access the Hub from a game frame or another site."}'
+            writer.write(b"HTTP/1.1 403 Forbidden\r\nContent-Type: application/json\r\nCache-Control: no-store\r\nContent-Length: "
+                         + str(len(payload)).encode() + b"\r\nConnection: close\r\n\r\n" + payload)
+            await writer.drain(); writer.close()
+            return
         n = int(headers.get(b"content-length", b"0") or 0)
         if method == b"POST" and path.startswith(b"/api/music/folder/upload"):
             # music files: streamed to the athlete's music folder, never held in memory; this computer only
@@ -245,7 +255,13 @@ async def serve(bridge, port=8729, lan=True):
                          + str(len(payload)).encode() + b"\r\nConnection: close\r\n\r\n" + payload)
             await writer.drain(); writer.close()
             return
-        if 0 < n <= 20_000_000:                       # up to 20 MB: GPX uploads, planning requests
+        max_body = 128 * 1024 * 1024 if path.split(b"?", 1)[0] == b"/api/modes/import" else 20_000_000
+        if n > max_body and path.split(b"?", 1)[0] == b"/api/modes/import":
+            payload = b'{"error":"Choose a game ZIP up to 128 MB."}'
+            writer.write(b"HTTP/1.1 413 Payload Too Large\r\nContent-Type: application/json\r\nContent-Length: " + str(len(payload)).encode() + b"\r\nConnection: close\r\n\r\n" + payload)
+            await writer.drain(); writer.close()
+            return
+        if 0 < n <= max_body:                        # game packs have a separate bounded upload size
             try:
                 body = await reader.readexactly(n)
             except Exception:
@@ -287,7 +303,8 @@ async def serve(bridge, port=8729, lan=True):
             hdrs = b"".join(k.encode() + b": " + v.encode() + b"\r\n" for k, v in extra.items())
             if "Cache-Control" not in extra:
                 hdrs += b"Cache-Control: no-store\r\n"
-            payload = with_app_icon(ctype, payload)
+            if not extra.get("Content-Security-Policy", "").startswith("sandbox "):
+                payload = with_app_icon(ctype, payload)
             writer.write(b"HTTP/1.1 " + str(code).encode() + b" " + reason + b"\r\nContent-Type: " + ctype.encode()
                          + b"\r\n" + hdrs + b"Content-Length: " + str(len(payload)).encode()
                          + b"\r\nConnection: close\r\n\r\n" + payload)

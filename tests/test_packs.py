@@ -19,9 +19,10 @@ secret = (tmp / "key").read_text()
 assert (tmp / "key").stat().st_mode & 0o777 == 0o600
 packs.TRUSTED_KEYS = {"test": pub}
 
-eng = tmp / "engine" / "4.7.1"; eng.mkdir(parents=True)
+eng = tmp / "module-engine" / "4.7.1"; eng.mkdir(parents=True)
+legacy = tmp / "engine" / "4.7.1"; legacy.mkdir(parents=True)
 for f in packs.ENGINE_FILES:
-    (eng / f).write_bytes(b"engine")
+    (eng / f).write_bytes(b"engine"); (legacy / f).write_bytes(b"engine")
 
 
 def make(pid, **extra):
@@ -58,8 +59,14 @@ def get(path):
 
 
 s, ctype, body, hdr = get("/modes/good/")
-assert s == 200 and b"/engine/4.7.1/godot.js" in body and b'"mainPack": "/modes/good/game.pck"' in body
-assert b"Test &lt;mode>" in body and hdr["Cross-Origin-Embedder-Policy"] == "require-corp"
+assert s == 200 and b'sandbox="allow-scripts"' in body and b"/modes/good/sandbox" in body
+assert b"allow-same-origin" not in body and b"Test &lt;mode&gt;" in body
+assert hdr["Cross-Origin-Embedder-Policy"] == "require-corp"
+_, _, runtime, runtime_headers = get("/modes/good/sandbox")
+assert b"/module-engine/4.7.1/godot.js" in runtime and b'"mainPack": "/modes/good/game.pck"' in runtime
+assert runtime_headers["Content-Security-Policy"].startswith("sandbox allow-scripts;")
+assert "allow-same-origin" not in runtime_headers["Content-Security-Policy"]
+assert "camera=()" in runtime_headers["Permissions-Policy"]
 assert get("/modes/good/game.pck")[:3:2] == (200, b"GDPC game data")
 assert get("/modes/good/manifest.json")[0] == 404, "only files the manifest lists"
 assert get("/modes/changed/")[0] == 403 and get("/modes/changed/game.pck")[0] == 403

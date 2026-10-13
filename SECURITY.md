@@ -53,11 +53,11 @@ itch.io page and the games list the hub reads from this repository. Today the hu
 - **Only listed files.** The hub serves only the files a module's signed list names, of a few allowed kinds, and its
   own page starts the game: a module can't bring its own web page or scripts.
 
-**The current limit.** A module runs on the hub's own address, so a module's code could, in principle, ask the hub
-for the same information the hub's pages can see. That is why only modules from the trusted publisher run. A module
-sandbox is being built so that this no longer depends on trusting the publisher: modules would run behind their own
-door that answers only the ride numbers a game needs (power, cadence, speed, FTP, weight) and accepts only game
-requests (the hill, moments, the result), with no access to your records and no internet.
+- **Declared access.** The signed manifest names the ride readings and controls a game requests. The installer shows them before approval. The host shares only the declared readings, plus basic connection flags; it never gives the game its session token or a general Hub request interface.
+- **Browser isolation.** Pack code runs in an opaque frame with no same-origin permission. Browser requests from that frame cannot reach private Hub routes. The host accepts a small set of validated messages. Camera video stays in the host; a game requesting steering receives only the derived lean value.
+- **Bounded controls.** Slope requests are limited and rate checked. An active workout, route or test keeps resistance control. Closing a game revokes its control lease; the existing slope heartbeat flattens resistance if updates stop.
+
+**The current limit.** This is browser isolation, not an operating-system sandbox or a complete outbound-network firewall. The browser and bundled Godot engine remain trusted components. An approved publisher could misuse readings their game is permitted to receive, including through frame navigation. Only the existing official publisher key is accepted; do not treat this as making unknown modules safe. Games currently require a signed permissions declaration and the bundled non-threaded engine.
 
 **Your part**
 
