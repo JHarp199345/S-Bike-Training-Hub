@@ -16,7 +16,8 @@ tmp = pathlib.Path(tempfile.mkdtemp())
 paths.DATA = mapserver.DATA = tmp
 pub = packs.new_key(tmp / "key")
 secret = (tmp / "key").read_text()
-assert (tmp / "key").stat().st_mode & 0o777 == 0o600
+if sys.platform != "win32":  # Windows does not expose POSIX owner/group permission bits.
+    assert (tmp / "key").stat().st_mode & 0o777 == 0o600
 packs.TRUSTED_KEYS = {"test": pub}
 
 eng = tmp / "module-engine" / "4.7.1"; eng.mkdir(parents=True)

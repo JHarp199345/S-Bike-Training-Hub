@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased — October 13, 2026
+## App 1.12.1 · 2026-10-13 · optional games and support
+
+Use with MCP 1.12.1. Games are separate downloads; no game pack is bundled.
 
 - Quiet Ko-fi help badge with one optional invitation after three module rides, deferred until the ride ends. Local browser counts, permanent dismissal/opt-out, FAQs and reviewed GitHub feedback.
 

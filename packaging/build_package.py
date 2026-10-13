@@ -39,6 +39,12 @@ setup one question at a time. The app is at http://127.0.0.1:8729 once it's runn
 
 Source, guide and changelog: https://github.com/JHarp199345/S-Bike-Training-Hub
 
+Optional games: https://jharp199345.itch.io/monster-chase
+Community: https://www.strava.com/clubs/2379636
+Optional support: https://ko-fi.com/jharp199345
+
+Game packs are separate downloads, never bundled with the Hub.
+
 Estimates are labelled as estimates; this is training support, not medical advice.
 
 mcp-name: io.github.JHarp199345/s-bike-hub

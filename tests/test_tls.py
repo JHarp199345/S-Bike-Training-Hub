@@ -14,7 +14,8 @@ run = lambda *a: subprocess.run([tool, *a], capture_output=True, text=True)
 assert run("verify", "-CAfile", str(d / "hub-ca.crt"), str(d / "hub.crt")).returncode == 0, "hub certificate signed by the hub's authority"
 ext = run("x509", "-in", str(d / "hub-ca.crt"), "-noout", "-ext", "nameConstraints").stdout
 assert "IP:192.168.0.0/255.255.0.0" in ext and "DNS:local" in ext, "the authority only covers home networks"
-assert (d / "hub-ca.key").stat().st_mode & 0o777 == 0o600 and (d / "hub.key").stat().st_mode & 0o777 == 0o600
+if sys.platform != "win32":  # Windows uses ACLs, not these POSIX permission bits.
+    assert (d / "hub-ca.key").stat().st_mode & 0o777 == 0o600 and (d / "hub.key").stat().st_mode & 0o777 == 0o600
 assert tls.authority_certificate().startswith(b"-----BEGIN CERTIFICATE-----"), "the download is the public certificate"
 assert b"PRIVATE" not in tls.authority_certificate()
 # a certificate for a real website, signed by the hub's authority, is refused

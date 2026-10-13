@@ -1,6 +1,6 @@
 /* ride-world.js - the Ride menu's Ride World tiles, Watch, the in-place workout builder and Find more modules
    (2026-10-12).
-   Tiles: the hub's own views (free) and installed modules (bought on itch.io), from the view list the page and the
+   Tiles: the hub's own views (free) and installed modules (downloaded separately from itch.io), from the view list the page and the
    installer keep (#scenery). Choosing one shows it. "Find more modules" reads the public catalogue on GitHub only when
    pressed; each entry links to its itch.io page, and a download goes in through the drop box. */
 (() => {

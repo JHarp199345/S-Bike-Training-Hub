@@ -2,9 +2,9 @@
   "manifest_version": "0.3",
   "name": "s-bike-hub",
   "display_name": "S-Bike Training Hub",
-  "version": "1.12.0",
+  "version": "1.12.1",
   "description": "Coach from your smart-bike training hub: check-ins, plans, rides, lifting, workouts and training load for bike, run and swim.",
-  "long_description": "Use the local Hub through 124 tools: assistant-led setup (one question at a time), a health and history record, two-pass planning (a season of placeholders, then each week's workouts from your reports) with a short planning brief and sections on request, efficiency against heart rate with the day's temperature, lifting designed by type, duration, intensity and style and judged against each lift's own record, reviewed calendar changes, session reports and recovery check-ins; your reports decide, model readings are evidence. Requires Hub app 1.12.0, or install everything in one package: uvx s-bike-training-hub@latest. Athlete files stay local; returned context follows the external AI provider's policies.",
+  "long_description": "Use the local Hub through 124 tools: assistant-led setup (one question at a time), a health and history record, two-pass planning (a season of placeholders, then each week's workouts from your reports) with a short planning brief and sections on request, efficiency against heart rate with the day's temperature, lifting designed by type, duration, intensity and style and judged against each lift's own record, reviewed calendar changes, session reports and recovery check-ins; your reports decide, model readings are evidence. Requires Hub app 1.12.1, or install everything in one package: uvx s-bike-training-hub@latest. Athlete files stay local; returned context follows the external AI provider's policies.",
   "author": {
     "name": "JHarp199345",
     "url": "https://github.com/JHarp199345"
@@ -63,7 +63,7 @@
     },
     {
       "name": "record_activity_report",
-      "description": "Record the athlete’s explicit effort and discomfort for one imported activity, planned or unplanned, through the normal session-report protocol. Preserves prescriptions and completed activity, adds no duplicate load. Existing symptom/progression rules apply; this does not recalibrate a recovery curve or clear a hold. Read get_activity_report again afterward and ask for delayed response."
+      "description": "Record the athlete\u2019s explicit effort and discomfort for one imported activity, planned or unplanned, through the normal session-report protocol. Preserves prescriptions and completed activity, adds no duplicate load. Existing symptom/progression rules apply; this does not recalibrate a recovery curve or clear a hold. Read get_activity_report again afterward and ask for delayed response."
     },
     {
       "name": "get_recorded_swim_draft",
@@ -71,11 +71,11 @@
     },
     {
       "name": "record_completed_swim_details",
-      "description": "Attach the athlete’s actual swim sets and coaching summary to ONE imported watch swim, preserving its recorded time/distance/load and avoiding duplicate sessions. Preview with save=false first, review parser issues and distance differences, then save=true. Text or section fields, unit yd/m. Do not invent unreported drills or benefits."
+      "description": "Attach the athlete\u2019s actual swim sets and coaching summary to ONE imported watch swim, preserving its recorded time/distance/load and avoiding duplicate sessions. Preview with save=false first, review parser issues and distance differences, then save=true. Text or section fields, unit yd/m. Do not invent unreported drills or benefits."
     },
     {
       "name": "preview_strength_workout",
-      "description": "Parse the athlete’s text with the same deterministic parser used by the Hub creator. Fields warmup/main/cooldown or text; returns unresolved text, per-set dose and existing load evaluation. Nothing is scheduled or logged. Clarify unresolved input before saving. Library rules still apply."
+      "description": "Parse the athlete\u2019s text with the same deterministic parser used by the Hub creator. Fields warmup/main/cooldown or text; returns unresolved text, per-set dose and existing load evaluation. Nothing is scheduled or logged. Clarify unresolved input before saving. Library rules still apply."
     },
     {
       "name": "record_completed_lift_details",
@@ -87,11 +87,11 @@
     },
     {
       "name": "preview_sled_effort",
-      "description": "Estimate TANK M4/MX friction-sled weight equivalent from Torque’s published speed/level chart. Distance and time per leg; equal front/rear settings. Outside 1–6 mph stays unknown. Not pounds of pushing force, lifted mass, or clearance. RPE cannot identify force. Returns source and uncertainty; changes no logs or model references."
+      "description": "Estimate TANK M4/MX friction-sled weight equivalent from Torque\u2019s published speed/level chart. Distance and time per leg; equal front/rear settings. Outside 1\u20136 mph stays unknown. Not pounds of pushing force, lifted mass, or clearance. RPE cannot identify force. Returns source and uncertainty; changes no logs or model references."
     },
     {
       "name": "get_activity_effort_windows",
-      "description": "Inspect candidate heart-rate response windows from an imported workout. Timed effort has priority, then the athlete’s duration estimate; HR rise/peak/fall is supporting uncertain evidence, not exact work timing or force. No exercise labels, assumed lag correction, or automatic logging. Ask the athlete to confirm candidates."
+      "description": "Inspect candidate heart-rate response windows from an imported workout. Timed effort has priority, then the athlete\u2019s duration estimate; HR rise/peak/fall is supporting uncertain evidence, not exact work timing or force. No exercise labels, assumed lag correction, or automatic logging. Ask the athlete to confirm candidates."
     },
     {
       "name": "update_session_explanation",
@@ -99,7 +99,7 @@
     },
     {
       "name": "get_coaching_review",
-      "description": "Read the next 1–14 days of running/lifting outlook, forecast conflicts, holds, symptoms and evidence-based capacity review candidates. Does not save or clear holds."
+      "description": "Read the next 1\u201314 days of running/lifting outlook, forecast conflicts, holds, symptoms and evidence-based capacity review candidates. Does not save or clear holds."
     },
     {
       "name": "preview_coaching_change",
@@ -147,7 +147,7 @@
     },
     {
       "name": "get_training_calendar",
-      "description": "Read 1–14 days of saved workout prescriptions, actual completions, reports, phase context and projected load readings. Stable session IDs change when prescriptions change. Does not save or modify training."
+      "description": "Read 1\u201314 days of saved workout prescriptions, actual completions, reports, phase context and projected load readings. Stable session IDs change when prescriptions change. Does not save or modify training."
     },
     {
       "name": "explain_training_reading",
@@ -159,7 +159,7 @@
     },
     {
       "name": "record_capacity_followup",
-      "description": "Record explicit delayed recovery 1–14 days after a completed, effort-reported session. good/difficult/uncertain are athlete reports, not inferred from silence. Does not change limits, holds or training."
+      "description": "Record explicit delayed recovery 1\u201314 days after a completed, effort-reported session. good/difficult/uncertain are athlete reports, not inferred from silence. Does not change limits, holds or training."
     },
     {
       "name": "get_capacity_review",
@@ -491,7 +491,7 @@
     },
     {
       "name": "record_running_response_feedback",
-      "description": "Record the athlete’s impression of the current running estimate using its context_token from get_load.running_response. Preserve direction and note as subjective calibration evidence, not an automatic score delta or clearance. Read feedback back through get_running_response."
+      "description": "Record the athlete\u2019s impression of the current running estimate using its context_token from get_load.running_response. Preserve direction and note as subjective calibration evidence, not an automatic score delta or clearance. Read feedback back through get_running_response."
     },
     {
       "name": "get_workout_imports",
