@@ -1,5 +1,9 @@
 # Changelog
 
+## App 1.12.2 · 2026-10-13 · keep unfinished previews private
+
+Unfinished design preview pages are archived privately and excluded from the public source and installer. Tested app features remain. Use with MCP 1.12.2.
+
 ## App 1.12.1 · 2026-10-13 · optional games and support
 
 Use with MCP 1.12.1. Games are separate downloads; no game pack is bundled.

@@ -1,6 +1,16 @@
 {
-  "latest": "app-v1.12.1",
+  "latest": "app-v1.12.2",
   "entries": [
+    {
+      "id": "app-v1.12.2",
+      "date": "2026-10-13",
+      "version": "App 1.12.2",
+      "title": "Keep unfinished previews private",
+      "changes": [
+        "Unfinished design preview pages are excluded from the public source and installer.",
+        "The tested module installer, sandbox, Ko-fi badge and existing app features remain. Games and athlete records are never bundled."
+      ]
+    },
     {
       "id": "app-v1.12.1",
       "date": "2026-10-13",

@@ -71,7 +71,7 @@ def stage(version, out):
         shutil.copy2(f, pkg / f.name)
     for d, skip in DIRS.items():
         if (ROOT / d).is_dir():
-            shutil.copytree(ROOT / d, pkg / d, ignore=lambda folder, names, skip=skip: [n for n in names if n in skip or n in NEVER or n.startswith(".")])
+            shutil.copytree(ROOT / d, pkg / d, ignore=lambda folder, names, skip=skip: [n for n in names if n in skip or n in NEVER or n.startswith(".") or n.endswith("-preview.html")])
     (pkg / "workouts").mkdir()
     for f in SAMPLE_WORKOUTS:
         shutil.copy2(ROOT / "workouts" / f, pkg / "workouts" / f)
