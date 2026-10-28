@@ -233,6 +233,23 @@ async def serve(bridge, port=8729, lan=True):
                          + str(len(payload)).encode() + b"\r\nConnection: close\r\n\r\n" + payload)
             await writer.drain(); writer.close()
             return
+        game = module_sandbox.game_pack(headers)
+        if game is not None:
+            # A game's own name (module_sandbox.game_pack): this computer only, that game's files only, no Hub routes.
+            res = None
+            if remote.is_local(writer.get_extra_info("peername")) and module_sandbox.game_path_allowed(game, method, path):
+                try:
+                    res = await mapserver.handle(bridge, "GET", path.decode(errors="replace"), b"",
+                                                 headers.get(b"host", b"").decode())
+                except Exception:
+                    res = None
+            code, ctype, payload, extra = res if res is not None else (404, "text/plain", b"not found", {})
+            hdrs = b"".join(k.encode() + b": " + v.encode() + b"\r\n" for k, v in extra.items())
+            writer.write(b"HTTP/1.1 " + str(code).encode() + b" OK\r\nContent-Type: " + ctype.encode() + b"\r\n" + hdrs
+                         + b"Content-Length: " + str(len(payload)).encode() + b"\r\nConnection: close\r\n\r\n"
+                         + (b"" if method == b"HEAD" else payload))
+            await writer.drain(); writer.close()
+            return
         n = int(headers.get(b"content-length", b"0") or 0)
         if method == b"POST" and path.startswith(b"/api/music/folder/upload"):
             # music files: streamed to the athlete's music folder, never held in memory; this computer only

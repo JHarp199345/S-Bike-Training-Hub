@@ -141,4 +141,26 @@ class SandboxTest(unittest.TestCase):
         self.assertEqual(self.bridge.actions, [])
 
 
+
+class GameNameTest(unittest.TestCase):
+    def test_game_names(self):
+        h = lambda v: {b"host": v}
+        self.assertEqual(sandbox.game_pack(h(b"monster-chase.game.localhost:8729")), "monster-chase")
+        self.assertIsNone(sandbox.game_pack(h(b"127.0.0.1:8729")))
+        self.assertIsNone(sandbox.game_pack(h(b"localhost:8729")))
+        self.assertEqual(sandbox.game_pack(h(b"a.b.game.localhost:8729")), "")
+        self.assertEqual(sandbox.game_pack(h(b".game.localhost")), "")
+
+    def test_game_name_serves_only_game_files(self):
+        ok = lambda pid, path, m=b"GET": sandbox.game_path_allowed(pid, m, path)
+        self.assertTrue(ok("mc", b"/modes/mc/sandbox?dev=1"))
+        self.assertTrue(ok("mc", b"/modes/mc/game.pck"))
+        self.assertTrue(ok("mc", b"/module-engine/4.7.1/godot.wasm"))
+        self.assertTrue(ok("mc", b"/web/module-runtime.js"))
+        for bad in (b"/", b"/ride", b"/api/status", b"/api/modes/session", b"/modes/other/game.pck", b"/modes/mc/",
+                    b"/modes/mc/../x", b"/remote/pin", b"/web/ride-hub.html", b"/vision/lean.js"):
+            self.assertFalse(ok("mc", bad), bad)
+        self.assertFalse(ok("mc", b"/modes/mc/sandbox", b"POST"))
+        self.assertFalse(ok("", b"/modes/mc/sandbox"))
+
 if __name__ == "__main__": unittest.main()

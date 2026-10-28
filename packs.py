@@ -229,11 +229,10 @@ def page(m):
     sensors = SENSOR_CONTROLS
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{title} · S-Bike Training Hub</title><style>html,body{{margin:0;height:100%;background:#0b141d;color:#dbe7f0;font:15px system-ui}}#module-game{{width:100%;height:100%;border:0}}#status{{position:fixed;inset:0;display:grid;place-items:center;pointer-events:none}}[hidden]{{display:none!important}}</style></head><body>
-<iframe id="module-game" title="{title}" sandbox="allow-scripts" allow="fullscreen" allowfullscreen src="/modes/{pid}/sandbox"></iframe>
+<iframe id="module-game" title="{title}" sandbox="allow-scripts" allow="fullscreen" allowfullscreen></iframe>
 <a href="/ride?setup=1" target="_top" aria-label="Return to Ride menu" style="position:fixed;top:10px;right:12px;z-index:10;padding:7px 12px;background:rgba(11,20,29,.85);border:1px solid #2c4458;border-radius:8px;color:#dbe7f0;text-decoration:none">← Return to Ride menu</a>
 <div id="status">Connecting {title}…</div>{sensors}
 <script id="module-config" type="application/json">{config}</script>
-<script>const q=new URLSearchParams(location.search); if(q.has("dev")) document.getElementById("module-game").src+="?dev=1";</script>
 <link rel="stylesheet" href="/web/hub-support.css"><script src="/web/support-policy.js"></script><script src="/web/hub-support.js"></script><script src="/vision/lean.js"></script><script src="/web/module-host.js"></script></body></html>""".encode()
 
 def runtime_page(m, nonce):

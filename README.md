@@ -8,7 +8,7 @@ A free training hub for cycling, swimming, running and strength that runs on you
 
 <p align="center"><a href="https://www.strava.com/clubs/s-bike-training-hub"><img src="https://img.shields.io/badge/Strava-Join%20the%20club-FC4C02?logo=strava&logoColor=white" alt="Join the S-Bike Training Hub club on Strava"></a></p>
 
-**Current version: app 1.12.2** with MCP 1.12.2 · [what's new](CHANGELOG.md) · [community on Strava](https://www.strava.com/clubs/s-bike-training-hub)
+**Current version: app 1.12.3** with MCP 1.12.3 · [what's new](CHANGELOG.md) · [community on Strava](https://www.strava.com/clubs/s-bike-training-hub)
 
 ## What it does
 
@@ -98,7 +98,7 @@ No assistant? On the welcome page, open **No assistant? Set up by hand**: your s
 The hub keeps the record; your assistant plans with you. It works with any app that supports MCP servers.
 
 - **The one-line install** above already connects it.
-- **Claude Desktop (bundle):** download the `.mcpb` bundle (MCP 1.12.2) from the [releases page](https://github.com/JHarp199345/S-Bike-Training-Hub/releases), then **Settings → Extensions → Advanced settings → Install extension**. Leave the hub address at `http://127.0.0.1:8729`.
+- **Claude Desktop (bundle):** download the `.mcpb` bundle (MCP 1.12.3) from the [releases page](https://github.com/JHarp199345/S-Bike-Training-Hub/releases), then **Settings → Extensions → Advanced settings → Install extension**. Leave the hub address at `http://127.0.0.1:8729`.
 - **Claude Code:** `claude mcp add --scope user s-bike-hub -- "$PWD/.venv/bin/python" "$PWD/mcp_server.py"` (on Windows: `.venv\Scripts\python.exe`).
 - **Other MCP apps:** point them at `mcp_server.py` with the `.venv` Python.
 
@@ -186,12 +186,20 @@ The Hub includes the non-threaded Godot 4.7.1 browser runtime, under the MIT lic
 
 ### Ride World games
 
-The Hub is free and works without game modules. Monster Chase is currently a free,
-single-player add-on with optional donations: https://jharp199345.itch.io/monster-chase
+The Hub is free and works without game modules. Each game is its own download on the
+[releases page](https://github.com/JHarp199345/S-Bike-Training-Hub/releases): pick the
+ones you want; you don't need the others. Every game needs the Hub to run.
+
+| Download | What it is | Needs |
+|---|---|---|
+| [S-Bike Training Hub](https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/app-v1.12.3) | The hub: bike bridge, training, ride modes | — |
+| [Monster Chase 0.1.17](https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/monster-chase-v0.1.17) | Free single-player chase through a haunted forest | Hub 1.12.3 or later |
+
+Monster Chase is also on [itch.io](https://jharp199345.itch.io/monster-chase) with optional donations.
 
 In the Ride menu, drop the game ZIP into **Add a module**, review its access, and
-install it. Monster Chase's donation release does not require a license key or
-payment. The game is not a standalone app. Update the Hub to 1.12.1 or later for its module installer and runtime.
+install it. Games don't need a license key or payment. A game is not a standalone app.
+Use Hub 1.12.3 or later: earlier hubs can't start games in current Chrome.
 
 Signatures and file fingerprints are checked before modules run. Customer records,
 keys and private design notes are never included in Hub releases.

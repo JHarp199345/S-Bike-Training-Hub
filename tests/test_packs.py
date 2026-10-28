@@ -1,3 +1,4 @@
+import pathlib
 """Ride World packs: Ed25519 matches RFC 8032; the hub runs only signed, unmodified packs on its shared engine."""
 import sys, pathlib, json, asyncio, tempfile; sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 import packs, paths, mapserver
@@ -60,14 +61,22 @@ def get(path):
 
 
 s, ctype, body, hdr = get("/modes/good/")
-assert s == 200 and b'sandbox="allow-scripts"' in body and b"/modes/good/sandbox" in body
+# the wrapper starts opaque; module-host.js points the frame at the game's own name (or the opaque sandbox)
+assert s == 200 and b'sandbox="allow-scripts"' in body and b"/web/module-host.js" in body and b' src="/modes/' not in body
 assert b"allow-same-origin" not in body and b"Test &lt;mode&gt;" in body
+host_js = (pathlib.Path(__file__).resolve().parent.parent / "web/module-host.js").read_text()
+assert "/modes/${config.id}/sandbox" in host_js and ".game.localhost" in host_js
 assert hdr["Cross-Origin-Embedder-Policy"] == "require-corp"
 _, _, runtime, runtime_headers = get("/modes/good/sandbox")
 assert b"/module-engine/4.7.1/godot.js" in runtime and b'"mainPack": "/modes/good/game.pck"' in runtime
 assert runtime_headers["Content-Security-Policy"].startswith("sandbox allow-scripts;")
 assert "allow-same-origin" not in runtime_headers["Content-Security-Policy"]
 assert "camera=()" in runtime_headers["Permissions-Policy"]
+# on a game's own name: a real but separate origin, embeddable only by this computer's Hub
+_, _, _, own = asyncio.run(mapserver.handle(None, "GET", "/modes/good/sandbox", b"", "good.game.localhost:8729"))
+csp = own["Content-Security-Policy"]
+assert csp.startswith("sandbox allow-scripts allow-same-origin;") and "frame-ancestors http://127.0.0.1:8729 " in csp
+assert "good.game.localhost:8729/module-engine/4.7.1/" in csp and "'self'" not in csp
 assert get("/modes/good/game.pck")[:3:2] == (200, b"GDPC game data")
 assert get("/modes/good/manifest.json")[0] == 404, "only files the manifest lists"
 assert get("/modes/changed/")[0] == 403 and get("/modes/changed/game.pck")[0] == 403

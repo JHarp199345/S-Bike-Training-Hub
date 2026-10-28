@@ -1,6 +1,9 @@
-/* Runs inside the opaque game frame. No Hub credentials or session tokens here. */
+/* Runs inside the game frame: its own <pack>.game.localhost origin, or an opaque one. No Hub credentials or tokens. */
 (()=>{'use strict';
- const parentOrigin=new URL(location.href).origin;
+ const ownOrigin=new URL(location.href).origin;
+ // On its own name the frame is told which Hub address embeds it (module-host.js); only this computer's names count.
+ const hint=new URLSearchParams(location.hash.slice(1)).get('hub');
+ const parentOrigin=hint&&/^http:\/\/(?:127\.0\.0\.1|localhost|\[::1\])(?::\d+)?$/.test(hint)?hint:ownOrigin;
  let data={},connected=false,last=0,seq=0;
  const pending=new Map();
  const send=(action,args={})=>new Promise(resolve=>{
@@ -29,9 +32,9 @@
  window.fetch=async(input,options={})=>{
   const url=new URL(typeof input==='string'?input:input.url,location.href);
   const method=(options.method||(input instanceof Request?input.method:'GET')).toUpperCase();
-  if(url.origin===parentOrigin&&url.pathname==='/status'&&method==='GET')
+  if(url.origin===ownOrigin&&url.pathname==='/status'&&method==='GET')
    return new Response(JSON.stringify(data),{status:bridge.snapshot().connected?200:503,headers:{'Content-Type':'application/json'}});
-  if(url.origin===parentOrigin&&url.pathname.startsWith('/mode/')&&method==='POST'){
+  if(url.origin===ownOrigin&&url.pathname.startsWith('/mode/')&&method==='POST'){
    const parts=url.pathname.split('/').slice(2).map(decodeURIComponent);
    let result;
    if(parts[0]==='start')result=await send('start');

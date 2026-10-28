@@ -1,6 +1,16 @@
 {
-  "latest": "app-v1.12.2",
+  "latest": "app-v1.12.3",
   "entries": [
+    {
+      "id": "app-v1.12.3",
+      "date": "2026-10-28",
+      "version": "App 1.12.3",
+      "title": "Games start in current Chrome",
+      "changes": [
+        "Games stopped at \u201cConnecting\u2026\u201d in current Chrome. Each game now runs on its own name on the Hub\u2019s port, kept separate from the Hub and other games. No extra ports open.",
+        "Games are separate downloads on the releases page. Games and athlete records are never bundled."
+      ]
+    },
     {
       "id": "app-v1.12.2",
       "date": "2026-10-13",

@@ -2,9 +2,9 @@
   "manifest_version": "0.3",
   "name": "s-bike-hub",
   "display_name": "S-Bike Training Hub",
-  "version": "1.12.2",
+  "version": "1.12.3",
   "description": "Coach from your smart-bike training hub: check-ins, plans, rides, lifting, workouts and training load for bike, run and swim.",
-  "long_description": "Use the local Hub through 124 tools: assistant-led setup (one question at a time), a health and history record, two-pass planning (a season of placeholders, then each week's workouts from your reports) with a short planning brief and sections on request, efficiency against heart rate with the day's temperature, lifting designed by type, duration, intensity and style and judged against each lift's own record, reviewed calendar changes, session reports and recovery check-ins; your reports decide, model readings are evidence. Requires Hub app 1.12.2, or install everything in one package: uvx s-bike-training-hub@latest. Athlete files stay local; returned context follows the external AI provider's policies.",
+  "long_description": "Use the local Hub through 124 tools: assistant-led setup (one question at a time), a health and history record, two-pass planning (a season of placeholders, then each week's workouts from your reports) with a short planning brief and sections on request, efficiency against heart rate with the day's temperature, lifting designed by type, duration, intensity and style and judged against each lift's own record, reviewed calendar changes, session reports and recovery check-ins; your reports decide, model readings are evidence. Requires Hub app 1.12.3, or install everything in one package: uvx s-bike-training-hub@latest. Athlete files stay local; returned context follows the external AI provider's policies.",
   "author": {
     "name": "JHarp199345",
     "url": "https://github.com/JHarp199345"

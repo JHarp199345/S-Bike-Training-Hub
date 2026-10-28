@@ -1,5 +1,9 @@
 # Changelog
 
+## App 1.12.3 · 2026-10-28 · games start in current Chrome
+
+Current Chrome blocks a sandboxed game from loading anything from your own computer, so games stopped at "Connecting…". On the computer running the Hub, each game now runs on its own name on the Hub's port (`<game>.game.localhost`), which the browser keeps separate from the Hub and from other games. No extra ports open. On a game's name the Hub serves only that game's signed files and the game engine. Use with MCP 1.12.3.
+
 ## App 1.12.2 · 2026-10-13 · keep unfinished previews private
 
 Unfinished design preview pages are archived privately and excluded from the public source and installer. Tested app features remain. Use with MCP 1.12.2.

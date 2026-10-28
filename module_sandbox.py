@@ -49,19 +49,53 @@ def request_allowed(method, path, headers):
     ))
 
 
+GAME_SUFFIX = ".game.localhost"
+
+
+def game_pack(headers):
+    """The pack a request is for when it arrives on a game's own name, else None.
+
+    Chrome 142+ (Local Network Access) refuses every load an opaque sandbox frame makes to this computer, so on this
+    computer each game runs on its own name instead: <pack>.game.localhost:<hub port>. Browsers route *.localhost here
+    and treat each name as its own site, so a game is walled off from the Hub (and from other games) by the ordinary
+    same-origin rules, on the Hub's own port: nothing extra opens or needs closing. "" is a malformed game name.
+    """
+    host = headers.get(b"host", b"").decode("ascii", "replace").lower()
+    name = host.rsplit(":", 1)[0] if host.count(":") == 1 else host
+    if not name.endswith(GAME_SUFFIX):
+        return None
+    pid = name[:-len(GAME_SUFFIX)]
+    return pid if re.fullmatch(r"[a-z0-9-]{1,60}", pid) else ""
+
+
+def game_path_allowed(pid, method, path):
+    """On a game's name the Hub serves that game's signed files, the engine and the bridge script. Nothing else."""
+    p = path.decode("ascii", "replace").split("?", 1)[0]
+    return bool(pid and method in (b"GET", b"HEAD") and (
+        re.fullmatch(r"/module-engine/[0-9.]+/godot(?:\.wasm|\.js|\.audio(?:\.position)?\.worklet\.js)", p)
+        or p == "/web/module-runtime.js"
+        or re.fullmatch(rf"/modes/{re.escape(pid)}/(?:sandbox|[^/.][^/]*)", p)
+    ))
+
+
 def runtime_headers(host, pid, version, nonce):
     if not re.fullmatch(r"(?:[A-Za-z0-9.-]+|\[[0-9A-Fa-f:]+\])(?::[0-9]+)?", host):
         raise ValueError("Invalid Hub host")
     engine = f"{host}/module-engine/{version}/"
     files = f"{host}/modes/{pid}/"
     runtime = f"{host}/web/module-runtime.js"
+    own = host.lower().split(":")[0].endswith(GAME_SUFFIX)
+    port = host.rsplit(":", 1)[1] if own and ":" in host else ""
+    hub = " ".join(f"http://{h}{':' + port if port else ''}" for h in ("127.0.0.1", "localhost"))   # CSP frame-ancestors can't name [::1]
     return {
         "Content-Security-Policy": (
-            "sandbox allow-scripts; default-src 'none'; "
+            # on its own name the game keeps a real (separate) origin; elsewhere it stays an opaque frame
+            ("sandbox allow-scripts allow-same-origin; " if own else "sandbox allow-scripts; ") + "default-src 'none'; "
             f"script-src 'nonce-{nonce}' 'unsafe-eval' 'wasm-unsafe-eval' {engine} {runtime}; "
             f"connect-src {engine} {files}; img-src data: blob: {files}; "
             f"media-src blob: {files}; style-src 'unsafe-inline'; worker-src blob: {engine}; "
-            "frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'"
+            "frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; "
+            + (f"frame-ancestors {hub}" if own else "frame-ancestors 'self'")
         ),
         "Permissions-Policy": "camera=(), microphone=(), geolocation=(), usb=(), serial=(), bluetooth=(), accelerometer=(), gyroscope=(), magnetometer=()",
         "Referrer-Policy": "no-referrer",
