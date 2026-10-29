@@ -8,12 +8,12 @@
     "source": "github"
   },
   "websiteUrl": "https://github.com/JHarp199345/S-Bike-Training-Hub",
-  "version": "1.12.3",
+  "version": "1.12.4",
   "packages": [
     {
       "registryType": "pypi",
       "identifier": "s-bike-training-hub",
-      "version": "1.12.3",
+      "version": "1.12.4",
       "transport": {
         "type": "stdio"
       }

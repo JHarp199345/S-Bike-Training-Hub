@@ -72,6 +72,31 @@ assert b"/module-engine/4.7.1/godot.js" in runtime and b'"mainPack": "/modes/goo
 assert runtime_headers["Content-Security-Policy"].startswith("sandbox allow-scripts;")
 assert "allow-same-origin" not in runtime_headers["Content-Security-Policy"]
 assert "camera=()" in runtime_headers["Permissions-Policy"]
+# side doors closed (2026-10-29): no peer connections, no DNS prefetch, no clipboard/screen capture/payments, and the
+# host takes a game off the screen if its frame ever loads a second page
+assert "webrtc 'block'" in runtime_headers["Content-Security-Policy"]
+assert runtime_headers["X-DNS-Prefetch-Control"] == "off"
+assert all(f"{f}=()" in runtime_headers["Permissions-Policy"] for f in ("display-capture", "clipboard-read", "payment"))
+assert "function guard" in host_js and "guard(frame)" in host_js and "guard(own)" in host_js
+assert "sbike-leaving" in host_js
+# inside the game frame (sandbox probe, 2026-10-29): no WebRTC, no inner frames (which would hand back a fresh
+# WebRTC), and leaving is reported as it happens
+runtime_js = (pathlib.Path(__file__).resolve().parent.parent / "web/module-runtime.js").read_text()
+assert "'RTCPeerConnection'" in runtime_js and "Frames are not available to games" in runtime_js
+assert "addEventListener('pagehide'" in runtime_js and "MutationObserver" in runtime_js and "const hub=parent" in runtime_js
+# the frame's rules name every script (no inline code), the game page accepts rules required by the Hub page, and the
+# Hub page requires them, so an outside page a game navigates to can't run scripts of its own
+assert b"nonce" not in runtime and b'src="/web/module-start.js"' in runtime and b'type="application/json"' in runtime
+assert runtime_headers["Allow-CSP-From"] == "*" and "'nonce-" not in runtime_headers["Content-Security-Policy"]
+assert "own.setAttribute('csp'," in host_js
+# saves live with the Hub, the frame's heartbeat feeds a watchdog, and game sound goes through a Hub-owned limiter
+assert "saved:(name)" in runtime_js and "send('save'" in runtime_js and "result={ok:true,capabilities,saves}" in host_js
+assert "sbike-alive" in runtime_js and "stopped responding" in host_js
+# the frame's signals are handled before the game-request checks, which return on anything else (a bug on 2026-10-29
+# that left the watchdog deaf and closed healthy games)
+assert host_js.index("type==='sbike-alive'") < host_js.index("m.type!=='sbike-module'")
+assert host_js.index("type==='sbike-leaving'") < host_js.index("m.type!=='sbike-module'")
+assert "createDynamicsCompressor" in runtime_js and "AudioNode.prototype,'connect'" in runtime_js
 # on a game's own name: a real but separate origin, embeddable only by this computer's Hub
 _, _, _, own = asyncio.run(mapserver.handle(None, "GET", "/modes/good/sandbox", b"", "good.game.localhost:8729"))
 csp = own["Content-Security-Policy"]
@@ -84,4 +109,12 @@ assert get("/modes/old/")[0] == 403
 assert get("/modes/../engine/4.7.1/godot.js")[0] == 404
 assert get("/engine/4.7.1/godot.js")[:3:2] == (200, b"engine") and get("/engine/4.7.1/godot.html")[0] == 404
 assert get("/engine/4.6.0/godot.js")[0] == 404
+# a pack that needs a newer hub (encrypted game data, 2026-10-29) is refused with a clear reason; a current one runs
+assert packs.hub_version() is not None
+packs.hub_version = lambda: (1, 12, 4)
+assert packs.needs_newer_hub({"needs": {"hub": "1.12.4"}}) is None and packs.needs_newer_hub({"needs": {"hills": "x"}}) is None
+make("future", needs={"hub": "1.13.0"})
+future = next(p for p in packs.installed() if p["id"] == "future")
+assert not future["ok"] and "needs Hub 1.13.0 or later" in future["why"]
+assert "invalid hub version" in packs.needs_newer_hub({"needs": {"hub": "soon"}})
 print("PASS packs: RFC 8032 vectors, signed packs run on the shared engine, changed/unsigned/untrusted packs refused")

@@ -51,6 +51,27 @@ class SandboxTest(unittest.TestCase):
         token = out["token"]
         self.assertNotIn("token", self.call("snapshot", token=token))
 
+    def test_saves_live_with_the_hub(self):
+        import tempfile, paths
+        with patch.object(paths, "DATA", pathlib.Path(tempfile.mkdtemp())):
+            out = self.call("open", id="test")
+            self.assertEqual(out["saves"], {})
+            self.assertEqual(self.call("save", token=out["token"], file="bike.cfg", text="[bikes]\nrider=1"), {"ok": True})
+            self.assertEqual(self.call("open", id="test")["saves"], {"bike.cfg": "[bikes]\nrider=1"}, "there on the next launch")
+            token = self.call("open", id="test")["token"]
+            with self.assertRaises(ValueError): self.call("save", token=token, file="../escape", text="x")
+            with self.assertRaises(ValueError): self.call("save", token=token, file="big", text="x" * sandbox.SAVE_LIMIT)
+            self.assertTrue(json.loads(sandbox.saves_file("test").read_text()), "a readable JSON file")
+        headers = sandbox.runtime_headers("test.game.localhost:8729", "test", "4.7.1")
+        self.assertIn('"storage"', headers["Clear-Site-Data"], "the browser's own storage is wiped every launch")
+
+    def test_markers_are_capped_per_session(self):
+        token = self.call("open", id="test")["token"]
+        self.call("start", token=token)
+        session = sandbox._sessions[token]
+        session["marks"] = sandbox.MARKS_LIMIT
+        with self.assertRaises(ValueError): self.call("mark", token=token, text="one too many")
+
     def test_declared_fields_and_missing_permissions(self):
         self.manifest["permissions"] = {"telemetry": ["ftp"], "controls": []}
         out = self.call("open", id="test")

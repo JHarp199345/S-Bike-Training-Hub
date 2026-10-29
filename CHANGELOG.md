@@ -1,5 +1,15 @@
 # Changelog
 
+## App 1.12.4 · 2026-10-29 · games boxed in tighter
+
+Games built for this hub keep their licensed art encrypted and their code readable; the hub's game engine reads both (older hubs can't run them, so those games say "needs Hub 1.12.4"). Use with MCP 1.12.3.
+
+- Every game's code ships as plain text in its download, with `web-code.txt` listing each line where it talks to the Hub page. Only art is encrypted.
+- A game can't open other pages, peer connections or inner frames; an outside page it tries to load can't run scripts and the game is closed at once.
+- A game's saved settings live with the Hub (readable, size-capped, deleted with the game); its browser storage is wiped every launch.
+- Hills from a game ease in (at most 1.5% a second), game sound passes through a volume limiter, a game that freezes the page is closed, and ride markers are capped per session.
+- The install screen says plainly what a game can see, can control and cannot do. See SECURITY.md.
+
 ## App 1.12.3 · 2026-10-28 · games start in current Chrome
 
 Current Chrome blocks a sandboxed game from loading anything from your own computer, so games stopped at "Connecting…". On the computer running the Hub, each game now runs on its own name on the Hub's port (`<game>.game.localhost`), which the browser keeps separate from the Hub and from other games. No extra ports open. On a game's name the Hub serves only that game's signed files and the game engine. Use with MCP 1.12.3.

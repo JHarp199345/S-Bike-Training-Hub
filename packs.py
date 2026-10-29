@@ -204,6 +204,30 @@ def engine_dir(version):
     return None
 
 
+def hub_version():
+    """This hub's app version as (major, minor, patch), from the release notes it ships with (web/updates.json)."""
+    try:
+        latest = json.loads((paths.CODE / "web" / "updates.json").read_text())["latest"]
+        return tuple(int(n) for n in re.fullmatch(r"app-v(\d+)\.(\d+)\.(\d+)", latest).groups())
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        return None
+
+
+def needs_newer_hub(m):
+    """Why a pack can't run on this hub version, or None. Packs say needs.hub (e.g. "1.12.4") when they rely on a
+    newer hub, such as encrypted game data the older engine can't read (2026-10-29). Older hubs ignore it."""
+    needs = (m or {}).get("needs")
+    want = needs.get("hub") if isinstance(needs, dict) else None
+    if want is None:
+        return None
+    have = hub_version()
+    if not isinstance(want, str) or not re.fullmatch(r"\d+\.\d+\.\d+", want):
+        return "This game names an invalid hub version."
+    if have is not None and have < tuple(int(n) for n in want.split(".")):
+        return f"This game needs Hub {want} or later. Update the Hub first."
+    return None
+
+
 def installed(folder=None):
     """Every pack in the data folder, with whether it can run here and why not."""
     root = Path(folder or paths.DATA / "modes")
@@ -211,10 +235,16 @@ def installed(folder=None):
     for d in sorted(root.iterdir()) if root.is_dir() else []:
         if d.is_dir() and not d.name.startswith("."):
             m, why = check(d)
+            if not why:
+                why = needs_newer_hub(m)
             if not why and not engine_dir((m or {}).get("engine")):
                 why = f"This pack needs engine {m.get('engine')}, which this hub doesn't have yet."
             out.append({"id": d.name, "name": (m or {}).get("name", d.name), "version": (m or {}).get("version"),
                         "ok": not why, "why": why})
+    # a game's saved settings (module_sandbox.saves_file) go when the game does
+    gone = {p.stem for p in (paths.DATA / "game-saves").glob("*.json")} - {p["id"] for p in out} if folder is None else set()
+    for pid in gone:
+        (paths.DATA / "game-saves" / f"{pid}.json").unlink(missing_ok=True)
     return out
 
 
@@ -235,14 +265,14 @@ def page(m):
 <script id="module-config" type="application/json">{config}</script>
 <link rel="stylesheet" href="/web/hub-support.css"><script src="/web/support-policy.js"></script><script src="/web/hub-support.js"></script><script src="/vision/lean.js"></script><script src="/web/module-host.js"></script></body></html>""".encode()
 
-def runtime_page(m, nonce):
+def runtime_page(m):
     """The hub's own page for a pack: the shared engine runs the pack's game data. Packs bring no page or scripts."""
     v, pid = m["engine"], m["id"]
     config = {"args": [], "canvasResizePolicy": 2, "emscriptenPoolSize": 8, "ensureCrossOriginIsolationHeaders": False,
               "executable": f"/module-engine/{v}/godot", "mainPack": f"/modes/{pid}/{m.get('main', 'game.pck')}",
               "experimentalVK": False, "focusCanvas": True, "gdextensionLibs": [], "godotPoolSize": 4}
     title = html.escape(m.get("name", pid))
-    js_title = json.dumps(m.get("name", pid)).replace("<", "\\u003c")
+    start = json.dumps({"gameName": m.get("name", pid), "config": config}).replace("<", "\\u003c")
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, user-scalable=no">
 <title>{title} · S-Bike Training Hub</title>
 <style>html,body,#canvas{{margin:0;padding:0;height:100%;width:100%;background:#0b141d;color:#dbe7f0;font-family:system-ui,sans-serif;overflow:hidden}}
@@ -250,21 +280,8 @@ def runtime_page(m, nonce):
 <body><canvas id="canvas">Your browser doesn't support this ride mode.</canvas><div id="status">Loading {title}…</div>
 <script src="/web/module-runtime.js" crossorigin="anonymous"></script>
 <script src="/module-engine/{v}/godot.js" crossorigin="anonymous"></script>
-<script nonce="{nonce}">
-const gameName = {js_title};
-const status = document.getElementById('status');
-const say = (t) => {{ if (status) status.textContent = t; }};
-window.addEventListener('error', (e) => say('This ride mode hit a problem: ' + (e.message || e.error || 'unknown')));
-const missing = Engine.getMissingFeatures({{threads: false}});
-if (missing.length) {{
-  say('This device or browser is missing what the game needs: ' + missing.join(', ') + '. Try another browser, or the computer running the hub.');
-}} else {{
-  const engine = new Engine({json.dumps(config)});
-  engine.startGame({{onProgress: (done, total) => {{ if (total > 0) say('Loading ' + gameName + '… ' + Math.round(100 * done / total) + '%'); }}}})
-    .then(() => status && status.remove(),
-      (e) => say('This ride mode could not start: ' + (e && e.message || e)));
-}}
-</script></body></html>""".encode()
+<script id="module-start" type="application/json">{start}</script>
+<script src="/web/module-start.js" crossorigin="anonymous"></script></body></html>""".encode()
 
 
 def error_page(why):

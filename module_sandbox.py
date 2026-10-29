@@ -15,8 +15,15 @@ import paths
 
 _sessions = {}
 TTL = 20.0
-TELEMETRY = ("power", "cadence", "speed", "distance", "grade", "gear", "erg", "ftp", "mass")
+TELEMETRY = ("power", "cadence", "speed", "distance", "grade", "gear", "erg", "ftp", "mass", "heart_rate", "workout")
 ASSET_HEADERS = {"Access-Control-Allow-Origin": "*", "Cross-Origin-Resource-Policy": "cross-origin"}
+# The Hub's own scripts a game frame runs, besides the engine. The frame's rules name each one: no inline scripts.
+FRAME_SCRIPTS = ("/web/module-runtime.js", "/web/module-start.js")
+# Browser features a game never gets. Camera lean runs in the Hub's page, which passes on only the lean value.
+PERMISSIONS_DENIED = ("camera", "microphone", "geolocation", "usb", "serial", "bluetooth", "hid", "midi",
+                      "accelerometer", "gyroscope", "magnetometer", "display-capture", "clipboard-read",
+                      "clipboard-write", "payment", "publickey-credentials-get", "xr-spatial-tracking",
+                      "idle-detection", "local-fonts")
 
 
 def request_allowed(method, path, headers):
@@ -44,7 +51,7 @@ def request_allowed(method, path, headers):
     # Only inert signed files and the Hub-owned engine/runtime are reachable.
     return bool(method == b"GET" and (
         re.fullmatch(r"/(?:engine|module-engine)/[0-9.]+/godot(?:\.wasm|\.js|\.audio(?:\.position)?\.worklet\.js)", p)
-        or p == "/web/module-runtime.js"
+        or p in FRAME_SCRIPTS
         or re.fullmatch(r"/modes/[a-z0-9-]+/(?:sandbox|[^/.][^/]*)", p)
     ))
 
@@ -73,17 +80,17 @@ def game_path_allowed(pid, method, path):
     p = path.decode("ascii", "replace").split("?", 1)[0]
     return bool(pid and method in (b"GET", b"HEAD") and (
         re.fullmatch(r"/module-engine/[0-9.]+/godot(?:\.wasm|\.js|\.audio(?:\.position)?\.worklet\.js)", p)
-        or p == "/web/module-runtime.js"
+        or p in FRAME_SCRIPTS
         or re.fullmatch(rf"/modes/{re.escape(pid)}/(?:sandbox|[^/.][^/]*)", p)
     ))
 
 
-def runtime_headers(host, pid, version, nonce):
+def runtime_headers(host, pid, version):
     if not re.fullmatch(r"(?:[A-Za-z0-9.-]+|\[[0-9A-Fa-f:]+\])(?::[0-9]+)?", host):
         raise ValueError("Invalid Hub host")
     engine = f"{host}/module-engine/{version}/"
     files = f"{host}/modes/{pid}/"
-    runtime = f"{host}/web/module-runtime.js"
+    runtime = " ".join(f"{host}{p}" for p in FRAME_SCRIPTS)
     own = host.lower().split(":")[0].endswith(GAME_SUFFIX)
     port = host.rsplit(":", 1)[1] if own and ":" in host else ""
     hub = " ".join(f"http://{h}{':' + port if port else ''}" for h in ("127.0.0.1", "localhost"))   # CSP frame-ancestors can't name [::1]
@@ -91,13 +98,21 @@ def runtime_headers(host, pid, version, nonce):
         "Content-Security-Policy": (
             # on its own name the game keeps a real (separate) origin; elsewhere it stays an opaque frame
             ("sandbox allow-scripts allow-same-origin; " if own else "sandbox allow-scripts; ") + "default-src 'none'; "
-            f"script-src 'nonce-{nonce}' 'unsafe-eval' 'wasm-unsafe-eval' {engine} {runtime}; "
+            f"script-src 'unsafe-eval' 'wasm-unsafe-eval' {engine} {runtime}; "
             f"connect-src {engine} {files}; img-src data: blob: {files}; "
             f"media-src blob: {files}; style-src 'unsafe-inline'; worker-src blob: {engine}; "
             "frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; "
+            # no peer connections (WebRTC can reach any server, outside connect-src); browsers without it ignore it
+            "webrtc 'block'; "
             + (f"frame-ancestors {hub}" if own else "frame-ancestors 'self'")
         ),
-        "Permissions-Policy": "camera=(), microphone=(), geolocation=(), usb=(), serial=(), bluetooth=(), accelerometer=(), gyroscope=(), magnetometer=()",
+        "Permissions-Policy": ", ".join(f"{f}=()" for f in PERMISSIONS_DENIED),
+        "X-DNS-Prefetch-Control": "off",
+        # nothing a game keeps in the browser survives to its next launch; its saves go through the Hub (saves_file)
+        "Clear-Site-Data": '"storage", "cookies"',
+        # The Hub page requires its rules of whatever loads in the game frame (module-host.js, iframe csp); this page
+        # accepts them. An outside page that doesn't is refused, and one that does can run no script of its own.
+        "Allow-CSP-From": "*",
         "Referrer-Policy": "no-referrer",
         "X-Content-Type-Options": "nosniff",
         **ASSET_HEADERS,
@@ -123,9 +138,59 @@ def telemetry(bridge, fields=TELEMETRY):
         value = raw.get(key)
         if isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value):
             out[key] = value
+    # A game may follow the active clock, never inspect workout names, steps,
+    # schedules, athlete history or arbitrary nested status objects.
+    workout = raw.get("workout")
+    if "workout" in fields and isinstance(workout, dict):
+        clock = {}
+        for key in ("elapsed", "total"):
+            value = workout.get(key)
+            if isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value) and value >= 0:
+                clock[key] = value
+        for key in ("paused", "auto_paused"):
+            if isinstance(workout.get(key), bool):
+                clock[key] = workout[key]
+        if "total" in clock and "elapsed" in clock:
+            out["workout"] = clock
     out["bike"] = bool(raw.get("bike"))
     out["no_bike"] = bool(raw.get("no_bike"))
     return out
+
+
+SAVE_LIMIT = 256 * 1024     # a game's saved settings, all files together
+MARKS_LIMIT = 300           # ride markers one game session may add
+
+
+def saves_file(pid):
+    """A game's saved settings live with the Hub, not in the browser: one readable JSON file per game, {name: text}.
+    The browser's own storage for the game is wiped every launch (Clear-Site-Data), so nothing a game keeps survives
+    except what passes through here, and it's deleted once the game is no longer installed (packs.installed)."""
+    return paths.DATA / "game-saves" / f"{pid}.json"
+
+
+def load_saves(pid):
+    try:
+        saves = json.loads(saves_file(pid).read_text())
+    except (OSError, ValueError):
+        return {}
+    return {k: v for k, v in saves.items() if isinstance(k, str) and isinstance(v, str)} if isinstance(saves, dict) else {}
+
+
+def _save(pid, name, text):
+    if not isinstance(name, str) or not re.fullmatch(r"[a-z0-9][a-z0-9_.-]{0,59}", name):
+        raise ValueError("Invalid save name")
+    if not isinstance(text, str):
+        raise ValueError("Invalid save text")
+    saves = load_saves(pid)
+    saves[name] = text
+    out = json.dumps(saves, indent=1, ensure_ascii=False)
+    if len(out.encode()) > SAVE_LIMIT:
+        raise ValueError("This game's saved settings are too large")
+    f = saves_file(pid)
+    f.parent.mkdir(parents=True, exist_ok=True)
+    tmp = f.with_suffix(".tmp")
+    tmp.write_text(out)
+    tmp.replace(f)
 
 
 def _revoke(bridge, token):
@@ -139,7 +204,7 @@ def _revoke(bridge, token):
 def handle(bridge, method, body):
     if method != b"POST":
         raise ValueError("Use POST for module sessions")
-    if len(body) > 2048:
+    if len(body) > SAVE_LIMIT + 4096:
         raise ValueError("Module request is too large")
     data = json.loads(body)
     if not isinstance(data, dict):
@@ -163,13 +228,15 @@ def handle(bridge, method, body):
         declared = permissions(manifest)
         hills = declared["hills"]
         _sessions[token] = {"bridge": bridge, "id": pid, "name": manifest.get("name", pid),
-                            "seen": now, "started": False, "hills": hills, "permissions": declared, "last_grade": 0.0, "last_mark": 0.0}
-        return {"token": token, "capabilities": declared, "data": telemetry(bridge, declared["fields"])}
+                            "seen": now, "started": False, "hills": hills, "permissions": declared, "last_grade": 0.0, "last_mark": 0.0,
+                            "marks": 0}
+        return {"token": token, "capabilities": declared, "data": telemetry(bridge, declared["fields"]), "saves": load_saves(pid)}
     token = data.get("token")
     session = _sessions.get(token) if isinstance(token, str) else None
     if not session or session["bridge"] is not bridge:
         raise ValueError("Game session is unavailable")
-    allowed = {"snapshot": set(), "start": set(), "grade": {"value"}, "mark": {"text"}, "end": {"text"}, "close": set()}
+    allowed = {"snapshot": set(), "start": set(), "grade": {"value"}, "mark": {"text"}, "end": {"text"}, "close": set(),
+               "save": {"file", "text"}}
     if action not in allowed or set(data) != {"action", "token"} | allowed[action]:
         raise ValueError("This game request is not allowed")
     if action == "snapshot":
@@ -177,6 +244,10 @@ def handle(bridge, method, body):
         return {"data": telemetry(bridge, session["permissions"]["fields"])}
     if action == "close":
         _revoke(bridge, token)
+        return {"ok": True}
+    if action == "save":
+        session["seen"] = now
+        _save(session["id"], data["file"], data["text"])
         return {"ok": True}
     if action == "start":
         if not session["started"]:
@@ -208,7 +279,10 @@ def handle(bridge, method, body):
             raise ValueError("Game markers are not declared")
         if now - session["last_mark"] < 1.0:
             raise ValueError("Game markers are arriving too quickly")
+        if session["marks"] >= MARKS_LIMIT:
+            raise ValueError("This game has added as many ride markers as a session allows")
         session["last_mark"] = now
+        session["marks"] += 1
         bridge.mode_mark(text)
     else:
         bridge.mode_end(text)

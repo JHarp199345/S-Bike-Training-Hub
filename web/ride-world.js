@@ -1,8 +1,8 @@
 /* ride-world.js - the Ride menu's Ride World tiles, Watch, the in-place workout builder and Find more modules
    (2026-10-12).
-   Tiles: the hub's own views (free) and installed modules (downloaded separately from itch.io), from the view list the page and the
+   Tiles: the hub's own views (free) and installed modules (downloaded separately from each game's GitHub page), from the view list the page and the
    installer keep (#scenery). Choosing one shows it. "Find more modules" reads the public catalogue on GitHub only when
-   pressed; each entry links to its itch.io page, and a download goes in through the drop box. */
+   pressed; each entry links to its GitHub page (or itch.io, for older entries), and a download goes in through the drop box. */
 (() => {
   const CATALOG = 'https://raw.githubusercontent.com/JHarp199345/S-Bike-Training-Hub/main/docs/games/catalog.json';
   const FREE = ['map', 'game', 'pixel', 'haunted'];
@@ -16,7 +16,7 @@
     if (!box || !select) return;
     box.innerHTML = [...select.options].filter((o) => !HIDDEN.includes(o.value)).map((o) => {
       const pack = o.value.startsWith('pack:');
-      const badge = pack ? '<span class="rw-badge rw-itch">itch.io</span>' : FREE.includes(o.value) ? '<span class="rw-badge rw-free">Free</span>' : '';
+      const badge = pack ? '<span class="rw-badge rw-pack">Module</span>' : FREE.includes(o.value) ? '<span class="rw-badge rw-free">Free</span>' : '';
       return `<button type="button" role="listitem" class="rw-tile" data-view="${esc(o.value)}" aria-pressed="${o.value === select.value}"`
         + `${o.disabled ? ' disabled title="' + esc(o.title) + '"' : ''}><b>${esc(o.textContent.replace(' · unavailable', ''))}</b>${badge}`
         + `${o.disabled ? '<small>unavailable</small>' : ''}</button>`;
@@ -29,7 +29,8 @@
       const games = (await (await fetch(CATALOG, {cache: 'no-store'})).json()).games || [];
       box.innerHTML = games.map((g) => `<div class="rw-game"><span><b>${esc(g.name)}</b><small>${esc(g.pitch)}</small>`
         + (g.trains ? `<small class="rw-trains">Trains: ${esc(g.trains)}</small>` : '') + '</span>'
-        + (/^https:\/\/[a-z0-9-]+\.itch\.io\//i.test(g.itch || '') ? `<a class="rw-play" href="${esc(g.itch)}" target="_blank" rel="noopener">Get it on itch.io</a>` : '<small>coming soon</small>')
+        + (/^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/?$/i.test(g.github || '') ? `<a class="rw-play" href="${esc(g.github)}" target="_blank" rel="noopener">Get it on GitHub</a>`
+          : /^https:\/\/[a-z0-9-]+\.itch\.io\//i.test(g.itch || '') ? `<a class="rw-play" href="${esc(g.itch)}" target="_blank" rel="noopener">Get it on itch.io</a>` : '<small>coming soon</small>')
         + '</div>').join('') || '<p class="rw-note">No modules listed yet.</p>';
     } catch (e) { box.innerHTML = '<p class="rw-note">The modules list could not be reached.</p>'; }
   }

@@ -8,7 +8,7 @@ A free training hub for cycling, swimming, running and strength that runs on you
 
 <p align="center"><a href="https://www.strava.com/clubs/s-bike-training-hub"><img src="https://img.shields.io/badge/Strava-Join%20the%20club-FC4C02?logo=strava&logoColor=white" alt="Join the S-Bike Training Hub club on Strava"></a></p>
 
-**Current version: app 1.12.3** with MCP 1.12.3 · [what's new](CHANGELOG.md) · [community on Strava](https://www.strava.com/clubs/s-bike-training-hub)
+**Current version: app 1.12.4** with MCP 1.12.3 · [what's new](CHANGELOG.md) · [community on Strava](https://www.strava.com/clubs/s-bike-training-hub)
 
 **[Install](#set-it-up) · [Games](#ride-world-games) · [User guide](docs/guide.md)**
 
@@ -37,7 +37,13 @@ Free games you play on the bike, inside the hub. Each game has its own GitHub pa
 | **[Monster Chase](https://github.com/JHarp199345/Monster-Chase)** | Something is following you down a haunted forest path. Sprint or lean to dodge its lunge. An interval workout in disguise, scaled to your FTP. | **Out now, free** · [download](https://github.com/JHarp199345/Monster-Chase/releases/latest) |
 | **Absolute Adrenaline** | Fuel your own race with every watt you put down. Steer with your head, fight for first place, and ride away with a new PR. The most adrenaline a stationary bike can give you. | **Coming soon** |
 
-**To add a game:** download its ZIP from the game's page, then in the hub open **Ride → Add a module**, drop in the ZIP, review what it can read and control, and install. Games need hub 1.12.3 or later. The hub only runs games signed by the publisher and unchanged since signing ([how modules are checked](SECURITY.md#modules)).
+**To add a game:** download its ZIP from the game's page, then in the hub open **Ride → Add a module**, drop in the ZIP, review what it can read and control, and install. Games need hub 1.12.4 or later. The hub only runs games signed by the publisher and unchanged since signing ([how modules are checked](SECURITY.md#modules)).
+
+**Are games safe?** Every game runs boxed in by the hub, whose code is all here to read: it sees only the ride
+readings you approve when installing, it can't reach your files, history or account, it can't make web requests, and
+the hub stops a game that tries to open another page. A game's code is readable in its own repository and as plain
+text inside the download, with every line that talks to the hub page listed in `web-code.txt`. Only licensed art is
+encrypted, because those licences forbid handing out the files. Details and honest limits: [SECURITY.md](SECURITY.md#modules).
 
 <p align="center"><img src="docs/screens/calendar.jpg" width="880" alt="The training calendar: three months per row, sport icons on each day, checks for completed sessions and phase colors"></p>
 

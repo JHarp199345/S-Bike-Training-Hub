@@ -356,10 +356,9 @@ async def handle(bridge, method, path, body, host):
             return 200, TYPES[".html"], packs.page({**m, "id": pid}), {"Cache-Control": "no-cache", **ISOLATED,
                 "Content-Security-Policy": "frame-ancestors 'self'; object-src 'none'; base-uri 'none'", "Referrer-Policy": "no-referrer"}
         if name == "sandbox":
-            import module_sandbox, secrets
-            nonce = secrets.token_urlsafe(24)
-            return 200, TYPES[".html"], packs.runtime_page({**m, "id": pid}, nonce), {
-                "Cache-Control": "no-store", **ISOLATED, **module_sandbox.runtime_headers(host, pid, m["engine"], nonce)}
+            import module_sandbox
+            return 200, TYPES[".html"], packs.runtime_page({**m, "id": pid}), {
+                "Cache-Control": "no-store", **ISOLATED, **module_sandbox.runtime_headers(host, pid, m["engine"])}
         if name not in m["files"]:
             return 404, "text/plain", b"not found", {}
         import module_sandbox
@@ -375,7 +374,7 @@ async def handle(bridge, method, path, body, host):
         if f.parent not in (WEB.resolve(), (WEB / "sprites").resolve(), (WEB / "vendor").resolve(), (WEB / "sports").resolve(), (WEB / "graveyard").resolve(), (WEB / "graveyard/Textures").resolve(), (WEB / "icons").resolve()) or not f.exists():
             return 404, "text/plain", b"not found", {}
         import module_sandbox
-        return 200, TYPES[f.suffix], f.read_bytes(), module_sandbox.ASSET_HEADERS if p == "/web/module-runtime.js" else {}
+        return 200, TYPES[f.suffix], f.read_bytes(), module_sandbox.ASSET_HEADERS if p in module_sandbox.FRAME_SCRIPTS else {}
     if p.startswith("/lib/"):
         f = (MAPS / "web" / "maplibre" / p[5:]).resolve()
         if f.parent != (MAPS / "web" / "maplibre").resolve() or not f.exists():

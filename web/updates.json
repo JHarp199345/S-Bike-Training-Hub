@@ -1,6 +1,18 @@
 {
-  "latest": "app-v1.12.3",
+  "latest": "app-v1.12.4",
   "entries": [
+    {
+      "id": "app-v1.12.4",
+      "date": "2026-10-29",
+      "version": "App 1.12.4",
+      "title": "Games boxed in tighter",
+      "changes": [
+        "Games keep their licensed art encrypted and their code readable; older hubs can't run these games.",
+        "A game can't open other pages, peer connections or inner frames; one that tries to leave its sandbox is closed at once.",
+        "Game saves live with the Hub (readable, size-capped, deleted with the game); a game's browser storage is wiped every launch.",
+        "Game hills ease in, game sound is volume-limited, a frozen game is closed, and the install screen says what a game can and cannot do."
+      ]
+    },
     {
       "id": "app-v1.12.3",
       "date": "2026-10-28",

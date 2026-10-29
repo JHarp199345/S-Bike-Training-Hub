@@ -8,5 +8,5 @@
 .rw-tile{display:grid;gap:6px;justify-items:start;text-align:left;padding:12px 14px;border-radius:12px;border:1px solid var(--line,#31404a);background:var(--control,#253348);color:inherit;font:inherit;cursor:pointer;margin:0!important}
 .rw-tile[aria-pressed="true"]{border-color:#18a0a2;box-shadow:0 0 0 2px #18a0a2 inset}.rw-tile:disabled{opacity:.5;cursor:default}
 .rw-badge{font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;padding:2px 8px;border-radius:999px}
-.rw-free{background:rgba(24,160,162,.2);color:#7fe0e1}.rw-itch{background:#fa5c5c;color:#fff}
+.rw-free{background:rgba(24,160,162,.2);color:#7fe0e1}.rw-pack{background:#fa5c5c;color:#fff}
 .ride-builder{width:min(1100px,96vw);height:min(92vh,960px);padding:0;overflow:hidden}.ride-builder iframe{width:100%;height:100%;border:0;background:transparent}

@@ -96,6 +96,7 @@ class Ride:
         self.grade = 0.0        # current hill, % (from Kinomap)
         self.mass = 126.6       # rider + bike, kg (set from arguments)
         self.use_virtual = True
+        self.heart_rate = 0     # bpm from the bike's own reading (a paired strap); 0 when there is none
 
     def update(self, fields):
         cad = fields.get("cadence_rpm")
@@ -119,6 +120,9 @@ class Ride:
             self.power = pwr
         self.distance = fields.get("distance_m", self.distance)
         self.resistance = fields.get("resistance", self.resistance)
+        hr = fields.get("heart_rate")
+        if hr is not None and 0 <= hr <= 230:
+            self.heart_rate = hr
         return True
 
     def tick(self):
@@ -230,6 +234,14 @@ def parse_indoor_bike_data(data: bytes) -> dict:
             out["resistance"] = take(2, signed=True)
         if flags & 0x0040:
             out["power_w"] = take(2, signed=True)
+        # the rest of the packet up to heart rate (FTMS order): average power, expended energy, heart rate - which
+        # the speed packet carries; the games' HUD shows it (ride-world docs/design/HUB_INTEGRATION_NOTES.md)
+        if flags & 0x0080:
+            take(2)
+        if flags & 0x0100:
+            take(2), take(2), take(1)
+        if flags & 0x0200:
+            out["heart_rate"] = take(1)
     except IndexError:
         return {}
     return out
@@ -460,6 +472,7 @@ class Bridge:
                 "resume": self.resume_offer(),
                 "workouts": [w["name"] for w in self.workouts], "grade": round(r.grade, 1),
                 "power": int(r.power), "cadence": int(r.cadence), "speed": round(r.road_kmh(), 1),
+                "heart_rate": int(r.heart_rate),
                 "distance": round(r.road_m() / 1000, 2), "mass": round(r.mass, 1),
                 **self.live.status(time.time()),
                 "bests": self.bests.status(),
@@ -1119,9 +1132,11 @@ class Bridge:
     # ── Ride World modes: a game pack asks for the hill; the hub decides and keeps the ride safe ──
     MODE_GRADE = (-10.0, 15.0)     # the steepest a game may ask for, %
     MODE_QUIET_S = 5.0             # a game that stops asking for this long gets a flat road back
+    MODE_RAMP = 1.5                # the fastest a game's hill may change, % per second: no game can jolt the trainer
 
     def mode_start(self, mode_id, name=None):
-        self.mode = {"id": mode_id, "name": name or mode_id, "since": time.time(), "grade": None, "grade_at": None, "marks": []}
+        self.mode = {"id": mode_id, "name": name or mode_id, "since": time.time(), "grade": None, "grade_at": None, "marks": [],
+                     "target": 0.0, "ramp": 0.0, "ramp_at": None}
         self.event(f"Ride mode started: {self.mode['name']}")
 
     def mode_grade(self, grade):
@@ -1131,12 +1146,23 @@ class Bridge:
         if self.route_ride:
             return False, "a route is setting the hills"
         lo, hi = self.MODE_GRADE
-        g = round(max(lo, min(hi, float(grade))) * 2) / 2
+        self.mode["target"] = max(lo, min(hi, float(grade)))
         self.mode["grade_at"] = time.monotonic()
-        if g != self.mode["grade"]:
-            self.mode["grade"] = g
+        return True, self._mode_ramp()
+
+    def _mode_ramp(self):
+        """Move the hill toward the game's target at no more than MODE_RAMP % a second (the game asks; the hub sets the
+        pace). Called on each request and once a second, so a single request still arrives, gradually."""
+        m, now = self.mode, time.monotonic()
+        dt = min(1.0, now - m["ramp_at"]) if m["ramp_at"] is not None else 0.0
+        m["ramp_at"] = now
+        step = self.MODE_RAMP * dt
+        m["ramp"] += max(-step, min(step, m["target"] - m["ramp"]))
+        g = round(m["ramp"] * 2) / 2
+        if g != m["grade"] and not self.route_ride:
+            m["grade"] = g
             self.hill_to_level(g)
-        return True, g
+        return g
 
     def mode_mark(self, text):
         if self.mode:
@@ -1154,8 +1180,10 @@ class Bridge:
     def feed_mode(self):
         """Once a second: a mode that has gone quiet gets a flat road, so a frozen game never leaves you on a climb."""
         m = self.mode
+        if m and m["grade_at"] and m["ramp"] != m["target"]:
+            self._mode_ramp()
         if m and m["grade_at"] and time.monotonic() - m["grade_at"] > self.MODE_QUIET_S and m["grade"] not in (None, 0.0):
-            m["grade"], m["grade_at"] = 0.0, None
+            m["grade"], m["grade_at"], m["target"], m["ramp"], m["ramp_at"] = 0.0, None, 0.0, 0.0, None
             if not self.route_ride:
                 self.hill_to_level(0.0)
             self.event(f"{m['name']} went quiet: back to a flat road")

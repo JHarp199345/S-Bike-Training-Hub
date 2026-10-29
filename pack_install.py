@@ -36,6 +36,7 @@ def inspect(data,root=None,approve=False,replace=False):
   if not isinstance(ident,str) or not re.fullmatch(r'[a-z0-9][a-z0-9-]{0,79}',ident):raise ValueError('This game has an invalid identifier.')
   if names!=set(manifest['files'])|{'manifest.json'}:raise ValueError('This ZIP includes files outside its signed manifest.')
   if not isinstance(manifest.get('engine'),str) or not re.fullmatch(r'\d+\.\d+\.\d+',manifest['engine']):raise ValueError('This game has an invalid engine version.')
+  if why:=packs.needs_newer_hub(manifest):raise ValueError(why)
   if not packs.engine_dir(manifest['engine']):raise ValueError('The shared engine '+manifest['engine']+' is not installed. Update the Hub before installing this game.')
   import module_sandbox
   declared=module_sandbox.permissions(manifest)

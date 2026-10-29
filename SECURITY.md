@@ -37,32 +37,58 @@ see the [changelog](CHANGELOG.md)). Update before reporting, if you can.
 
 ## Modules
 
-Modules (ride modes such as Monster Chase) are where a Trojan horse would hide, so the hub treats every module as
-untrusted until it proves otherwise.
+Modules (ride games such as Monster Chase) are where a Trojan horse would hide, so the hub treats every module as
+untrusted until it proves otherwise, and boxes it in even after that.
 
-**Official modules** are signed by the S-Bike Training Hub publisher and sold or shared only through the project's
-itch.io page and the games list the hub reads from this repository. Today the hub trusts one publisher key, listed in
-[`packs.py`](packs.py) (`TRUSTED_KEYS`), and no other.
+**Where official modules come from.** Each game has its own GitHub repository, with its code readable there and a
+signed download on its releases page. The hub's games list (Ride menu, **Find more modules**) links to them. Today the
+hub trusts one publisher key, listed in [`packs.py`](packs.py) (`TRUSTED_KEYS`), and no other.
 
-**What protects you today**
+**Before a game runs**
 
-- **Signature and fingerprints.** Before a module runs, the hub checks that its signature comes from a trusted key and
-  that every file matches what was signed. A modified, repackaged or unsigned module is refused, with the reason.
-- **No code in the hub.** A module is game data that runs inside the browser. The hub never runs a module's code
-  itself, and a module cannot install, add or change anything in the hub.
-- **Only listed files.** The hub serves only the files a module's signed list names, of a few allowed kinds, and its
-  own page starts the game: a module can't bring its own web page or scripts.
+- **Signature and fingerprints.** The hub checks that the signature comes from a trusted key and that every file
+  matches what was signed. A modified, repackaged or unsigned game is refused, with the reason.
+- **Only listed files, of a few kinds.** Game data, images, sounds, text. A game can't bring its own web page or
+  scripts for the hub to run; the hub's own page starts it on the hub's own engine.
+- **Declared access, shown in plain words.** The signed manifest names the ride readings and controls a game wants.
+  The installer shows what it **can see**, what it **can control** and what it **cannot** do, before you approve.
 
-- **Declared access.** The signed manifest names the ride readings and controls a game requests. The installer shows them before approval. The host shares only the declared readings, plus basic connection flags; it never gives the game its session token or a general Hub request interface.
-- **Browser isolation.** Pack code runs in an opaque frame with no same-origin permission. Browser requests from that frame cannot reach private Hub routes. The host accepts a small set of validated messages. Camera video stays in the host; a game requesting steering receives only the derived lean value.
-- **Bounded controls.** Slope requests are limited and rate checked. An active workout, route or test keeps resistance control. Closing a game revokes its control lease; the existing slope heartbeat flattens resistance if updates stop.
+**What you can check yourself**
 
-**The current limit.** This is browser isolation, not an operating-system sandbox or a complete outbound-network firewall. The browser and bundled Godot engine remain trusted components. An approved publisher could misuse readings their game is permitted to receive, including through frame navigation. Only the existing official publisher key is accepted; do not treat this as making unknown modules safe. Games currently require a signed permissions declaration and the bundled non-threaded engine.
+- **The code is readable.** A game's scripts and shaders are packed as plain text, unencrypted, and published in its
+  repository. Anyone can open the download and compare.
+- **`web-code.txt`** in every download lists each line where the game runs web code in its frame (Godot's
+  `JavaScriptBridge`): the whole conversation between the game and the hub page, in one place.
+- **Only art is encrypted.** Models, textures and sounds bought or downloaded under licences that forbid handing out
+  the files are encrypted inside the download. No code may live in an encrypted file: the packing tool refuses any
+  scene or resource with code inside it.
+
+**While a game runs**
+
+- **Its own walled-off site.** On the computer running the hub, a game runs on its own name
+  (`<game>.game.localhost`); elsewhere in an opaque frame. Either way the browser keeps it away from the hub's pages,
+  data and login, and from other games.
+- **No web requests.** The game's security policy lets it load only its own signed files and the engine. Peer
+  connections (WebRTC) are blocked where the browser supports it, and link prefetching is off.
+- **No other pages.** If a game's frame ever loads a second page (a way to carry readings out in a web address), the
+  hub ends its connection and takes it off the screen.
+- **No devices or personal data.** Camera, microphone, location, USB, Bluetooth, MIDI, motion sensors, screen
+  capture, clipboard, payments and passkeys are all denied to the game. Camera lean runs in the hub's page; the game
+  gets only the lean number.
+- **Only what it declared.** The host passes only the declared readings, plus basic connection flags, and never the
+  hub's session token or a general way to make hub requests.
+- **Bounded controls.** Slope requests are limited and rate checked. An active workout, route or test keeps
+  resistance control. Closing a game revokes its control; the slope heartbeat flattens resistance if updates stop.
+
+**The honest limits.** This is browser isolation, not an operating-system sandbox. The browser and the bundled Godot
+engine are trusted components. If a game navigates away, the hub stops it, but that first navigation has already
+been sent; so a malicious game could leak, once, the readings it was granted (power, cadence and so on), never your
+files, history or account. Only the official publisher key is accepted; this does not make unknown modules safe.
 
 **Your part**
 
-- Install modules only from the project's itch.io page or the hub's own games list. Never install a module someone
-  sends you, and never "fix" a refused module.
+- Install modules only from a game's own GitHub page or the hub's games list. Never install a module someone sends
+  you, and never "fix" a refused module.
 - Never add a publisher key to `TRUSTED_KEYS` unless you trust that publisher with everything the hub can see.
 - If a module asks for anything beyond a game, or a site offers "free" or "unlocked" versions, report it (below).
 
