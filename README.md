@@ -10,6 +10,8 @@ A free training hub for cycling, swimming, running and strength that runs on you
 
 **Current version: app 1.12.3** with MCP 1.12.3 · [what's new](CHANGELOG.md) · [community on Strava](https://www.strava.com/clubs/s-bike-training-hub)
 
+**[Install](#set-it-up) · [Games](#ride-world-games) · [User guide](docs/guide.md)**
+
 ## What it does
 
 - **Sets you up through your AI assistant:** your basics, a quick health check, what you do now and what you're aiming for, one question at a time.
@@ -25,6 +27,17 @@ A free training hub for cycling, swimming, running and strength that runs on you
 - **A smart-bike bridge** (tested on the Merach S29): ERG workouts, virtual gears, hills turned into resistance, 3D routes and ride games, and sharing the bike with your watch and apps like Kinomap.
 - **Ride modes (games) on the bike:** the hub runs game packs on its own built-in game engine. A game reads your live power, cadence and speed, sets the hills, and is calibrated to your own FTP, so the fun part is also the workout. Escape moves like sprinting or leaning come from your pedalling, a tilted tablet, or your camera (head and shoulders only, on your device). The hub runs only packs signed by the publisher and unchanged since signing.
 - **An AI assistant connection (MCP):** Claude Desktop, Claude Code or any MCP app can read your record and plan with you, using the same operations as the app's buttons.
+
+## Ride World games
+
+Free games you play on the bike, inside the hub. Each game has its own GitHub page where you can read its code and download it. The hub is all you need to install; add only the games you want.
+
+| Game | What it is | Status |
+|---|---|---|
+| **[Monster Chase](https://github.com/JHarp199345/Monster-Chase)** | Something is following you down a haunted forest path. Sprint or lean to dodge its lunge. An interval workout in disguise, scaled to your FTP. | **Out now, free** · [download](https://github.com/JHarp199345/Monster-Chase/releases/latest) |
+| **Absolute Adrenaline** | Fuel your own race with every watt you put down. Steer with your head, fight for first place, and ride away with a new PR. The most adrenaline a stationary bike can give you. | **Coming soon** |
+
+**To add a game:** download its ZIP from the game's page, then in the hub open **Ride → Add a module**, drop in the ZIP, review what it can read and control, and install. Games need hub 1.12.3 or later. The hub only runs games signed by the publisher and unchanged since signing ([how modules are checked](SECURITY.md#modules)).
 
 <p align="center"><img src="docs/screens/calendar.jpg" width="880" alt="The training calendar: three months per row, sport icons on each day, checks for completed sessions and phase colors"></p>
 
@@ -184,30 +197,10 @@ The Hub works without any game installed. Free scenery remains in the Ride menu.
 The Hub includes the non-threaded Godot 4.7.1 browser runtime, under the MIT license. No Godot editor installation is needed to play a module.
 
 
-### Ride World games
-
-The Hub is free and works without game modules. Each game is its own download on the
-[releases page](https://github.com/JHarp199345/S-Bike-Training-Hub/releases): pick the
-ones you want; you don't need the others. Every game needs the Hub to run.
-
-| Download | What it is | Needs |
-|---|---|---|
-| [S-Bike Training Hub](https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/app-v1.12.3) | The hub: bike bridge, training, ride modes | — |
-| [Monster Chase 0.1.17](https://github.com/JHarp199345/S-Bike-Training-Hub/releases/tag/monster-chase-v0.1.17) | Free single-player chase through a haunted forest | Hub 1.12.3 or later |
-
-Monster Chase is also on [itch.io](https://jharp199345.itch.io/monster-chase) with optional donations.
-
-In the Ride menu, drop the game ZIP into **Add a module**, review its access, and
-install it. Games don't need a license key or payment. A game is not a standalone app.
-Use Hub 1.12.3 or later: earlier hubs can't start games in current Chrome.
-
-Signatures and file fingerprints are checked before modules run. Customer records,
-keys and private design notes are never included in Hub releases.
-
 ### Support development
 
 If the Hub or games have been useful, you can [buy me a coffee on Ko-fi](https://ko-fi.com/jharp199345). Support is optional. The Hub’s quiet help badge offers one invitation after three rides with a new module, once the ride ends; dismiss it or choose **Don’t ask again**. Counts stay in your browser. Help and feedback remain available from the badge, with an explicit preview before opening a public GitHub issue.
 
-- [Monster Chase on itch.io](https://jharp199345.itch.io/monster-chase)
+- [Monster Chase](https://github.com/JHarp199345/Monster-Chase) (also on [itch.io](https://jharp199345.itch.io/monster-chase))
 - [Our Strava club](https://www.strava.com/clubs/2379636)
 - [Ko-fi](https://ko-fi.com/jharp199345)
